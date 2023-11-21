@@ -1,0 +1,30 @@
+import numeral from 'numeral'
+import { InternalServerError } from "routing-controllers";
+import Logger from './logger';
+
+const logger = new Logger('utils');
+
+export function getEnvOrThrow(key: string) {
+  const value = process.env[key];
+  if (typeof value === 'undefined') {
+    logger.error('missing env', { key })
+    throw new InternalServerError('Something went wrong on our end')
+  }
+
+  return value;
+}
+
+export function escapeRegExp(str: string) {
+  return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, '\\$1')
+}
+
+export function getPercentageDiff(previousValue = 0, currentValue = 0) {
+  if (currentValue === previousValue) {
+    return { value: currentValue, percentageDiff: 0 };
+  }
+
+  const diff = numeral(currentValue).subtract(previousValue).value()!;
+  const percentageDiff = numeral(diff).divide(previousValue).multiply(100).value()!;
+
+  return { value: currentValue, percentageDiff: Number(percentageDiff.toFixed(2)) };
+}

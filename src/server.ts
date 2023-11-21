@@ -1,0 +1,36 @@
+import 'module-alias/register';
+import 'reflect-metadata';
+import 'dotenv/config';
+import app from './app';
+import { Server } from 'http';
+import Logger from './common/utils/logger';
+import { cdb } from './common/mongoose';
+
+const logger = new Logger('main');
+let server: Server
+
+async function bootstrap() {
+  const port = process.env.PORT || 3000;
+  server = app.listen(port, () => {
+    logger.log(`Server started ⚡`, { port, pid: process.pid })
+  });
+}
+
+bootstrap()
+
+function gracefulShutdown(signal: string) {
+  logger.log('gracefully shutting down', { signal });
+  server.close(async () => {
+    try {
+      // garbage collection; close all existing processes here
+      await cdb.close(false)
+      process.exit(0);
+    } catch (error: any) {
+      logger.error('error shutting down', { message: error?.message });
+      process.exit(1);
+    }
+  })
+}
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
