@@ -6,6 +6,7 @@ import { Service } from 'typedi';
 import { OwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { S3Service } from '@/common/aws/s3.service';
 import { getEnvOrThrow } from '@/common/utils';
+import { organizationQueue } from '@/queues';
 
 @Service()
 export class OrganizationsService {
@@ -185,16 +186,15 @@ export class OrganizationsService {
       await organization.updateOne({ status: KycStatus.COMPLETED })
       await User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.COMPLETED })
 
-      // const { organzationEventsQueueUrl } = generalConfig.aws;
-      // const sqsPayload = {
-      //   ...organization,
-      //   businessEmail: {
-      //     general: organization.email
-      //   }
-      // }
-
-      // TODO: create customer on archor using Anchor client
-      // await this.sqsClient.sendMessage({ data: sqsPayload, eventType: 'customer.created' }, organzationEventsQueueUrl);
+      await organizationQueue.add({
+        eventType: 'customer.created',
+        data: {
+          ...organization.toObject(),
+          businessEmail: {
+            general: organization.email
+          }
+        }
+      })
 
       return { ...organization.toObject(), status: KycStatus.COMPLETED };
     }

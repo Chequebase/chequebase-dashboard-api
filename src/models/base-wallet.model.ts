@@ -1,7 +1,8 @@
 import { cdb } from '@/common/mongoose';
-import { Schema } from 'mongoose';
+import { ObjectId, Schema } from 'mongoose';
 
 export interface IBaseWallet {
+  _id: ObjectId
   currency: string
   active: boolean
   createdAt: Date;

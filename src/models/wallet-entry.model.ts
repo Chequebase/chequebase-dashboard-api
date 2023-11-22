@@ -17,6 +17,7 @@ export enum WalletEntryScope {
 }
 
 export interface IWalletEntry {
+  _id: ObjectId
   organization: ObjectId
   wallet: ObjectId
   currency: string

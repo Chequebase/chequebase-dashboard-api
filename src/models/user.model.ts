@@ -19,6 +19,7 @@ export enum UserStatus {
 }
 
 export interface IUser {
+  _id: ObjectId
   email: string;
   emailVerified: boolean;
   password: string;

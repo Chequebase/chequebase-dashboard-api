@@ -2,6 +2,7 @@ import { cdb } from '@/common/mongoose';
 import { ObjectId, Schema } from 'mongoose';
 
 export interface IWallet {
+  _id: ObjectId
   organization: ObjectId
   baseWallet: ObjectId
   currency: string

@@ -5,6 +5,7 @@ import app from './app';
 import { Server } from 'http';
 import Logger from './common/utils/logger';
 import { cdb } from './common/mongoose';
+import worker from './queues/worker'
 
 const logger = new Logger('main');
 let server: Server
@@ -17,6 +18,7 @@ async function bootstrap() {
 }
 
 bootstrap()
+worker.process()
 
 function gracefulShutdown(signal: string) {
   logger.log('gracefully shutting down', { signal });

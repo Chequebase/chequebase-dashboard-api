@@ -21,6 +21,7 @@ export interface Shareholder {
 }
 
 export interface IOrganization {
+  _id: ObjectId
   admin: ObjectId
   averageMonthlyExpenses: string
   bnNumber: string
@@ -30,12 +31,13 @@ export interface IOrganization {
   city: string
   country: string
   address: string
+  email: string,
   status: string
   numberOfEmployees: string
   documents: {[key: string]: string}
   phone: string
   postalCode: string
-  registrationDate: string
+  regDate: string
   state: string
   directors: Shareholder[]
   owners: Shareholder[]
@@ -71,13 +73,14 @@ const organizationSchma = new Schema<IOrganization>(
     businessType: String,
     city: String,
     country: String,
+    email: String,
     address: String,
     status: String,
     numberOfEmployees: String,
     documents: Object,
     phone: String,
     postalCode: String,
-    registrationDate: String,
+    regDate: String,
     state: String,
     directors: [shareholderSchema],
     owners: [shareholderSchema],
