@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@master
 
       - name: "Build app"
-        run: /
+        run: |
           npm install
           npm run build
         
