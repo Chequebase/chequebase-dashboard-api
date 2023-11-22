@@ -1,9 +1,10 @@
 import { VirtualAccountClientName } from "@/modules/virtual-account/providers/virtual-account.client";
-import { IsEnum, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsEnum, IsHexadecimal, IsNumber, IsOptional, IsString, Length, Min } from "class-validator";
 
 export class CreateWalletDto {
   @IsString()
-  baseWalletId: string
+  @IsHexadecimal()
+  baseWallet: string
 
   @IsString()
   @IsEnum(VirtualAccountClientName)
@@ -11,6 +12,7 @@ export class CreateWalletDto {
   provider = VirtualAccountClientName.Anchor
 
   @IsString()
+  @IsHexadecimal()
   organization: string
 }
 

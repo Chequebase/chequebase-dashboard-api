@@ -1,4 +1,6 @@
 import { BadRequestError, NotFoundError } from "routing-controllers";
+import { Service } from "typedi";
+import * as fastCsv from 'fast-csv';
 import { ObjectId } from 'mongodb'
 import { createId } from '@paralleldrive/cuid2'
 import Organization from "@/models/organization.model";
@@ -9,6 +11,7 @@ import VirtualAccount from "@/models/virtual-account.model";
 import WalletEntry from "@/models/wallet-entry.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 
+@Service()
 export default class WalletService {
   constructor (private virtualAccountService: VirtualAccountService) { }
   
@@ -18,7 +21,11 @@ export default class WalletService {
       throw new NotFoundError('Organization not found')
     }
 
-    const baseWallet = await BaseWallet.findById(data.baseWalletId)
+    if (organization.status !== 'completed') {
+      throw new BadRequestError('Organization is not verified')
+    }
+
+    const baseWallet = await BaseWallet.findById(data.baseWallet)
     if (!baseWallet) {
       throw new NotFoundError('Base wallet not found')
     }
@@ -43,7 +50,7 @@ export default class WalletService {
       currency: baseWallet.currency,
       identity: {
         type: 'bvn',
-        number: organization.owners[0].bvn!,
+        number: organization.owners[0]?.bvn ?? organization.directors[0].bvn,
       }
     })
 
@@ -116,12 +123,30 @@ export default class WalletService {
       populate: {
         path: 'budget', select: 'name'
       },
+      sort: '-createdAt',
       page: Number(data.page),
       limit: 10,
       lean: true
     })
 
     return history
+  }
+
+  async getWalletStatement(orgId: string) {
+    const cursor = WalletEntry.find({ organization: orgId })
+      .populate({ path: 'budget', select: 'name' })
+      .select('status balanceBefore balanceAfter currency type reference amount scope budget createdAt')
+      .lean()
+      .cursor()
+
+    const stream = fastCsv.format({ headers: true }).transform((entry: any) => ({
+      ...entry,
+      budget: entry.budget?.name
+    }));
+
+    cursor.pipe(stream);
+    
+    return { stream, filename: 'statements.csv' }
   }
 
   async getWalletEntry(orgId: string, entryId: string) {

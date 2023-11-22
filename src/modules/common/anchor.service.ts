@@ -11,9 +11,9 @@ export class AnchorService {
 
   constructor () {
     this.http = axios.create({
-      baseURL:  getEnvOrThrow('ANCHOR_BASE_URI'),
+      baseURL: getEnvOrThrow('ANCHOR_BASE_URI'),
       headers: {
-        Authorization: `Bearer ${getEnvOrThrow('ANCHOR_API_KEY')}`
+        'x-anchor-key': getEnvOrThrow('ANCHOR_API_KEY')
       }
     })
   }

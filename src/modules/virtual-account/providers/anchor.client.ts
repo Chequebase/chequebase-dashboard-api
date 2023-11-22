@@ -14,12 +14,12 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
   http = axios.create({
     baseURL: getEnvOrThrow('ANCHOR_BASE_URI'),
     headers: {
-      Authorization: `Bearer ${getEnvOrThrow('ANCHOR_API_KEY')}`
+      'x-anchor-key': getEnvOrThrow('ANCHOR_API_KEY')
     }
   })
 
   async createVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult> {
-    const body = {
+    const data = {
       type: 'VirtualNuban',
       attributes: {
         provider: 'providus',
@@ -43,7 +43,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     }
 
     try {
-      const res = await this.http.post('/api/v1/virtual-nubans', body)
+      const res = await this.http.post('/api/v1/virtual-nubans', { data })
       const details = res.data.data.attributes
 
       return {
@@ -59,7 +59,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
         payload: JSON.stringify(payload)
       });
 
-      throw new ServiceUnavailableError('Unable to initiate payment');
+      throw new ServiceUnavailableError('Unable to create virtual account');
     }
   }
 }
