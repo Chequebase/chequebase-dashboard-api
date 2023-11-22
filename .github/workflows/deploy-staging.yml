@@ -24,9 +24,9 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          existing_bucket_name: ${{ secrets.AWS_EXISTING_BUCKET }}
-          application_name: chequebase-dashboard-api
-          environment_name: Chequebase-dashboard-api-staging
+          existing_bucket_name: chequebase-elb-app-deployment
+          application_name: chequebase-merchant-dashboard-api
+          environment_name: staging-api
           version_label: staging-${{ github.run_id }}
           region: eu-central-1
           deployment_package: deploy.zip
