@@ -1,4 +1,4 @@
-import Logger from '@/common/utils/logger';
+import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
 import path from 'path';
 import { organizationQueue, paymentInflowQueue, paymentOutflowQueue } from '.';

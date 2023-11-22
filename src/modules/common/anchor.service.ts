@@ -24,11 +24,11 @@ export class AnchorService {
       return res.data
     } catch (err: any) {
       this.logger.error('error creating customer', {
-        reason: err?.response?.data?.message || err?.message,
+        reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload)
       });
       
-      throw new ServiceUnavailableError('Unable to initiate payment');
+      throw new ServiceUnavailableError('Unable to create customer');
     }
   }
 }

@@ -1,14 +1,14 @@
 import { Service } from "typedi";
 import jwt from 'jsonwebtoken'
 import bcrypt, { compare } from 'bcryptjs';
-import EmailService from "@/common/email.service";
-import { escapeRegExp, getEnvOrThrow } from "@/common/utils";
+import EmailService from "@/modules/common/email.service";
+import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import { BadRequestError, UnauthorizedError } from "routing-controllers";
 import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto } from "./dto/user.dto";
 import dayjs from 'dayjs'
-import { AuthUser } from "@/common/interfaces/auth-user";
+import { AuthUser } from "@/modules/common/interfaces/auth-user";
 
 @Service()
 export class UserService {
@@ -318,17 +318,12 @@ export class UserService {
     })
   }
 
-  async getTokens(userId: string, email: string, organizationId: string) {
+  async getTokens(userId: string, email: string, orgId: string) {
     const accessSecret = getEnvOrThrow('ACCESS_TOKEN_SECRET')
     const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
     const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
     const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
-    const payload: AuthUser = {
-      sub: userId,
-      email,
-      userId,
-      organizationId
-    }
+    const payload: AuthUser = { sub: userId, email, userId, orgId }
     
     return {
       access_token: jwt.sign(payload, accessSecret, { expiresIn: accessExpiresIn }),

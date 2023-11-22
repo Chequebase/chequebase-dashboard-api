@@ -1,5 +1,6 @@
-import { cdb } from '@/common/mongoose';
-import { ObjectId, Schema } from 'mongoose';
+import { cdb } from '@/modules/common/mongoose';
+import { Schema } from 'mongoose';
+import { ObjectId } from 'mongodb'
 
 export interface IBaseWallet {
   _id: ObjectId
