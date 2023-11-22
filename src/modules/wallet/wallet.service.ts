@@ -141,7 +141,7 @@ export default class WalletService {
 
     const stream = fastCsv.format({ headers: true }).transform((entry: any) => ({
       ...entry,
-      budget: entry.budget?.name
+      budget: entry.budget?.name || 'N/A'
     }));
 
     cursor.pipe(stream);
