@@ -8,7 +8,7 @@ import { getEnvOrThrow } from '@/common/utils';
 
 @Service()
 @Controller('/auth', { transformResponse: false })
-export class UserController {
+export default class UserController {
   constructor (private userService: UserService) { }
 
   @Post('/register')

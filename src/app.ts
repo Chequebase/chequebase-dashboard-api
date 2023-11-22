@@ -7,8 +7,10 @@ import Container from "typedi";
 import apiRequestLogger from "./common/middlewares/api-request-logger";
 import { ExceptionFilter } from "./common/middlewares/exception-filter.middleware";
 import { CurrentUser, RBAC } from "./common/middlewares/rbac.middleware";
-import { UserController } from "./modules/user/user.controller";
-import { OrganizationsController } from "./modules/organization/organization.controller";
+import UserController  from "./modules/user/user.controller";
+import OrganizationsController from "./modules/organization/organization.controller";
+import WalletController from "./modules/wallet/wallet.controller";
+import WebhookController from "./modules/webhook/webhook.controller";
 
 const app = express();
 app.use(hpp());
@@ -27,7 +29,12 @@ useContainer(Container);
 
 useExpressServer(app, {
   routePrefix: "/v1",
-  controllers: [UserController, OrganizationsController],
+  controllers: [
+    UserController,
+    OrganizationsController,
+    WalletController,
+    WebhookController
+  ],
   middlewares: [ExceptionFilter],
   interceptors: [],
   defaultErrorHandler: false,

@@ -11,7 +11,7 @@ import { Request } from 'express';
 
 @Service()
 @Controller('/organizations', { transformResponse: false })
-export class OrganizationsController {
+export default class OrganizationsController {
   constructor (private readonly organizationsService: OrganizationsService) { }
 
   @Authorized(Role.Owner)
