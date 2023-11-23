@@ -1,4 +1,5 @@
 import { validationMetadatasToSchemas } from 'class-validator-jsonschema'
+import basicAuth from 'express-basic-auth'
 import express, { Request, Response } from "express";
 import { RoutingControllersOptions, getMetadataArgsStorage, useContainer, useExpressServer } from "routing-controllers";
 import helmet from "helmet";
@@ -14,7 +15,7 @@ import UserController  from "./modules/user/user.controller";
 import OrganizationsController from "./modules/organization/organization.controller";
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
-import basicAuth from 'express-basic-auth'
+import PlansController from "./modules/plan/plan.controller";
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
@@ -39,6 +40,7 @@ const rcOptions: RoutingControllersOptions = {
     UserController,
     OrganizationsController,
     WalletController,
+    PlansController,
     WebhookController
   ],
   middlewares: [ExceptionFilter],
