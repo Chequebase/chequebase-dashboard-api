@@ -1,5 +1,8 @@
-import { cdb } from '@/common/mongoose';
-import { ObjectId, Schema, model } from 'mongoose';
+import { cdb } from '@/modules/common/mongoose';
+import mongoose, { Schema } from 'mongoose';
+import { ObjectId } from 'mongodb'
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum WalletEntryType {
   Credit = 'credit',
@@ -16,9 +19,14 @@ export enum WalletEntryScope {
   WalletFunding = 'wallet_funding'
 }
 
+interface WalletEntryModel extends
+  mongoose.PaginateModel<IWalletEntry>,
+  mongoose.AggregatePaginateModel<IWalletEntry> { }
+
 export interface IWalletEntry {
   _id: ObjectId
   organization: ObjectId
+  budget?: ObjectId
   wallet: ObjectId
   currency: string
   type: WalletEntryType
@@ -41,6 +49,10 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       type: Schema.Types.ObjectId,
       required: true,
       ref: 'Organization'
+    },
+    budget: {
+      type: Schema.Types.ObjectId,
+      ref: 'Budget'
     },
     wallet: {
       type: Schema.Types.ObjectId,
@@ -69,6 +81,9 @@ const walletEntrySchema = new Schema<IWalletEntry>(
   { timestamps: true },
 );
 
-const WalletEntry = cdb.model<IWalletEntry>('WalletEntry', walletEntrySchema);
+walletEntrySchema.plugin(aggregatePaginate);
+walletEntrySchema.plugin(mongoosePaginate);
+
+const WalletEntry = cdb.model<IWalletEntry, WalletEntryModel>('WalletEntry', walletEntrySchema);
 
 export default WalletEntry 
