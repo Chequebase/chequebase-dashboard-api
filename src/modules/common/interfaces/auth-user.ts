@@ -1,5 +1,5 @@
 export type AuthUser = {
-  organizationId: string;
+  orgId: string;
   userId: string;
   email: string;
   sub: string

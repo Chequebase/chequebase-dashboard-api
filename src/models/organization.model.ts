@@ -1,5 +1,6 @@
-import { cdb } from '@/common/mongoose';
-import { ObjectId, Schema } from 'mongoose';
+import { cdb } from '@/modules/common/mongoose';
+import { Schema } from 'mongoose';
+import { ObjectId } from 'mongodb'
 
 export interface Shareholder {
   id: string
@@ -41,6 +42,7 @@ export interface IOrganization {
   state: string
   directors: Shareholder[]
   owners: Shareholder[]
+  plan: ObjectId
   createdAt: Date;
   updatedAt: Date;
 }
@@ -84,6 +86,7 @@ const organizationSchma = new Schema<IOrganization>(
     state: String,
     directors: [shareholderSchema],
     owners: [shareholderSchema],
+    plan: { type: Schema.Types.ObjectId, required: false },
   },
   { timestamps: true },
 );

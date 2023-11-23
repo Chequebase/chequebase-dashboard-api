@@ -3,7 +3,7 @@ import { Post, Authorized, Body, Controller, Get, Param, Patch, UploadedFiles, U
 import { OwnerDto, UpdateBusinessDocumentationDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { OrganizationsService } from './organization.service';
 import { Role } from '../user/dto/user.dto';
-import { Countries } from '@/common/utils/countries';
+import { Countries } from '@/modules/common/utils/countries';
 import Organization from '@/models/organization.model';
 import { Service } from 'typedi';
 import multer from 'multer';

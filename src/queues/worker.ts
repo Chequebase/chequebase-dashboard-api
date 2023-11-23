@@ -1,18 +1,19 @@
-import Logger from '@/common/utils/logger';
+import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import path from 'path';
-import { organizationQueue, paymentInflowQueue, paymentOutflowQueue } from '.';
+import { organizationQueue, walletInflowQueue, walletOutflowQueue } from '.';
 import processOrganizationEventHandler from './jobs/organization';
+import processWalletInflow from './jobs/wallet/wallet-inflow';
 
 const logger = new Logger('worker:main')
 const __DEV__ = process.env.NODE_ENV === "development";
 const ext = __DEV__ ? ".ts" : ".js";
 
-setupEventLogger([paymentInflowQueue, paymentOutflowQueue])
+setupEventLogger([walletInflowQueue, walletOutflowQueue])
 
 function setupQueues() {
   try {
     organizationQueue.process(processOrganizationEventHandler)
+    walletInflowQueue.process('processPayment', 5, processWalletInflow)
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message
@@ -53,8 +54,8 @@ function setupEventLogger(queues: IQueue[]) {
 }
 
 async function close() {
-  await paymentInflowQueue.close()
-  await paymentOutflowQueue.close()
+  await walletInflowQueue.close()
+  await walletOutflowQueue.close()
   await organizationQueue.close()
 }
 

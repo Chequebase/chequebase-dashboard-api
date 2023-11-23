@@ -1,10 +1,10 @@
 import { Authorized, BadRequestError, Body, BodyParam, Controller, CurrentUser, Get, HeaderParam, Post, QueryParams } from 'routing-controllers';
 import { ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, RegisterDto, ResendEmailDto, ResendOtpDto, VerifyEmailDto } from './dto/user.dto';
 import { UserService } from './user.service';
-import { AuthUser } from '@/common/interfaces/auth-user';
+import { AuthUser } from '@/modules/common/interfaces/auth-user';
 import { Service } from 'typedi';
-import { verifyToken } from '@/common/middlewares/rbac.middleware';
-import { getEnvOrThrow } from '@/common/utils';
+import { verifyToken } from '@/modules/common/middlewares/rbac.middleware';
+import { getEnvOrThrow } from '@/modules/common/utils';
 
 @Service()
 @Controller('/auth', { transformResponse: false })

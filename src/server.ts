@@ -3,8 +3,8 @@ import 'reflect-metadata';
 import 'dotenv/config';
 import app from './app';
 import { Server } from 'http';
-import Logger from './common/utils/logger';
-import { cdb } from './common/mongoose';
+import Logger from './modules/common/utils/logger';
+import { cdb } from './modules/common/mongoose';
 import worker from './queues/worker'
 
 const logger = new Logger('main');

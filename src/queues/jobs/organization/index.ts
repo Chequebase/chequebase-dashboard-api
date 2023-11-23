@@ -1,5 +1,5 @@
-import { AnchorService } from "@/common/anchor.service";
-import Logger from "@/common/utils/logger";
+import { AnchorService } from "@/modules/common/anchor.service";
+import Logger from "@/modules/common/utils/logger";
 import { IOrganization } from "@/models/organization.model";
 import { Job } from "bull";
 import Container from "typedi";
