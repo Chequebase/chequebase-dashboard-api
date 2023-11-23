@@ -29,18 +29,10 @@ export default class AnchorWebhookHandler {
 
   async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
-    // const jobData: WalletInflowData = {
-    //   amount: payment.amount,
-    //   accountNumber: payment.virtualNuban.accountNumber,
-    //   currency: payment.currency,
-    //   gatewayResponse: JSON.stringify(body),
-    //   narration: payment.narration,
-    //   reference: payment.paymentReference,
-    // }
     const jobData: WalletInflowData = {
-      amount: 10_000,
-      accountNumber: '7737997912',
-      currency: 'NGN',
+      amount: payment.amount,
+      accountNumber: payment.virtualNuban.accountNumber,
+      currency: payment.currency,
       gatewayResponse: JSON.stringify(body),
       narration: payment.narration,
       reference: payment.paymentReference,
