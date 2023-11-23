@@ -41,6 +41,7 @@ export interface IOrganization {
   state: string
   directors: Shareholder[]
   owners: Shareholder[]
+  plan: ObjectId
   createdAt: Date;
   updatedAt: Date;
 }
@@ -84,6 +85,7 @@ const organizationSchma = new Schema<IOrganization>(
     state: String,
     directors: [shareholderSchema],
     owners: [shareholderSchema],
+    plan: { type: Schema.Types.ObjectId, required: false },
   },
   { timestamps: true },
 );

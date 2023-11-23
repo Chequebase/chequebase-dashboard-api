@@ -11,6 +11,7 @@ import UserController  from "./modules/user/user.controller";
 import OrganizationsController from "./modules/organization/organization.controller";
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
+import PlansController from "./modules/plan/plan.controller";
 
 const app = express();
 app.use(hpp());
@@ -33,6 +34,7 @@ useExpressServer(app, {
     UserController,
     OrganizationsController,
     WalletController,
+    PlansController,
     WebhookController
   ],
   middlewares: [ExceptionFilter],
