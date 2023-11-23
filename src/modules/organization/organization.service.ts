@@ -4,8 +4,8 @@ import { ForbiddenError, NotFoundError } from 'routing-controllers';
 import { v4 as uuid } from 'uuid'
 import { Service } from 'typedi';
 import { OwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
-import { S3Service } from '@/common/aws/s3.service';
-import { getEnvOrThrow } from '@/common/utils';
+import { S3Service } from '@/modules/common/aws/s3.service';
+import { getEnvOrThrow } from '@/modules/common/utils';
 import { organizationQueue } from '@/queues';
 
 @Service()

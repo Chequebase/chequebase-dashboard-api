@@ -1,16 +1,22 @@
+import { validationMetadatasToSchemas } from 'class-validator-jsonschema'
 import express, { Request, Response } from "express";
-import { useContainer, useExpressServer } from "routing-controllers";
+import { RoutingControllersOptions, getMetadataArgsStorage, useContainer, useExpressServer } from "routing-controllers";
 import helmet from "helmet";
+import { routingControllersToSpec } from 'routing-controllers-openapi'
+import * as swaggerUiExpress from 'swagger-ui-express'
 import hpp from "hpp";
 import cors from "cors";
 import Container from "typedi";
-import apiRequestLogger from "./common/middlewares/api-request-logger";
-import { ExceptionFilter } from "./common/middlewares/exception-filter.middleware";
-import { CurrentUser, RBAC } from "./common/middlewares/rbac.middleware";
+import apiRequestLogger from "./modules/common/middlewares/api-request-logger";
+import { ExceptionFilter } from "./modules/common/middlewares/exception-filter.middleware";
+import { CurrentUser, RBAC } from "./modules/common/middlewares/rbac.middleware";
 import UserController  from "./modules/user/user.controller";
 import OrganizationsController from "./modules/organization/organization.controller";
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
+import basicAuth from 'express-basic-auth'
+
+const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
 const app = express();
 app.use(hpp());
@@ -27,7 +33,7 @@ app.get("/health", (_: Request, res: Response) => {
 
 useContainer(Container);
 
-useExpressServer(app, {
+const rcOptions: RoutingControllersOptions = {
   routePrefix: "/v1",
   controllers: [
     UserController,
@@ -40,6 +46,27 @@ useExpressServer(app, {
   defaultErrorHandler: false,
   currentUserChecker: CurrentUser,
   authorizationChecker: RBAC,
-});
+}
+
+useExpressServer(app, rcOptions);
+
+const schemas: any = validationMetadatasToSchemas({
+  classTransformerMetadataStorage: defaultMetadataStorage,
+  refPointerPrefix: '#/components/schemas/',
+})
+
+const storage = getMetadataArgsStorage()
+const spec = routingControllersToSpec(storage, rcOptions, {
+  components: { schemas },
+})
+
+app.use('/docs',
+  basicAuth({
+    challenge: true,
+    users: { chequebase: 'chequebase' }
+  }),
+  swaggerUiExpress.serve,
+  swaggerUiExpress.setup(spec)
+)
 
 export default app;

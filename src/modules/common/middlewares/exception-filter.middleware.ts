@@ -22,23 +22,13 @@ export class ExceptionFilter implements ExpressErrorMiddlewareInterface {
       return response.status(error.httpCode).json({ message: error.message })
     }
 
+    logger.error(error.message, { path: request.originalUrl, stack: error.stack })
+
     if (error instanceof MulterError) {
-      console.log({
-        cause: error.cause,
-        code: error.code,
-        error: error.field,
-        field: error.field
+      return response.status(400).json({
+        message: 'file could not be processed'
       })
     }
-
-    console.log({
-      cause: error.cause,
-      code: error.code,
-      error: error.field,
-      field: error.field
-    })
-    
-    logger.error(error.message, { path: request.originalUrl, stack: error.stack })
 
     let message = 'Request could not be processed. Please try again later!';
     if (process.env.NODE_ENV && process.env.NODE_ENV !== 'production') {
