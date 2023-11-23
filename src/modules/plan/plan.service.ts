@@ -9,7 +9,9 @@ export class PlansService {
 
   async createPlans(payload: PlanDto) {
     const plan = await Plan.create({
-      name: payload.name
+      name: payload.name,
+      amount: payload.amount,
+      description: payload.description
     })
     return plan
   }
