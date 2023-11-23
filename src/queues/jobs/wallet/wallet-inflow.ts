@@ -5,6 +5,7 @@ import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } fro
 import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "@/modules/common/utils/logger";
 import { BadRequestError } from "routing-controllers";
+import { cdb } from "@/modules/common/mongoose";
 
 export interface WalletInflowData {
   amount: number
@@ -35,25 +36,32 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
     }
 
     const wallet = virtualAccount.wallet
-    const entry = await WalletEntry.create({
-      organization: virtualAccount.organization,
-      wallet: wallet._id,
-      currency,
-      reference,
-      gatewayResponse,
-      paymentMethod: 'transfer',
-      scope: WalletEntryScope.WalletFunding,
-      narration,
-      status: WalletEntryStatus.Successful,
-      type: WalletEntryType.Credit,
-      provider: virtualAccount.provider,
-      balanceAfter: numeral(wallet.balance).add(amount).value(),
-      balanceBefore: wallet.balance,
-    })
 
-    await Wallet.updateOne({ _id: virtualAccount.wallet }, {
-      $set: { walletEntry: entry._id },
-      $inc: { balance: Number(amount) }
+    await cdb.transaction(async (session) => {
+      const [entry] = await WalletEntry.create([{
+        organization: virtualAccount.organization,
+        wallet: wallet._id,
+        currency,
+        reference,
+        gatewayResponse,
+        paymentMethod: 'transfer',
+        scope: WalletEntryScope.WalletFunding,
+        narration,
+        status: WalletEntryStatus.Successful,
+        type: WalletEntryType.Credit,
+        provider: virtualAccount.provider,
+        balanceAfter: numeral(wallet.balance).add(amount).value(),
+        balanceBefore: wallet.balance,
+      }], { session })
+
+      await Wallet.updateOne({ _id: virtualAccount.wallet }, {
+        $set: { walletEntry: entry._id },
+        $inc: { balance: Number(amount) }
+      },{ session } )
+    }, {
+      readPreference: 'primary',
+      readConcern: 'local',
+      writeConcern: { w: 'majority' }
     })
 
     return { message: 'wallet topped up' }
