@@ -1,4 +1,4 @@
-import { cdb } from '@/common/mongoose';
+import { cdb } from '@/modules/common/mongoose';
 import { Schema } from 'mongoose';
 
 export interface IPlan {
