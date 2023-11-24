@@ -1,9 +1,9 @@
 import { BadRequestError, NotFoundError } from "routing-controllers"
+import { ObjectId } from 'mongodb'
 import dayjs from "dayjs"
 import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
 import numeral from "numeral"
-import { ObjectId } from "mongodb"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { ResolveAccountDto, InitiateTransferDto } from "./dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty"
@@ -71,9 +71,10 @@ export class BudgetTransferService {
         budget: budget._id,
         currency: budget.currency,
         wallet: wallet._id,
+        amount: amountToDeduct,
         fee: TRANSFER_FEE,
         balanceAfter: numeral(wallet.balance).subtract(amountToDeduct),
-        scope: WalletEntryScope.WalletFunding,
+        scope: WalletEntryScope.BudgetTransfer,
         type: WalletEntryType.Debit,
         narration: 'Budget Transfer',
         paymentMethod: 'transfer',
@@ -97,25 +98,6 @@ export class BudgetTransferService {
     return entry!
   }
 
-  private async reverseWalletDebit(id: ObjectId, amount: number) {
-    await cdb.transaction(async (session) => {
-      const wallet = await Wallet.findOneAndUpdate({ id }, {
-        $inc: { amount }
-      }, { new: true, session })
-
-      await WalletEntry.updateOne({ _id: id }, {
-        $set: {
-          status: 'failed',
-          balanceAfter: wallet?.balance
-        },
-      }, { session })
-    }, {
-      readPreference: 'primary',
-      readConcern: 'local',
-      writeConcern: { w: 'majority' }
-    })
-  }
-
   private async runTransferWindowCheck(payload: any) {
     const { data, budget } = payload
     const oneMinuteAgo = dayjs().subtract(1, 'minute').toDate()
@@ -136,7 +118,7 @@ export class BudgetTransferService {
   }
 
   private async runBeneficairyCheck(payload: any) {
-    const { budget, auth } = payload
+    const { budget, auth, data } = payload
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new BadRequestError('User not found')
@@ -146,12 +128,27 @@ export class BudgetTransferService {
       return true
     }
 
-    const isBeneficiary = budget.beneficiaries.some((b: any) => b.user.equals(auth.userId))
-    if (!isBeneficiary) {
+    const beneficiary = budget.beneficiaries.find((b: any) => b.user.equals(auth.userId))
+    if (!beneficiary) {
       throw new BadRequestError('You do not have the necessary permissions to allocate funds from this budget')
     }
 
-    // TODO: ensure user has not spent >= allocation
+    if (!beneficiary.allocation) return true
+
+   const filter = {
+     budget: new ObjectId(budget._id),
+     initiatedBy: new ObjectId(auth.userId),
+     status: { $ne: WalletEntryStatus.Failed }
+   }
+    
+    const [entries] = await WalletEntry.aggregate()
+      .match(filter)
+      .group({ _id: null, totalSpent: { $sum: '$amount' } })
+
+    const limit = Number(beneficiary.allocation || 0) + Number(data.amount)
+    if (entries.totalSpent >= limit) {
+      throw new BadRequestError("You've exhuasted your allocation limit for this budget")
+    }
   }
 
   private async runSecurityChecks(payload: any) {
@@ -188,20 +185,7 @@ export class BudgetTransferService {
       provider: TransferClientName.Anchor
     })
 
-    // TODO: verify transfer, if successful then entry
-    // TODO: a cron to pick up transfers stuck in pending (1hr)
-
-    // if (transferResponse.status !== 'successful') {
-    //   await this.reverseWalletDebit(budget.wallet, amountToTransfer)
-    //   throw new BadRequestError('Bank failure, could not complete transfer')
-    // }
-
-    // await WalletEntry.updateOne({ _id: entry._id }, {
-    //   $set: {
-    //     status: WalletEntryStatus.Successful,
-    //     balanceAfter: balance,
-    //   }
-    // })
+    // TODO: a cron to pick up transfers stuck in pending for >= 1hr
 
     return transferResponse
   }

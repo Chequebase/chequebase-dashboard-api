@@ -24,14 +24,10 @@ export class TransferService {
         throw new BadRequestError('Currency not supported by provider')
       }
 
-      // TODO: log transfers on the db (TransferLogs)
       const result = await client.initiateTransfer(data)
-      // TODO: update log with result
-
       return result
     } catch (err: any) {
       this.logger.error('error initiating transfer', { payload: JSON.stringify(data), reason: err.message })
-      // TODO: update log with result
 
       return {
         status: 'failed',

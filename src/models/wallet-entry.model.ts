@@ -29,10 +29,12 @@ export interface IWalletEntry {
   organization: ObjectId
   budget?: ObjectId
   wallet: ObjectId
+  initiatedBy: ObjectId
   currency: string
   type: WalletEntryType
   balanceBefore: Number
   balanceAfter: Number
+  amount: number
   fee: number
   scope: WalletEntryScope
   gatewayResponse: string
@@ -58,6 +60,10 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       required: true,
       ref: 'Organization'
     },
+    initiatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Budget'
+    },
     budget: {
       type: Schema.Types.ObjectId,
       ref: 'Budget'
@@ -72,6 +78,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       enum: Object.values(WalletEntryStatus),
       required: true
     },
+    amount: { type: Number, required: true },
     currency: { type: String, required: true },
     balanceAfter: { type: Number, required: true },
     balanceBefore: { type: Number, required: true },

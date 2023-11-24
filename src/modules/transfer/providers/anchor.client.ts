@@ -11,8 +11,8 @@ export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 @Service({ id: ANCHOR_TOKEN })
 export class AnchorTransferClient implements TransferClient {
   currencies = ['NGN']
-  logger = new Logger(AnchorTransferClient.name)
-  http = axios.create({
+  private logger = new Logger(AnchorTransferClient.name)
+  private http = axios.create({
     baseURL: getEnvOrThrow('ANCHOR_BASE_URI'),
     headers: {
       'x-anchor-key': getEnvOrThrow('ANCHOR_API_KEY')
@@ -95,11 +95,13 @@ export class AnchorTransferClient implements TransferClient {
       const res = await this.http.post('/api/v1/transfers', { data })
       const result = res.data.data.attributes
 
+      console.log('initiate transfer %o', res.data.data)
       return {
-        status: result.status.toLower(),
+        status: result.status.toLowerCase(),
+        currency: result.currency,
+        amount: result.amount,
         reference: result.reference,
         message: result.reason,
-        failureMessage: result.failureReason,
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {
@@ -110,6 +112,30 @@ export class AnchorTransferClient implements TransferClient {
       });
 
       throw new ServiceUnavailableError('Unable to process transfer');
+    }
+  }
+
+  async verifyTransferById(id: string): Promise<InitiateTransferResult>  {
+    try {
+      const res = await this.http.get(`/api/v1/transfers/verify/${id}`)
+      const result = res.data.data.attributes
+
+      return {
+        status: result.status.toLowerCase(),
+        reference: result.reference,
+        amount: result.amount,
+        currency: result.currency,
+        message: result.reason,
+        gatewayResponse: JSON.stringify(res.data)
+      }
+    } catch (err: any) {
+      this.logger.error('error verify transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        transferId: id,
+        status: err.response.status
+      });
+
+      throw new ServiceUnavailableError('Unable to verify transfer');
     }
   }
 }

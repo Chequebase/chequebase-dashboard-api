@@ -3,6 +3,7 @@ import { Queue as IQueue } from 'bull';
 import { organizationQueue, walletInflowQueue, walletOutflowQueue } from '.';
 import processOrganizationEventHandler from './jobs/organization';
 import processWalletInflow from './jobs/wallet/wallet-inflow';
+import processWalletOutflow from './jobs/wallet/wallet-outflow';
 
 const logger = new Logger('worker:main')
 const __DEV__ = process.env.NODE_ENV === "development";
@@ -14,6 +15,7 @@ function setupQueues() {
   try {
     organizationQueue.process(processOrganizationEventHandler)
     walletInflowQueue.process('processPayment', 5, processWalletInflow)
+    walletInflowQueue.process('processTransfer', 5, processWalletOutflow)
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message

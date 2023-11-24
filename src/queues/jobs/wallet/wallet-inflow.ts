@@ -50,6 +50,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         currency,
         reference,
         gatewayResponse,
+        amount,
         paymentMethod: job.data.paymentMethod,
         scope: WalletEntryScope.WalletFunding,
         narration,

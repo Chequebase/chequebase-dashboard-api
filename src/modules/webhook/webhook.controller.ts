@@ -1,7 +1,8 @@
-import { Body, Controller, HeaderParams, Post } from "routing-controllers";
+import { Body, Controller, HeaderParams, Post, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import AnchorWebhookHandler from "./handlers/anchor-webhook.handler";
 import { IsString } from "class-validator";
+import { raw } from "express";
 
 class AnchorHeaderDto {
   @IsString()
@@ -14,9 +15,10 @@ export default class WebhookController {
   constructor(private anchorHandler: AnchorWebhookHandler) {}
 
   @Post('/anchor')
-  async processAnchor(@Body() body: Object, @HeaderParams() headers: AnchorHeaderDto) {
+  @UseBefore(raw({ type: "application/json" }))
+  async processAnchor(@Body() body: any, @HeaderParams() headers: AnchorHeaderDto) {
     console.log('received anchor webhook', {
-      body: JSON.stringify(body),
+      body: body.toString('utf-8'),
       headers: JSON.stringify(headers)
     })
 

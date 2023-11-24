@@ -15,8 +15,9 @@ export interface InitiateTransferData {
 export interface InitiateTransferResult {
   status: string
   reference: string
+  amount: number
+  currency: string
   message: string
-  failureMessage: string
   gatewayResponse: string
 }
 
@@ -27,4 +28,5 @@ export enum TransferClientName {
 export abstract class TransferClient {
   abstract currencies: string[]
   abstract initiateTransfer(payload: InitiateTransferData): Promise<InitiateTransferResult>;
+  abstract verifyTransferById(id: string): Promise<InitiateTransferResult>;
 }
