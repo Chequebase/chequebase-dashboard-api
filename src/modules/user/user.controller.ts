@@ -65,9 +65,15 @@ export default class UserController {
     return this.userService.passwordReset(passwordResetDto);
   }
 
-  @Authorized()
   @Post('/logout')
+  @Authorized()
   logout(@CurrentUser() auth: AuthUser) {
     return this.userService.logout(auth.userId);
+  }
+
+  @Get('/profile')
+  // @Authorized()
+  getUserProfile(@CurrentUser() auth: AuthUser) {
+    return this.userService.getProfile('655e84d7ce52fc5cc7b99c9c');
   }
 }
