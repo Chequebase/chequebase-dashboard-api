@@ -188,6 +188,7 @@ export class BudgetTransferService {
       provider: TransferClientName.Anchor
     })
 
+    // TODO: verify transfer, if successful then entry
     // TODO: a cron to pick up transfers stuck in pending (1hr)
 
     // if (transferResponse.status !== 'successful') {
