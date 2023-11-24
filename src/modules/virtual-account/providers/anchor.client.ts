@@ -5,7 +5,7 @@ import { CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountCli
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 
-export const ANCHOR_TOKEN = new Token('va-provider.anchor')
+export const ANCHOR_TOKEN = new Token('va.provider.anchor')
 
 @Service({ id: ANCHOR_TOKEN })
 export class AnchorVirtualAccountClient implements VirtualAccountClient {
@@ -56,7 +56,8 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     } catch (err: any) {
       this.logger.error('error creating virtual account', {
         reason: JSON.stringify(err.response?.data || err?.message),
-        payload: JSON.stringify(payload)
+        payload: JSON.stringify(payload),
+        status: err.response.status
       });
 
       throw new ServiceUnavailableError('Unable to create virtual account');

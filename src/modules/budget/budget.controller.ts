@@ -4,11 +4,16 @@ import BudgetService from "./budget.service";
 import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { Role } from "../user/dto/user.dto";
+import { BudgetTransferService } from "./budget-transfer.service";
+import { ResolveAccountDto } from "./dto/budget-transfer.dto";
 
 @Service()
 @Controller('/budget', { transformResponse: false })
 export default class BudgetController {
-  constructor (private budgetService: BudgetService) { }
+  constructor (
+    private budgetService: BudgetService,
+    private budgetTransferService: BudgetTransferService
+  ) { }
 
   @Post('/')
   @Authorized()
@@ -66,5 +71,17 @@ export default class BudgetController {
     @Body() body: CloseBudgetBodyDto
   ) {
     return this.budgetService.closeBudget(auth, id, body)
+  }
+
+  @Post('/transfer/resolve-account')
+  @Authorized()
+  resolveAccountNumber(@Body() body: ResolveAccountDto) {
+    return this.budgetTransferService.resolveAccountNumber(body)
+  }
+
+  @Get('/transfer/fee')
+  @Authorized()
+  getTransactionFee() {
+    return this.budgetTransferService.getTransactionFee()
   }
 }

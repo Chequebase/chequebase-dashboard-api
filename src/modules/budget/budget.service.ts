@@ -49,7 +49,7 @@ export default class BudgetService {
       name: data.name,
       status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
       amount: data.amount,
-      currency: data.currency,
+      currency: wallet.currency,
       expiry: data.expiry,
       threshold: data.threshold ?? data.amount,
       beneficiaries: data.beneficiaries,
@@ -123,7 +123,7 @@ export default class BudgetService {
     }
 
     if (budget.status !== BudgetStatus.Pending) {
-      throw new NotFoundError('Only pending budgets can be approved')
+      throw new BadRequestError('Only pending budgets can be approved')
     }
 
     const balances = await WalletService.getWalletBalance(budget.wallet)
@@ -153,7 +153,7 @@ export default class BudgetService {
     }
 
     if (budget.status !== BudgetStatus.Active) {
-      throw new NotFoundError('Only active budgets can be paused')
+      throw new BadRequestError('Only active budgets can be paused')
     }
 
     if (budget.paused) {
@@ -172,7 +172,7 @@ export default class BudgetService {
     }
 
     if (budget.status === BudgetStatus.Closed) {
-      throw new NotFoundError('Budget is already closed')
+      throw new BadRequestError('Budget is already closed')
     }
 
     let update: any = {

@@ -16,7 +16,8 @@ export enum WalletEntryStatus {
 }
 
 export enum WalletEntryScope {
-  WalletFunding = 'wallet_funding'
+  WalletFunding = 'wallet_funding',
+  BudgetTransfer = 'budget_transfer'
 }
 
 interface WalletEntryModel extends
@@ -32,6 +33,7 @@ export interface IWalletEntry {
   type: WalletEntryType
   balanceBefore: Number
   balanceAfter: Number
+  fee: number
   scope: WalletEntryScope
   gatewayResponse: string
   paymentMethod: string
@@ -78,6 +80,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       enum: Object.values(WalletEntryScope),
       required: true
     },
+    fee: { type: Number, default: 0 },
     gatewayResponse: String,
     paymentMethod: String,
     provider: { type: String, required: true },
