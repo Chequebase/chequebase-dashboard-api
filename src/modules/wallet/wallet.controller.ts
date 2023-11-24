@@ -1,7 +1,7 @@
 import { Authorized, Body, Controller, CurrentUser, Get, Param, Post, QueryParams, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import WalletService from "./wallet.service";
-import { CreateWalletDto, GetWalletEntriesDto } from "./dto/wallet.dto";
+import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Response } from "express";
@@ -32,9 +32,13 @@ export default class WalletController {
 
   @Get('/statement')
   @Authorized()
-  async getWalletStatement(@Res() res: Response, @CurrentUser() auth: AuthUser) {
+  async getWalletStatement(
+    @Res() res: Response,
+    @CurrentUser() auth: AuthUser,
+    @QueryParams() query: GetWalletStatementDto
+  ) {
     const passthrough = new PassThrough();
-    const { filename, stream } = await this.walletService.getWalletStatement(auth.orgId)
+    const { filename, stream } = await this.walletService.getWalletStatement(auth.orgId, query)
     
     res.setHeader('Content-Type', 'text/csv');
     res.attachment(filename);

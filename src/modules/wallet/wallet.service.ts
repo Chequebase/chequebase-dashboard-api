@@ -1,10 +1,11 @@
+import dayjs from "dayjs";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
 import * as fastCsv from 'fast-csv';
 import { ObjectId } from 'mongodb'
 import { createId } from '@paralleldrive/cuid2'
 import Organization from "@/models/organization.model";
-import { CreateWalletDto, GetWalletEntriesDto } from "./dto/wallet.dto";
+import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
 import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
 import VirtualAccount from "@/models/virtual-account.model";
@@ -176,10 +177,19 @@ export default class WalletService {
     return history
   }
 
-  async getWalletStatement(orgId: string) {
-    const cursor = WalletEntry.find({ organization: orgId })
+  async getWalletStatement(orgId: string, query: GetWalletStatementDto) {
+    const filter: any = {
+      organization: orgId,
+      createdAt: {
+        $gte: dayjs(query.from).startOf('day').toDate(),
+        $lte: dayjs(query.to).endOf('day').toDate()
+      }
+    }
+
+    const cursor = WalletEntry.find(filter)
       .populate({ path: 'budget', select: 'name' })
       .select('status balanceBefore balanceAfter currency type reference amount scope budget createdAt')
+      .sort('-createdAt')
       .lean()
       .cursor()
 

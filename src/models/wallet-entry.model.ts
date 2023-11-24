@@ -39,12 +39,18 @@ export interface IWalletEntry {
   narration: string
   reference: string
   status: WalletEntryStatus
+  meta: { [key: string]: any }
   createdAt: Date;
   updatedAt: Date;
 }
 
 const walletEntrySchema = new Schema<IWalletEntry>(
   {
+    type: {
+      type: String,
+      required: true,
+      enum: Object.values(WalletEntryType)
+    },
     organization: {
       type: Schema.Types.ObjectId,
       required: true,
@@ -76,7 +82,8 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     paymentMethod: String,
     provider: { type: String, required: true },
     narration: String,
-    reference: { type: String, required: true }
+    reference: { type: String, required: true },
+    meta: Object
   },
   { timestamps: true },
 );

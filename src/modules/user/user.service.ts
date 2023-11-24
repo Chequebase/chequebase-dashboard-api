@@ -9,10 +9,23 @@ import { BadRequestError, UnauthorizedError } from "routing-controllers";
 import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto } from "./dto/user.dto";
 import dayjs from 'dayjs'
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
+import Logger from "../common/utils/logger";
+
+const logger = new Logger('user-service')
 
 @Service()
 export class UserService {
   constructor (private emailService: EmailService) { }
+
+  static async verifyTransactionPin(id: string, pin: string) {
+    const user = await User.findById(id).select('pin')
+    if (!user) {
+      logger.error('user not found', { id, func: UserService.verifyTransactionPin.name })
+      throw new BadRequestError('User not found')
+    }
+
+    return bcrypt.compare(pin, user.pin)
+  }
 
   async register(data: RegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");

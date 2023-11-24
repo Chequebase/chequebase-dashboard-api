@@ -1,6 +1,8 @@
 import { cdb } from '@/modules/common/mongoose';
-import { Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum BudgetStatus {
   Active = 'active',
@@ -23,8 +25,14 @@ export interface IBudget {
   amountUsed: number
   currency: BudgetCurrency
   threshold?: number
+  description: string
   createdBy: ObjectId
   approvedBy: ObjectId
+  approvedDate: ObjectId
+  closeReason?: string
+  closedBy?: ObjectId
+  declinedBy?: ObjectId
+  declineReason?: string
   beneficiaries: {
     user: ObjectId,
     allocation: number
@@ -34,8 +42,13 @@ export interface IBudget {
   updatedAt: Date;
 }
 
+interface BudgetModel extends
+  mongoose.PaginateModel<IBudget>,
+  mongoose.AggregatePaginateModel<IBudget> { }
+
 const budgetSchema = new Schema<IBudget>(
   {
+    description: String,
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User'
@@ -44,6 +57,7 @@ const budgetSchema = new Schema<IBudget>(
       type: Schema.Types.ObjectId,
       ref: 'User'
     },
+    approvedDate: Date,
     organization: {
       type: Schema.Types.ObjectId,
       required: true,
@@ -70,6 +84,16 @@ const budgetSchema = new Schema<IBudget>(
     name: { type: String, required: true },
     threshold: Number,
     paused: { type: Boolean, default: false },
+    closeReason: String,
+    closedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    declineReason: String,
+    declinedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
     beneficiaries: {
       _id: false,
       type: [{
@@ -85,6 +109,9 @@ const budgetSchema = new Schema<IBudget>(
   { timestamps: true },
 );
 
-const Budget = cdb.model<IBudget>('Budget', budgetSchema);
+budgetSchema.plugin(aggregatePaginate);
+budgetSchema.plugin(mongoosePaginate);
+
+const Budget = cdb.model<IBudget, BudgetModel>('Budget', budgetSchema);
 
 export default Budget 

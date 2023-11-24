@@ -1,13 +1,16 @@
 import { Service } from "typedi";
+import { ObjectId } from 'mongodb'
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { CreateBudgetDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
 import User from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
 import WalletService from "../wallet/wallet.service";
+import WalletEntry, { WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import { UserService } from "../user/user.service";
 
 const logger = new Logger('budget-service')
 
@@ -17,6 +20,11 @@ export default class BudgetService {
     const user = await User.findById(auth.userId)
     if (!user) {
       throw new NotFoundError('User not found')
+    }
+
+    const valid = await UserService.verifyTransactionPin(user.id, data.pin)
+    if (!valid) {
+      throw new BadRequestError('Invalid pin')
     }
 
     const wallet = await Wallet.findOne({
@@ -30,7 +38,6 @@ export default class BudgetService {
     }
 
     const balances = await WalletService.getWalletBalance(wallet.id)
-    console.log({ balances, amount: data.amount })
     if (balances.availableBalance <= data.amount) {
       throw new BadRequestError('Budget amount must be less than wallet available balance')
     }
@@ -47,16 +54,72 @@ export default class BudgetService {
       threshold: data.threshold ?? data.amount,
       beneficiaries: data.beneficiaries,
       createdBy: auth.userId,
-      ...(isOwner && { approvedBy: auth.userId })
+      description: data.description,
+      ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
     })
 
     return budget
   }
 
-  async approveBudget(auth: AuthUser, budgetId: string) {
-    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+  async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
+    const aggregate = Budget.aggregate()
+      .match({
+        organization: new ObjectId(auth.orgId),
+        status: query.status
+      })
+      .lookup({
+        from: 'users',
+        localField: 'beneficiaries.user',
+        foreignField: '_id',
+        as: 'beneficiaries.user'
+      })
+      .lookup({
+        from: 'walletentries',
+        let: { budget: '$_id' },
+        as: 'entries',
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$$budget', '$budget'] },
+              type: WalletEntryType.Debit,
+              status: WalletEntryStatus.Successful
+            }
+          },
+          { $group: { _id: null, spent: { $sum: '$amount' } } },
+        ]
+      })
+      .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
+      .addFields({ spentAmount: { $ifNull: ['$entries.spent', 0] } })
+      .project({
+        name: 1,
+        amount: 1,
+        spentAmount: 1,
+        availableAmount: { $subtract: ['$amount', '$spentAmount'] },
+        currency: 1,
+        threshold: 1,
+        expiry: 1,
+        description: 1,
+        beneficiaries: { user: { email: 1, firstName: 1, lastName: 1, picture: 1 } },
+      })
+
+    const budgets = await Budget.aggregatePaginate(aggregate, {
+      page: Number(query.page),
+      limit: 20,
+      lean: true
+    })
+
+    return budgets
+  }
+
+  async approveBudget(auth: AuthUser, id: string, data: ApproveBudgetBodyDto) {
+    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
     if (!budget) {
       throw new NotFoundError('Budget not found')
+    }
+
+    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!valid) {
+      throw new BadRequestError('Invalid pin')
     }
 
     if (budget.status !== BudgetStatus.Pending) {
@@ -70,16 +133,23 @@ export default class BudgetService {
 
     await budget.updateOne({
       status: BudgetStatus.Active,
-      approvedBy: auth.userId
+      approvedBy: auth.userId,
+      approvedDate: new Date(),
+      ...data
     })
 
     return budget
   }
 
-  async pauseBudget(auth: AuthUser, budgetId: string) {
+  async pauseBudget(auth: AuthUser, budgetId: string, data: PauseBudgetBodyDto) {
     const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
     if (!budget) {
       throw new NotFoundError('Budget not found')
+    }
+
+    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!valid) {
+      throw new BadRequestError('Invalid pin')
     }
 
     if (budget.status !== BudgetStatus.Active) {
@@ -95,18 +165,105 @@ export default class BudgetService {
     return budget
   }
 
-  async closeBudget(auth: AuthUser, budgetId: string) {
-    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+  async closeBudget(auth: AuthUser, id: string, data: CloseBudgetBodyDto) {
+    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
     if (!budget) {
       throw new NotFoundError('Budget not found')
     }
 
-    if (budget.status !== BudgetStatus.Active) {
-      throw new NotFoundError('Only active budgets can be closed')
+    if (budget.status === BudgetStatus.Closed) {
+      throw new NotFoundError('Budget is already closed')
     }
 
-    await budget.updateOne({ status: BudgetStatus.Closed })
+    let update: any = {
+      closedBy: auth.userId,
+      closeReason: data.reason
+    }
+    if (budget.status === BudgetStatus.Pending) {
+      update = {
+        declinedBy: auth.userId,
+        declineReason: data.reason
+      }
+    }
+
+    await budget.updateOne({
+      status: BudgetStatus.Closed,
+      ...update
+    })
 
     return budget
+  }
+
+  async getBudget(orgId: string, id: string) {
+    const aggregate = await Budget.aggregate()
+      .match({
+        _id: new ObjectId(id),
+        organization: new ObjectId(orgId),
+      })
+      .lookup({
+        from: 'users',
+        localField: 'approvedBy',
+        foreignField: '_id',
+        as: 'approvedBy'
+      })
+      .unwind('$approvedBy')
+      .lookup({
+        from: 'users',
+        localField: 'beneficiaries.user',
+        foreignField: '_id',
+        as: 'beneficiaries.user'
+      })
+      .lookup({
+        from: 'walletentries',
+        let: { budget: '$_id' },
+        as: 'entries',
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$$budget', '$budget'] },
+              type: WalletEntryType.Debit,
+              status: WalletEntryStatus.Successful
+            }
+          },
+          { $group: { _id: null, spent: { $sum: '$amount' } } },
+        ]
+      })
+      .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
+      .addFields({ spentAmount: { $ifNull: ['$entries.spent', 0] } })
+      .project({
+        name: 1,
+        amount: 1,
+        spentAmount: 1,
+        availableAmount: { $subtract: ['$amount', '$spentAmount'] },
+        currency: 1,
+        threshold: 1,
+        expiry: 1,
+        approvedDate: 1,
+        description: 1,
+        approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
+        beneficiaries: { user: { email: 1, firstName: 1, lastName: 1, picture: 1 } },
+      })
+
+    return aggregate
+  }
+
+  async getBudgetWalletEntries(orgId: string, id: string, data: GetBudgetWalletEntriesDto) {
+    const budget = await Budget.exists({ _id: id, organization: orgId })
+    if (!budget) {
+      return []
+    }
+
+    const history = await WalletEntry.paginate({ budget: budget._id }, {
+      select: 'status currency type reference amount scope budget createdAt',
+      populate: {
+        path: 'budget', select: 'name'
+      },
+      sort: '-createdAt',
+      page: Number(data.page),
+      limit: 10,
+      lean: true
+    })
+
+    return history
   }
 }

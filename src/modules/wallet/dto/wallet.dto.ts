@@ -1,5 +1,5 @@
 import { VirtualAccountClientName } from "@/modules/virtual-account/providers/virtual-account.client";
-import { IsEnum, IsHexadecimal, IsNumber, IsOptional, IsString, Length, Min } from "class-validator";
+import { IsDateString, IsEnum, IsHexadecimal, IsNumber, IsOptional, IsString, Length, Min } from "class-validator";
 
 export class CreateWalletDto {
   @IsString()
@@ -32,4 +32,12 @@ export class GetWalletEntriesDto {
   @IsNumber()
   @Min(1)
   page = 1
+}
+
+export class GetWalletStatementDto {
+  @IsDateString()
+  from: string
+
+  @IsDateString()
+  to: string
 }

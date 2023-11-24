@@ -29,6 +29,7 @@ export default class AnchorWebhookHandler {
 
   async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
+
     const jobData: WalletInflowData = {
       amount: payment.amount,
       accountNumber: payment.virtualNuban.accountNumber,
@@ -36,6 +37,12 @@ export default class AnchorWebhookHandler {
       gatewayResponse: JSON.stringify(body),
       narration: payment.narration,
       reference: payment.paymentReference,
+      paymentMethod: payment.type,
+      counterparty: {
+        accountName: payment.counterParty?.accountName,
+        accountNumber: payment.counterParty?.accountName,
+        bankName: payment.counterParty?.bank?.name
+      }
     }
 
     await walletInflowQueue.add('processPayment', jobData)
