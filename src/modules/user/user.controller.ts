@@ -72,8 +72,8 @@ export default class UserController {
   }
 
   @Get('/profile')
-  // @Authorized()
+  @Authorized()
   getUserProfile(@CurrentUser() auth: AuthUser) {
-    return this.userService.getProfile('655e84d7ce52fc5cc7b99c9c');
+    return this.userService.getProfile(auth.userId);
   }
 }
