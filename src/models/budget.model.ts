@@ -23,6 +23,8 @@ export interface IBudget {
   amountUsed: number
   currency: BudgetCurrency
   threshold?: number
+  createdBy: ObjectId
+  approvedBy: ObjectId
   beneficiaries: {
     user: ObjectId,
     allocation: number
@@ -34,6 +36,14 @@ export interface IBudget {
 
 const budgetSchema = new Schema<IBudget>(
   {
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    approvedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
     organization: {
       type: Schema.Types.ObjectId,
       required: true,

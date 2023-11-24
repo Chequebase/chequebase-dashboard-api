@@ -35,18 +35,77 @@ export default class BudgetService {
       throw new BadRequestError('Budget amount must be less than wallet available balance')
     }
 
-    const status = user.role === Role.Owner ? BudgetStatus.Active : BudgetStatus.Pending
+    const isOwner = user.role === Role.Owner
     const budget = await Budget.create({
       organization: auth.orgId,
       wallet: wallet._id,
       name: data.name,
-      status,
+      status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
       amount: data.amount,
       currency: data.currency,
       expiry: data.expiry,
-      threshold: data.threshold,
+      threshold: data.threshold ?? data.amount,
       beneficiaries: data.beneficiaries,
+      createdBy: auth.userId,
+      ...(isOwner && { approvedBy: auth.userId })
     })
+
+    return budget
+  }
+
+  async approveBudget(auth: AuthUser, budgetId: string) {
+    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+    if (!budget) {
+      throw new NotFoundError('Budget not found')
+    }
+
+    if (budget.status !== BudgetStatus.Pending) {
+      throw new NotFoundError('Only pending budgets can be approved')
+    }
+
+    const balances = await WalletService.getWalletBalance(budget.wallet)
+    if (balances.availableBalance <= budget.amount) {
+      throw new BadRequestError('Budget amount must be less than wallet available balance')
+    }
+
+    await budget.updateOne({
+      status: BudgetStatus.Active,
+      approvedBy: auth.userId
+    })
+
+    return budget
+  }
+
+  async pauseBudget(auth: AuthUser, budgetId: string) {
+    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+    if (!budget) {
+      throw new NotFoundError('Budget not found')
+    }
+
+    if (budget.status !== BudgetStatus.Active) {
+      throw new NotFoundError('Only active budgets can be paused')
+    }
+
+    if (budget.paused) {
+      throw new BadRequestError('Budget is already paused')
+    }
+
+    await budget.updateOne({ paused: true })
+
+    return budget
+  }
+
+  async closeBudget(auth: AuthUser, budgetId: string) {
+    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+    if (!budget) {
+      throw new NotFoundError('Budget not found')
+    }
+
+    if (budget.status !== BudgetStatus.Active) {
+      throw new NotFoundError('Only active budgets can be closed')
+    }
+
+    await budget.updateOne({ status: BudgetStatus.Closed })
 
     return budget
   }
