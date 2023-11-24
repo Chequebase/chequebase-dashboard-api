@@ -56,7 +56,7 @@ export class OrganizationsService {
       throw new NotFoundError(`Organization with id ${id} not found`)
     }
 
-    if (!organization.admin) {
+    if (organization.admin) {
       await Promise.all([
         organization.updateOne({ ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED }),
         User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.COPMANY_INFO_SUBMITTED })
