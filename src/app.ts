@@ -16,6 +16,7 @@ import OrganizationsController from "./modules/organization/organization.control
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
 import PlansController from "./modules/plan/plan.controller";
+import BudgetController from './modules/budget/budget.controller';
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
@@ -41,7 +42,8 @@ const rcOptions: RoutingControllersOptions = {
     OrganizationsController,
     WalletController,
     PlansController,
-    WebhookController
+    WebhookController,
+    BudgetController
   ],
   middlewares: [ExceptionFilter],
   interceptors: [],

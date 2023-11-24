@@ -43,7 +43,10 @@ const userSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true },
     emailVerified: { type: Boolean, default: false },
     password: { type: String, select: false },
-    organization: { type: Schema.Types.ObjectId },
+    organization: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization'
+    },
     rememberMe: Number,
     role: String,
     KYBStatus: String,

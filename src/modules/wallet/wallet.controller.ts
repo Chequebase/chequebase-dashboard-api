@@ -1,4 +1,4 @@
-import { Authorized, Body, ContentType, Controller, CurrentUser, Get, Header, Param, Post, QueryParams, Res, UseBefore } from "routing-controllers";
+import { Authorized, Body, Controller, CurrentUser, Get, Param, Post, QueryParams, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import WalletService from "./wallet.service";
 import { CreateWalletDto, GetWalletEntriesDto } from "./dto/wallet.dto";
