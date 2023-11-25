@@ -68,12 +68,15 @@ export default class BudgetService {
       throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
     }
 
-    const balances = await WalletService.getWalletBalances(wallet.id)
-    if (balances.availableBalance <= data.amount) {
-      throw new BadRequestError('Budget amount must be less than wallet available balance')
-    }
-
     const isOwner = user.role === Role.Owner
+    // wallet balance needs to be checked because the budget will be automatically approved
+    if (isOwner) {
+      const balances = await WalletService.getWalletBalances(wallet.id)
+      if (balances.availableBalance <= data.amount) {
+        throw new BadRequestError('Budget amount must be less than wallet available balance')
+      }
+    }
+    
     const budget = await Budget.create({
       organization: auth.orgId,
       wallet: wallet._id,
