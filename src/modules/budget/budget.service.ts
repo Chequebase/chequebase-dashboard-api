@@ -65,7 +65,7 @@ export default class BudgetService {
 
     if (!wallet) {
       logger.error('wallet not found', { currency: data.currency, orgId: auth.orgId })
-      throw new BadRequestError(`Organization does not have a ${data.currency} wallet`)
+      throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
     }
 
     const balances = await WalletService.getWalletBalances(wallet.id)
