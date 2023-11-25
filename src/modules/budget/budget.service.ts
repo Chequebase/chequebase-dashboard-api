@@ -234,7 +234,7 @@ export default class BudgetService {
   }
 
   async getBudget(orgId: string, id: string) {
-    const aggregate = await Budget.aggregate()
+    const [budget] = await Budget.aggregate()
       .match({
         _id: new ObjectId(id),
         organization: new ObjectId(orgId),
@@ -285,7 +285,11 @@ export default class BudgetService {
         beneficiaries: { email: 1, firstName: 1, lastName: 1, picture: 1 },
       })
 
-    return aggregate
+    if (!budget) {
+      throw new NotFoundError("Budget not found")
+    }
+
+    return budget
   }
 
   async getBudgetWalletEntries(orgId: string, id: string, data: GetBudgetWalletEntriesDto) {
