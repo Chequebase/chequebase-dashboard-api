@@ -1,6 +1,6 @@
 import { IsNumberString } from "class-validator";
 
-export class CreateTransactionPinDto {
+export class CreatePinDto {
     @IsNumberString()
     readonly pin: string;
   }

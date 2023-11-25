@@ -1,25 +1,37 @@
-import { CreateTransactionPinDto } from './dto/create-pin.dto';
-import { ChangeTransactionPinDto } from './dto/change-pin.dto';
+import { CreatePinDto } from './dto/create-pin.dto';
+import { ChangePinDto } from './dto/change-pin.dto';
 import { Service } from 'typedi';
+import User from '@/models/user.model';
+import { BadRequestError, ForbiddenError } from 'routing-controllers';
+import bcrypt from 'bcryptjs';
 @Service()
 export class SettingsService {
   constructor(
   ) { }
 
-  async createPin(userId: string, createTransactionPinDto: CreateTransactionPinDto) {
-    // const pinSetAlready = await this.dynamoClient.getItem(authTable, { id: userId, sKey: pinSKey });
-    // if (pinSetAlready) throw new ForbiddenException('Pin has already been set');
-    // const pin = await hash(createTransactionPinDto.pin, 12);
-    // await this.dynamoClient.updateItem(authTable, { id: userId, sKey: pinSKey }, { pin });
-    // await this.dynamoClient.updateItem(authTable, { id: userId, sKey: detailsSkey }, { pinSet: true });
-    // return { message: "Transaction pin created" };
+  async createPin(userId: string, createPinDto: CreatePinDto) {
+    const user = await User.findById(userId).select('pin')
+    if (!user) {
+      throw new BadRequestError('User not found')
+    }
+
+    if (user.pin) {
+      throw new ForbiddenError('Pin has already been set');
+    }
+    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(createPinDto.pin, 12), })
+    return { message: "pin created" };
   }
 
-  async changePin(userId: string, changeTransactionPinDto: ChangeTransactionPinDto) {
-    // const pinSetAlready = await this.dynamoClient.getItem(authTable, { id: userId, sKey: pinSKey });
-    // if (!pinSetAlready) throw new ForbiddenException('Pin does not exist');
-    // const pin = await hash(changeTransactionPinDto.pin, 12);
-    // await this.dynamoClient.updateItem(authTable, { id: userId, sKey: pinSKey }, { pin });
-    // return { message: "Transaction pin changed" };
+  async changePin(userId: string, changePinDto: ChangePinDto) {
+    const user = await User.findById(userId).select('pin')
+    if (!user) {
+      throw new BadRequestError('User not found')
+    }
+
+    if (!user.pin) {
+      throw new ForbiddenError('Pin does not exist');
+    }
+    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(changePinDto.pin, 12), })
+    return { message: "pin changed" };
   }
 }
