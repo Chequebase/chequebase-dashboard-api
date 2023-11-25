@@ -1,4 +1,4 @@
-import { Authorized, BadRequestError, Body, BodyParam, Controller, CurrentUser, Get, HeaderParam, Post, QueryParams } from 'routing-controllers';
+import { Authorized, BadRequestError, Body, CurrentUser, Get, HeaderParam, JsonController, Post, QueryParams } from 'routing-controllers';
 import { ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, RegisterDto, ResendEmailDto, ResendOtpDto, VerifyEmailDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
@@ -7,7 +7,7 @@ import { verifyToken } from '@/modules/common/middlewares/rbac.middleware';
 import { getEnvOrThrow } from '@/modules/common/utils';
 
 @Service()
-@Controller('/auth', { transformResponse: false })
+@JsonController('/auth', { transformResponse: false })
 export default class UserController {
   constructor (private userService: UserService) { }
 

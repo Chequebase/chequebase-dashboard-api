@@ -24,6 +24,12 @@ export class UserService {
       throw new BadRequestError('User not found')
     }
 
+    if (!user.pin) {
+      throw new BadRequestError(
+        "Please set a transaction pin in your account settings to proceed."
+      )
+    }
+    
     return bcrypt.compare(pin, user.pin)
   }
 

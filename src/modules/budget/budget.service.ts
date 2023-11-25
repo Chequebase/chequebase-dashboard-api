@@ -16,6 +16,37 @@ const logger = new Logger('budget-service')
 
 @Service()
 export default class BudgetService {
+  static async getBudgetBalances(id: string | ObjectId) {
+    const [balances] = await Budget.aggregate()
+      .match({_id: new ObjectId(id) })
+      .lookup({
+        from: 'walletentries',
+        let: { budget: '$_id' },
+        as: 'entries',
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$$budget', '$budget'] },
+              type: WalletEntryType.Debit,
+              status: { $ne: WalletEntryStatus.Failed }
+            }
+          },
+          { $group: { _id: null, spent: { $sum: '$amount' } } },
+        ]
+      })
+      .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
+      .project({
+        _id: null,
+        balance: '$amount',
+        availableBalance: { $subtract: ['$amount', { $ifNull: ['$entries.spent', 0] }] },
+      })
+
+    return {
+      balance: Number(balances.balance || 0),
+      availableBalance: Number(balances.availableBalance || 0)
+    }
+  }
+
   async createBudget(auth: AuthUser, data: CreateBudgetDto) {
     const user = await User.findById(auth.userId)
     if (!user) {
@@ -37,7 +68,7 @@ export default class BudgetService {
       throw new BadRequestError(`Organization does not have a ${data.currency} wallet`)
     }
 
-    const balances = await WalletService.getWalletBalance(wallet.id)
+    const balances = await WalletService.getWalletBalances(wallet.id)
     if (balances.availableBalance <= data.amount) {
       throw new BadRequestError('Budget amount must be less than wallet available balance')
     }
@@ -67,11 +98,12 @@ export default class BudgetService {
         organization: new ObjectId(auth.orgId),
         status: query.status
       })
+      .sort({ createdAt: -1 })
       .lookup({
         from: 'users',
         localField: 'beneficiaries.user',
         foreignField: '_id',
-        as: 'beneficiaries.user'
+        as: 'beneficiaries'
       })
       .lookup({
         from: 'walletentries',
@@ -94,12 +126,14 @@ export default class BudgetService {
         name: 1,
         amount: 1,
         spentAmount: 1,
+        status: 1,
+        paused: 1,
         availableAmount: { $subtract: ['$amount', '$spentAmount'] },
         currency: 1,
         threshold: 1,
         expiry: 1,
         description: 1,
-        beneficiaries: { user: { email: 1, firstName: 1, lastName: 1, picture: 1 } },
+        beneficiaries: { email: 1, firstName: 1, lastName: 1, picture: 1 }
       })
 
     const budgets = await Budget.aggregatePaginate(aggregate, {
@@ -126,17 +160,17 @@ export default class BudgetService {
       throw new BadRequestError('Only pending budgets can be approved')
     }
 
-    const balances = await WalletService.getWalletBalance(budget.wallet)
+    const balances = await WalletService.getWalletBalances(budget.wallet)
     if (balances.availableBalance <= budget.amount) {
       throw new BadRequestError('Budget amount must be less than wallet available balance')
     }
 
-    await budget.updateOne({
+    await budget.set({
       status: BudgetStatus.Active,
       approvedBy: auth.userId,
       approvedDate: new Date(),
       ...data
-    })
+    }).save()
 
     return budget
   }
@@ -160,7 +194,7 @@ export default class BudgetService {
       throw new BadRequestError('Budget is already paused')
     }
 
-    await budget.updateOne({ paused: true })
+    await budget.set({ paused: true }).save()
 
     return budget
   }
@@ -169,6 +203,11 @@ export default class BudgetService {
     const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
     if (!budget) {
       throw new NotFoundError('Budget not found')
+    }
+
+    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!valid) {
+      throw new BadRequestError('Invalid pin')
     }
 
     if (budget.status === BudgetStatus.Closed) {
@@ -186,10 +225,10 @@ export default class BudgetService {
       }
     }
 
-    await budget.updateOne({
+    await budget.set({
       status: BudgetStatus.Closed,
       ...update
-    })
+    }).save()
 
     return budget
   }
@@ -211,7 +250,7 @@ export default class BudgetService {
         from: 'users',
         localField: 'beneficiaries.user',
         foreignField: '_id',
-        as: 'beneficiaries.user'
+        as: 'beneficiaries'
       })
       .lookup({
         from: 'walletentries',
@@ -237,24 +276,21 @@ export default class BudgetService {
         availableAmount: { $subtract: ['$amount', '$spentAmount'] },
         currency: 1,
         threshold: 1,
+        status: 1,
+        paused: 1,
         expiry: 1,
         approvedDate: 1,
         description: 1,
         approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
-        beneficiaries: { user: { email: 1, firstName: 1, lastName: 1, picture: 1 } },
+        beneficiaries: { email: 1, firstName: 1, lastName: 1, picture: 1 },
       })
 
     return aggregate
   }
 
   async getBudgetWalletEntries(orgId: string, id: string, data: GetBudgetWalletEntriesDto) {
-    const budget = await Budget.exists({ _id: id, organization: orgId })
-    if (!budget) {
-      return []
-    }
-
-    const history = await WalletEntry.paginate({ budget: budget._id }, {
-      select: 'status currency type reference amount scope budget createdAt',
+    const history = await WalletEntry.paginate({ budget: id }, {
+      select: 'status currency type reference balanceBefore balanceAfter amount scope budget createdAt',
       populate: {
         path: 'budget', select: 'name'
       },

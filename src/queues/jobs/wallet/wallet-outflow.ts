@@ -94,7 +94,11 @@ async function handleFailed(data: WalletOutflowData) {
     }
 
     if (entry.status !== WalletEntryStatus.Pending) {
-      logger.error('entry already in conclusive state', { reference: data.reference, entry: entry._id })
+      logger.error('entry already in conclusive state', {
+        reference: data.reference,
+        entry: entry._id
+      })
+
       return { message: 'entry already in conclusive state' }
     }
 
@@ -105,8 +109,8 @@ async function handleFailed(data: WalletOutflowData) {
         balanceAfter: entry.balanceBefore,
       }, { session })
       
-      await Wallet.updateOne({ _id: entry._id }, {
-        $inc:{ balance: data.amount }
+      await Wallet.updateOne({ _id: entry.wallet }, {
+        $inc: { balance: Number(data.amount) }
       }, { session })
     }, tnxOpts)
 
@@ -149,12 +153,12 @@ async function handleReversed(data: WalletOutflowData) {
           wallet: entry.wallet,
           scope: WalletEntryScope.BudgetTransfer,
           amount: data.amount,
-          balanceAfter: numeral(entry.wallet.balance).add(data.amount),
+          balanceAfter: numeral(entry.wallet.balance).add(data.amount).value(),
           type: WalletEntryType.Credit,
           narration: 'Budget Transfer Reversal',
           paymentMethod: 'transfer',
           reference: `btrev_${createId()}`,
-          provider: 'anchor',
+          provider: entry.provider,
           meta: entry.meta
         }], { session })
 
@@ -172,8 +176,8 @@ async function handleReversed(data: WalletOutflowData) {
         }, { session })
       }
 
-      await Wallet.updateOne({ _id: entry._id }, {
-        $inc: { balance: data.amount }
+      await Wallet.updateOne({ _id: entry.wallet }, {
+        $inc: { balance: Number(data.amount) }
       }, { session })
     }, tnxOpts)
 

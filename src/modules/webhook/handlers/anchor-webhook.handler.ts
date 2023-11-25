@@ -1,10 +1,10 @@
 import crypto from 'crypto'
-import { Service } from "typedi";
+import { Inject, Service } from "typedi";
 import Logger from "@/modules/common/utils/logger";
 import { walletInflowQueue, walletOutflowQueue } from "@/queues";
 import { WalletInflowData } from "@/queues/jobs/wallet/wallet-inflow";
 import { WalletOutflowData } from "@/queues/jobs/wallet/wallet-outflow";
-import { AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
+import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { UnauthorizedError } from 'routing-controllers';
 
@@ -12,7 +12,7 @@ import { UnauthorizedError } from 'routing-controllers';
 export default class AnchorWebhookHandler {
   private logger = new Logger(AnchorWebhookHandler.name)
 
-  constructor (private anchorTransferClient: AnchorTransferClient) { }
+  constructor (@Inject(ANCHOR_TOKEN) private anchorTransferClient: AnchorTransferClient) { }
 
   private async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
@@ -42,16 +42,14 @@ export default class AnchorWebhookHandler {
     const hash = crypto.createHmac('sha1', secret)
       .update(body)
       .digest('hex')
-    
+
     const base64 = Buffer.from(hash).toString('base64');
     return base64
   }
 
   private async onTransferEvent(body: any) {
-    const transferId = body.data.transfer.data.id
+    const transferId = body.data.relationships.transfer.data.id
     const verifyResponse = await this.anchorTransferClient.verifyTransferById(transferId)
-
-    console.log('verify response %o', verifyResponse)
 
     const jobData: WalletOutflowData = {
       amount: verifyResponse.amount,

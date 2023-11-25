@@ -31,7 +31,8 @@ export class TransferService {
 
       return {
         status: 'failed',
-        message: 'Bank failure, could not complete transfer'
+        message: 'Bank failure, could not complete transfer',
+        gatewayResponse: err.message
       }
     }
   }

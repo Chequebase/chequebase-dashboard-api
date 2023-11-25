@@ -1,4 +1,4 @@
-import { Authorized, Body, Controller, CurrentUser, Get, Param, Post, QueryParams, Res, UseBefore } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import WalletService from "./wallet.service";
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
@@ -8,7 +8,7 @@ import { Response } from "express";
 import publicApiGuard from "../common/guards/public-api.guard";
 
 @Service()
-@Controller('/wallet', { transformResponse: false })
+@JsonController('/wallet', { transformResponse: false })
 export default class WalletController {
   constructor (private walletService: WalletService) { }
   

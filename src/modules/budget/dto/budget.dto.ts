@@ -1,7 +1,7 @@
 import { BudgetCurrency, BudgetStatus } from "@/models/budget.model";
 import { WalletEntryType } from "@/models/wallet-entry.model";
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsDateString, IsEnum, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
 
 export class CreateBudgetDto {
   @IsString()
@@ -12,11 +12,13 @@ export class CreateBudgetDto {
   description: string
 
   @IsNumber()
-  @Min(100000)
+  @Min(1000_00)
+  @Max(1_000_000_00)
   amount: number
 
   @IsNumber()
-  @Min(100000)
+  @Min(1000_00)
+  @Max(1_000_000_00)
   @IsOptional()
   threshold?: number
 
@@ -54,7 +56,7 @@ export class ApproveBudgetBodyDto {
   expiry?: Date
 
   @IsNumber()
-  @Min(100000)
+  @Min(1_000_000_00)
   @IsOptional()
   threshold?: number
 
@@ -64,7 +66,6 @@ export class ApproveBudgetBodyDto {
 
 export class CloseBudgetBodyDto {
   @IsString()
-  @IsOptional()
   reason: string
 
   @IsString()

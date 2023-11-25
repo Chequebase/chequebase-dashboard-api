@@ -1,14 +1,14 @@
-import { Authorized, Body, Controller, CurrentUser, Get, Param, Post, QueryParams } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams } from "routing-controllers";
 import { Service } from "typedi";
 import BudgetService from "./budget.service";
 import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { Role } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
-import { ResolveAccountDto } from "./dto/budget-transfer.dto";
+import { InitiateTransferDto } from "./dto/budget-transfer.dto";
 
 @Service()
-@Controller('/budget', { transformResponse: false })
+@JsonController('/budget', { transformResponse: false })
 export default class BudgetController {
   constructor (
     private budgetService: BudgetService,
@@ -25,6 +25,24 @@ export default class BudgetController {
   @Authorized()
   getBudgets(@CurrentUser() auth: AuthUser, @QueryParams() dto: GetBudgetsDto) {
     return this.budgetService.getBudgets(auth, dto)
+  }
+  
+  @Get('/transfer-fee')
+  @Authorized()
+  getTransactionFee() {
+    return this.budgetTransferService.getTransactionFee()
+  }
+
+  @Get('/banks')
+  @Authorized()
+  getBanks() {
+    return this.budgetTransferService.getBanks()
+  }
+
+  @Post('/resolve-account')
+  @Authorized()
+  resolveAccountNumber(@Body() body: any) {
+    return this.budgetTransferService.resolveAccountNumber(body)
   }
 
   @Get('/:id')
@@ -73,15 +91,13 @@ export default class BudgetController {
     return this.budgetService.closeBudget(auth, id, body)
   }
 
-  @Post('/transfer/resolve-account')
+  @Post('/:id/transfer/initiate')
   @Authorized()
-  resolveAccountNumber(@Body() body: ResolveAccountDto) {
-    return this.budgetTransferService.resolveAccountNumber(body)
-  }
-
-  @Get('/transfer/fee')
-  @Authorized()
-  getTransactionFee() {
-    return this.budgetTransferService.getTransactionFee()
+  initiateTransfer(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Body() body: InitiateTransferDto
+  ) {
+    return this.budgetTransferService.initiateTransfer(auth, id, body)
   }
 }

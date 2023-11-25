@@ -1,5 +1,6 @@
+import { Service } from "typedi"
 import { BadRequestError, NotFoundError } from "routing-controllers"
-import { ObjectId } from 'mongodb'
+import { ObjectId, TransactionOptions } from 'mongodb'
 import dayjs from "dayjs"
 import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
@@ -9,7 +10,7 @@ import { ResolveAccountDto, InitiateTransferDto } from "./dto/budget-transfer.dt
 import Counterparty, { ICounterparty } from "@/models/counterparty"
 import Wallet from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
-import Budget from "@/models/budget.model"
+import Budget, { BudgetStatus } from "@/models/budget.model"
 import { TransferService } from "../transfer/transfer.service"
 import { TransferClientName } from "../transfer/providers/transfer.client"
 import { AnchorService } from "../common/anchor.service"
@@ -17,9 +18,17 @@ import { CreateTransferRecord } from "./interfaces/budget-transfer.interface"
 import { UserService } from "../user/user.service"
 import User from "@/models/user.model"
 import { Role } from "../user/dto/user.dto"
+import WalletService from "../wallet/wallet.service"
+import BudgetService from "./budget.service"
 
 const TRANSFER_FEE = 25_00
+const transactionOpts: TransactionOptions = {
+  readPreference: 'primary',
+  readConcern: 'local',
+  writeConcern: { w: 'majority' }
+}
 
+@Service()
 export class BudgetTransferService {
   constructor (
     private transferService: TransferService,
@@ -73,13 +82,14 @@ export class BudgetTransferService {
         wallet: wallet._id,
         amount: amountToDeduct,
         fee: TRANSFER_FEE,
-        balanceAfter: numeral(wallet.balance).subtract(amountToDeduct),
+        initiatedBy: auth.userId,
+        balanceAfter: numeral(wallet.balance).subtract(amountToDeduct).value(),
         scope: WalletEntryScope.BudgetTransfer,
         type: WalletEntryType.Debit,
         narration: 'Budget Transfer',
         paymentMethod: 'transfer',
         reference: `bt_${createId()}`,
-        provider: 'anchor',
+        provider: TransferClientName.Anchor,
         meta: {
           counterparty: counterparty._id
         }
@@ -89,22 +99,19 @@ export class BudgetTransferService {
         $set: { walletEntry: entry._id },
         $inc: { balance: -Number(amountToDeduct) }
       }, { session })
-    }, {
-      readPreference: 'primary',
-      readConcern: 'local',
-      writeConcern: { w: 'majority' }
-    })
+    }, transactionOpts)
 
     return entry!
   }
 
   private async runTransferWindowCheck(payload: any) {
-    const { data, budget } = payload
+    const { data, auth } = payload
     const oneMinuteAgo = dayjs().subtract(1, 'minute').toDate()
 
     const record = await WalletEntry.find({
-      budget: budget._id,
-      amount: data.amount,
+      initiatedBy: auth.userId,
+      amount: numeral(data.amount).add(TRANSFER_FEE).value(),
+      status: { $ne: WalletEntryStatus.Failed },
       createdAt: { $gte: oneMinuteAgo }
     })
 
@@ -133,7 +140,9 @@ export class BudgetTransferService {
       throw new BadRequestError('You do not have the necessary permissions to allocate funds from this budget')
     }
 
-    if (!beneficiary.allocation) return true
+    const allocation = beneficiary.allocation
+    // has no allocation
+    if (typeof allocation === 'undefined' || allocation === null) return true
 
    const filter = {
      budget: new ObjectId(budget._id),
@@ -145,17 +154,41 @@ export class BudgetTransferService {
       .match(filter)
       .group({ _id: null, totalSpent: { $sum: '$amount' } })
 
-    const limit = Number(beneficiary.allocation || 0) + Number(data.amount)
-    if (entries.totalSpent >= limit) {
+    const amount = Number(entries.totalSpent || 0) + data.amount
+    if (amount >= allocation) {
       throw new BadRequestError("You've exhuasted your allocation limit for this budget")
     }
   }
 
   private async runSecurityChecks(payload: any) {
-    await Promise.all([
+    const { budget, data } = payload
+    if (budget.status !== BudgetStatus.Active) {
+      throw new BadRequestError("Budget is not active")
+    }
+
+    if (budget.paused) {
+      throw new BadRequestError("Budget is paused")
+    }
+
+    const [walletBalances, budgetBalances] = await Promise.all([
+      WalletService.getWalletBalances(budget.wallet),
+      BudgetService.getBudgetBalances(budget._id),
       this.runBeneficairyCheck(payload),
       this.runTransferWindowCheck(payload),
     ])
+
+    const amountToDeduct = numeral(data.amount).add(TRANSFER_FEE).value()!
+    if (walletBalances.availableBalance <= amountToDeduct) {
+      throw new BadRequestError(
+        'Insufficient funds: Wallet available balance is less than the requested transfer amount'
+      )
+    }
+
+    if (budgetBalances.availableBalance <= amountToDeduct) {
+      throw new BadRequestError(
+        'Insufficient funds: Budget available balance is less than the requested transfer amount'
+      )
+    }
 
     return true
   }
@@ -173,6 +206,7 @@ export class BudgetTransferService {
 
     await this.runSecurityChecks({ auth, data, budget })
 
+    const amountToDeduct = numeral(data.amount).add(TRANSFER_FEE).value()!
     const counterparty = await this.getCounterparty(auth, data)
     const entry = await this.createTransferRecord({ budget, auth, data, counterparty })
   
@@ -185,9 +219,26 @@ export class BudgetTransferService {
       provider: TransferClientName.Anchor
     })
 
+    if (transferResponse.status === 'failed') {
+      await cdb.transaction(async (session) => {
+        await WalletEntry.updateOne({ _id: entry._id }, {
+          gatewayResponse: transferResponse.gatewayResponse,
+          status: WalletEntryStatus.Failed,
+          balanceAfter: entry.balanceBefore,
+        }, { session })
+
+        await Wallet.updateOne({ _id: budget.wallet }, {
+          $inc: { balance: amountToDeduct }
+        }, { session })
+      }, transactionOpts)
+    }
+
     // TODO: a cron to pick up transfers stuck in pending for >= 1hr
 
-    return transferResponse
+    return {
+      status: transferResponse.status,
+      message: transferResponse.message
+    }
   }
 
   async resolveAccountNumber(data: ResolveAccountDto) {
@@ -195,6 +246,11 @@ export class BudgetTransferService {
   }
 
   async getTransactionFee() {
-    return TRANSFER_FEE
+    return { transferFee: TRANSFER_FEE }
+  }
+
+  async getBanks() {
+    const banks: any[] = await this.anchorService.getBanks()
+    return banks.map((b) => ({ ...b, bank: b.attributes, attributes: undefined }))
   }
 }

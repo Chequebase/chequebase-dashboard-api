@@ -41,8 +41,9 @@ export class AnchorTransferClient implements TransferClient {
     try {
       const res = await this.http.post('/api/v1/counterparties', { data })
       const attributes = res.data.data.attributes
+
       return {
-        id: attributes.id,
+        id: res.data.data.id,
         bankName: attributes.bank.name,
         accountName: attributes.accountName,
         accountNumber: attributes.accountNumber,
@@ -66,7 +67,7 @@ export class AnchorTransferClient implements TransferClient {
       bankCode: payload.counterparty.bankCode,
       bankId: payload.counterparty.bankId
     })
-    
+
     const data = {
       type: "NIPTransfer",
       attributes: {
@@ -95,7 +96,6 @@ export class AnchorTransferClient implements TransferClient {
       const res = await this.http.post('/api/v1/transfers', { data })
       const result = res.data.data.attributes
 
-      console.log('initiate transfer %o', res.data.data)
       return {
         status: result.status.toLowerCase(),
         currency: result.currency,
@@ -108,10 +108,18 @@ export class AnchorTransferClient implements TransferClient {
       this.logger.error('error processing transfer', {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
+        requestData: JSON.stringify(data),
         status: err.response.status
       });
 
-      throw new ServiceUnavailableError('Unable to process transfer');
+      return {
+        status: 'failed',
+        currency: payload.currency,
+        amount: payload.amount,
+        reference: payload.reference,
+        message: err.response.data?.errors?.[0]?.detail || 'Unable to process transfer',
+        gatewayResponse: JSON.stringify(err.response.data)
+      }
     }
   }
 
@@ -121,11 +129,11 @@ export class AnchorTransferClient implements TransferClient {
       const result = res.data.data.attributes
 
       return {
-        status: result.status.toLowerCase(),
+        status: result.status === 'COMPLETED' ? 'successful' : result.status.toLowerCase(),
         reference: result.reference,
         amount: result.amount,
         currency: result.currency,
-        message: result.reason,
+        message: 'Processing transfer',
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {

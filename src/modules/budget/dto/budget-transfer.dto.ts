@@ -1,13 +1,13 @@
-import { IsNumber, IsString, Max, Min } from "class-validator";
+import { IsNumber, IsString, Length, Max, Min } from "class-validator";
 
 export class InitiateTransferDto {
   @IsNumber()
   @Min(200_00)
+  @Max(1_000_000_00)
   amount: number
 
   @IsString()
-  @Min(10)
-  @Max(10)
+  @Length(10)
   accountNumber: string
 
   @IsString()
@@ -19,8 +19,7 @@ export class InitiateTransferDto {
 
 export class ResolveAccountDto {
   @IsString()
-  @Min(10)
-  @Max(10)
+  @Length(10)
   accountNumber: string
 
   @IsString()

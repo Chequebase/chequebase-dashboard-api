@@ -15,7 +15,7 @@ function setupQueues() {
   try {
     organizationQueue.process(processOrganizationEventHandler)
     walletInflowQueue.process('processPayment', 5, processWalletInflow)
-    walletInflowQueue.process('processTransfer', 5, processWalletOutflow)
+    walletOutflowQueue.process('processTransfer', 5, processWalletOutflow)
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message

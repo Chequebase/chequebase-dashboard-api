@@ -17,7 +17,7 @@ import { BudgetStatus } from "@/models/budget.model";
 export default class WalletService {
   constructor (private virtualAccountService: VirtualAccountService) { }
 
-  static async getWalletBalance(id: string | ObjectId) {
+  static async getWalletBalances(id: string | ObjectId) {
     const [wallet] = await Wallet.aggregate()
       .match({ _id: new ObjectId(id) })
       .lookup({
@@ -41,11 +41,11 @@ export default class WalletService {
         _id: null,
         balance: '$balance',
         availableBalance: { $subtract: ['$balance', {$ifNull: ['$budgets.totalAmount', 0]}] }
-      })
-
+    })
+    
     return {
-      availableBalance: Number(wallet.availableBalance),
-      balance: Number(wallet.balance)
+      availableBalance: Number(wallet.availableBalance || 0),
+      balance: Number(wallet.balance || 0)
     }
   }
 
@@ -84,7 +84,7 @@ export default class WalletService {
       currency: baseWallet.currency,
       identity: {
         type: 'bvn',
-        number: organization.owners[0]?.bvn ?? organization.directors[0].bvn,
+        number: organization.owners[0]?.bvn ?? organization.directors[0]?.bvn,
       }
     })
 
@@ -131,7 +131,7 @@ export default class WalletService {
       .lean()
     
     const populatedWallets = await Promise.all(wallets.map(async (wallet) => {
-      const balances = await WalletService.getWalletBalance(wallet._id)
+      const balances = await WalletService.getWalletBalances(wallet._id)
       return Object.assign(wallet, balances)
     }))
 
@@ -150,7 +150,7 @@ export default class WalletService {
       return null
     }
     
-    const balances = await WalletService.getWalletBalance(wallet._id)
+    const balances = await WalletService.getWalletBalances(wallet._id)
     wallet = Object.assign(wallet, balances)
 
     return wallet

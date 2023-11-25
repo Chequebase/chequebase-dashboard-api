@@ -33,6 +33,20 @@ export class AnchorService {
     }
   }
 
+  async getBanks() {
+    try {
+      const res = await this.http.get('/api/v1/banks')
+      return res.data.data
+    } catch (err: any) {
+      this.logger.error('error fetch bank list', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        status: err.response?.status
+      });
+      
+      throw new ServiceUnavailableError('Unable to get bank list');
+    }
+  }
+
   async resolveAccountNumber(accountNumber: string, bankCode: string) {
     const url = `/api/v1/payments/verify-account/${bankCode}/${accountNumber}`
     try {

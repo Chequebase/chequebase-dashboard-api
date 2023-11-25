@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { getEnvOrThrow } from "@/modules/common/utils";
-import { CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountClient } from "./virtual-account.client";
+import { CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountClient, VirtualAccountClientName } from "./virtual-account.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 
@@ -22,7 +22,6 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     const data = {
       type: 'VirtualNuban',
       attributes: {
-        provider: 'providus',
         virtualAccountDetail: {
           name: `Chequebase- ${payload.name}`,
           bvn: payload.identity.number,
@@ -51,7 +50,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
         accountNumber: details.accountNumber,
         bankCode: details.bank.nipCode,
         bankName: details.bank.name,
-        provider: 'anchor',
+        provider: VirtualAccountClientName.Anchor,
       }
     } catch (err: any) {
       this.logger.error('error creating virtual account', {

@@ -1,5 +1,5 @@
 import { City, State } from 'country-state-city';
-import { Post, Authorized, Body, Controller, Get, Param, Patch, UploadedFiles, UseBefore, UploadedFile, Req } from 'routing-controllers';
+import { Post, Authorized, Body, Get, Param, Patch, UseBefore, Req, JsonController } from 'routing-controllers';
 import { OwnerDto, UpdateBusinessDocumentationDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { OrganizationsService } from './organization.service';
 import { Role } from '../user/dto/user.dto';
@@ -10,7 +10,7 @@ import multer from 'multer';
 import { Request } from 'express';
 
 @Service()
-@Controller('/organizations', { transformResponse: false })
+@JsonController('/organizations', { transformResponse: false })
 export default class OrganizationsController {
   constructor (private readonly organizationsService: OrganizationsService) { }
 
