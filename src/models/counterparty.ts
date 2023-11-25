@@ -42,6 +42,6 @@ const counterpartySchema = new Schema<ICounterparty>(
   { timestamps: true },
 );
 
-const Counterparty = cdb.model<ICounterparty>('Counterpary', counterpartySchema);
+const Counterparty = cdb.model<ICounterparty>('Counterparty', counterpartySchema);
 
 export default Counterparty 
