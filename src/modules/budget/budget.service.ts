@@ -72,7 +72,7 @@ export default class BudgetService {
     // wallet balance needs to be checked because the budget will be automatically approved
     if (isOwner) {
       const balances = await WalletService.getWalletBalances(wallet.id)
-      if (balances.availableBalance <= data.amount) {
+      if (balances.availableBalance < data.amount) {
         throw new BadRequestError('Budget amount must be less than wallet available balance')
       }
     }
@@ -164,7 +164,7 @@ export default class BudgetService {
     }
 
     const balances = await WalletService.getWalletBalances(budget.wallet)
-    if (balances.availableBalance <= budget.amount) {
+    if (balances.availableBalance < budget.amount) {
       throw new BadRequestError('Budget amount must be less than wallet available balance')
     }
 
@@ -297,7 +297,7 @@ export default class BudgetService {
 
   async getBudgetWalletEntries(orgId: string, id: string, data: GetBudgetWalletEntriesDto) {
     const history = await WalletEntry.paginate({ budget: id }, {
-      select: 'status currency type reference balanceBefore balanceAfter amount scope budget createdAt',
+      select: 'status currency type fee reference balanceBefore balanceAfter amount scope budget createdAt',
       populate: {
         path: 'budget', select: 'name'
       },

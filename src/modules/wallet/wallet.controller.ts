@@ -49,6 +49,12 @@ export default class WalletController {
     return passthrough
   }
 
+  @Get('/:id')
+  @Authorized()
+  getWallet(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.walletService.getWallet(auth.orgId, id)
+  }
+  
   @Get('/history/:id')
   @Authorized()
   getWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string) {

@@ -15,7 +15,7 @@ export interface WalletInflowData {
   gatewayResponse: string
   reference: string
   narration: string
-  counterparty: {
+  sourceAccount: {
     accountName: string
     bankName: string
     accountNumber: string
@@ -60,7 +60,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         balanceAfter: numeral(wallet.balance).add(amount).value(),
         balanceBefore: wallet.balance,
         meta: {
-          counterparty: job.data.counterparty
+          sourceAccount: job.data.sourceAccount
         }
       }], { session })
 

@@ -25,7 +25,7 @@ export default class AnchorWebhookHandler {
       narration: payment.narration,
       reference: payment.paymentReference,
       paymentMethod: payment.type,
-      counterparty: {
+      sourceAccount: {
         accountName: payment.counterParty?.accountName,
         accountNumber: payment.counterParty?.accountName,
         bankName: payment.counterParty?.bank?.name
@@ -56,7 +56,7 @@ export default class AnchorWebhookHandler {
       currency: verifyResponse.currency,
       gatewayResponse: JSON.stringify(body),
       reference: verifyResponse.reference,
-      status: verifyResponse.status as any
+      status: verifyResponse.status as WalletOutflowData['status']
     }
 
     await walletOutflowQueue.add('processTransfer', jobData)

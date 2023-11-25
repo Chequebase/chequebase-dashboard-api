@@ -65,6 +65,7 @@ async function handleSuccessful(data: WalletOutflowData) {
       return { message: 'entry already in conclusive state' }
     }
 
+    const amountUsed = numeral(entry.amount).add(entry.fee).value()
     await cdb.transaction(async (session) => {
       await entry.updateOne({
         gatewayResponse: data.gatewayResponse,
@@ -73,7 +74,7 @@ async function handleSuccessful(data: WalletOutflowData) {
 
       await Budget.updateOne(
         { _id: entry.budget },
-        { $inc: { amountUsed: Number(entry.amount) } },
+        { $inc: { amountUsed } },
         { session }
       )
     }, tnxOpts)
@@ -102,15 +103,16 @@ async function handleFailed(data: WalletOutflowData) {
       return { message: 'entry already in conclusive state' }
     }
 
+    const reverseAmount = numeral(entry.amount).add(entry.fee).value()
     await cdb.transaction(async (session) => {
       await entry.updateOne({
         gatewayResponse: data.gatewayResponse,
         status: WalletEntryStatus.Failed,
         balanceAfter: entry.balanceBefore,
       }, { session })
-      
+
       await Wallet.updateOne({ _id: entry.wallet }, {
-        $inc: { balance: Number(data.amount) }
+        $inc: { balance: reverseAmount }
       }, { session })
     }, tnxOpts)
 
@@ -125,25 +127,26 @@ async function handleReversed(data: WalletOutflowData) {
   try {
     const entry = await WalletEntry.findOne({ reference: data.reference })
       .populate<{ wallet: IWallet }>('wallet')
-    
+
     if (!entry) {
       logger.error('entry not found', { reference: data.reference })
       throw new BadRequestError('Wallet entry does not exist')
     }
 
-    if (entry.status === WalletEntryStatus.Failed) {
+    if (entry.status === WalletEntryStatus.Failed || entry.meta?.reversal) {
       logger.error('entry already in conclusive state', {
         status: entry.status,
         reference: data.reference,
         entry: entry._id
       })
-      
-      return { message: 'wallet entry already failed' }
+
+      return { message: 'wallet entry already in conclusive state' }
     }
-    
+
+    const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
     await cdb.transaction(async (session) => {
       if (entry.status === WalletEntryStatus.Successful) {
-        await WalletEntry.create([{
+        const [reversalEntry] = await WalletEntry.create([{
           gatewayResponse: data.gatewayResponse,
           organization: entry.organization,
           balanceBefore: entry.wallet.balance,
@@ -152,8 +155,8 @@ async function handleReversed(data: WalletOutflowData) {
           currency: entry.currency,
           wallet: entry.wallet,
           scope: WalletEntryScope.BudgetTransfer,
-          amount: data.amount,
-          balanceAfter: numeral(entry.wallet.balance).add(data.amount).value(),
+          amount: reverseAmount,
+          balanceAfter: numeral(entry.wallet.balance).add(reverseAmount).value(),
           type: WalletEntryType.Credit,
           narration: 'Budget Transfer Reversal',
           paymentMethod: 'transfer',
@@ -164,11 +167,19 @@ async function handleReversed(data: WalletOutflowData) {
 
         await Budget.updateOne(
           { _id: entry.budget },
-          { $inc: { amountUsed: -Number(entry.amount) } },
+          { $inc: { amountUsed: -reverseAmount } },
           { session }
         )
+
+        // ensure reversal doesn't happen multiple times
+        await entry.updateOne({
+          'meta.reversal': {
+            entry: reversalEntry._id,
+            timestamp: new Date()
+          }
+        }, { session })
       }
-      
+
       if (entry.status === WalletEntryStatus.Pending) {
         await entry.updateOne({
           status: WalletEntryStatus.Failed,
@@ -177,7 +188,7 @@ async function handleReversed(data: WalletOutflowData) {
       }
 
       await Wallet.updateOne({ _id: entry.wallet }, {
-        $inc: { balance: Number(data.amount) }
+        $inc: { balance: reverseAmount }
       }, { session })
     }, tnxOpts)
 

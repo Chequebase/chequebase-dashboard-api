@@ -8,4 +8,14 @@ export interface CreateTransferRecord {
   budget: IBudget
   counterparty: ICounterparty
   data: InitiateTransferDto
+  amountToDeduct: number
+  fee: number
+  provider: string
+}
+
+export interface RunSecurityCheck {
+  auth: AuthUser
+  budget: IBudget
+  amountToDeduct: number
+  data: InitiateTransferDto
 }

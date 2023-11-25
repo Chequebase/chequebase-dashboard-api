@@ -114,6 +114,7 @@ export default class WalletService {
       balance: wallet.balance,
       currency: wallet.currency,
       account: {
+        name: virtualAccount.name,
         accountNumber: virtualAccount.accountNumber,
         bankName: virtualAccount.bankName,
         bankCode: virtualAccount.bankCode
@@ -164,7 +165,7 @@ export default class WalletService {
     }
 
     const history = await WalletEntry.paginate({ wallet: wallet._id }, {
-      select: 'status currency type reference amount scope budget createdAt',
+      select: 'status currency fee type reference amount scope budget createdAt',
       populate: {
         path: 'budget', select: 'name'
       },
@@ -188,7 +189,7 @@ export default class WalletService {
 
     const cursor = WalletEntry.find(filter)
       .populate({ path: 'budget', select: 'name' })
-      .select('status balanceBefore balanceAfter currency type reference amount scope budget createdAt')
+      .select('status fee balanceBefore balanceAfter currency type reference amount scope budget createdAt')
       .sort('-createdAt')
       .lean()
       .cursor()

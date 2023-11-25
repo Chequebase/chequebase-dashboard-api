@@ -74,4 +74,15 @@ app.use('/docs',
   swaggerUiExpress.setup(spec)
 )
 
+// override express default 404 page
+app.use((_, res, __) => {
+  if (!res.headersSent) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'Resource does not exist',
+    });
+  }
+  res.end();
+});
+
 export default app;

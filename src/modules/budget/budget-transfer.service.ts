@@ -59,8 +59,7 @@ export class BudgetTransferService {
   }
 
   private async createTransferRecord(payload: CreateTransferRecord) {
-    const { auth, budget, counterparty, data } = payload
-    const amountToDeduct = numeral(data.amount).add(TRANSFER_FEE).value()!
+    const { auth, budget, data, amountToDeduct } = payload
 
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
@@ -80,8 +79,8 @@ export class BudgetTransferService {
         budget: budget._id,
         currency: budget.currency,
         wallet: wallet._id,
-        amount: amountToDeduct,
-        fee: TRANSFER_FEE,
+        amount: data.amount,
+        fee: payload.fee,
         initiatedBy: auth.userId,
         balanceAfter: numeral(wallet.balance).subtract(amountToDeduct).value(),
         scope: WalletEntryScope.BudgetTransfer,
@@ -89,9 +88,9 @@ export class BudgetTransferService {
         narration: 'Budget Transfer',
         paymentMethod: 'transfer',
         reference: `bt_${createId()}`,
-        provider: TransferClientName.Anchor,
+        provider: payload.provider,
         meta: {
-          counterparty: counterparty._id
+          counterparty: payload.counterparty._id
         }
       })
 
@@ -104,13 +103,28 @@ export class BudgetTransferService {
     return entry!
   }
 
+  private async reverseWalletDebit(entry: IWalletEntry, transferResponse: any) {
+    const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
+    await cdb.transaction(async (session) => {
+      await WalletEntry.updateOne({ _id: entry._id }, {
+        gatewayResponse: transferResponse?.gatewayResponse,
+        status: WalletEntryStatus.Failed,
+        balanceAfter: entry.balanceBefore,
+      }, { session })
+
+      await Wallet.updateOne({ _id: entry.wallet }, {
+        $inc: { balance: reverseAmount }
+      }, { session })
+    }, transactionOpts)
+  }
+
   private async runTransferWindowCheck(payload: any) {
     const { data, auth } = payload
     const oneMinuteAgo = dayjs().subtract(1, 'minute').toDate()
 
     const record = await WalletEntry.find({
       initiatedBy: auth.userId,
-      amount: numeral(data.amount).add(TRANSFER_FEE).value(),
+      amount: data.amount,
       status: { $ne: WalletEntryStatus.Failed },
       createdAt: { $gte: oneMinuteAgo }
     })
@@ -124,7 +138,7 @@ export class BudgetTransferService {
     return true
   }
 
-  private async runBeneficairyCheck(payload: any) {
+  private async runBeneficiaryCheck(payload: any) {
     const { budget, auth, data } = payload
     const user = await User.findById(auth.userId).lean()
     if (!user) {
@@ -144,24 +158,24 @@ export class BudgetTransferService {
     // has no allocation
     if (typeof allocation === 'undefined' || allocation === null) return true
 
-   const filter = {
-     budget: new ObjectId(budget._id),
-     initiatedBy: new ObjectId(auth.userId),
-     status: { $ne: WalletEntryStatus.Failed }
-   }
+    const filter = {
+      budget: new ObjectId(budget._id),
+      initiatedBy: new ObjectId(auth.userId),
+      status: { $ne: WalletEntryStatus.Failed }
+    }
     
     const [entries] = await WalletEntry.aggregate()
       .match(filter)
       .group({ _id: null, totalSpent: { $sum: '$amount' } })
 
-    const amount = Number(entries.totalSpent || 0) + data.amount
-    if (amount >= allocation) {
+    const amount = Number(entries?.totalSpent || 0) + data.amount
+    if (amount > allocation) {
       throw new BadRequestError("You've exhuasted your allocation limit for this budget")
     }
   }
 
   private async runSecurityChecks(payload: any) {
-    const { budget, data } = payload
+    const { budget, amountToDeduct } = payload
     if (budget.status !== BudgetStatus.Active) {
       throw new BadRequestError("Budget is not active")
     }
@@ -173,18 +187,17 @@ export class BudgetTransferService {
     const [walletBalances, budgetBalances] = await Promise.all([
       WalletService.getWalletBalances(budget.wallet),
       BudgetService.getBudgetBalances(budget._id),
-      this.runBeneficairyCheck(payload),
+      this.runBeneficiaryCheck(payload),
       this.runTransferWindowCheck(payload),
     ])
 
-    const amountToDeduct = numeral(data.amount).add(TRANSFER_FEE).value()!
-    if (walletBalances.availableBalance <= amountToDeduct) {
+    if (walletBalances.balance < amountToDeduct) {
       throw new BadRequestError(
         'Insufficient funds: Wallet available balance is less than the requested transfer amount'
       )
     }
 
-    if (budgetBalances.availableBalance <= amountToDeduct) {
+    if (budgetBalances.availableBalance < amountToDeduct) {
       throw new BadRequestError(
         'Insufficient funds: Budget available balance is less than the requested transfer amount'
       )
@@ -204,33 +217,24 @@ export class BudgetTransferService {
       throw new BadRequestError('Invalid pin')
     }
 
-    await this.runSecurityChecks({ auth, data, budget })
-
+    const provider = TransferClientName.Anchor // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(TRANSFER_FEE).value()!
+    const payload = { budget, auth, data, amountToDeduct, provider, fee: TRANSFER_FEE }
+    await this.runSecurityChecks(payload)
     const counterparty = await this.getCounterparty(auth, data)
-    const entry = await this.createTransferRecord({ budget, auth, data, counterparty })
-  
+    const entry = await this.createTransferRecord({...payload, counterparty })
+
     const transferResponse = await this.transferService.initiateTransfer({
       reference: entry.reference,
       amount: data.amount,
       counterparty,
       currency: budget.currency,
       narration: entry.narration,
-      provider: TransferClientName.Anchor
+      provider
     })
 
     if (transferResponse.status === 'failed') {
-      await cdb.transaction(async (session) => {
-        await WalletEntry.updateOne({ _id: entry._id }, {
-          gatewayResponse: transferResponse.gatewayResponse,
-          status: WalletEntryStatus.Failed,
-          balanceAfter: entry.balanceBefore,
-        }, { session })
-
-        await Wallet.updateOne({ _id: budget.wallet }, {
-          $inc: { balance: amountToDeduct }
-        }, { session })
-      }, transactionOpts)
+      await this.reverseWalletDebit(entry, transferResponse)
     }
 
     // TODO: a cron to pick up transfers stuck in pending for >= 1hr

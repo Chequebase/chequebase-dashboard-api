@@ -127,9 +127,11 @@ export class AnchorTransferClient implements TransferClient {
     try {
       const res = await this.http.get(`/api/v1/transfers/verify/${id}`)
       const result = res.data.data.attributes
-
+      let status = result.status.toLowerCase()
+      if (status === 'completed') status = 'successful'
+      
       return {
-        status: result.status === 'COMPLETED' ? 'successful' : result.status.toLowerCase(),
+        status,
         reference: result.reference,
         amount: result.amount,
         currency: result.currency,
