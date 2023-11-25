@@ -16,7 +16,8 @@ export enum WalletEntryStatus {
 }
 
 export enum WalletEntryScope {
-  WalletFunding = 'wallet_funding'
+  WalletFunding = 'wallet_funding',
+  BudgetTransfer = 'budget_transfer'
 }
 
 interface WalletEntryModel extends
@@ -28,10 +29,13 @@ export interface IWalletEntry {
   organization: ObjectId
   budget?: ObjectId
   wallet: ObjectId
+  initiatedBy: ObjectId
   currency: string
   type: WalletEntryType
   balanceBefore: Number
   balanceAfter: Number
+  amount: number
+  fee: number
   scope: WalletEntryScope
   gatewayResponse: string
   paymentMethod: string
@@ -39,16 +43,26 @@ export interface IWalletEntry {
   narration: string
   reference: string
   status: WalletEntryStatus
+  meta: { [key: string]: any }
   createdAt: Date;
   updatedAt: Date;
 }
 
 const walletEntrySchema = new Schema<IWalletEntry>(
   {
+    type: {
+      type: String,
+      required: true,
+      enum: Object.values(WalletEntryType)
+    },
     organization: {
       type: Schema.Types.ObjectId,
       required: true,
       ref: 'Organization'
+    },
+    initiatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
     },
     budget: {
       type: Schema.Types.ObjectId,
@@ -64,6 +78,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       enum: Object.values(WalletEntryStatus),
       required: true
     },
+    amount: { type: Number, required: true },
     currency: { type: String, required: true },
     balanceAfter: { type: Number, required: true },
     balanceBefore: { type: Number, required: true },
@@ -72,11 +87,13 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       enum: Object.values(WalletEntryScope),
       required: true
     },
+    fee: { type: Number, default: 0 },
     gatewayResponse: String,
     paymentMethod: String,
     provider: { type: String, required: true },
     narration: String,
-    reference: { type: String, required: true }
+    reference: { type: String, required: true },
+    meta: Object
   },
   { timestamps: true },
 );

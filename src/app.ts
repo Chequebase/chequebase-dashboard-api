@@ -16,6 +16,7 @@ import OrganizationsController from "./modules/organization/organization.control
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
 import PlansController from "./modules/plan/plan.controller";
+import BudgetController from './modules/budget/budget.controller';
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
@@ -24,7 +25,8 @@ app.use(hpp());
 app.set("trust proxy", true);
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+// ?NOTE: make sure to use @JsonController()
+// app.use(express.json());
 app.use(apiRequestLogger)
 app.use(express.urlencoded({ extended: true }));
 
@@ -41,7 +43,8 @@ const rcOptions: RoutingControllersOptions = {
     OrganizationsController,
     WalletController,
     PlansController,
-    WebhookController
+    WebhookController,
+    BudgetController
   ],
   middlewares: [ExceptionFilter],
   interceptors: [],

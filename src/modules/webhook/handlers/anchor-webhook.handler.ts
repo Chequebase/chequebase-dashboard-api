@@ -1,34 +1,22 @@
-import { Service } from "typedi";
+import crypto from 'crypto'
+import { Inject, Service } from "typedi";
 import Logger from "@/modules/common/utils/logger";
-import { walletInflowQueue } from "@/queues";
+import { walletInflowQueue, walletOutflowQueue } from "@/queues";
 import { WalletInflowData } from "@/queues/jobs/wallet/wallet-inflow";
+import { WalletOutflowData } from "@/queues/jobs/wallet/wallet-outflow";
+import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
+import { getEnvOrThrow } from '@/modules/common/utils';
+import { UnauthorizedError } from 'routing-controllers';
 
 @Service()
 export default class AnchorWebhookHandler {
-  logger = new Logger(AnchorWebhookHandler.name)
+  private logger = new Logger(AnchorWebhookHandler.name)
 
-  processWebhook(body: any, headers: any) {
-    const { data } = body;
-    // TODO: validate webhook 
+  constructor (@Inject(ANCHOR_TOKEN) private anchorTransferClient: AnchorTransferClient) { }
 
-    if (!allowedWebooks.includes(data.type)) {
-      this.logger.log('event type not allowed', { event: data.type })
-      return;
-    }
-
-    switch (data.type) {
-      case 'payment.settled':
-        return this.onPaymentSettled(body)
-      default:
-        this.logger.log('unhandled event', { event: data.type })
-        break;
-    }
-
-    return { message: 'webhook_handled' }
-  }
-
-  async onPaymentSettled(body: any) {
+  private async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
+
     const jobData: WalletInflowData = {
       amount: payment.amount,
       accountNumber: payment.virtualNuban.accountNumber,
@@ -36,36 +24,84 @@ export default class AnchorWebhookHandler {
       gatewayResponse: JSON.stringify(body),
       narration: payment.narration,
       reference: payment.paymentReference,
+      paymentMethod: payment.type,
+      counterparty: {
+        accountName: payment.counterParty?.accountName,
+        accountNumber: payment.counterParty?.accountName,
+        bankName: payment.counterParty?.bank?.name
+      }
     }
 
     await walletInflowQueue.add('processPayment', jobData)
 
     return { message: 'payment queued' }
   }
+
+  private createHmac(body: string) {
+    const secret = getEnvOrThrow('ANCHOR_WEBHOOK_SECRET')
+    const hash = crypto.createHmac('sha1', secret)
+      .update(body)
+      .digest('hex')
+
+    const base64 = Buffer.from(hash).toString('base64');
+    return base64
+  }
+
+  private async onTransferEvent(body: any) {
+    const transferId = body.data.relationships.transfer.data.id
+    const verifyResponse = await this.anchorTransferClient.verifyTransferById(transferId)
+
+    const jobData: WalletOutflowData = {
+      amount: verifyResponse.amount,
+      currency: verifyResponse.currency,
+      gatewayResponse: JSON.stringify(body),
+      reference: verifyResponse.reference,
+      status: verifyResponse.status as any
+    }
+
+    await walletOutflowQueue.add('processTransfer', jobData)
+    return { message: 'transfer event queued' }
+  }
+
+  processWebhook(body: any, headers: any) {
+    const expectedHmac = headers['x-anchor-signature']
+    const calcuatedHmac = this.createHmac(body)
+    if (calcuatedHmac !== expectedHmac) {
+      this.logger.error('invalid webhhook', { expectedHmac, calcuatedHmac })
+      throw new UnauthorizedError('Invalid webhook')
+    }
+
+    body = JSON.parse(body)
+    const { data } = body;
+    if (!allowedWebooks.includes(data.type)) {
+      this.logger.log('event type not allowed', { event: data.type })
+      return;
+    }
+
+
+    switch (data.type as  typeof allowedWebooks[number]) {
+      case 'payment.settled':
+        return this.onPaymentSettled(body)
+      case 'nip.transfer.successful':
+      case 'nip.transfer.failed':
+      case 'nip.transfer.reversed':
+        return this.onTransferEvent(body)
+      default:
+        this.logger.log('unhandled event', { event: data.type })
+        break;
+    }
+
+    return { message: 'webhook_handled' }
+  }
 }
 
 const allowedWebooks = [
-  // "account.initiated",
-  // "customer.created",
-  // "customer.updated",
-  // "account.opened",
+  "nip.transfer.failed",
+  "nip.transfer.successful",
+  "nip.transfer.reversed",
+  "payment.settled",
+  "customer.created",
   // "account.closed",
   // "account.frozen",
   // "account.unfrozen",
-  // "account.creation.failed",
-  "nip.transfer.initiated",
-  "nip.transfer.failed",
-  "nip.transfer.successful",
-  "nip.incomingTransfer.received",
-  "nip.transfer.reversed",
-  "payment.received",
-  "payment.settled",
-  // "document.approved",
-  // "document.rejected",
-  // "customer.identification.approved",
-  // "customer.identification.manualReview",
-  // "customer.identification.error",
-  // "customer.identification.rejected",
-  // "customer.identification.reenter_information",
-  // "customer.identification.awaitingDocument",
-]
+] as const

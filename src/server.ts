@@ -11,6 +11,8 @@ const logger = new Logger('main');
 let server: Server
 
 async function bootstrap() {
+  await cdb.asPromise() // establish db connection
+
   const port = process.env.PORT || 3000;
   server = app.listen(port, () => {
     logger.log(`Server started ⚡`, { port, pid: process.pid })
@@ -25,6 +27,7 @@ function gracefulShutdown(signal: string) {
   server.close(async () => {
     try {
       // garbage collection; close all existing processes here
+      await worker.close()
       await cdb.close(false)
       process.exit(0);
     } catch (error: any) {

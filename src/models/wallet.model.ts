@@ -7,7 +7,7 @@ export interface IWallet {
   organization: ObjectId
   baseWallet: ObjectId
   currency: string
-  balance: Number
+  balance: number
   walletEntry: ObjectId
   virtualAccounts: ObjectId[]
   primary: boolean

@@ -1,20 +1,54 @@
+import dayjs from "dayjs";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
 import * as fastCsv from 'fast-csv';
 import { ObjectId } from 'mongodb'
 import { createId } from '@paralleldrive/cuid2'
 import Organization from "@/models/organization.model";
-import { CreateWalletDto, GetWalletEntriesDto } from "./dto/wallet.dto";
+import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
 import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
 import VirtualAccount from "@/models/virtual-account.model";
 import WalletEntry from "@/models/wallet-entry.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
+import { BudgetStatus } from "@/models/budget.model";
 
 @Service()
 export default class WalletService {
   constructor (private virtualAccountService: VirtualAccountService) { }
-  
+
+  static async getWalletBalances(id: string | ObjectId) {
+    const [wallet] = await Wallet.aggregate()
+      .match({ _id: new ObjectId(id) })
+      .lookup({
+        from: 'budgets',
+        let: { wallet: '$_id' },
+        as: 'budgets',
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$$wallet', '$wallet'] },
+              status: BudgetStatus.Active
+            }
+          },
+          {
+            $group: { _id: null, totalAmount: { $sum: '$amount' } }
+          }
+        ]
+      })
+      .unwind({ path: '$budgets', preserveNullAndEmptyArrays: true })
+      .project({
+        _id: null,
+        balance: '$balance',
+        availableBalance: { $subtract: ['$balance', {$ifNull: ['$budgets.totalAmount', 0]}] }
+    })
+    
+    return {
+      availableBalance: Number(wallet.availableBalance || 0),
+      balance: Number(wallet.balance || 0)
+    }
+  }
+
   async createWallet(data: CreateWalletDto) {
     const organization = await Organization.findById(data.organization).lean()
     if (!organization) {
@@ -50,7 +84,7 @@ export default class WalletService {
       currency: baseWallet.currency,
       identity: {
         type: 'bvn',
-        number: organization.owners[0]?.bvn ?? organization.directors[0].bvn,
+        number: organization.owners[0]?.bvn ?? organization.directors[0]?.bvn,
       }
     })
 
@@ -78,7 +112,7 @@ export default class WalletService {
     return {
       _id: wallet._id,
       balance: wallet.balance,
-      currency: wallet.currency, 
+      currency: wallet.currency,
       account: {
         accountNumber: virtualAccount.accountNumber,
         bankName: virtualAccount.bankName,
@@ -88,26 +122,37 @@ export default class WalletService {
   }
 
   async getWallets(orgId: string) {
-    const wallets = await Wallet.find({ organization: orgId })
-      .select('currency balance')
+    let wallets = await Wallet.find({ organization: orgId })
+      .select('primary currency balance')
       .populate({
         path: 'virtualAccounts',
         select: 'accountNumber bankName bankCode name'
       })
       .lean()
     
-    return wallets
+    const populatedWallets = await Promise.all(wallets.map(async (wallet) => {
+      const balances = await WalletService.getWalletBalances(wallet._id)
+      return Object.assign(wallet, balances)
+    }))
+
+    return populatedWallets
   }
 
   async getWallet(orgId: string, walletId?: string) {
     const filter = walletId ? { _id: walletId } : { primary: true }
-    const wallet = await Wallet.findOne({ organization: orgId, ...filter })
+    let wallet = await Wallet.findOne({ organization: orgId, ...filter })
       .populate({
         path: 'virtualAccounts',
         select: 'accountNumber bankName bankCode name'
       })
       .lean()
+    if (!wallet) {
+      return null
+    }
     
+    const balances = await WalletService.getWalletBalances(wallet._id)
+    wallet = Object.assign(wallet, balances)
+
     return wallet
   }
 
@@ -132,10 +177,19 @@ export default class WalletService {
     return history
   }
 
-  async getWalletStatement(orgId: string) {
-    const cursor = WalletEntry.find({ organization: orgId })
+  async getWalletStatement(orgId: string, query: GetWalletStatementDto) {
+    const filter: any = {
+      organization: orgId,
+      createdAt: {
+        $gte: dayjs(query.from).startOf('day').toDate(),
+        $lte: dayjs(query.to).endOf('day').toDate()
+      }
+    }
+
+    const cursor = WalletEntry.find(filter)
       .populate({ path: 'budget', select: 'name' })
       .select('status balanceBefore balanceAfter currency type reference amount scope budget createdAt')
+      .sort('-createdAt')
       .lean()
       .cursor()
 
@@ -145,7 +199,7 @@ export default class WalletService {
     }));
 
     cursor.pipe(stream);
-    
+
     return { stream, filename: 'statements.csv' }
   }
 
@@ -154,11 +208,11 @@ export default class WalletService {
       .select('-gatewayResponse -provider')
       .populate('budget')
       .lean()
-    
+
     if (!entry) {
       throw new NotFoundError('Wallet entry not found')
     }
-    
+
     return entry
   }
 }

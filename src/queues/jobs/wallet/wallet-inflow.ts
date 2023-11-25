@@ -11,9 +11,15 @@ export interface WalletInflowData {
   amount: number
   currency: string
   accountNumber: string
+  paymentMethod: string
   gatewayResponse: string
   reference: string
   narration: string
+  counterparty: {
+    accountName: string
+    bankName: string
+    accountNumber: string
+  }
 }
 
 const logger = new Logger('wallet-inflow.job')
@@ -44,7 +50,8 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         currency,
         reference,
         gatewayResponse,
-        paymentMethod: 'transfer',
+        amount,
+        paymentMethod: job.data.paymentMethod,
         scope: WalletEntryScope.WalletFunding,
         narration,
         status: WalletEntryStatus.Successful,
@@ -52,6 +59,9 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         provider: virtualAccount.provider,
         balanceAfter: numeral(wallet.balance).add(amount).value(),
         balanceBefore: wallet.balance,
+        meta: {
+          counterparty: job.data.counterparty
+        }
       }], { session })
 
       await Wallet.updateOne({ _id: virtualAccount.wallet }, {

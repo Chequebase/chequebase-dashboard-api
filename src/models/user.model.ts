@@ -21,6 +21,9 @@ export enum UserStatus {
 
 export interface IUser {
   _id: ObjectId
+  firstName: string
+  lastName: string
+  picture: string
   email: string;
   emailVerified: boolean;
   password: string;
@@ -34,17 +37,25 @@ export interface IUser {
   passwordResetCode: string
   otpExpiresAt: number
   otp: string
+  pin: string
   createdAt: Date;
   updatedAt: Date;
 }
 
 const userSchema = new Schema<IUser>(
   {
+    firstName:  String,
+    lastName: String,
+    picture: String,
     email: { type: String, required: true, unique: true },
     emailVerified: { type: Boolean, default: false },
     password: { type: String, select: false },
-    organization: { type: Schema.Types.ObjectId },
+    organization: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization'
+    },
     rememberMe: Number,
+    pin: { type: String, select: false },
     role: String,
     KYBStatus: String,
     hashRt: String,
