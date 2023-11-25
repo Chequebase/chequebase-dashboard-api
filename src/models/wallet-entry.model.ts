@@ -62,7 +62,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     },
     initiatedBy: {
       type: Schema.Types.ObjectId,
-      ref: 'Budget'
+      ref: 'User'
     },
     budget: {
       type: Schema.Types.ObjectId,

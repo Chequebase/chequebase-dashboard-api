@@ -51,7 +51,7 @@ export default class OrganizationsController {
   }
 
   @Authorized(Role.Owner)
-  @Get(':id')
+  @Get('/:id')
   findOne(@Param('id') id: string) {
     return Organization.findById(id).lean()
   }
