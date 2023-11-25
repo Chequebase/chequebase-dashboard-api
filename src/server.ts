@@ -27,6 +27,7 @@ function gracefulShutdown(signal: string) {
   server.close(async () => {
     try {
       // garbage collection; close all existing processes here
+      await worker.close()
       await cdb.close(false)
       process.exit(0);
     } catch (error: any) {
