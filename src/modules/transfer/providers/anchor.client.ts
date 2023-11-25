@@ -101,7 +101,7 @@ export class AnchorTransferClient implements TransferClient {
         currency: result.currency,
         amount: result.amount,
         reference: result.reference,
-        message: result.reason,
+        message: 'Processing transfer',
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {
@@ -133,7 +133,7 @@ export class AnchorTransferClient implements TransferClient {
         reference: result.reference,
         amount: result.amount,
         currency: result.currency,
-        message: 'Processing transfer',
+        message: result.reason,
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {
