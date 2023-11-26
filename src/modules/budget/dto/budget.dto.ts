@@ -89,5 +89,5 @@ export class GetBudgetsDto {
 
   @IsBoolean()
   @IsOptional()
-  paginated = false
+  paginated = true
 }
