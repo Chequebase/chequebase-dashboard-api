@@ -18,7 +18,7 @@ export class SettingsService {
     if (user.pin) {
       throw new ForbiddenError('Pin has already been set');
     }
-    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(createPinDto.pin, 12), pinSet: true })
+    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(createPinDto.pin, 12) })
     return { message: "pin created" };
   }
 
