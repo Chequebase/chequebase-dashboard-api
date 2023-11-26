@@ -32,17 +32,33 @@ export default class WalletService {
             }
           },
           {
-            $group: { _id: null, totalAmount: { $sum: '$amount' } }
+            $group: {
+              _id: null,
+              totalUsed: { $sum: '$amountUsed' },
+              totalAmount: { $sum: '$amount' }
+            }
+          },
+          {
+            $project: {
+              totalUsed: { $ifNull: ['$totalUsed', 0] },
+              totalAmount: { $ifNull: ['$totalAmount', 0] }
+            }
           }
         ]
       })
       .unwind({ path: '$budgets', preserveNullAndEmptyArrays: true })
       .project({
         _id: null,
-        balance: '$balance',
-        availableBalance: { $subtract: ['$balance', {$ifNull: ['$budgets.totalAmount', 0]}] }
-    })
+        balance: 1,
+        availableBalance: {
+          $subtract: [
+            { $add: ['$balance', '$budgets.totalUsed'] },
+            '$budgets.totalAmount'
+          ]
+        }
+      })
     
+    // available = balance+buget - total budget + 
     return {
       availableBalance: Number(wallet.availableBalance || 0),
       balance: Number(wallet.balance || 0)

@@ -94,6 +94,10 @@ export class BudgetTransferService {
         }
       })
 
+      await Budget.updateOne({ _id: entry.budget }, {
+        $inc: { amountUsed: amountToDeduct }
+      }, { session })
+
       await wallet.updateOne({
         $set: { walletEntry: entry._id },
         $inc: { balance: -Number(amountToDeduct) }
@@ -114,6 +118,10 @@ export class BudgetTransferService {
 
       await Wallet.updateOne({ _id: entry.wallet }, {
         $inc: { balance: reverseAmount }
+      }, { session })
+
+      await Budget.updateOne({ _id: entry.budget }, {
+        $inc: { amountUsed: -reverseAmount }
       }, { session })
     }, transactionOpts)
   }
@@ -182,6 +190,10 @@ export class BudgetTransferService {
 
     if (budget.paused) {
       throw new BadRequestError("Budget is paused")
+    }
+
+    if (budget.expiry && dayjs().isAfter(budget.expiry)) {
+      throw new BadRequestError('Budget is expired')
     }
 
     const [walletBalances, budgetBalances] = await Promise.all([

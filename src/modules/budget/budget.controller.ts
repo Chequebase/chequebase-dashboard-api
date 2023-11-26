@@ -5,7 +5,7 @@ import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranfe
 import { AuthUser } from "../common/interfaces/auth-user";
 import { Role } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
-import { InitiateTransferDto } from "./dto/budget-transfer.dto";
+import { InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
@@ -47,7 +47,7 @@ export default class BudgetController {
 
   @Post('/resolve-account')
   @Authorized()
-  resolveAccountNumber(@Body() body: any) {
+  resolveAccountNumber(@Body() body: ResolveAccountDto) {
     return this.budgetTransferService.resolveAccountNumber(body)
   }
 

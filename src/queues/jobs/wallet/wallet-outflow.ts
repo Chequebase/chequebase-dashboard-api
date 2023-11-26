@@ -65,18 +65,11 @@ async function handleSuccessful(data: WalletOutflowData) {
       return { message: 'entry already in conclusive state' }
     }
 
-    const amountUsed = numeral(entry.amount).add(entry.fee).value()
     await cdb.transaction(async (session) => {
       await entry.updateOne({
         gatewayResponse: data.gatewayResponse,
         status: WalletEntryStatus.Successful
       }, { session })
-
-      await Budget.updateOne(
-        { _id: entry.budget },
-        { $inc: { amountUsed } },
-        { session }
-      )
     }, tnxOpts)
 
     return { message: 'transfer successful ' + entry._id }
@@ -103,12 +96,16 @@ async function handleFailed(data: WalletOutflowData) {
       return { message: 'entry already in conclusive state' }
     }
 
-    const reverseAmount = numeral(entry.amount).add(entry.fee).value()
+    const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
     await cdb.transaction(async (session) => {
       await entry.updateOne({
         gatewayResponse: data.gatewayResponse,
         status: WalletEntryStatus.Failed,
         balanceAfter: entry.balanceBefore,
+      }, { session })
+
+      await Budget.updateOne({ _id: entry.budget }, {
+        $inc: { amountUsed: -reverseAmount }
       }, { session })
 
       await Wallet.updateOne({ _id: entry.wallet }, {
@@ -184,6 +181,10 @@ async function handleReversed(data: WalletOutflowData) {
         await entry.updateOne({
           status: WalletEntryStatus.Failed,
           balanceAfter: entry.balanceBefore,
+        }, { session })
+
+        await Budget.updateOne({ _id: entry.budget }, {
+          amountUsed: -reverseAmount,
         }, { session })
       }
 

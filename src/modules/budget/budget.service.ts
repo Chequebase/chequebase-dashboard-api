@@ -18,27 +18,11 @@ const logger = new Logger('budget-service')
 export default class BudgetService {
   static async getBudgetBalances(id: string | ObjectId) {
     const [balances] = await Budget.aggregate()
-      .match({_id: new ObjectId(id) })
-      .lookup({
-        from: 'walletentries',
-        let: { budget: '$_id' },
-        as: 'entries',
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ['$$budget', '$budget'] },
-              type: WalletEntryType.Debit,
-              status: { $ne: WalletEntryStatus.Failed }
-            }
-          },
-          { $group: { _id: null, spent: { $sum: '$amount' } } },
-        ]
-      })
-      .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
+      .match({ _id: new ObjectId(id) })
       .project({
         _id: null,
         balance: '$amount',
-        availableBalance: { $subtract: ['$amount', { $ifNull: ['$entries.spent', 0] }] },
+        availableBalance: { $subtract: ['$amount', '$amountUsed'] },
       })
 
     return {
@@ -152,27 +136,12 @@ export default class BudgetService {
         foreignField: '_id',
         as: 'beneficiaries'
       })
-      .lookup({
-        from: 'walletentries',
-        let: { budget: '$_id' },
-        as: 'entries',
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ['$$budget', '$budget'] },
-              type: WalletEntryType.Debit,
-              status: WalletEntryStatus.Successful
-            }
-          },
-          { $group: { _id: null, spent: { $sum: '$amount' } } },
-        ]
-      })
       .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
       .addFields({ spentAmount: { $ifNull: ['$entries.spent', 0] } })
       .project({
         name: 1,
         amount: 1,
-        spentAmount: 1,
+        amountUsed: 1,
         status: 1,
         paused: 1,
         availableAmount: { $subtract: ['$amount', '$spentAmount'] },
@@ -299,27 +268,12 @@ export default class BudgetService {
         foreignField: '_id',
         as: 'beneficiaries'
       })
-      .lookup({
-        from: 'walletentries',
-        let: { budget: '$_id' },
-        as: 'entries',
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ['$$budget', '$budget'] },
-              type: WalletEntryType.Debit,
-              status: WalletEntryStatus.Successful
-            }
-          },
-          { $group: { _id: null, spent: { $sum: '$amount' } } },
-        ]
-      })
       .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
       .addFields({ spentAmount: { $ifNull: ['$entries.spent', 0] } })
       .project({
         name: 1,
         amount: 1,
-        spentAmount: 1,
+        amountUsed: 1,
         availableAmount: { $subtract: ['$amount', '$spentAmount'] },
         currency: 1,
         threshold: 1,
