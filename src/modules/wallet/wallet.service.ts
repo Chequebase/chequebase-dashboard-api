@@ -50,12 +50,12 @@ export default class WalletService {
         balance: 1,
         availableBalance: {
           $subtract: [
-            { $add: ['$balance', '$budgets.totalUsed'] },
-            '$budgets.totalAmount'
+            { $add: ['$balance', '$totalUsed'] },
+            '$totalAmount'
           ]
         }
       })
-    
+
     // availableBalance = balance+budgets.amountUsed - budget.totalAmount
     return {
       availableBalance: Number(wallet.availableBalance || 0),
