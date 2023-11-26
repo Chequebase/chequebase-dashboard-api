@@ -13,3 +13,4 @@ const queueOpts: QueueOptions = {
 export const organizationQueue = new Queue('cqb_organization', REDIS_HOST, queueOpts);
 export const walletInflowQueue = new Queue('cqb_walletInflow', REDIS_HOST, queueOpts);
 export const walletOutflowQueue = new Queue('cqb_walletOutflow', REDIS_HOST, queueOpts);
+export const budgetQueue = new Queue('cqb_budget', REDIS_HOST, queueOpts)

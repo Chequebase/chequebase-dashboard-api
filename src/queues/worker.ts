@@ -1,9 +1,11 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import { organizationQueue, walletInflowQueue, walletOutflowQueue } from '.';
+import { budgetQueue, organizationQueue, walletInflowQueue, walletOutflowQueue } from '.';
 import processOrganizationEventHandler from './jobs/organization';
 import processWalletInflow from './jobs/wallet/wallet-inflow';
 import processWalletOutflow from './jobs/wallet/wallet-outflow';
+import closeExpiredBudget from './jobs/budget/close-expired-budget';
+import fetchExpiredBudgets from './jobs/budget/fetch-expired-budgets';
 
 const logger = new Logger('worker:main')
 const __DEV__ = process.env.NODE_ENV === "development";
@@ -16,6 +18,11 @@ function setupQueues() {
     organizationQueue.process(processOrganizationEventHandler)
     walletInflowQueue.process('processPayment', 5, processWalletInflow)
     walletOutflowQueue.process('processTransfer', 5, processWalletOutflow)
+    budgetQueue.process('closeExpiredBudget', closeExpiredBudget)
+    budgetQueue.process('fetchExpiredBudgets', fetchExpiredBudgets)
+    budgetQueue.add('fetchExpiredBudgets', null, {
+      repeat: { cron: '0 0 * * *', tz: 'Africa/Lagos' } // every midnight
+    })
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message
@@ -56,9 +63,12 @@ function setupEventLogger(queues: IQueue[]) {
 }
 
 async function close() {
-  await walletInflowQueue.close()
-  await walletOutflowQueue.close()
-  await organizationQueue.close()
+  await Promise.all([
+    budgetQueue.close(),
+    walletInflowQueue.close(),
+    walletOutflowQueue.close(),
+    organizationQueue.close()
+  ])
 }
 
 export default {
