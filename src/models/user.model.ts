@@ -38,6 +38,7 @@ export interface IUser {
   otpExpiresAt: number
   otp: string
   pin: string
+  pinSet: boolean
   createdAt: Date;
   updatedAt: Date;
 }
