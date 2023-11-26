@@ -1,4 +1,6 @@
 import dayjs from "dayjs";
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
 import * as fastCsv from 'fast-csv';
@@ -13,7 +15,10 @@ import WalletEntry from "@/models/wallet-entry.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { BudgetStatus } from "@/models/budget.model";
 import QueryFilter from "../common/utils/query-filter";
-import { escapeRegExp } from "../common/utils";
+import { escapeRegExp, formatMoney } from "../common/utils";
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 @Service()
 export default class WalletService {
@@ -185,11 +190,13 @@ export default class WalletService {
     
     if (query.search) {
       const search = escapeRegExp(query.search)
-      filter.set('reference', search)
-      filter.set('$expr', {
-        $regexMatch: {
-          input: { $toString: '$_id' },
-          regex: search,
+      filter.set('$or', [{ reference: { $regex: escapeRegExp(query.search) } }])
+      filter.append('$or', {
+        $expr: {
+          $regexMatch: {
+            input: { $toString: '$_id' },
+            regex: search
+          }
         }
       })
     }
@@ -219,14 +226,23 @@ export default class WalletService {
 
     const cursor = WalletEntry.find(filter)
       .populate({ path: 'budget', select: 'name' })
-      .select('status fee balanceBefore balanceAfter currency type reference amount scope budget createdAt')
+      .select('status fee balanceBefore balanceAfter currency type amount scope budget createdAt')
       .sort('-createdAt')
       .lean()
       .cursor()
 
     const stream = fastCsv.format({ headers: true }).transform((entry: any) => ({
-      ...entry,
-      budget: entry.budget?.name || 'N/A'
+      'ID': entry._id,
+      'Status': entry.status.toUpperCase(),
+      'Type': entry.type.toUpperCase(),
+      'Amount': formatMoney(entry.amount),
+      'Fee': formatMoney(entry.fee),
+      'Currency': entry.currency,
+      'Balance After': formatMoney(entry.balanceAfter),
+      'Balance Before': formatMoney(entry.balanceBefore),
+      'Budget': entry.budget?.name || '---',
+      'Scope': entry.scope.toUpperCase().replaceAll('_', ' '),
+      'Date': dayjs(entry.createdAt).tz('Africa/Lagos').format('MMM D, YYYY h:mm A'),
     }));
 
     cursor.pipe(stream);

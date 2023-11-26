@@ -10,6 +10,8 @@ import User from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
 import WalletService from "../wallet/wallet.service";
 import { UserService } from "../user/user.service";
+import QueryFilter from "../common/utils/query-filter";
+import { escapeRegExp } from "../common/utils";
 
 const logger = new Logger('budget-service')
 
@@ -123,22 +125,28 @@ export default class BudgetService {
   }
 
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
-    const filter: any = {
-      organization: new ObjectId(auth.orgId),
-      status: query.status
-    }
-
+    const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
+      .set('status', query.status)
+    
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new BadRequestError("User not found")
     }
 
     if (user.role !== Role.Owner) {
-      filter['beneficiaries.user'] = new ObjectId(auth.userId)
+      filter.set('beneficiaries.user', new ObjectId(auth.userId)) 
+    }
+
+    if (query.search) {
+      const search = escapeRegExp(query.search)
+      filter.set('$or', [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ])
     }
 
     const aggregate = Budget.aggregate()
-      .match(filter)
+      .match(filter.object)
       .sort({ createdAt: -1 })
       .lookup({
         from: 'users',
