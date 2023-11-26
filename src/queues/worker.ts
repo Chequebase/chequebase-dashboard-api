@@ -20,7 +20,7 @@ function setupQueues() {
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
     walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
     walletQueue.add('addWalletEntriesForClearance', null, {
-      repeat: { cron: '0  * * * *' } // every hour
+      repeat: { cron: '0  * * * *', tz: 'Africa/Lagos' } // every hour
     })
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
