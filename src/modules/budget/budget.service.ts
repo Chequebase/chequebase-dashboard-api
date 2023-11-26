@@ -2,7 +2,7 @@ import { Service } from "typedi";
 import { ObjectId } from 'mongodb'
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
@@ -56,6 +56,49 @@ export default class BudgetService {
     const valid = await UserService.verifyTransactionPin(user.id, data.pin)
     if (!valid) {
       throw new BadRequestError('Invalid pin')
+    }
+
+    const wallet = await Wallet.findOne({
+      organization: auth.orgId,
+      currency: data.currency
+    })
+
+    if (!wallet) {
+      logger.error('wallet not found', { currency: data.currency, orgId: auth.orgId })
+      throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
+    }
+
+    const isOwner = user.role === Role.Owner
+    // wallet balance needs to be checked because the budget will be automatically approved
+    if (isOwner) {
+      const balances = await WalletService.getWalletBalances(wallet.id)
+      if (balances.availableBalance < data.amount) {
+        throw new BadRequestError('Insufficient Balance')
+      }
+    }
+    
+    const budget = await Budget.create({
+      organization: auth.orgId,
+      wallet: wallet._id,
+      name: data.name,
+      status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
+      amount: data.amount,
+      currency: wallet.currency,
+      expiry: data.expiry,
+      threshold: data.threshold ?? data.amount,
+      beneficiaries: data.beneficiaries,
+      createdBy: auth.userId,
+      description: data.description,
+      ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
+    })
+
+    return budget
+  }
+
+  async createTransferBudget(auth: AuthUser, data: CreateTranferBudgetDto) {
+    const user = await User.findById(auth.userId)
+    if (!user) {
+      throw new NotFoundError('User not found')
     }
 
     const wallet = await Wallet.findOne({

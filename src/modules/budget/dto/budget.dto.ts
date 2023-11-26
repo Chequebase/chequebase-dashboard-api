@@ -3,7 +3,7 @@ import { WalletEntryType } from "@/models/wallet-entry.model";
 import { Type } from "class-transformer";
 import { ArrayMinSize, IsArray, IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
 
-export class CreateBudgetDto {
+export class CreateTranferBudgetDto {
   @IsString()
   name: string
 
@@ -32,11 +32,12 @@ export class CreateBudgetDto {
   @IsOptional()
   @IsEnum(BudgetCurrency)
   currency = BudgetCurrency.Ngn
+}
 
+export class CreateBudgetDto extends CreateTranferBudgetDto {
   @IsString()
   pin: string
 }
-
 class BeneficiaryDto {
   @IsString()
   user: string
