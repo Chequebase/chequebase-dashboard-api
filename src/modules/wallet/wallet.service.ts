@@ -37,16 +37,14 @@ export default class WalletService {
               totalUsed: { $sum: '$amountUsed' },
               totalAmount: { $sum: '$amount' }
             }
-          },
-          {
-            $project: {
-              totalUsed: { $ifNull: ['$totalUsed', 0] },
-              totalAmount: { $ifNull: ['$totalAmount', 0] }
-            }
           }
         ]
       })
       .unwind({ path: '$budgets', preserveNullAndEmptyArrays: true })
+      .addFields({
+        totalUsed: { $ifNull: ['$budgets.totalUsed', 0] },
+        totalAmount: { $ifNull: ['$budgets.totalAmount', 0] }
+      })
       .project({
         _id: null,
         balance: 1,
