@@ -1,7 +1,7 @@
 import { BudgetCurrency, BudgetStatus } from "@/models/budget.model";
 import { WalletEntryType } from "@/models/wallet-entry.model";
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
 
 export class CreateTranferBudgetDto {
   @IsString()
@@ -82,6 +82,10 @@ export class GetBudgetsDto {
   @IsString()
   @IsEnum(BudgetStatus)
   status = BudgetStatus.Active
+
+  @IsBoolean()
+  @IsOptional()
+  paginated = false
 }
 
 export class GetBudgetWalletEntriesDto {
