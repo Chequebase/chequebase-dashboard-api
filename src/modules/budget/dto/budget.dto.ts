@@ -7,13 +7,13 @@ export class CreateBudgetDto {
   name: string
 
   @IsNumber()
-  @Min(1000_00)
-  @Max(1_000_000_00)
+  // @Min(1000_00)
+  // @Max(1_000_000_00)
   amount: number
 
   @IsNumber()
-  @Min(1000_00)
-  @Max(1_000_000_00)
+  // @Min(1000_00)
+  // @Max(1_000_000_00)
   @IsOptional()
   threshold?: number
 
