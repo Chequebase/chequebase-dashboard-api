@@ -42,21 +42,21 @@ export default class WalletService {
       })
       .unwind({ path: '$budgets', preserveNullAndEmptyArrays: true })
       .addFields({
-        totalUsed: { $ifNull: ['$budgets.totalUsed', 0] },
-        totalAmount: { $ifNull: ['$budgets.totalAmount', 0] }
+        totalBudgetSpent: { $ifNull: ['$budgets.totalUsed', 0] },
+        totalBudgetAmount: { $ifNull: ['$budgets.totalAmount', 0] }
       })
       .project({
         _id: null,
         balance: 1,
         availableBalance: {
           $subtract: [
-            { $add: ['$balance', '$totalUsed'] },
-            '$totalAmount'
+            { $add: ['$balance', '$totalBudgetSpent'] },
+            '$totalBudgetAmount'
           ]
         }
       })
 
-    // availableBalance = balance+budgets.amountUsed - budget.totalAmount
+    // availableBalance = balance+totalBudgetSpent - totalBudgetAmount
     return {
       availableBalance: Number(wallet.availableBalance || 0),
       balance: Number(wallet.balance || 0)
