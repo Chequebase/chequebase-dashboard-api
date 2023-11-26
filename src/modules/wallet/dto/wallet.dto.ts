@@ -23,12 +23,23 @@ export class GetWalletEntriesDto {
   search: string
 
   @IsString()
+  @IsEnum(WalletEntryType)
   @IsOptional()
   type: WalletEntryType
 
   @IsString()
   @IsOptional()
-  walletId: string
+  wallet: string
+
+  @IsString()
+  @IsOptional()
+  budget: string
+
+  @IsDateString()
+  from: string
+
+  @IsDateString()
+  to: string
 
   @IsNumber()
   @Min(1)

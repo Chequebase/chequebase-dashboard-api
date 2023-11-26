@@ -12,6 +12,8 @@ import VirtualAccount from "@/models/virtual-account.model";
 import WalletEntry from "@/models/wallet-entry.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { BudgetStatus } from "@/models/budget.model";
+import QueryFilter from "../common/utils/query-filter";
+import { escapeRegExp } from "../common/utils";
 
 @Service()
 export default class WalletService {
@@ -171,20 +173,34 @@ export default class WalletService {
     return wallet
   }
 
-  async getWalletEntries(orgId: string, data: GetWalletEntriesDto) {
-    const filter = data.walletId ? { _id: data.walletId } : { primary: true }
-    const wallet = await Wallet.exists({ organization: orgId, ...filter })
-    if (!wallet) {
-      return []
+  async getWalletEntries(organization: string, query: GetWalletEntriesDto) {
+    const filter = new QueryFilter({ organization })
+      .set('wallet', query.wallet)
+      .set('type', query.type)
+      .set('budget', query.budget)
+      .set('createdAt', {
+        $gte: dayjs(query.from).endOf('day').toDate(),
+        $lte: dayjs(query.to).startOf('day').toDate()
+      })
+    
+    if (query.search) {
+      const search = escapeRegExp(query.search)
+      filter.set('reference', search)
+      filter.set('$expr', {
+        $regexMatch: {
+          input: { $toString: '$_id' },
+          regex: search,
+        }
+      })
     }
 
-    const history = await WalletEntry.paginate({ wallet: wallet._id }, {
-      select: 'status currency fee type reference amount scope budget createdAt',
+    const history = await WalletEntry.paginate(filter.object, {
+      select: 'status currency fee type reference wallet amount scope budget createdAt',
       populate: {
         path: 'budget', select: 'name'
       },
       sort: '-createdAt',
-      page: Number(data.page),
+      page: Number(query.page),
       limit: 10,
       lean: true
     })

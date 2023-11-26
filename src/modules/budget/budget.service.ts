@@ -2,14 +2,13 @@ import { Service } from "typedi";
 import { ObjectId } from 'mongodb'
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
 import User from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
 import WalletService from "../wallet/wallet.service";
-import WalletEntry, { WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import { UserService } from "../user/user.service";
 
 const logger = new Logger('budget-service')
@@ -308,20 +307,5 @@ export default class BudgetService {
     }
 
     return budget
-  }
-
-  async getBudgetWalletEntries(orgId: string, id: string, data: GetBudgetWalletEntriesDto) {
-    const history = await WalletEntry.paginate({ budget: id }, {
-      select: 'status currency type fee reference balanceBefore balanceAfter amount scope budget createdAt',
-      populate: {
-        path: 'budget', select: 'name'
-      },
-      sort: '-createdAt',
-      page: Number(data.page),
-      limit: 10,
-      lean: true
-    })
-
-    return history
   }
 }

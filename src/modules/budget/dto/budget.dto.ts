@@ -87,14 +87,3 @@ export class GetBudgetsDto {
   @IsOptional()
   paginated = false
 }
-
-export class GetBudgetWalletEntriesDto {
-  @IsString()
-  @IsEnum(WalletEntryType)
-  @IsOptional()
-  type: string
-
-  @IsNumber()
-  @Min(1)
-  page = 1
-}
