@@ -5,7 +5,7 @@ export class OverviewService {
   constructor(
   ) { }
 
-  async getOverviewSummary(userId: string) {
+  async getOverviewSummary() {
     return {
         // TODO
         budgetBalance: 0,

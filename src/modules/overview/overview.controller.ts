@@ -9,7 +9,7 @@ export class OverviewController {
   constructor(private readonly overviewService: OverviewService) { }
 
   @Get('/summary')
-  getDashboardSummary(@CurrentUser() auth: AuthUser) {
-    return this.overviewService.getOverviewSummary(auth.userId);
+  getDashboardSummary() {
+    return this.overviewService.getOverviewSummary();
   }
 }
