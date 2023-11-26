@@ -55,7 +55,7 @@ export default class WalletService {
       throw new NotFoundError('Organization not found')
     }
 
-    if (organization.status !== 'completed') {
+    if (organization.status !== 'approved') {
       throw new BadRequestError('Organization is not verified')
     }
 
