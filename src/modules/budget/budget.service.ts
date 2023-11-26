@@ -2,7 +2,7 @@ import { Service } from "typedi";
 import { ObjectId } from 'mongodb'
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
@@ -120,6 +120,7 @@ export default class BudgetService {
       }
     }
     
+    const beneficiaries: BeneficiaryDto[] = [{ user: auth.userId }]
     const budget = await Budget.create({
       organization: auth.orgId,
       wallet: wallet._id,
@@ -129,7 +130,7 @@ export default class BudgetService {
       currency: wallet.currency,
       expiry: data.expiry,
       threshold: data.threshold ?? data.amount,
-      beneficiaries: data.beneficiaries,
+      beneficiaries,
       createdBy: auth.userId,
       description: data.description,
       ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })

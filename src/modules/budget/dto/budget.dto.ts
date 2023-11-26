@@ -18,12 +18,6 @@ export class CreateTranferBudgetDto {
   @IsOptional()
   threshold?: number
 
-  @Type(() => BeneficiaryDto)
-  @ValidateNested({ each: true })
-  @IsArray()
-  @ArrayMinSize(1)
-  beneficiaries: BeneficiaryDto[]
-
   @IsDateString()
   @IsOptional()
   expiry?: Date
@@ -35,16 +29,22 @@ export class CreateTranferBudgetDto {
 }
 
 export class CreateBudgetDto extends CreateTranferBudgetDto {
+  @Type(() => BeneficiaryDto)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  beneficiaries: BeneficiaryDto[]
+
   @IsString()
   pin: string
 }
-class BeneficiaryDto {
+export class BeneficiaryDto {
   @IsString()
   user: string
 
   @IsNumber()
   @IsOptional()
-  allocation: number
+  allocation?: number
 }
 
 export class ApproveBudgetBodyDto {
