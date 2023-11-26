@@ -124,11 +124,22 @@ export default class BudgetService {
   }
 
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
+    const filter: any = {
+      organization: new ObjectId(auth.orgId),
+      status: query.status
+    }
+
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new BadRequestError("User not found")
+    }
+
+    if (user.role !== Role.Owner) {
+      filter['beneficiaries.user'] = new ObjectId(auth.userId)
+    }
+
     const aggregate = Budget.aggregate()
-      .match({
-        organization: new ObjectId(auth.orgId),
-        status: query.status
-      })
+      .match(filter)
       .sort({ createdAt: -1 })
       .lookup({
         from: 'users',
@@ -137,14 +148,13 @@ export default class BudgetService {
         as: 'beneficiaries'
       })
       .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
-      .addFields({ spentAmount: { $ifNull: ['$entries.spent', 0] } })
       .project({
         name: 1,
         amount: 1,
         amountUsed: 1,
         status: 1,
         paused: 1,
-        availableAmount: { $subtract: ['$amount', '$spentAmount'] },
+        availableAmount: { $subtract: ['$amount', '$amountUsed'] },
         currency: 1,
         threshold: 1,
         expiry: 1,
@@ -249,12 +259,19 @@ export default class BudgetService {
     return budget
   }
 
-  async getBudget(orgId: string, id: string) {
+  async getBudget(auth: AuthUser, id: string) {
+    const filter: any = { _id: new ObjectId(id), organization: new ObjectId(auth.orgId) }
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new BadRequestError("User not found")
+    }
+
+    if (user.role !== Role.Owner) {
+      filter['beneficiaries.user'] = new ObjectId(auth.userId)
+    }
+
     const [budget] = await Budget.aggregate()
-      .match({
-        _id: new ObjectId(id),
-        organization: new ObjectId(orgId),
-      })
+      .match(filter)
       .lookup({
         from: 'users',
         localField: 'approvedBy',
@@ -269,12 +286,11 @@ export default class BudgetService {
         as: 'beneficiaries'
       })
       .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
-      .addFields({ spentAmount: { $ifNull: ['$entries.spent', 0] } })
       .project({
         name: 1,
         amount: 1,
         amountUsed: 1,
-        availableAmount: { $subtract: ['$amount', '$spentAmount'] },
+        availableAmount: { $subtract: ['$amount', '$amountUsed'] },
         currency: 1,
         threshold: 1,
         status: 1,

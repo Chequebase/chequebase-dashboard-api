@@ -54,7 +54,7 @@ export default class BudgetController {
   @Get('/:id')
   @Authorized()
   getBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
-    return this.budgetService.getBudget(auth.orgId, id)
+    return this.budgetService.getBudget(auth, id)
   }
 
   @Get('/:id/history')
