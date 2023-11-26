@@ -58,7 +58,7 @@ export default class WalletService {
         }
       })
     
-    // available = balance+buget - total budget + 
+    // availableBalance = balance+budgets.amountUsed - budget.totalAmount
     return {
       availableBalance: Number(wallet.availableBalance || 0),
       balance: Number(wallet.balance || 0)
