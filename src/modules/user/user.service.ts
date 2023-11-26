@@ -339,7 +339,7 @@ export class UserService {
 
   async getProfile(userId: string) {
     const user = await User.findById(userId)
-      .select('firstName lastName picture email emailVerified role KYBStatus createdAt organization')
+      .select('firstName lastName picture email emailVerified role KYBStatus createdAt organization pin')
       .lean()
     
     return user
