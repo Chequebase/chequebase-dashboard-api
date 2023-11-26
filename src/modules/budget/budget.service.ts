@@ -53,11 +53,6 @@ export default class BudgetService {
       throw new NotFoundError('User not found')
     }
 
-    const valid = await UserService.verifyTransactionPin(user.id, data.pin)
-    if (!valid) {
-      throw new BadRequestError('Invalid pin')
-    }
-
     const wallet = await Wallet.findOne({
       organization: auth.orgId,
       currency: data.currency
@@ -86,9 +81,7 @@ export default class BudgetService {
       currency: wallet.currency,
       expiry: data.expiry,
       threshold: data.threshold ?? data.amount,
-      beneficiaries: data.beneficiaries,
       createdBy: auth.userId,
-      description: data.description,
       ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
     })
 
