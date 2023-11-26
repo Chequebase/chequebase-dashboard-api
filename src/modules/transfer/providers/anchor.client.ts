@@ -5,6 +5,7 @@ import { InitiateTransferData, InitiateTransferResult, TransferClient } from "./
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { CreateCounterparty } from "@/modules/common/interfaces/anchor-service.interface";
+import { NotFoundError } from "routing-controllers";
 
 export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 
@@ -98,6 +99,7 @@ export class AnchorTransferClient implements TransferClient {
 
       return {
         status: result.status.toLowerCase(),
+        providerRef: res.data.data.id,
         currency: result.currency,
         amount: result.amount,
         reference: result.reference,
@@ -131,6 +133,7 @@ export class AnchorTransferClient implements TransferClient {
       if (status === 'completed') status = 'successful'
       
       return {
+        providerRef: res.data.data.id,
         status,
         reference: result.reference,
         amount: result.amount,
@@ -144,6 +147,10 @@ export class AnchorTransferClient implements TransferClient {
         transferId: id,
         status: err.response.status
       });
+
+      if (err.response.status === 404) {
+        throw new NotFoundError('Transfer not found')
+      }
 
       throw new ServiceUnavailableError('Unable to verify transfer');
     }

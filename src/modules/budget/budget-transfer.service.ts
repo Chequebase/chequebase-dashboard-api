@@ -245,11 +245,15 @@ export class BudgetTransferService {
       provider
     })
 
+    if ('providerRef' in transferResponse) {
+      await WalletEntry.updateOne({ _id: entry._id }, {
+        providerRef: transferResponse.providerRef
+      })
+    }
+
     if (transferResponse.status === 'failed') {
       await this.reverseWalletDebit(entry, transferResponse)
     }
-
-    // TODO: a cron to pick up transfers stuck in pending for >= 1hr
 
     return {
       status: transferResponse.status,

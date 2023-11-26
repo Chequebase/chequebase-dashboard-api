@@ -1,21 +1,27 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import { organizationQueue, walletInflowQueue, walletOutflowQueue } from '.';
+import { organizationQueue, walletQueue } from '.';
 import processOrganizationEventHandler from './jobs/organization';
 import processWalletInflow from './jobs/wallet/wallet-inflow';
 import processWalletOutflow from './jobs/wallet/wallet-outflow';
+import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance';
 
 const logger = new Logger('worker:main')
 const __DEV__ = process.env.NODE_ENV === "development";
 const ext = __DEV__ ? ".ts" : ".js";
 
-setupEventLogger([walletInflowQueue, walletOutflowQueue])
+setupEventLogger([walletQueue])
 
 function setupQueues() {
   try {
     organizationQueue.process(processOrganizationEventHandler)
-    walletInflowQueue.process('processPayment', 5, processWalletInflow)
-    walletOutflowQueue.process('processTransfer', 5, processWalletOutflow)
+    walletQueue.process('processWalletInflow', 5, processWalletInflow)
+    walletQueue.process('processWalletOutflow', 5, processWalletOutflow)
+    walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
+    walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
+    walletQueue.add('addWalletEntriesForClearance', null, {
+      repeat: { cron: '0  * * * *' } // every hour
+    })
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message
@@ -56,8 +62,7 @@ function setupEventLogger(queues: IQueue[]) {
 }
 
 async function close() {
-  await walletInflowQueue.close()
-  await walletOutflowQueue.close()
+  await walletQueue.close()
   await organizationQueue.close()
 }
 

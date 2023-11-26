@@ -15,6 +15,7 @@ export interface WalletInflowData {
   gatewayResponse: string
   reference: string
   narration: string
+  providerRef: string
   sourceAccount: {
     accountName: string
     bankName: string
@@ -59,6 +60,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         provider: virtualAccount.provider,
         balanceAfter: numeral(wallet.balance).add(amount).value(),
         balanceBefore: wallet.balance,
+        providerRef: job.data.providerRef,
         meta: {
           sourceAccount: job.data.sourceAccount
         }
