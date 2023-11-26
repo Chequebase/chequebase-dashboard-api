@@ -68,7 +68,7 @@ export default class BudgetService {
     if (isOwner) {
       const balances = await WalletService.getWalletBalances(wallet.id)
       if (balances.availableBalance < data.amount) {
-        throw new BadRequestError('Budget amount must be less than wallet available balance')
+        throw new BadRequestError('Insufficent Available Balance')
       }
     }
     
@@ -158,7 +158,7 @@ export default class BudgetService {
 
     const balances = await WalletService.getWalletBalances(budget.wallet)
     if (balances.availableBalance < budget.amount) {
-      throw new BadRequestError('Budget amount must be less than wallet available balance')
+      throw new BadRequestError('Insufficent Available Balance')
     }
 
     await budget.set({
