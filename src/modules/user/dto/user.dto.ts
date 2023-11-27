@@ -1,7 +1,10 @@
-import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty } from 'class-validator';
+import { UserStatus } from '@/models/user.model';
+import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber } from 'class-validator';
 
 export enum Role {
-  Owner = 'owner'
+  Owner = 'owner',
+  Cfo = 'cfo',
+  Employee = 'employee'
 }
 
 export class RegisterDto {
@@ -72,4 +75,76 @@ export class OtpDto {
 
   @IsString()
   otp: string
+}
+
+export class CreateEmployeeDto {
+  @IsString()
+  readonly firstName: string;
+
+  @IsString()
+  readonly lastName: string;
+
+  @IsString()
+  readonly email: string;
+
+  @IsString()
+  readonly phone: string;
+
+  @IsString()
+  readonly role: Role;
+}
+
+export class AddEmployeeDto {
+  @IsString()
+  @IsNotEmpty()
+  code: string
+
+  @IsString()
+  @IsNotEmpty()
+  firstName: string
+
+  @IsString()
+  @IsNotEmpty()
+  lastName: string
+
+  @IsString()
+  @IsNotEmpty()
+  phone: string
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  password: string
+}
+
+export class UpdateEmployeeDto {
+  @IsString()
+  firstName: string;
+
+  @IsString()
+  lastName: string;
+
+  @IsString()
+  email: string;
+
+  @IsString()
+  phone: string;
+
+  @IsString()
+  role: Role;
+}
+
+export class GetMembersQueryDto {
+  @IsNumber()
+  page: number;
+
+  @IsOptional()
+  @IsString()
+  status: string;
+}
+
+
+export const EmployeeStatus = {
+  ...UserStatus,
+  INVITED: 'invited',
 }

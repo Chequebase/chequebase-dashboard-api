@@ -1,5 +1,5 @@
-import { Authorized, BadRequestError, Body, CurrentUser, Get, HeaderParam, JsonController, Post, QueryParams } from 'routing-controllers';
-import { ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, RegisterDto, ResendEmailDto, ResendOtpDto, VerifyEmailDto } from './dto/user.dto';
+import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams } from 'routing-controllers';
+import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
 import { Service } from 'typedi';
@@ -75,5 +75,63 @@ export default class UserController {
   @Authorized()
   getUserProfile(@CurrentUser() auth: AuthUser) {
     return this.userService.getProfile(auth.userId);
+  }
+
+  @Authorized(Role.Owner)
+  @Post('/members/invite')
+  sendInvite(@CurrentUser() auth: AuthUser, @Body() body: CreateEmployeeDto) {
+    return this.userService.sendInvite(body, auth.orgId);
+  }
+
+  @Authorized([Role.Owner, Role.Cfo, Role.Employee])
+  @Post('/members/accept-invite')
+  acceptInvite(@Body() addEmployeeDto: AddEmployeeDto) {
+    return this.userService.acceptInvite(addEmployeeDto);
+  }
+
+  @Authorized(Role.Owner)
+  @Get('/members')
+  getMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: GetMembersQueryDto) {
+    return this.userService.getMembers(auth.orgId, query);
+  }
+
+  @Authorized(Role.Owner)
+  @Get('/members/:id')
+  getMember(@Param('id') id: string, @CurrentUser() auth: AuthUser) {
+    return this.userService.getMember(id, auth.orgId);
+  }
+
+  @Authorized(Role.Owner)
+  @Put('/members/:id')
+  updateEmployee(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Body() updateEmployeeDto: UpdateEmployeeDto
+  ) {
+    return this.userService.updateMember(id, updateEmployeeDto, auth.orgId);
+  }
+
+  @Authorized(Role.Owner)
+  @Patch('/members/:id/delete-invite')
+  deleteInvite(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.userService.deleteInvite(id, auth.orgId);
+  }
+
+  @Authorized(Role.Owner)
+  @Get('/members/:id/resend-invite')
+  resendInvite(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.userService.resendInvite(id, auth.userId);
+  }
+
+  // @Authorized(Role.Owner)
+  // @Patch('/members/:id/unblock')
+  // unBlockEmployee(@GetCurrentUserOrganizationId() organizationId: string, @Param('id') id: string) {
+  //   return this.userService.unBlock(id, organizationId);
+  // }
+
+  @Authorized(Role.Owner)
+  @Delete('/members/:id')
+  deleteMember(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.userService.deleteMember(id, auth.orgId);
   }
 }

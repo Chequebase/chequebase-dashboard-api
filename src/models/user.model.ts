@@ -1,6 +1,8 @@
 import { cdb } from '@/modules/common/mongoose';
-import { Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum KycStatus {
   NOT_STARTED = "not started",
@@ -35,12 +37,17 @@ export interface IUser {
   hashRt: string
   emailVerifyCode: string
   passwordResetCode: string
+  inviteCode: string
   otpExpiresAt: number
   otp: string
   pin: string
   createdAt: Date;
   updatedAt: Date;
 }
+
+interface UserModel extends
+  mongoose.PaginateModel<IUser>,
+  mongoose.AggregatePaginateModel<IUser> { }
 
 const userSchema = new Schema<IUser>(
   {
@@ -63,6 +70,7 @@ const userSchema = new Schema<IUser>(
     otp: String,
     emailVerifyCode: String,
     passwordResetCode: String,
+    inviteCode: String,
     status: {
       type: String,
       enum: Object.values(UserStatus)
@@ -71,6 +79,9 @@ const userSchema = new Schema<IUser>(
   { timestamps: true },
 );
 
-const User = cdb.model<IUser>('User', userSchema);
+userSchema.plugin(aggregatePaginate);
+userSchema.plugin(mongoosePaginate);
+
+const User = cdb.model<IUser, UserModel>('User', userSchema);
 
 export default User 
