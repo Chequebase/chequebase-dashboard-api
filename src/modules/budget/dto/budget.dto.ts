@@ -83,18 +83,11 @@ export class GetBudgetsDto {
   @IsEnum(BudgetStatus)
   status = BudgetStatus.Active
 
+  @IsString()
+  @IsOptional()
+  search: string
+
   @IsBoolean()
   @IsOptional()
-  paginated = false
-}
-
-export class GetBudgetWalletEntriesDto {
-  @IsString()
-  @IsEnum(WalletEntryType)
-  @IsOptional()
-  type: string
-
-  @IsNumber()
-  @Min(1)
-  page = 1
+  paginated = true
 }

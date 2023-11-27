@@ -14,7 +14,7 @@ export function getEnvOrThrow(key: string) {
   return value;
 }
 
-export function escapeRegExp(str: string) {
+export function escapeRegExp(str = '') {
   return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, '\\$1')
 }
 
@@ -27,4 +27,8 @@ export function getPercentageDiff(previousValue = 0, currentValue = 0) {
   const percentageDiff = numeral(diff).divide(previousValue).multiply(100).value()!;
 
   return { value: currentValue, percentageDiff: Number(percentageDiff.toFixed(2)) };
+}
+
+export function formatMoney(amount: number) {
+  return numeral(amount).divide(100).value()?.toLocaleString()
 }
