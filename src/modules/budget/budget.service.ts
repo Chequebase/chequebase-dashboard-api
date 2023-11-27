@@ -2,15 +2,16 @@ import { Service } from "typedi";
 import { ObjectId } from 'mongodb'
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
 import User from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
 import WalletService from "../wallet/wallet.service";
-import WalletEntry, { WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import { UserService } from "../user/user.service";
+import QueryFilter from "../common/utils/query-filter";
+import { escapeRegExp } from "../common/utils";
 
 const logger = new Logger('budget-service')
 
@@ -124,22 +125,28 @@ export default class BudgetService {
   }
 
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
-    const filter: any = {
-      organization: new ObjectId(auth.orgId),
-      status: query.status
-    }
-
+    const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
+      .set('status', query.status)
+    
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new BadRequestError("User not found")
     }
 
     if (user.role !== Role.Owner) {
-      filter['beneficiaries.user'] = new ObjectId(auth.userId)
+      filter.set('beneficiaries.user', new ObjectId(auth.userId)) 
+    }
+
+    if (query.search) {
+      const search = escapeRegExp(query.search)
+      filter.set('$or', [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ])
     }
 
     const aggregate = Budget.aggregate()
-      .match(filter)
+      .match(filter.object)
       .sort({ createdAt: -1 })
       .lookup({
         from: 'users',
@@ -308,20 +315,5 @@ export default class BudgetService {
     }
 
     return budget
-  }
-
-  async getBudgetWalletEntries(orgId: string, id: string, data: GetBudgetWalletEntriesDto) {
-    const history = await WalletEntry.paginate({ budget: id }, {
-      select: 'status currency type fee reference balanceBefore balanceAfter amount scope budget createdAt',
-      populate: {
-        path: 'budget', select: 'name'
-      },
-      sort: '-createdAt',
-      page: Number(data.page),
-      limit: 10,
-      lean: true
-    })
-
-    return history
   }
 }

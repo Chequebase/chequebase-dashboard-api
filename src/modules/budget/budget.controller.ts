@@ -1,7 +1,7 @@
 import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams } from "routing-controllers";
 import { Service } from "typedi";
 import BudgetService from "./budget.service";
-import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetWalletEntriesDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
+import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { Role } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
@@ -55,16 +55,6 @@ export default class BudgetController {
   @Authorized()
   getBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetService.getBudget(auth, id)
-  }
-
-  @Get('/:id/history')
-  @Authorized()
-  getBudgetHistory(
-    @CurrentUser() auth: AuthUser,
-    @Param('id') id: string,
-    @QueryParams() query: GetBudgetWalletEntriesDto
-  ) {
-    return this.budgetService.getBudgetWalletEntries(auth.orgId, id, query)
   }
 
   @Post('/:id/approve')

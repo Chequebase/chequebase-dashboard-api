@@ -1,15 +1,16 @@
 import { Service } from "typedi";
+import dayjs from 'dayjs'
 import jwt from 'jsonwebtoken'
 import bcrypt, { compare } from 'bcryptjs';
 import EmailService from "@/modules/common/email.service";
 import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
-import { BadRequestError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto } from "./dto/user.dto";
-import dayjs from 'dayjs'
+import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
+import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, EmployeeStatus, GetMembersQueryDto, UpdateEmployeeDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
+import { createId } from "@paralleldrive/cuid2";
 
 const logger = new Logger('user-service')
 
@@ -377,5 +378,149 @@ export class UserService {
       Message: {},
       Source: getEnvOrThrow('CHEQUEBASE_EMAIL_COMMS')
     };
+  }
+
+  async sendInvite(data: CreateEmployeeDto, orgId: string) {
+    const organization = await Organization.findById(orgId).lean()
+    if (!organization) {
+      throw new NotFoundError(`Orgniaztion with ID ${orgId} not found`);
+    }
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    const userExists = await User.findOne({ email: { $regex } })
+    if (userExists) {
+      throw new BadRequestError('Account with same email already exists');
+    }
+
+    const code = createId()
+    await User.create({
+      email: data.email,
+      inviteCode: code,
+      emailVerified: false,
+      organization: orgId,
+      role: data.role,
+      status: EmployeeStatus.INVITED
+    })
+
+    this.emailService.sendEmployeeInviteEmail(data.email, {
+      inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${code}&companyName=${organization.businessName}`,
+      companyName: organization.businessName
+    })
+
+    return { message: 'Invite sent successfully' };
+  }
+
+  async acceptInvite(data: AddEmployeeDto) {
+    const { code, firstName, lastName, phone, password } = data
+    const user = await User.findOne({ inviteCode: code })
+    if (!user) {
+      throw new NotFoundError('Invalid or expired invite link');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    await user.set({
+      emailVerified: true,
+      inviteCode: null,
+      firstName,
+      lastName,
+      phone,
+      password: hashedPassword,
+      status: UserStatus.ACTIVE
+    }).save()
+
+    const tokens = await this.getTokens(user.id, user.email, user.organization.toString());
+    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
+    return { tokens, userId: user.id }
+  }
+
+  async getMembers(orgId: string, query: GetMembersQueryDto) {
+    const users = await User.paginate({
+      organization: orgId,
+      status: { $ne: EmployeeStatus.DELETED }
+    }, {
+      page: Number(query.page),
+      limit: 10,
+      lean: true,
+      select: 'firstName lastName email emailVerified role KYBStatus status picture'
+    })
+    
+    return users
+  }
+
+  async getMember(id: string, orgId: string) {
+    const user = await User.findOne({ _id: id, organization: orgId })
+      .select('firstName lastName email emailVerified role KYBStatus status picture')
+      .lean()
+    
+    if (!user) {
+      throw new NotFoundError(`Employee with ID ${id} not found`);
+    }
+
+    return user;
+  }
+
+  async updateMember(id: string, data: UpdateEmployeeDto, orgId: string) {
+    const user = await User.findOne({_id: id, organization: orgId});
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    await user.updateOne({ ...data, role: data.role })
+
+    return { message: 'Update member details' }
+  }
+
+  async deleteInvite(id: string, orgId: string) {
+    const employee = await this.getMember(id, orgId);
+    if (!employee) {
+      throw new NotFoundError('User not found');
+    }
+
+    await User.updateOne({ _id: id, organization: orgId }, {
+      status: UserStatus.DELETED,
+      emailVerifyCode: this.generateRandomString(3),
+      emailVerified: false,
+    })
+
+    return { message: 'invite deleted' }
+  }
+
+  async resendInvite(id: string, orgId: string) {
+    const employee = await User.findOne({ _id: id, organization: orgId })
+    if (!employee) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (employee.status !== EmployeeStatus.INVITED) {
+      throw new NotFoundError('invite not found');
+    }
+
+    const organization = await Organization.findById(orgId).lean()
+    if (!organization) {
+      throw new NotFoundError('Organization not found');
+    }
+
+    await this.emailService.sendEmployeeInviteEmail(employee.email, {
+      inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${employee.inviteCode}&companyName=${organization.businessName}`,
+      companyName: organization.businessName
+    });
+
+    return { message: 'Invite resent' }
+  }
+
+  async deleteMember(id: string, orgId: string) {
+    const employee = await this.getMember(id, orgId);
+    if (!employee) {
+      throw new NotFoundError('User not found');
+    }
+
+    await User.updateOne({ _id: id, organization: orgId }, {
+      status: UserStatus.DELETED,
+      emailVerified: false,
+    })
+
+    return { message: 'Member deleted' }
   }
 }
