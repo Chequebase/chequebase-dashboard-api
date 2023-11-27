@@ -17,6 +17,7 @@ setupEventLogger([walletQueue])
 function setupQueues() {
   try {
     organizationQueue.process(processOrganizationEventHandler)
+
     walletQueue.process('processWalletInflow', 5, processWalletInflow)
     walletQueue.process('processWalletOutflow', 5, processWalletOutflow)
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)

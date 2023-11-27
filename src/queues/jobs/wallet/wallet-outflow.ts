@@ -8,7 +8,6 @@ import Logger from "@/modules/common/utils/logger";
 import { BadRequestError } from "routing-controllers";
 import { cdb } from "@/modules/common/mongoose";
 import Budget from "@/models/budget.model";
-
 export interface WalletOutflowData {
   status: 'successful' | 'failed' | 'reversed'
   amount: number
@@ -36,7 +35,12 @@ async function processWalletOutflow(job: Job<WalletOutflowData>) {
       case 'reversed':
         return handleReversed(data)
       default:
-        return handleFailed(data)
+        logger.error('unexpected status', {
+          gatewayResponse: data.gatewayResponse,
+          status: data.status
+        })
+
+        throw new BadRequestError('unexpected status '+data.status)
     }
   } catch (err: any) {
     logger.error('error processing wallet outflow', {
@@ -65,12 +69,10 @@ async function handleSuccessful(data: WalletOutflowData) {
       return { message: 'entry already in conclusive state' }
     }
 
-    await cdb.transaction(async (session) => {
-      await entry.updateOne({
-        gatewayResponse: data.gatewayResponse,
-        status: WalletEntryStatus.Successful
-      }, { session })
-    }, tnxOpts)
+    await entry.updateOne({
+      gatewayResponse: data.gatewayResponse,
+      status: WalletEntryStatus.Successful
+    })
 
     return { message: 'transfer successful ' + entry._id }
   } catch (err: any) {
@@ -130,7 +132,9 @@ async function handleReversed(data: WalletOutflowData) {
       throw new BadRequestError('Wallet entry does not exist')
     }
 
-    if (entry.status === WalletEntryStatus.Failed || entry.meta?.reversal) {
+    // check if already in conclusive state
+    const alreadyConcluded = entry.status === WalletEntryStatus.Failed || entry.meta?.reversal
+    if (alreadyConcluded) {
       logger.error('entry already in conclusive state', {
         status: entry.status,
         reference: data.reference,
