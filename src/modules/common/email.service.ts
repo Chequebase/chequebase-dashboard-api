@@ -69,4 +69,13 @@ export default class EmailService {
       dynamicTemplateData: data
     })
   }
+
+  sendEmployeeInviteEmail(to: string, data: any) {
+    return this.send({
+      to,
+      subject: 'Invite Employee',
+      templateId: 'd-e3621109272047048ee124d5938ff112',
+      dynamicTemplateData: data
+    })
+  }
 }

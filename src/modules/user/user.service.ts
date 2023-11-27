@@ -1,13 +1,13 @@
 import { Service } from "typedi";
+import dayjs from 'dayjs'
 import jwt from 'jsonwebtoken'
 import bcrypt, { compare } from 'bcryptjs';
 import EmailService from "@/modules/common/email.service";
 import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
-import { BadRequestError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto } from "./dto/user.dto";
-import dayjs from 'dayjs'
+import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
+import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, EmployeeStatus, GetMembersQueryDto, UpdateEmployeeDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 
@@ -377,5 +377,137 @@ export class UserService {
       Message: {},
       Source: getEnvOrThrow('CHEQUEBASE_EMAIL_COMMS')
     };
+  }
+
+  async sendInvite(data: CreateEmployeeDto, orgId: string) {
+    const organization = await Organization.findById(orgId).lean()
+    if (!organization) {
+      throw new NotFoundError(`Orgniaztion with ID ${orgId} not found`);
+    }
+
+    const code = this.generateRandomString(8)
+    await User.create({
+      email: data.email,
+      emailVerifyCode: code,
+      emailVerified: false,
+      organization: orgId,
+      role: data.role,
+    })
+
+    this.emailService.sendEmployeeInviteEmail(data.email, {
+      inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${code}&companyName=${organization.businessName}`,
+      companyName: organization.businessName
+    })
+
+    return { message: 'Invite sent successfully' };
+  }
+
+  async acceptInvite(data: AddEmployeeDto) {
+    const { code, firstName, lastName, phone, password } = data
+    const user = await User.findOne({ emailVerifyCode: code })
+    if (!user) {
+      throw new NotFoundError();
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    await user.set({
+      emailVerified: true,
+      firstName,
+      lastName,
+      phone,
+      password: hashedPassword,
+      status: UserStatus.ACTIVE
+    }).save()
+
+    const tokens = await this.getTokens(user.id, user.email, user.organization.toString());
+    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
+    return { tokens, userId: user.id }
+  }
+
+  async getMembers(orgId: string, query: GetMembersQueryDto) {
+    const users = await User.paginate({ organization: orgId }, {
+      page: Number(query.page),
+      limit: 10,
+      lean: true,
+      select: 'firstName lastName email emailVerified role KYBStatus status picture'
+    })
+    
+    return users
+  }
+
+  async getMember(id: string, orgId: string) {
+    const user = await User.findOne({ _id: id, organization: orgId })
+      .select('firstName lastName email emailVerified role KYBStatus status picture')
+      .lean()
+    
+    if (!user) {
+      throw new NotFoundError(`Employee with ID ${id} not found`);
+    }
+
+    return user;
+  }
+
+  async updateMember(id: string, data: UpdateEmployeeDto, orgId: string) {
+    const user = await User.findOne({_id: id, organization: orgId});
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    await user.updateOne({ ...data, role: data.role })
+  }
+
+  async deleteInvite(id: string, orgId: string) {
+    const employee = await this.getMember(id, orgId);
+    if (!employee) {
+      throw new NotFoundError('User not found');
+    }
+
+    await User.updateOne({ _id: id, organization: orgId }, {
+      status: UserStatus.DELETED,
+      emailVerifyCode: this.generateRandomString(3),
+      emailVerified: false,
+    })
+
+    return { message: 'invite deleted' }
+  }
+
+  async resendInvite(id: string, orgId: string) {
+    const employee = await User.findOne({ _id: id, organization: orgId })
+    if (!employee) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (employee.status !== EmployeeStatus.INVITED) {
+      throw new NotFoundError('invite not found');
+    }
+
+    const organization = await Organization.findById(orgId).lean()
+    if (!organization) {
+      throw new NotFoundError('Organization not found');
+    }
+
+    await this.emailService.sendEmployeeInviteEmail(employee.email, {
+      inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${employee.inviteCode}&companyName=${organization.businessName}`,
+      companyName: organization.businessName
+    });
+
+    return { message: 'Invite resent' }
+  }
+
+  async deleteMember(id: string, orgId: string) {
+    const employee = await this.getMember(id, orgId);
+    if (!employee) {
+      throw new NotFoundError('User not found');
+    }
+
+    await User.updateOne({ _id: id, organization: orgId }, {
+      status: UserStatus.DELETED,
+      emailVerified: false,
+    })
+
+    return { message: 'Member deleted' }
   }
 }
