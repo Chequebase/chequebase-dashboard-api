@@ -10,6 +10,7 @@ import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-contr
 import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, EmployeeStatus, GetMembersQueryDto, UpdateEmployeeDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
+import { createId } from "@paralleldrive/cuid2";
 
 const logger = new Logger('user-service')
 
@@ -384,14 +385,20 @@ export class UserService {
     if (!organization) {
       throw new NotFoundError(`Orgniaztion with ID ${orgId} not found`);
     }
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    const userExists = await User.findOne({ email: { $regex } })
+    if (userExists) {
+      throw new BadRequestError('Account with same email already exists');
+    }
 
-    const code = this.generateRandomString(8)
+    const code = createId()
     await User.create({
       email: data.email,
-      emailVerifyCode: code,
+      inviteCode: code,
       emailVerified: false,
       organization: orgId,
       role: data.role,
+      status: EmployeeStatus.INVITED
     })
 
     this.emailService.sendEmployeeInviteEmail(data.email, {
@@ -404,15 +411,16 @@ export class UserService {
 
   async acceptInvite(data: AddEmployeeDto) {
     const { code, firstName, lastName, phone, password } = data
-    const user = await User.findOne({ emailVerifyCode: code })
+    const user = await User.findOne({ inviteCode: code })
     if (!user) {
-      throw new NotFoundError();
+      throw new NotFoundError('Invalid or expired invite link');
     }
 
     const hashedPassword = await bcrypt.hash(password, 12)
 
     await user.set({
       emailVerified: true,
+      inviteCode: null,
       firstName,
       lastName,
       phone,
@@ -428,7 +436,10 @@ export class UserService {
   }
 
   async getMembers(orgId: string, query: GetMembersQueryDto) {
-    const users = await User.paginate({ organization: orgId }, {
+    const users = await User.paginate({
+      organization: orgId,
+      status: { $ne: EmployeeStatus.DELETED }
+    }, {
       page: Number(query.page),
       limit: 10,
       lean: true,
@@ -457,6 +468,8 @@ export class UserService {
     }
 
     await user.updateOne({ ...data, role: data.role })
+
+    return { message: 'Update member details' }
   }
 
   async deleteInvite(id: string, orgId: string) {
