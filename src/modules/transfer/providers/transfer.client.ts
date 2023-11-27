@@ -13,6 +13,7 @@ export interface InitiateTransferData {
 }
 
 export interface InitiateTransferResult {
+  providerRef?: string
   status: string
   reference: string
   amount: number

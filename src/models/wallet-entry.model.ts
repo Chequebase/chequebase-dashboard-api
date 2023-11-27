@@ -40,6 +40,8 @@ export interface IWalletEntry {
   gatewayResponse: string
   paymentMethod: string
   provider: string
+  // id/ref used for requerying from provider eg verify transfer
+  providerRef: string
   narration: string
   reference: string
   status: WalletEntryStatus
@@ -91,6 +93,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     gatewayResponse: String,
     paymentMethod: String,
     provider: { type: String, required: true },
+    providerRef: { type: String },
     narration: String,
     reference: { type: String, required: true },
     meta: Object

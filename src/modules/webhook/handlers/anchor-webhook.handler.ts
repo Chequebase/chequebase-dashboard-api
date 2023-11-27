@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import { Inject, Service } from "typedi";
 import Logger from "@/modules/common/utils/logger";
-import { walletInflowQueue, walletOutflowQueue } from "@/queues";
+import { walletQueue } from "@/queues";
 import { WalletInflowData } from "@/queues/jobs/wallet/wallet-inflow";
 import { WalletOutflowData } from "@/queues/jobs/wallet/wallet-outflow";
 import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
@@ -24,6 +24,7 @@ export default class AnchorWebhookHandler {
       gatewayResponse: JSON.stringify(body),
       narration: payment.narration,
       reference: payment.paymentReference,
+      providerRef: payment.paymentId,
       paymentMethod: payment.type,
       sourceAccount: {
         accountName: payment.counterParty?.accountName,
@@ -32,7 +33,7 @@ export default class AnchorWebhookHandler {
       }
     }
 
-    await walletInflowQueue.add('processPayment', jobData)
+    await walletQueue.add('processWalletInflow', jobData)
 
     return { message: 'payment queued' }
   }
@@ -54,12 +55,12 @@ export default class AnchorWebhookHandler {
     const jobData: WalletOutflowData = {
       amount: verifyResponse.amount,
       currency: verifyResponse.currency,
-      gatewayResponse: JSON.stringify(body),
+      gatewayResponse: verifyResponse.gatewayResponse,
       reference: verifyResponse.reference,
       status: verifyResponse.status as WalletOutflowData['status']
     }
 
-    await walletOutflowQueue.add('processTransfer', jobData)
+    await walletQueue.add('processWalletOutflow', jobData)
     return { message: 'transfer event queued' }
   }
 

@@ -1,9 +1,10 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import { budgetQueue, organizationQueue, walletInflowQueue, walletOutflowQueue } from '.';
+import { organizationQueue, walletQueue, budgetQueue } from '.';
 import processOrganizationEventHandler from './jobs/organization';
 import processWalletInflow from './jobs/wallet/wallet-inflow';
 import processWalletOutflow from './jobs/wallet/wallet-outflow';
+import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance';
 import closeExpiredBudget from './jobs/budget/close-expired-budget';
 import fetchExpiredBudgets from './jobs/budget/fetch-expired-budgets';
 
@@ -11,13 +12,20 @@ const logger = new Logger('worker:main')
 const __DEV__ = process.env.NODE_ENV === "development";
 const ext = __DEV__ ? ".ts" : ".js";
 
-setupEventLogger([walletInflowQueue, walletOutflowQueue])
+setupEventLogger([walletQueue])
 
 function setupQueues() {
   try {
     organizationQueue.process(processOrganizationEventHandler)
-    walletInflowQueue.process('processPayment', 5, processWalletInflow)
-    walletOutflowQueue.process('processTransfer', 5, processWalletOutflow)
+
+    walletQueue.process('processWalletInflow', 5, processWalletInflow)
+    walletQueue.process('processWalletOutflow', 5, processWalletOutflow)
+    walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
+    walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
+    walletQueue.add('addWalletEntriesForClearance', null, {
+      repeat: { cron: '0  * * * *', tz: 'Africa/Lagos' } // every hour
+    })
+    
     budgetQueue.process('closeExpiredBudget', closeExpiredBudget)
     budgetQueue.process('fetchExpiredBudgets', fetchExpiredBudgets)
     budgetQueue.add('fetchExpiredBudgets', null, {
@@ -65,8 +73,7 @@ function setupEventLogger(queues: IQueue[]) {
 async function close() {
   await Promise.all([
     budgetQueue.close(),
-    walletInflowQueue.close(),
-    walletOutflowQueue.close(),
+    walletQueue.close(),
     organizationQueue.close()
   ])
 }
