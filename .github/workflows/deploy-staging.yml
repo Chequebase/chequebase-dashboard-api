@@ -22,7 +22,7 @@ jobs:
           rm -rf ./src
           zip -r deploy.zip . -x '*.git*'
       - name: Deploy to EB
-        uses: einaregilsson/beanstalk-deploy@v20
+        uses: einaregilsson/beanstalk-deploy@v21
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -30,6 +30,7 @@ jobs:
           application_name: chequebase-dashboard-api
           environment_name: chequebase-dashboard-api-staging
           use_existing_version_if_available: true
-          version_label: staging-${{ github.run_id }}
+          version_label: staging-${{ github.SHA }}
           region: eu-central-1
           deployment_package: deploy.zip
+          version_description: ${{ github.SHA }}
