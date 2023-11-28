@@ -179,13 +179,15 @@ export default class WalletService {
   }
 
   async getWalletEntries(organization: string, query: GetWalletEntriesDto) {
+    const from = query.from ?? dayjs().subtract(30, 'days').toDate()
+    const to = query.to ?? dayjs()
     const filter = new QueryFilter({ organization })
       .set('wallet', query.wallet)
       .set('type', query.type)
       .set('budget', query.budget)
       .set('createdAt', {
-        $gte: dayjs(query.from).endOf('day').toDate(),
-        $lte: dayjs(query.to).startOf('day').toDate()
+        $gte: dayjs(from).startOf('day').toDate(),
+        $lte: dayjs(to).endOf('day').toDate()
       })
     
     if (query.search) {

@@ -36,9 +36,11 @@ export class GetWalletEntriesDto {
   budget: string
 
   @IsDateString()
+  @IsOptional()
   from: string
 
   @IsDateString()
+  @IsOptional()
   to: string
 
   @IsNumber()
