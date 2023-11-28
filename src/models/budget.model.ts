@@ -14,12 +14,19 @@ export enum BudgetCurrency {
   Ngn = 'NGN'
 }
 
+export enum BudgetPriority {
+  High = 1,
+  Medium = 2,
+  Low = 3
+}
+
 export interface IBudget {
   _id: ObjectId
   paused: boolean
   wallet: ObjectId
   status: BudgetStatus
   organization: ObjectId
+  priority: BudgetPriority
   name: string
   amount: number
   amountUsed: number
@@ -48,6 +55,11 @@ interface BudgetModel extends
 
 const budgetSchema = new Schema<IBudget>(
   {
+    priority: {
+      type: Number,
+      default: BudgetPriority.Medium,
+      enum: [BudgetPriority.High, BudgetPriority.Low, BudgetPriority.Medium]
+    },
     description: String,
     createdBy: {
       type: Schema.Types.ObjectId,
