@@ -51,7 +51,7 @@ interface UserModel extends
 
 const userSchema = new Schema<IUser>(
   {
-    firstName:  String,
+    firstName: String,
     lastName: String,
     picture: String,
     email: { type: String, required: true, unique: true },

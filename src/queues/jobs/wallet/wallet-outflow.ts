@@ -1,3 +1,7 @@
+import dayjs from "dayjs";
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+import Container from 'typedi';
 import { TransactionOptions } from 'mongodb'
 import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
@@ -7,7 +11,15 @@ import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "@/modules/common/utils/logger";
 import { BadRequestError } from "routing-controllers";
 import { cdb } from "@/modules/common/mongoose";
-import Budget from "@/models/budget.model";
+import Budget, { IBudget } from "@/models/budget.model";
+import EmailService from '@/modules/common/email.service';
+import { IUser } from '@/models/user.model';
+import { formatMoney } from '@/modules/common/utils';
+import Counterparty from '@/models/counterparty';
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
 export interface WalletOutflowData {
   status: 'successful' | 'failed' | 'reversed'
   amount: number
@@ -16,6 +28,7 @@ export interface WalletOutflowData {
   gatewayResponse: string
 }
 
+const emailService = Container.get(EmailService)
 const logger = new Logger('wallet-inflow.job')
 const tnxOpts: TransactionOptions = {
   readPreference: 'primary',
@@ -55,6 +68,9 @@ async function processWalletOutflow(job: Job<WalletOutflowData>) {
 async function handleSuccessful(data: WalletOutflowData) {
   try {
     const entry = await WalletEntry.findOne({ reference: data.reference })
+      .populate<{ initiatedBy: IUser }>('initiatedBy')
+      .populate<{ wallet: IWallet }>('wallet')
+      .populate<{ budget: IBudget }>('budget')
     if (!entry) {
       logger.error('entry not found', { reference: data.reference })
       throw new BadRequestError('Wallet entry does not exist')
@@ -73,6 +89,23 @@ async function handleSuccessful(data: WalletOutflowData) {
       gatewayResponse: data.gatewayResponse,
       status: WalletEntryStatus.Successful
     })
+    
+    const counterparty = await Counterparty.findById(entry.meta.counterparty)
+    if (counterparty) {
+      const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss')
+      emailService.sendTransferSuccessEmail(entry.initiatedBy.email, {
+        userName: entry.initiatedBy.firstName,
+        accountBalance: formatMoney(entry.wallet.balance),
+        accountNumber: counterparty.accountName,
+        bankName: counterparty.bankName,
+        beneficiaryName: counterparty.accountName,
+        budgetName: entry.budget.name,
+        currency: entry.currency,
+        transactionDate: date,
+        transactionTime: time,
+        transferAmount: formatMoney(entry.amount)
+      })
+    }
 
     return { message: 'transfer successful ' + entry._id }
   } catch (err: any) {
