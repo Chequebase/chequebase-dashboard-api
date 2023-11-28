@@ -1,3 +1,6 @@
+import dayjs from "dayjs";
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import numeral from "numeral";
 import { Job } from "bull";
 import VirtualAccount from "@/models/virtual-account.model";
@@ -6,6 +9,13 @@ import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "@/modules/common/utils/logger";
 import { BadRequestError } from "routing-controllers";
 import { cdb } from "@/modules/common/mongoose";
+import Container from "typedi";
+import EmailService from "@/modules/common/email.service";
+import { formatMoney } from "@/modules/common/utils";
+import { IOrganization } from "@/models/organization.model";
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 export interface WalletInflowData {
   amount: number
@@ -24,9 +34,11 @@ export interface WalletInflowData {
 }
 
 const logger = new Logger('wallet-inflow.job')
+const emailService = Container.get(EmailService)
 
 async function processWalletInflow(job: Job<WalletInflowData>) {
-  const { reference, accountNumber, amount, gatewayResponse, narration, currency } = job.data;
+  const data = job.data
+  const { reference, accountNumber, amount, gatewayResponse, narration, currency } = data;
 
   try {
     const entryExists = await WalletEntry.exists({ reference })
@@ -37,12 +49,15 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
 
     const virtualAccount = await VirtualAccount.findOne({ accountNumber })
       .populate<{ wallet: IWallet }>('wallet')
+      .populate<{ organization: IOrganization }>('organization')
     if (!virtualAccount) {
       logger.error('strangely cannot find virtual account', { reference, accountNumber })
       throw new BadRequestError('Virtual account not found')
     }
 
     const wallet = virtualAccount.wallet
+    const organization = virtualAccount.organization
+    const balanceAfter = numeral(wallet.balance).add(amount).value()!
 
     await cdb.transaction(async (session) => {
       const [entry] = await WalletEntry.create([{
@@ -52,17 +67,17 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         reference,
         gatewayResponse,
         amount,
-        paymentMethod: job.data.paymentMethod,
+        paymentMethod: data.paymentMethod,
         scope: WalletEntryScope.WalletFunding,
         narration,
         status: WalletEntryStatus.Successful,
         type: WalletEntryType.Credit,
         provider: virtualAccount.provider,
-        balanceAfter: numeral(wallet.balance).add(amount).value(),
+        balanceAfter,
         balanceBefore: wallet.balance,
-        providerRef: job.data.providerRef,
+        providerRef: data.providerRef,
         meta: {
-          sourceAccount: job.data.sourceAccount
+          sourceAccount: data.sourceAccount
         }
       }], { session })
 
@@ -74,6 +89,20 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
       readPreference: 'primary',
       readConcern: 'local',
       writeConcern: { w: 'majority' }
+    })
+
+    const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss')
+    emailService.sendFundedWalletEmail(organization.email, {
+      accountBalance: formatMoney(balanceAfter),
+      accountNumber: data.sourceAccount.accountNumber,
+      bankName: data.sourceAccount.bankName,
+      beneficiaryName: virtualAccount.name,
+      businessName: organization.businessName,
+      creditAmount: formatMoney(data.amount),
+      transferAmount: formatMoney(data.amount),
+      transactionDate: date,
+      currency: data.currency,
+      transactionTime: time,
     })
 
     return { message: 'wallet topped up' }

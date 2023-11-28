@@ -6,17 +6,20 @@ import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetD
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
-import User from "@/models/user.model";
+import User, { IUser } from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
 import WalletService from "../wallet/wallet.service";
 import { UserService } from "../user/user.service";
 import QueryFilter from "../common/utils/query-filter";
-import { escapeRegExp } from "../common/utils";
+import { escapeRegExp, formatMoney, getEnvOrThrow } from "../common/utils";
+import EmailService from "../common/email.service";
 
 const logger = new Logger('budget-service')
 
 @Service()
 export default class BudgetService {
+  constructor (private emailService: EmailService) { }
+  
   static async getBudgetBalances(id: string | ObjectId) {
     const [balances] = await Budget.aggregate()
       .match({ _id: new ObjectId(id) })
@@ -77,6 +80,15 @@ export default class BudgetService {
       ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
     })
 
+    if (isOwner) {
+      this.emailService.sendBudgetCreatedEmail(user.email, {
+        budgetAmount: formatMoney(budget.amount),
+        budgetName: budget.name,
+        dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
+        employeeName: user.firstName
+      })
+    }
+
     return budget
   }
 
@@ -120,6 +132,14 @@ export default class BudgetService {
       description: data.description,
       ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
     })
+
+    if (!isOwner) {
+      this.emailService.sendBudgetRequestEmail(user.email, {
+        budgetName: budget.name,
+        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
+        employeeName: user.firstName
+      })
+    }
 
     return budget
   }
@@ -181,6 +201,7 @@ export default class BudgetService {
 
   async approveBudget(auth: AuthUser, id: string, data: ApproveBudgetBodyDto) {
     const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
+      .populate<{ createdBy: IUser }>('createdBy')
     if (!budget) {
       throw new NotFoundError('Budget not found')
     }
@@ -206,7 +227,14 @@ export default class BudgetService {
       ...data
     }).save()
 
-    return budget
+    this.emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
+      budgetAmount: formatMoney(budget.amount - budget.amountUsed),
+      budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
+      budgetName: budget.name,
+      employeeName: budget.createdBy.firstName
+    })
+
+    return { message: 'Budget approved' }
   }
 
   async pauseBudget(auth: AuthUser, budgetId: string, data: PauseBudgetBodyDto) {
@@ -230,11 +258,20 @@ export default class BudgetService {
 
     await budget.set({ paused: true }).save()
 
+    const owner = (await User.findOne({ organization: auth.orgId, role: Role.Owner }))!
+    this.emailService.sendBudgetPausedEmail(owner.email, {
+      budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
+      budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+      budgetName: budget.name,
+      employeeName: owner.firstName
+    })
+
     return budget
   }
 
   async closeBudget(auth: AuthUser, id: string, data: CloseBudgetBodyDto) {
     const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
+      .populate<{ createdBy: IUser }>('createdBy')
     if (!budget) {
       throw new NotFoundError('Budget not found')
     }
@@ -252,7 +289,9 @@ export default class BudgetService {
       closedBy: auth.userId,
       closeReason: data.reason
     }
-    if (budget.status === BudgetStatus.Pending) {
+
+    const isDeclined = budget.status === BudgetStatus.Pending
+    if (isDeclined) {
       update = {
         declinedBy: auth.userId,
         declineReason: data.reason
@@ -264,7 +303,25 @@ export default class BudgetService {
       ...update
     }).save()
 
-    return budget
+    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`;
+    if (isDeclined) {
+      this.emailService.sendBudgetDeclinedEmail(budget.createdBy.email, {
+        budgetReviewLink: link,
+        budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+        budgetName: budget.name,
+        employeeName: budget.createdBy.firstName,
+        employerReasonForDecliningTheBudget: data.reason
+      })
+    } else {
+      this.emailService.sendBudgetClosedEmail(budget.createdBy.email, {
+        budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+        budgetName: budget.name,
+        budgetLink: link,
+        employeeName: budget.createdBy.firstName
+      })
+    }
+
+    return { message: 'Budget closed' }
   }
 
   async getBudget(auth: AuthUser, id: string) {
@@ -293,7 +350,6 @@ export default class BudgetService {
         foreignField: '_id',
         as: 'beneficiaries'
       })
-      .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
       .project({
         name: 1,
         amount: 1,

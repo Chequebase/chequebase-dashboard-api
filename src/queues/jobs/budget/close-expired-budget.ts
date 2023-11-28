@@ -1,13 +1,37 @@
+import { Job } from "bull";
+import dayjs from "dayjs";
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+import Container from "typedi";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Logger from "@/modules/common/utils/logger";
-import { Job } from "bull";
+import EmailService from "@/modules/common/email.service";
+import { formatMoney, getEnvOrThrow } from "@/modules/common/utils";
 
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.tz.setDefault('Africa/Lagos')
+
+const emailService = Container.get(EmailService)
 const logger = new Logger('close-expired-budget')
 
 async function closeExpiredBudget(job: Job) {
   const { budget } = job.data;
 
   try {
+    // not yet expired, send notification
+    if (dayjs().isBefore(budget.expiry, 'day')) {
+      await emailService.sendBudgetExpiryNotifEmail(budget.createdBy.email, {
+        budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+        budgetName: budget.name,
+        budgetSummaryLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
+        employeeName: budget.createdBy.firstName,
+        expiryDate: dayjs(budget.expiry).format('YYYY-MM-DD')
+      })
+
+      return { message: 'notification email sent' }
+    }
+
     await Budget.updateOne({ _id: budget._id }, {
       status: BudgetStatus.Closed,
       closeReason: 'Budget expired'
