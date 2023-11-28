@@ -77,6 +77,7 @@ export default class BudgetService {
       beneficiaries: data.beneficiaries,
       createdBy: auth.userId,
       description: data.description,
+      priority: data.priority,
       ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
     })
 
@@ -130,6 +131,7 @@ export default class BudgetService {
       beneficiaries,
       createdBy: auth.userId,
       description: data.description,
+      priority: data.priority,
       ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
     })
 
@@ -167,7 +169,7 @@ export default class BudgetService {
 
     const aggregate = Budget.aggregate()
       .match(filter.object)
-      .sort({ createdAt: -1 })
+      .sort({ priority: 1, createdAt: -1 })
       .lookup({
         from: 'users',
         localField: 'beneficiaries.user',
@@ -178,7 +180,9 @@ export default class BudgetService {
       .project({
         name: 1,
         amount: 1,
+        priority: 1,
         amountUsed: 1,
+        createdAt: 1,
         status: 1,
         paused: 1,
         availableAmount: { $subtract: ['$amount', '$amountUsed'] },

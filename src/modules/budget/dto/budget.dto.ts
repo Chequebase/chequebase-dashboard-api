@@ -1,6 +1,5 @@
-import { BudgetCurrency, BudgetStatus } from "@/models/budget.model";
-import { WalletEntryType } from "@/models/wallet-entry.model";
 import { Type } from "class-transformer";
+import { BudgetCurrency, BudgetPriority, BudgetStatus } from "@/models/budget.model";
 import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
 
 export class CreateTranferBudgetDto {
@@ -26,6 +25,10 @@ export class CreateTranferBudgetDto {
   @IsOptional()
   @IsEnum(BudgetCurrency)
   currency = BudgetCurrency.Ngn
+
+  @IsEnum(BudgetPriority)
+  @IsOptional()
+  priority = BudgetPriority.Medium
 }
 
 export class CreateBudgetDto extends CreateTranferBudgetDto {
@@ -38,6 +41,7 @@ export class CreateBudgetDto extends CreateTranferBudgetDto {
   @IsString()
   pin: string
 }
+
 export class BeneficiaryDto {
   @IsString()
   user: string
