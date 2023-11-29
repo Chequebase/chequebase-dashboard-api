@@ -7,7 +7,7 @@ import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, EmployeeStatus, GetMembersQueryDto, UpdateEmployeeDto } from "./dto/user.dto";
+import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
@@ -398,7 +398,7 @@ export class UserService {
       emailVerified: false,
       organization: orgId,
       role: data.role,
-      status: EmployeeStatus.INVITED
+      status: UserStatus.INVITED
     })
 
     this.emailService.sendEmployeeInviteEmail(data.email, {
@@ -438,7 +438,7 @@ export class UserService {
   async getMembers(orgId: string, query: GetMembersQueryDto) {
     const users = await User.paginate({
       organization: orgId,
-      status: { $ne: EmployeeStatus.DELETED }
+      status: { $ne: UserStatus.DELETED }
     }, {
       page: Number(query.page),
       limit: 10,
@@ -493,7 +493,7 @@ export class UserService {
       throw new NotFoundError('User not found');
     }
 
-    if (employee.status !== EmployeeStatus.INVITED) {
+    if (employee.status !== UserStatus.INVITED) {
       throw new NotFoundError('invite not found');
     }
 

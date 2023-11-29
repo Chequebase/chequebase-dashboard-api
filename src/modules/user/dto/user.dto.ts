@@ -149,9 +149,3 @@ export class GetMembersQueryDto {
   @IsString()
   status: string;
 }
-
-
-export const EmployeeStatus = {
-  ...UserStatus,
-  INVITED: 'invited',
-}

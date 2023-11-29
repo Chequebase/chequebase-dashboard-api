@@ -18,7 +18,8 @@ export enum KycStatus {
 export enum UserStatus {
   PENDING = "pending",
   ACTIVE = 'active',
-  DELETED = 'deleted'
+  DELETED = 'deleted',
+  INVITED = 'invited'
 }
 
 export interface IUser {
