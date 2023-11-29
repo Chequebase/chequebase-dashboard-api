@@ -37,6 +37,7 @@ export interface IUser {
   hashRt: string
   emailVerifyCode: string
   passwordResetCode: string
+  forgotPinCode: string,
   inviteCode: string
   otpExpiresAt: number
   otp: string
@@ -74,7 +75,8 @@ const userSchema = new Schema<IUser>(
     status: {
       type: String,
       enum: Object.values(UserStatus)
-    }
+    },
+    forgotPinCode: String,
   },
   { timestamps: true },
 );
