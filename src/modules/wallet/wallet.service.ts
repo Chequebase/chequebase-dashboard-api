@@ -16,6 +16,7 @@ import { VirtualAccountService } from "../virtual-account/virtual-account.servic
 import { BudgetStatus } from "@/models/budget.model";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney } from "../common/utils";
+import Counterparty from "@/models/counterparty";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -192,7 +193,7 @@ export default class WalletService {
     
     if (query.search) {
       const search = escapeRegExp(query.search)
-      filter.set('$or', [{ reference: { $regex: escapeRegExp(query.search) } }])
+      filter.set('$or', [{ reference: { $regex: search } }])
       filter.append('$or', {
         $expr: {
           $regexMatch: {
@@ -262,6 +263,11 @@ export default class WalletService {
       throw new NotFoundError('Wallet entry not found')
     }
 
-    return entry
+    let counterparty
+    if (entry.meta.counterparty) {
+      counterparty = await Counterparty.findById(entry.meta.counterparty).lean()
+    }
+
+    return { ...entry, counterparty }
   }
 }
