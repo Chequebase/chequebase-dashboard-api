@@ -85,6 +85,7 @@ export class GetBudgetsDto {
 
   @IsString()
   @IsEnum(BudgetStatus)
+  @IsOptional()
   status = BudgetStatus.Active
 
   @IsString()
