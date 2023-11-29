@@ -147,6 +147,7 @@ export default class BudgetService {
   }
 
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
+    query.status ??= BudgetStatus.Active
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', query.status)
     
@@ -176,7 +177,6 @@ export default class BudgetService {
         foreignField: '_id',
         as: 'beneficiaries'
       })
-      .unwind({ path: '$entries', preserveNullAndEmptyArrays: true })
       .project({
         name: 1,
         amount: 1,
