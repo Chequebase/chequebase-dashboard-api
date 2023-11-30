@@ -464,7 +464,7 @@ export class UserService {
   }
 
   async getMember(id: string, orgId: string) {
-    const user = await User.findOne({ _id: id, organization: orgId })
+    const user = await User.findOne({ _id: id, organization: orgId, status: { $ne: UserStatus.DELETED } })
       .select('firstName lastName email emailVerified role KYBStatus status picture phone')
       .lean()
     
@@ -476,7 +476,7 @@ export class UserService {
   }
 
   async updateMember(id: string, data: UpdateEmployeeDto, orgId: string) {
-    const user = await User.findOne({_id: id, organization: orgId});
+    const user = await User.findOne({_id: id, organization: orgId, status: { $ne: UserStatus.DELETED } });
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -502,7 +502,7 @@ export class UserService {
   }
 
   async resendInvite(id: string, orgId: string) {
-    const employee = await User.findOne({ _id: id, organization: orgId })
+    const employee = await User.findOne({ _id: id, organization: orgId, status: { $ne: UserStatus.DELETED } })
     if (!employee) {
       throw new NotFoundError('User not found');
     }
