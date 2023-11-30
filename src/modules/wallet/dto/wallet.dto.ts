@@ -49,6 +49,7 @@ export class GetWalletEntriesDto {
 
   @IsInt()
   @Min(1)
+  @IsOptional()
   limit = 10
 }
 

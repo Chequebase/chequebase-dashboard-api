@@ -148,6 +148,7 @@ export class GetMembersQueryDto {
 
   @IsInt()
   @Min(1)
+  @IsOptional()
   limit = 10
 
   @IsOptional()
