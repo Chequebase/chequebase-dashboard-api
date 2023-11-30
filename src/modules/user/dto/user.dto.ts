@@ -1,5 +1,5 @@
 import { UserStatus } from '@/models/user.model';
-import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum } from 'class-validator';
+import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum, IsInt, Min } from 'class-validator';
 
 export enum Role {
   Owner = 'owner',
@@ -143,7 +143,12 @@ export class UpdateEmployeeDto {
 
 export class GetMembersQueryDto {
   @IsNumber()
+  @Min(1)
   page: number;
+
+  @IsInt()
+  @Min(1)
+  limit = 10
 
   @IsOptional()
   @IsString()

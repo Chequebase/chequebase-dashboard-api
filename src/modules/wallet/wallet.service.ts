@@ -211,7 +211,7 @@ export default class WalletService {
       },
       sort: '-createdAt',
       page: Number(query.page),
-      limit: 10,
+      limit: query.limit,
       lean: true
     })
 

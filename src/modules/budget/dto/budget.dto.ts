@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import { BudgetCurrency, BudgetPriority, BudgetStatus } from "@/models/budget.model";
-import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
 
 export class CreateTranferBudgetDto {
   @IsString()
@@ -95,4 +95,9 @@ export class GetBudgetsDto {
   @IsBoolean()
   @IsOptional()
   paginated = true
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  limit = 10
 }

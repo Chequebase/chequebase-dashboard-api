@@ -442,7 +442,7 @@ export class UserService {
       status: query.status
     }, {
       page: Number(query.page),
-      limit: 10,
+      limit: query.limit,
       lean: true,
       select: 'firstName lastName email emailVerified role KYBStatus status picture'
     })

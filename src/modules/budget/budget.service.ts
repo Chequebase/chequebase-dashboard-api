@@ -195,7 +195,7 @@ export default class BudgetService {
 
     const budgets = await Budget.aggregatePaginate(aggregate, {
       page: Number(query.page),
-      limit: 20,
+      limit: query.limit,
       lean: true,
       pagination: query.paginated
     })
