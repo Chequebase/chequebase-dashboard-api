@@ -83,7 +83,7 @@ export default class UserController {
     return this.userService.sendInvite(body, auth.orgId);
   }
 
-  @Authorized([Role.Owner, Role.Cfo, Role.Employee])
+  // @Authorized([Role.Owner, Role.Cfo, Role.Employee])
   @Post('/members/accept-invite')
   acceptInvite(@Body() addEmployeeDto: AddEmployeeDto) {
     return this.userService.acceptInvite(addEmployeeDto);
@@ -93,6 +93,12 @@ export default class UserController {
   @Get('/members')
   getMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: GetMembersQueryDto) {
     return this.userService.getMembers(auth.orgId, query);
+  }
+
+  @Authorized(Role.Owner)
+  @Get('/members/all')
+  getUnpaginatedMembers(@CurrentUser() auth: AuthUser) {
+    return this.userService.getUnpaginatedMembers(auth.orgId);
   }
 
   @Authorized(Role.Owner)
