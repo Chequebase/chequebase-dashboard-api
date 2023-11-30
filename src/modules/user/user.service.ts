@@ -438,7 +438,8 @@ export class UserService {
   async getMembers(orgId: string, query: GetMembersQueryDto) {
     const users = await User.paginate({
       organization: orgId,
-      status: { $ne: UserStatus.DELETED }
+      // status: { $ne: UserStatus.DELETED },
+      status: query.status
     }, {
       page: Number(query.page),
       limit: 10,
