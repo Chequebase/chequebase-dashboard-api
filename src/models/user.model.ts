@@ -38,8 +38,9 @@ export interface IUser {
   hashRt: string
   emailVerifyCode: string
   passwordResetCode: string
-  forgotPinCode: string,
+  forgotPinCode: string
   inviteCode: string
+  phone: string
   otpExpiresAt: number
   otp: string
   pin: string
@@ -72,6 +73,7 @@ const userSchema = new Schema<IUser>(
     otp: String,
     emailVerifyCode: String,
     passwordResetCode: String,
+    phone: String,
     inviteCode: String,
     status: {
       type: String,

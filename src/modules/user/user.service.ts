@@ -397,6 +397,7 @@ export class UserService {
       firstName: data.firstName,
       lastName: data.lastName,
       inviteCode: code,
+      phone: data.phone,
       emailVerified: false,
       organization: orgId,
       role: data.role,
@@ -440,13 +441,13 @@ export class UserService {
   async getMembers(orgId: string, query: GetMembersQueryDto) {
     const users = await User.paginate({
       organization: orgId,
-      // status: { $ne: UserStatus.DELETED },
+      role: { $ne: Role.Owner },
       status: query.status
     }, {
       page: Number(query.page),
       limit: 10,
       lean: true,
-      select: 'firstName lastName email emailVerified role KYBStatus status picture'
+      select: 'firstName lastName email emailVerified role KYBStatus status picture phone'
     })
     
     return users
