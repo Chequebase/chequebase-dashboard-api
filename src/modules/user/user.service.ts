@@ -455,7 +455,7 @@ export class UserService {
 
   async getMember(id: string, orgId: string) {
     const user = await User.findOne({ _id: id, organization: orgId })
-      .select('firstName lastName email emailVerified role KYBStatus status picture')
+      .select('firstName lastName email emailVerified role KYBStatus status picture phone')
       .lean()
     
     if (!user) {
