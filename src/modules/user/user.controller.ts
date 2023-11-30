@@ -126,7 +126,7 @@ export default class UserController {
   @Authorized(Role.Owner)
   @Get('/members/:id/resend-invite')
   resendInvite(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
-    return this.userService.resendInvite(id, auth.userId);
+    return this.userService.resendInvite(id, auth.orgId);
   }
 
   // @Authorized(Role.Owner)
