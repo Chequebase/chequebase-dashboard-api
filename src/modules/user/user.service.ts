@@ -453,6 +453,16 @@ export class UserService {
     return users
   }
 
+  async getUnpaginatedMembers(orgId: string) {
+    const users = await User.find({
+      organization: orgId,
+      role: { $ne: Role.Owner },
+      status: { $ne: UserStatus.DELETED },
+    })
+    
+    return users
+  }
+
   async getMember(id: string, orgId: string) {
     const user = await User.findOne({ _id: id, organization: orgId })
       .select('firstName lastName email emailVerified role KYBStatus status picture phone')
