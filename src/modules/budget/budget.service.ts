@@ -361,7 +361,7 @@ export default class BudgetService {
         availableAmount: { $subtract: ['$amount', '$amountUsed'] },
         currency: 1,
         threshold: 1,
-        status: 1,
+        // status: 1,
         paused: 1,
         expiry: 1,
         approvedDate: 1,
