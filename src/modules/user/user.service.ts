@@ -414,7 +414,7 @@ export class UserService {
 
   async acceptInvite(data: AddEmployeeDto) {
     const { code, firstName, lastName, phone, password } = data
-    const user = await User.findOne({ inviteCode: code })
+    const user = await User.findOne({ inviteCode: code, status: { $ne: UserStatus.DELETED } })
     if (!user) {
       throw new NotFoundError('Invalid or expired invite link');
     }
