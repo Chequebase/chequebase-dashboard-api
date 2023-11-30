@@ -394,6 +394,8 @@ export class UserService {
     const code = createId()
     await User.create({
       email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
       inviteCode: code,
       emailVerified: false,
       organization: orgId,
