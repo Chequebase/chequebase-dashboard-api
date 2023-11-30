@@ -453,10 +453,10 @@ export class UserService {
     return users
   }
 
-  async getUnpaginatedMembers(orgId: string) {
+  async getUnpaginatedMembers(auth: AuthUser) {
     const users = await User.find({
-      organization: orgId,
-      role: { $ne: Role.Owner },
+      organization: auth.orgId,
+      id: { $ne: auth.userId },
       status: { $ne: UserStatus.DELETED },
     })
     

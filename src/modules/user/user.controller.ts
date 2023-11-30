@@ -98,7 +98,7 @@ export default class UserController {
   @Authorized(Role.Owner)
   @Get('/members/all')
   getUnpaginatedMembers(@CurrentUser() auth: AuthUser) {
-    return this.userService.getUnpaginatedMembers(auth.orgId);
+    return this.userService.getUnpaginatedMembers(auth);
   }
 
   @Authorized(Role.Owner)
