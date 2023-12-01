@@ -57,7 +57,6 @@ export class ApproveBudgetBodyDto {
   expiry?: Date
 
   @IsNumber()
-  @Min(1_000_000_00)
   @IsOptional()
   threshold?: number
 
