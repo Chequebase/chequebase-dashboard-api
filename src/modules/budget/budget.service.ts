@@ -347,7 +347,7 @@ export default class BudgetService {
         foreignField: '_id',
         as: 'approvedBy'
       })
-      .unwind('$approvedBy')
+      .unwind({ path: '$approvedBy', preserveNullAndEmptyArrays: true })
       .lookup({
         from: 'users',
         localField: 'beneficiaries.user',
@@ -369,7 +369,6 @@ export default class BudgetService {
         approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
         beneficiaries: { email: 1, firstName: 1, lastName: 1, picture: 1 },
       })
-      // .match({ status: { $ne: BudgetStatus.Closed } });
 
     if (!budget) {
       throw new NotFoundError("Budget not found")
