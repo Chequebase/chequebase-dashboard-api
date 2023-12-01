@@ -329,7 +329,7 @@ export default class BudgetService {
   }
 
   async getBudget(auth: AuthUser, id: string) {
-    const filter: any = { _id: new ObjectId(id), organization: new ObjectId(auth.orgId), status: { $ne: BudgetStatus.Closed } }
+    const filter: any = { _id: new ObjectId(id), organization: new ObjectId(auth.orgId) }
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new BadRequestError("User not found")
@@ -361,7 +361,7 @@ export default class BudgetService {
         availableAmount: { $subtract: ['$amount', '$amountUsed'] },
         currency: 1,
         threshold: 1,
-        // status: 1,
+        status: 1,
         paused: 1,
         expiry: 1,
         approvedDate: 1,
@@ -369,6 +369,7 @@ export default class BudgetService {
         approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
         beneficiaries: { email: 1, firstName: 1, lastName: 1, picture: 1 },
       })
+      // .match({ status: { $ne: BudgetStatus.Closed } });
 
     if (!budget) {
       throw new NotFoundError("Budget not found")
