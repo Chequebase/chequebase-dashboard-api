@@ -256,19 +256,25 @@ export default class BudgetService {
       throw new BadRequestError('Only active budgets can be paused')
     }
 
-    if (budget.paused) {
+    if (budget.paused && data.pause) {
       throw new BadRequestError('Budget is already paused')
     }
 
-    await budget.set({ paused: true }).save()
+    if (!budget.paused && !data.pause) {
+      throw new BadRequestError('Budget is not paused')
+    }
 
-    const owner = (await User.findOne({ organization: auth.orgId, role: Role.Owner }))!
-    this.emailService.sendBudgetPausedEmail(owner.email, {
-      budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
-      budgetBalance: formatMoney(budget.amount - budget.amountUsed),
-      budgetName: budget.name,
-      employeeName: owner.firstName
-    })
+    await budget.set({ paused: data.pause }).save()
+
+    if (data.pause) {
+      const owner = (await User.findOne({ organization: auth.orgId, role: Role.Owner }))!
+      this.emailService.sendBudgetPausedEmail(owner.email, {
+        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
+        budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+        budgetName: budget.name,
+        employeeName: owner.firstName
+      })
+    }
 
     return budget
   }
