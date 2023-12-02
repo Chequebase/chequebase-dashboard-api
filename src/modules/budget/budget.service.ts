@@ -2,7 +2,7 @@ import { Service } from "typedi";
 import { ObjectId } from 'mongodb'
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
@@ -89,6 +89,57 @@ export default class BudgetService {
         employeeName: user.firstName
       })
     }
+
+    return budget
+  }
+
+  async editBudget(auth: AuthUser, id: string, data: EditBudgetDto) {
+    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
+    if (!budget) {
+      throw new NotFoundError('Budget not found')
+    }
+
+    if (budget.status !== BudgetStatus.Pending) {
+      throw new BadRequestError('Budget cannot be updated')
+    }
+
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new BadRequestError('User not found')
+    }
+
+    if (user.role !== Role.Owner && !budget.createdBy.equals(auth.userId)) {
+      throw new BadRequestError("Budget cannot be updated")
+    }
+
+    await budget.set({
+      name: data.name,
+      amount: data.amount,
+      expiry: data.expiry,
+      threshold: data.threshold ?? data.amount,
+      beneficiaries: data.beneficiaries,
+      description: data.description,
+      priority: data.priority,
+    }).save()
+
+    return budget
+  }
+
+  async cancelBudget(auth: AuthUser, id: string) {
+    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
+    if (!budget) {
+      throw new NotFoundError('Budget not found')
+    }
+
+    if (budget.status !== BudgetStatus.Pending) {
+      throw new BadRequestError('Budget cannot be cancelled')
+    }
+
+    if (!budget.createdBy.equals(auth.userId)) {
+      throw new BadRequestError("Budget cannot be cancelled")
+    }
+
+    await budget.set({ status: BudgetStatus.Closed }).save()
 
     return budget
   }

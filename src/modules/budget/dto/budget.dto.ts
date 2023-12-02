@@ -31,6 +31,41 @@ export class CreateTranferBudgetDto {
   priority = BudgetPriority.Medium
 }
 
+export class EditBudgetDto {
+  @IsString()
+  name: string
+
+  @IsString()
+  @IsOptional()
+  description: string
+
+  @IsNumber()
+  amount: number
+
+  @IsNumber()
+  @IsOptional()
+  threshold?: number
+
+  @IsDateString()
+  @IsOptional()
+  expiry?: Date
+
+  @IsString()
+  @IsOptional()
+  @IsEnum(BudgetCurrency)
+  currency = BudgetCurrency.Ngn
+
+  @IsEnum(BudgetPriority)
+  @IsOptional()
+  priority = BudgetPriority.Medium
+
+  @Type(() => BeneficiaryDto)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  beneficiaries: BeneficiaryDto[]
+}
+
 export class CreateBudgetDto extends CreateTranferBudgetDto {
   @Type(() => BeneficiaryDto)
   @ValidateNested({ each: true })
