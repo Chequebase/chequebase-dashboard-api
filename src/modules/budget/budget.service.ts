@@ -207,7 +207,7 @@ export default class BudgetService {
       throw new BadRequestError("User not found")
     }
 
-    if (user.role !== Role.Owner) {
+    if (!query.paginated || (user.role !== Role.Owner)) {
       filter.set('beneficiaries.user', new ObjectId(auth.userId)) 
     }
 
