@@ -22,19 +22,19 @@ export class PaystackWebhookHandler {
 
   private async onChargeSuccess(body: any) {
     const reference = body.data.reference
-    const resData = await this.paystackService.verifyPaymentByReference(reference)
+    const verifyResponse = await this.paystackService.verifyPaymentByReference(reference)
 
     const jobData: SubscriptionPaymentJob = {
-      chargedAmount: resData.amount,
-      currency: resData.currency,
-      fees: Number(resData.fees),
-      meta: resData.metaresData,
+      chargedAmount: verifyResponse.amount,
+      currency: verifyResponse.currency,
+      fees: Number(verifyResponse.fees),
+      meta: verifyResponse.metadata,
       status: 'successful',
-      reference: resData.reference,
+      reference: verifyResponse.reference,
       webhookDump: JSON.stringify(body),
-      providerRef: resData.reference,
+      providerRef: verifyResponse.reference,
       provider: 'paystack',
-      paymentType: resData.channel
+      paymentType: verifyResponse.channel
     }
 
     await subscriptionQueue.add('processSubscriptionPayment', jobData)
@@ -43,7 +43,7 @@ export class PaystackWebhookHandler {
   }
 
   processWebhook(body: any, headers: any) {
-    const expectedHmac = headers['x-anchor-signature']
+    const expectedHmac = headers['x-paystack-signature']
     const calcuatedHmac = this.createHmac(body)
     if (calcuatedHmac !== expectedHmac) {
       this.logger.error('invalid webhhook', { expectedHmac, calcuatedHmac })
@@ -56,7 +56,6 @@ export class PaystackWebhookHandler {
       this.logger.log('event type not allowed', { event: data.type })
       return;
     }
-
 
     switch (data.type as typeof allowedWebooks[number]) {
       case 'charge.success':
