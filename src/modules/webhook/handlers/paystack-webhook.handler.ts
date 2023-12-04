@@ -3,7 +3,7 @@ import crypto from 'crypto'
 import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { UnauthorizedError } from "routing-controllers";
-import { SubscriptionPaymentJob } from "@/queues/jobs/subscription/subscription-payment";
+import { SubscriptionPaymentJob } from "@/queues/jobs/subscription/subscription-payment.job";
 import { PaystackService } from "@/modules/common/paystack.service";
 import { subscriptionQueue } from "@/queues";
 

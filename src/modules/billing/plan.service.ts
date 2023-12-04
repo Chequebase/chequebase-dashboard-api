@@ -16,7 +16,7 @@ import Wallet from '@/models/wallet.model';
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from '@/models/wallet-entry.model';
 import Subscription, { ISubscription, SubscriptionStatus } from '@/models/subscription.model';
 import { subscriptionQueue } from '@/queues';
-import { SubscriptionPlanChange } from '@/queues/jobs/subscription/subscription-plan-change';
+import { SubscriptionPlanChange } from '@/queues/jobs/subscription/subscription-plan-change.job';
 
 const logger = new Logger('plan-service')
 const transactionOpts: TransactionOptions = {
@@ -27,7 +27,7 @@ const transactionOpts: TransactionOptions = {
 
 @Service()
 export class PlanService {
-  private async chargeWalletForSubscription(orgId: string, data: ChargeWalletForSubscription) {
+  async chargeWalletForSubscription(orgId: string, data: ChargeWalletForSubscription) {
     const reference = `ps_${createId()}`
     const { plan, amount } = data
 
@@ -125,7 +125,7 @@ export class PlanService {
     }
 
     const subscription = org.subscription.object as ISubscription
-    const samePlan = subscription && plan._id.equals(subscription.plan)
+    const samePlan = subscription && plan._id.equals(subscription.plan._id)
     // allow renewal if it's most 5 before subscription ending
     if (samePlan && dayjs().add(5, 'days').isBefore(subscription.endingAt, 'day')) {
       throw new BadRequestError("You cannot renew your subscription at the moment")
