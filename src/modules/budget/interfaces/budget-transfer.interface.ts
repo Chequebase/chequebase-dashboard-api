@@ -1,5 +1,5 @@
 import { IBudget } from "@/models/budget.model"
-import { ICounterparty } from "@/models/counterparty"
+import { ICounterparty } from "@/models/counterparty.model"
 import { AuthUser } from "@/modules/common/interfaces/auth-user"
 import { InitiateTransferDto } from "../dto/budget-transfer.dto"
 

@@ -1,6 +1,7 @@
 import { cdb } from '@/modules/common/mongoose';
 import { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
+import { ISubscription } from './subscription.model';
 
 export enum BillingMethod {
   Wallet = 'wallet',
@@ -34,7 +35,7 @@ export interface IOrganization {
     months: number // 1|12
     gracePeriod: number
     nextPlan: ObjectId
-    object: ObjectId
+    object: ObjectId | ISubscription
   }
   averageMonthlyExpenses: string
   bnNumber: string
@@ -112,7 +113,7 @@ const organizationSchma = new Schema<IOrganization>(
         },
         object: {
           type: Schema.Types.ObjectId,
-          ref: 'SubscriptionPlan'
+          ref: 'Subscription'
         }
       }
     },

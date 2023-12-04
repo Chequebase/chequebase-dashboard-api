@@ -1,5 +1,5 @@
 import { BillingMethod } from "@/models/organization.model";
-import { IsEnum, IsIn, IsString} from "class-validator";
+import { IsEnum, IsIn, IsInt, IsOptional, IsString} from "class-validator";
 
 export class InitiateSubscriptionDto {
   @IsString()
@@ -11,4 +11,10 @@ export class InitiateSubscriptionDto {
   @IsEnum(BillingMethod)
   @IsString()
   paymentMethod: BillingMethod
+}
+
+export class GetSubscriptionHistoryDto {
+  @IsOptional()
+  @IsInt()
+  page = 1
 }

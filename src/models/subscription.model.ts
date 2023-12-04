@@ -1,13 +1,16 @@
 import { cdb } from '@/modules/common/mongoose';
-import { Schema, Types } from 'mongoose';
+import mongoose, { Schema, Types } from 'mongoose';
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum SubscriptionStatus {
   Active = 'active',
   Expired = 'expired',
   RenewalFailed = 'renewal_failed'
 }
-
+  
 export interface ISubscription {
+  _id: Types.ObjectId
   organization: Types.ObjectId
   plan: Types.ObjectId
   status: SubscriptionStatus
@@ -24,6 +27,10 @@ export interface ISubscription {
   createdAt: Date
   updatedAt: Date
 }
+
+interface SubscriptionModel extends
+  mongoose.PaginateModel<ISubscription>,
+  mongoose.AggregatePaginateModel<ISubscription> { }
 
 const subscriptionSchema = new Schema<ISubscription>(
   {
@@ -52,6 +59,9 @@ const subscriptionSchema = new Schema<ISubscription>(
   { timestamps: true },
 );
 
-const Subscription = cdb.model<ISubscription>('Subscription', subscriptionSchema);
+subscriptionSchema.plugin(aggregatePaginate);
+subscriptionSchema.plugin(mongoosePaginate);
+
+const Subscription = cdb.model<ISubscription, SubscriptionModel>('Subscription', subscriptionSchema);
 
 export default Subscription 

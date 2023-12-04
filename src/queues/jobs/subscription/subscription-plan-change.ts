@@ -26,11 +26,11 @@ async function processSubscriptionPlanChange(job: Job<SubscriptionPlanChange>) {
   if (!oldPlan) throw new BadRequestError("Old plan not found")
   if (!newPlan) throw new BadRequestError("New plan not found")
 
-  if (newPlan.amount === oldPlan.amount) {
+  if (newPlan.amount.NGN === oldPlan.amount.NGN) {
     return { message: 'subscription renewal, no update' }
   }
 
-  if (newPlan.amount < oldPlan.amount) {
+  if (newPlan.amount.NGN < oldPlan.amount.NGN) {
     await Promise.all([
       handleUserFeatureDowngrade(organization, newPlan),
       handleActiveBudgetDowngrade(organization, newPlan)

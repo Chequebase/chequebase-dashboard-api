@@ -1,4 +1,4 @@
-import PaymentIntent, { PaymentIntentStatus } from "@/models/payment-intent"
+import PaymentIntent, { PaymentIntentStatus } from "@/models/payment-intent.model"
 import { PlanService } from "@/modules/billing/plan.service"
 import Logger from "@/modules/common/utils/logger"
 import { Job } from "bull"

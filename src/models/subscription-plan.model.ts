@@ -5,7 +5,7 @@ export interface ISubscriptionPlan {
   _id: Types.ObjectId
   name: string
   code: string
-  amount: number
+  amount: { NGN: number }
   description: string
   features: {
     code: string
@@ -28,7 +28,12 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
       unique: true
     },
     name: { type: String, required: true },
-    amount: { type: Number, required: true },
+    amount: {
+      required: true,
+      type: {
+        NGN: Number
+      },
+    },
     description: { type: String, required: true },
     features: {
       _id: false,

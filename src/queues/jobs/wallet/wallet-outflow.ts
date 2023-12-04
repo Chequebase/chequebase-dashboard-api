@@ -15,7 +15,7 @@ import Budget, { IBudget } from "@/models/budget.model";
 import EmailService from '@/modules/common/email.service';
 import { IUser } from '@/models/user.model';
 import { formatMoney } from '@/modules/common/utils';
-import Counterparty from '@/models/counterparty';
+import Counterparty from '@/models/counterparty.model';
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
