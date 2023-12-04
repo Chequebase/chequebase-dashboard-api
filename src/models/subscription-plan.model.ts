@@ -1,7 +1,8 @@
 import { cdb } from '@/modules/common/mongoose';
-import { Schema } from 'mongoose';
+import { Schema, Types } from 'mongoose';
 
 export interface ISubscriptionPlan {
+  _id: Types.ObjectId
   name: string
   code: string
   amount: number

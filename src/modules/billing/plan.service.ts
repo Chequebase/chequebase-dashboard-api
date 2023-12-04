@@ -2,15 +2,15 @@ import { Service } from 'typedi';
 import numeral from 'numeral';
 import dayjs from 'dayjs';
 import { createId } from '@paralleldrive/cuid2';
+import { BadRequestError, NotFoundError } from 'routing-controllers';
 import { ObjectId, TransactionOptions } from 'mongodb'
 import SubscriptionPlan, { ISubscriptionPlan } from '@/models/subscription-plan.model';
 import { AuthUser } from '../common/interfaces/auth-user';
 import { InitiateSubscriptionDto } from './dto/plan.dto';
-import { BadRequestError, NotFoundError } from 'routing-controllers';
 import Logger from '../common/utils/logger';
 import Organization, { BillingMethod } from '@/models/organization.model';
-import { ActivatePlan, ChargeWalletForSubscription, IntentType } from './interfaces/plan.interface';
-import PaymentIntent, { PaymentIntentStatus } from '@/models/payment-intent';
+import { ActivatePlan, ChargeWalletForSubscription } from './interfaces/plan.interface';
+import PaymentIntent, { IntentType, PaymentIntentStatus } from '@/models/payment-intent';
 import { cdb } from '../common/mongoose';
 import Wallet from '@/models/wallet.model';
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from '@/models/wallet-entry.model';
@@ -141,6 +141,7 @@ export class PlanService {
   }
 
   async activatePlan(orgId: string, data: ActivatePlan) {
+    const { months, paymentMethod } = data;
     const [plan, organization] = await Promise.all([
       SubscriptionPlan.findById(data.plan).lean(),
       Organization.findById(orgId).populate('subscription.object').lean()
@@ -149,32 +150,13 @@ export class PlanService {
     if (!organization) throw new BadRequestError('Organization not found')
     if (!plan) throw new BadRequestError('Plan not found')
 
-    const jobData: SubscriptionPlanChange = {
-      orgId,
-      newPlanId: plan._id.toString(),
-      oldPlanId: organization.subscription.object._id.toString()
-    }
-
-    const payload = { ...data, plan, organization }
-    const subscription = await this.createSubscription(payload)
-
-    await subscriptionQueue.add('processSubscriptionPlanChange', jobData)
-
-    return subscription
-  }
-
-  async createSubscription(data: any) {
-    const { months, plan, organization, paymentMethod } = data;
+    const oldPlanId = organization.subscription.object._id.toString()
     const hasSubscribed = await Subscription.exists({ organization: organization._id })
     const days = hasSubscribed ? months * 30 : 5
     let endingAt = dayjs().add(days, 'days').toDate()
 
     if (hasSubscribed) {
-      // terminate current subscription
-      await Subscription.updateOne({
-        _id: organization.subscription.object._id,
-        organization: organization._id,
-      }, {
+      await Subscription.updateOne({ _id: oldPlanId }, {
         status: SubscriptionStatus.Expired,
         terminatedAt: new Date()
       })
@@ -188,10 +170,9 @@ export class PlanService {
       trial: !hasSubscribed,
       renewAt: endingAt,
       endingAt: endingAt,
-      meta: { paymentMethod, months } // TODO: find way to link reference to payment
+      meta: { ...data.meta, paymentMethod, months }
     })
 
-    // attach new subscription to organization
     await Organization.updateOne({ _id: organization }, {
       subscription: {
         object: subscription._id,
@@ -200,6 +181,13 @@ export class PlanService {
         nextPlan: plan._id
       }
     })
+
+    const jobData: SubscriptionPlanChange = {
+      orgId,
+      newPlanId: plan._id.toString(),
+      oldPlanId: oldPlanId
+    }
+    await subscriptionQueue.add('processSubscriptionPlanChange', jobData)
 
     return subscription
   }

@@ -4,6 +4,7 @@ export interface ActivatePlan {
   plan: string
   months: number
   paymentMethod: string
+  meta?: { [key: string]: any }
 }
 
 export interface ChargeWalletForSubscription {
@@ -11,8 +12,4 @@ export interface ChargeWalletForSubscription {
   amount: number
   months: number
   plan: { _id: ObjectId, name: string }
-}
-
-export enum IntentType {
-  PlanSubscription = 'plan_subscription',
 }

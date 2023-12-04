@@ -19,7 +19,8 @@ export enum UserStatus {
   PENDING = "pending",
   ACTIVE = 'active',
   DELETED = 'deleted',
-  INVITED = 'invited'
+  INVITED = 'invited',
+  DISABLED = 'disabled'
 }
 
 export interface IUser {
@@ -34,7 +35,7 @@ export interface IUser {
   role: string
   rememberMe: number
   status: UserStatus
-  KYBStatus: KycStatus.NOT_STARTED
+  KYBStatus: KycStatus
   hashRt: string
   emailVerifyCode: string
   passwordResetCode: string
