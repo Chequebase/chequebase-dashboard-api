@@ -16,6 +16,7 @@ export enum WalletEntryStatus {
 }
 
 export enum WalletEntryScope {
+  PlanSubscription = 'plan_subscription',
   WalletFunding = 'wallet_funding',
   BudgetTransfer = 'budget_transfer'
 }

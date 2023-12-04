@@ -72,7 +72,7 @@ async function addWalletEntriesForClearance(job: Job) {
 
   logger.log('fetched entries for clearance', { entries: entries.length })
   if (!entries.length) {
-    return { message: 'no expired budgets found' }
+    return { message: 'no entries for clearance found' }
   }
 
   const bulk = entries.map((entry) => ({

@@ -4,6 +4,7 @@ import AnchorWebhookHandler from "./handlers/anchor-webhook.handler";
 import { IsString } from "class-validator";
 import { raw } from "express";
 import Logger from "../common/utils/logger";
+import { PaystackWebhookHandler } from "./handlers/paystack-webhook.handler";
 
 class AnchorHeaderDto {
   @IsString()
@@ -15,7 +16,10 @@ const logger = new Logger('webhook-controller')
 @Service()
 @JsonController('/webhook', { transformResponse: false })
 export default class WebhookController {
-  constructor(private anchorHandler: AnchorWebhookHandler) {}
+  constructor (
+    private anchorHandler: AnchorWebhookHandler,
+    private paystackHandler: PaystackWebhookHandler
+  ) { }
 
   @Post('/anchor')
   @UseBefore(raw({ type: "application/json" }))
@@ -26,5 +30,16 @@ export default class WebhookController {
     })
 
     return this.anchorHandler.processWebhook(body, headers)
+  }
+
+  @Post('/paystack')
+  @UseBefore(raw({ type: "application/json" }))
+  async processPaystack(@Body() body: any, @HeaderParams() headers: AnchorHeaderDto) {
+    logger.log('received paystack webhook', {
+      body: body.toString('utf-8'),
+      headers: JSON.stringify(headers)
+    })
+
+    return this.paystackHandler.processWebhook(body, headers)
   }
 }
