@@ -1,6 +1,12 @@
 import { cdb } from '@/modules/common/mongoose';
 import { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
+import { ISubscription } from './subscription.model';
+
+export enum BillingMethod {
+  Wallet = 'wallet',
+  Paystack = 'paystack'
+}
 
 export interface Shareholder {
   id: string
@@ -24,6 +30,13 @@ export interface Shareholder {
 export interface IOrganization {
   _id: ObjectId
   admin: ObjectId
+  subscription: {
+    billingMethod: BillingMethod,
+    months: number // 1|12
+    gracePeriod: number
+    nextPlan: ObjectId
+    object: ObjectId | ISubscription
+  }
   averageMonthlyExpenses: string
   bnNumber: string
   businessIndustry: string
@@ -35,14 +48,13 @@ export interface IOrganization {
   email: string,
   status: string
   numberOfEmployees: string
-  documents: {[key: string]: string}
+  documents: { [key: string]: string }
   phone: string
   postalCode: string
   regDate: string
   state: string
   directors: Shareholder[]
   owners: Shareholder[]
-  plan: ObjectId
   createdAt: Date;
   updatedAt: Date;
 }
@@ -86,7 +98,25 @@ const organizationSchma = new Schema<IOrganization>(
     state: String,
     directors: [shareholderSchema],
     owners: [shareholderSchema],
-    plan: { type: Schema.Types.ObjectId, required: false },
+    subscription: {
+      _id: false,
+      type: {
+        billingMethod: {
+          type: String,
+          enum: Object.values(BillingMethod),
+        },
+        months: { type: Number, default: 1 }, // 1|12
+        gracePeriod: { type: Number, default: 3 },
+        nextPlan: {
+          type: Schema.Types.ObjectId,
+          ref: 'SubscriptionPlan'
+        },
+        object: {
+          type: Schema.Types.ObjectId,
+          ref: 'Subscription'
+        }
+      }
+    },
   },
   { timestamps: true },
 );

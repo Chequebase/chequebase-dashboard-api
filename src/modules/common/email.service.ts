@@ -25,7 +25,6 @@ export default class EmailService {
       dynamicTemplateData: payload.dynamicTemplateData,
     };
 
-    console.log(data)
     try {
       await this.sendGrid.send(data);
       console.log('Email sent successfully');

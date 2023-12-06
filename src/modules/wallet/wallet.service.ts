@@ -16,7 +16,7 @@ import { VirtualAccountService } from "../virtual-account/virtual-account.servic
 import { BudgetStatus } from "@/models/budget.model";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney } from "../common/utils";
-import Counterparty from "@/models/counterparty";
+import Counterparty from "@/models/counterparty.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)

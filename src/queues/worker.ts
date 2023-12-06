@@ -1,16 +1,17 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import { organizationQueue, walletQueue, budgetQueue } from '.';
+import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue } from '.';
 import processOrganizationEventHandler from './jobs/organization';
 import processWalletInflow from './jobs/wallet/wallet-inflow';
 import processWalletOutflow from './jobs/wallet/wallet-outflow';
 import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance';
 import closeExpiredBudget from './jobs/budget/close-expired-budget';
 import fetchExpiredBudgets from './jobs/budget/fetch-expired-budgets';
+import processSubscriptionPlanChange from './jobs/subscription/subscription-plan-change';
+import processSubscriptionPayment from './jobs/subscription/subscription-payment';
 
 const logger = new Logger('worker:main')
-const __DEV__ = process.env.NODE_ENV === "development";
-const ext = __DEV__ ? ".ts" : ".js";
+const tz = 'Africa/Lagos'
 
 setupEventLogger([walletQueue])
 
@@ -23,18 +24,24 @@ function setupQueues() {
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
     walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
     walletQueue.add('addWalletEntriesForClearance', null, {
-      repeat: { cron: '0  * * * *', tz: 'Africa/Lagos' } // every hour
+      repeat: { cron: '0  * * * *', tz } // every hour
     })
     
     budgetQueue.process('closeExpiredBudget', closeExpiredBudget)
     budgetQueue.process('fetchExpiredBudgets', fetchExpiredBudgets)
     budgetQueue.add('fetchExpiredBudgets', null, {
-      repeat: { cron: '0 0 * * *', tz: 'Africa/Lagos' } // every midnight
+      repeat: { cron: '0 0 * * *', tz } // every midnight
     })
+
+    subscriptionQueue.process('processSubscriptionPlanChange', 5, processSubscriptionPlanChange)
+    subscriptionQueue.process('processSubscriptionPayment', 5, processSubscriptionPayment)
+    // TODO: add a job for payment intent clearance
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message
     })
+
+    throw e
   }
 }
 
@@ -74,7 +81,8 @@ async function close() {
   await Promise.all([
     budgetQueue.close(),
     walletQueue.close(),
-    organizationQueue.close()
+    organizationQueue.close(),
+    subscriptionQueue.close()
   ])
 }
 

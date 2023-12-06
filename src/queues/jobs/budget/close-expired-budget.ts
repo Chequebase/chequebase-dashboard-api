@@ -28,14 +28,20 @@ async function closeExpiredBudget(job: Job) {
         employeeName: budget.createdBy.firstName,
         expiryDate: dayjs(budget.expiry).format('YYYY-MM-DD')
       })
+      
+      logger.log('budget expiry notification sent', { budget: budget._id })
 
-      return { message: 'notification email sent' }
+      return { message: 'notification email sent ' + budget._id }
     }
 
     await Budget.updateOne({ _id: budget._id }, {
       status: BudgetStatus.Closed,
       closeReason: 'Budget expired'
     })
+
+    logger.log('closed budget', { budget: budget._id })
+
+    return { message: 'closed budget ' + budget._id }
   } catch (err: any) {
     logger.error('error closing expired budget', {
       message: err.message,

@@ -15,7 +15,7 @@ import UserController  from "./modules/user/user.controller";
 import OrganizationsController from "./modules/organization/organization.controller";
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
-import PlansController from "./modules/plan/plan.controller";
+import BillingController from "./modules/billing/plan.controller";
 import BudgetController from './modules/budget/budget.controller';
 import { OverviewController } from './modules/overview/overview.controller';
 import SettingsController from './modules/settings/settings.controller';
@@ -44,7 +44,7 @@ const rcOptions: RoutingControllersOptions = {
     UserController,
     OrganizationsController,
     WalletController,
-    PlansController,
+    BillingController,
     WebhookController,
     BudgetController,
     OverviewController,
