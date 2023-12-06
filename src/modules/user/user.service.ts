@@ -14,6 +14,8 @@ import { createId } from "@paralleldrive/cuid2";
 import { ISubscription } from "@/models/subscription.model";
 import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
+import WalletService from "../wallet/wallet.service";
+import { WalletEntryScope } from "@/models/wallet-entry.model";
 
 const logger = new Logger('user-service')
 
@@ -37,7 +39,7 @@ export class UserService {
     return bcrypt.compare(pin, user.pin)
   }
 
-  async checkUsersUsage(orgId: string) {
+  async checkUsersUsage(orgId: string, userId?: string) {
     const organization = await Organization.findById(orgId)
       .populate({ path: 'subscription.object', populate: 'plan' })
       .select('subscription')
@@ -60,13 +62,24 @@ export class UserService {
       logger.error('feature not found', { code, plan: plan._id })
       throw new ServiceUnavailableError('Unable to complete request at the moment, please try again later')
     }
-    if (users >= feature.freeUnits && feature.maxUnits !== -1) {
+
+    const exhuastedMaxUnits = feature.maxUnits === -1 ? false : users >= feature.maxUnits
+    const exhaustedFreeUnits = users >= feature.freeUnits
+    if (exhaustedFreeUnits && exhuastedMaxUnits) {
       throw new BadRequestError(
         'Organization has reached its maximum limit for users. To continue adding users, consider upgrading your plan'
       )
     }
 
-    // TODO: handle payment when maxUnits is unlimited
+    if (exhaustedFreeUnits && !exhuastedMaxUnits) {
+      await WalletService.chargeWallet(orgId, {
+        amount: feature.costPerUnit.NGN,
+        narration: 'Add organization user',
+        scope: WalletEntryScope.PlanSubscription,
+        currency: 'NGN',
+        initiatedBy: userId,
+      })
+    }
 
     return true
   }

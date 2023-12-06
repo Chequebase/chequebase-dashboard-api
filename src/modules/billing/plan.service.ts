@@ -3,7 +3,7 @@ import numeral from 'numeral';
 import dayjs from 'dayjs';
 import { createId } from '@paralleldrive/cuid2';
 import { BadRequestError, NotFoundError } from 'routing-controllers';
-import { ObjectId, TransactionOptions } from 'mongodb'
+import { ObjectId } from 'mongodb'
 import SubscriptionPlan, { ISubscriptionPlan } from '@/models/subscription-plan.model';
 import { AuthUser } from '../common/interfaces/auth-user';
 import { GetSubscriptionHistoryDto, InitiateSubscriptionDto } from './dto/plan.dto';
@@ -17,13 +17,9 @@ import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } fro
 import Subscription, { ISubscription, SubscriptionStatus } from '@/models/subscription.model';
 import { subscriptionQueue } from '@/queues';
 import { SubscriptionPlanChange } from '@/queues/jobs/subscription/subscription-plan-change.job';
+import { transactionOpts } from '../common/utils';
 
 const logger = new Logger('plan-service')
-const transactionOpts: TransactionOptions = {
-  readPreference: 'primary',
-  readConcern: 'local',
-  writeConcern: { w: 'majority' }
-}
 
 @Service()
 export class PlanService {

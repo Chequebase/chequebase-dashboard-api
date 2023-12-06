@@ -1,3 +1,4 @@
+import { TransactionOptions } from 'mongodb'
 import numeral from 'numeral'
 import { InternalServerError } from "routing-controllers";
 import Logger from './logger';
@@ -31,4 +32,10 @@ export function getPercentageDiff(previousValue = 0, currentValue = 0) {
 
 export function formatMoney(amount: number) {
   return numeral(amount).divide(100).value()!.toLocaleString()
+}
+
+export const transactionOpts: TransactionOptions = {
+  readPreference: 'primary',
+  readConcern: 'local',
+  writeConcern: { w: 'majority' }
 }

@@ -14,7 +14,7 @@ export interface ISubscriptionPlan {
     freeUnits: number
     available: boolean
     maxUnits: number // unlimmited is -1
-    costPerUnit: number
+    costPerUnit: { NGN: number }
   }[]
   createdAt: Date
   updatedAt: Date
@@ -44,7 +44,7 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
         freeUnits: Number,
         available: Boolean,
         maxUnits: Number,
-        costPerUnit: Number
+        costPerUnit: { NGN: Number }
       }]
     }
   },

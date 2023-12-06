@@ -1,6 +1,6 @@
 import { Service } from "typedi"
 import { BadRequestError, NotFoundError } from "routing-controllers"
-import { ObjectId, TransactionOptions } from 'mongodb'
+import { ObjectId } from 'mongodb'
 import dayjs from "dayjs"
 import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
@@ -20,13 +20,9 @@ import User from "@/models/user.model"
 import { Role } from "../user/dto/user.dto"
 import WalletService from "../wallet/wallet.service"
 import BudgetService from "./budget.service"
+import { transactionOpts } from "../common/utils"
 
 const TRANSFER_FEE = 25_00
-const transactionOpts: TransactionOptions = {
-  readPreference: 'primary',
-  readConcern: 'local',
-  writeConcern: { w: 'majority' }
-}
 
 @Service()
 export class BudgetTransferService {
