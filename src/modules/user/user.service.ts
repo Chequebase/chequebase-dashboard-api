@@ -7,7 +7,7 @@ import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto } from "./dto/user.dto";
+import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
@@ -50,6 +50,7 @@ export class UserService {
       hashRt: '',
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
+      avatar: 'default'
     });
 
     const organization = await Organization.create({
@@ -536,5 +537,16 @@ export class UserService {
     })
 
     return { message: 'Member deleted' }
+  }
+
+  async updateProfile(id: string, data: UpdateProfileDto, orgId: string) {
+    const user = await User.findOne({_id: id, organization: orgId, status: { $ne: UserStatus.DELETED } });
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    await user.updateOne({ ...data })
+
+    return { message: 'Update profile details' }
   }
 }

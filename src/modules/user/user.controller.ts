@@ -1,5 +1,5 @@
 import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams } from 'routing-controllers';
-import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto } from './dto/user.dto';
+import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
 import { Service } from 'typedi';
@@ -75,6 +75,15 @@ export default class UserController {
   @Authorized()
   getUserProfile(@CurrentUser() auth: AuthUser) {
     return this.userService.getProfile(auth.userId);
+  }
+
+  @Authorized()
+  @Put('/profile')
+  updateProfile(
+    @CurrentUser() auth: AuthUser,
+    @Body() updateProfileDto: UpdateProfileDto
+  ) {
+    return this.userService.updateProfile(auth.userId, updateProfileDto, auth.orgId);
   }
 
   @Authorized(Role.Owner)
