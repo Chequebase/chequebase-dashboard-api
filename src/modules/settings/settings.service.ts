@@ -92,7 +92,7 @@ export class SettingsService {
     // check if role is allowed
     const users = await User.find({
       organization: auth.orgId,
-      role: { $ne: role },
+      role,
       status: { $ne: UserStatus.DELETED },
     })
     return users
