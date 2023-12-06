@@ -11,6 +11,9 @@ import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, 
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
+import { ISubscription } from "@/models/subscription.model";
+import { ISubscriptionPlan } from "@/models/subscription-plan.model";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
 
 const logger = new Logger('user-service')
 
@@ -32,6 +35,40 @@ export class UserService {
     }
     
     return bcrypt.compare(pin, user.pin)
+  }
+
+  async checkUsersUsage(orgId: string) {
+    const organization = await Organization.findById(orgId)
+      .populate({ path: 'subscription.object', populate: 'plan' })
+      .select('subscription')
+      .lean()
+
+    if (!organization) {
+      throw new NotFoundError("Organization not found")
+    }
+
+    const subscription = organization.subscription?.object as ISubscription
+    if (!subscription || subscription?.status === 'expired') {
+      throw new BadRequestError('Organization has no active subscription')
+    }
+
+    const code = 'users'
+    const plan = subscription.plan as ISubscriptionPlan
+    const users = await User.countDocuments({ organization: orgId, status: { $ne: UserStatus.DELETED } })
+    const feature = plan.features.find((f) => f.code === code)
+    if (!feature) {
+      logger.error('feature not found', { code, plan: plan._id })
+      throw new ServiceUnavailableError('Unable to complete request at the moment, please try again later')
+    }
+    if (users >= feature.freeUnits && feature.maxUnits !== -1) {
+      throw new BadRequestError(
+        'Organization has reached its maximum limit for users. To continue adding users, consider upgrading your plan'
+      )
+    }
+
+    // TODO: handle payment when maxUnits is unlimited
+
+    return true
   }
 
   async register(data: RegisterDto) {
@@ -391,6 +428,8 @@ export class UserService {
       throw new BadRequestError('Account with same email already exists');
     }
 
+    await this.checkUsersUsage(orgId)
+
     const code = createId()
     await User.create({
       email: data.email,
@@ -419,6 +458,7 @@ export class UserService {
       throw new NotFoundError('Invalid or expired invite link');
     }
 
+    await this.checkUsersUsage(user.organization.toString())
     const hashedPassword = await bcrypt.hash(password, 12)
 
     await user.set({
