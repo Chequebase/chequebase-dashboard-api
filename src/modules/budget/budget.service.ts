@@ -13,16 +13,16 @@ import { UserService } from "../user/user.service";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney, getEnvOrThrow } from "../common/utils";
 import EmailService from "../common/email.service";
-import Organization from "@/models/organization.model";
-import { ISubscription } from "@/models/subscription.model";
-import { ISubscriptionPlan } from "@/models/subscription-plan.model";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
+import { PlanUsageService } from "../billing/plan-usage.service";
 
 const logger = new Logger('budget-service')
 
 @Service()
 export default class BudgetService {
-  constructor (private emailService: EmailService) { }
+  constructor (
+    private emailService: EmailService,
+    private planUsageService: PlanUsageService
+  ) { }
   
   static async getBudgetBalances(id: string | ObjectId) {
     const [balances] = await Budget.aggregate()
@@ -37,38 +37,6 @@ export default class BudgetService {
       balance: Number(balances.balance || 0),
       availableBalance: Number(balances.availableBalance || 0)
     }
-  }
-
-  async checkActiveBudgetUsage(orgId: string) {
-    const organization = await Organization.findById(orgId)
-      .populate({ path: 'subscription.object', populate: 'plan' })
-      .select('subscription')
-      .lean()
-    
-    if (!organization) {
-      throw new NotFoundError("Organization not found")
-    }
-    
-    const subscription = organization.subscription?.object as ISubscription
-    if (!subscription || subscription?.status === 'expired') {
-      throw new BadRequestError('Organization has no active subscription')
-    }
-
-    const code = 'active_budgets'
-    const plan = subscription.plan as ISubscriptionPlan
-    const budgets = await Budget.countDocuments({ organization: orgId, status: BudgetStatus.Active })
-    const feature = plan.features.find((f) => f.code === code)
-    if (!feature) {
-      logger.error('feature not found', { code, plan: plan._id })
-      throw new ServiceUnavailableError('Unable to complete request at the moment, please try again later')
-    }
-    if (budgets >= feature.freeUnits && feature.maxUnits !== -1) {
-      throw new BadRequestError(
-        'Organization has reached its maximum limit for active budgets. To continue adding active budgets, consider upgrading your plan'
-      )
-    }
-
-    return true
   }
 
   async createBudget(auth: AuthUser, data: CreateBudgetDto) {
@@ -100,7 +68,7 @@ export default class BudgetService {
         throw new BadRequestError('Insufficient Balance')
       }
 
-      await this.checkActiveBudgetUsage(auth.orgId)
+      await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
     }
     
     const budget = await Budget.create({
@@ -155,7 +123,7 @@ export default class BudgetService {
         throw new BadRequestError('Insufficient Balance')
       }
 
-      await this.checkActiveBudgetUsage(auth.orgId)
+      await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
     }
     
     const beneficiaries: BeneficiaryDto[] = [{ user: auth.userId }]
@@ -264,7 +232,7 @@ export default class BudgetService {
       throw new BadRequestError('Insufficient Balance')
     }
 
-    await this.checkActiveBudgetUsage(auth.orgId)
+    await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
 
     await budget.set({
       status: BudgetStatus.Active,

@@ -11,17 +11,16 @@ import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, 
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
-import { ISubscription } from "@/models/subscription.model";
-import { ISubscriptionPlan } from "@/models/subscription-plan.model";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
-import WalletService from "../wallet/wallet.service";
-import { WalletEntryScope } from "@/models/wallet-entry.model";
+import { PlanUsageService } from "../billing/plan-usage.service";
 
 const logger = new Logger('user-service')
 
 @Service()
 export class UserService {
-  constructor (private emailService: EmailService) { }
+  constructor (
+    private emailService: EmailService,
+    private planUsageService: PlanUsageService
+  ) { }
 
   static async verifyTransactionPin(id: string, pin: string) {
     const user = await User.findById(id).select('pin')
@@ -37,51 +36,6 @@ export class UserService {
     }
     
     return bcrypt.compare(pin, user.pin)
-  }
-
-  async checkUsersUsage(orgId: string, userId?: string) {
-    const organization = await Organization.findById(orgId)
-      .populate({ path: 'subscription.object', populate: 'plan' })
-      .select('subscription')
-      .lean()
-
-    if (!organization) {
-      throw new NotFoundError("Organization not found")
-    }
-
-    const subscription = organization.subscription?.object as ISubscription
-    if (!subscription || subscription?.status === 'expired') {
-      throw new BadRequestError('Organization has no active subscription')
-    }
-
-    const code = 'users'
-    const plan = subscription.plan as ISubscriptionPlan
-    const users = await User.countDocuments({ organization: orgId, status: { $ne: UserStatus.DELETED } })
-    const feature = plan.features.find((f) => f.code === code)
-    if (!feature) {
-      logger.error('feature not found', { code, plan: plan._id })
-      throw new ServiceUnavailableError('Unable to complete request at the moment, please try again later')
-    }
-
-    const exhuastedMaxUnits = feature.maxUnits === -1 ? false : users >= feature.maxUnits
-    const exhaustedFreeUnits = users >= feature.freeUnits
-    if (exhaustedFreeUnits && exhuastedMaxUnits) {
-      throw new BadRequestError(
-        'Organization has reached its maximum limit for users. To continue adding users, consider upgrading your plan'
-      )
-    }
-
-    if (exhaustedFreeUnits && !exhuastedMaxUnits) {
-      await WalletService.chargeWallet(orgId, {
-        amount: feature.costPerUnit.NGN,
-        narration: 'Add organization user',
-        scope: WalletEntryScope.PlanSubscription,
-        currency: 'NGN',
-        initiatedBy: userId,
-      })
-    }
-
-    return true
   }
 
   async register(data: RegisterDto) {
@@ -441,7 +395,7 @@ export class UserService {
       throw new BadRequestError('Account with same email already exists');
     }
 
-    await this.checkUsersUsage(orgId)
+    await this.planUsageService.checkUsersUsage(orgId)
 
     const code = createId()
     await User.create({
@@ -471,7 +425,7 @@ export class UserService {
       throw new NotFoundError('Invalid or expired invite link');
     }
 
-    await this.checkUsersUsage(user.organization.toString())
+    await this.planUsageService.checkUsersUsage(user.organization.toString())
     const hashedPassword = await bcrypt.hash(password, 12)
 
     await user.set({
