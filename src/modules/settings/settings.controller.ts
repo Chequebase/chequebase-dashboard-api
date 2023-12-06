@@ -35,7 +35,7 @@ export default class SettingsController {
     return this.settingsService.changeForgotCurrentPin(auth.userId, changeForgotCurrentPinDto);
   }
 
-  @Get('/')
+  @Get('/permissions')
   @Authorized()
   getPermissions(@CurrentUser() auth: AuthUser) {
     return this.settingsService.getPermissions(auth.userId)
