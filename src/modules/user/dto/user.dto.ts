@@ -146,6 +146,12 @@ export class UpdateEmployeeDto {
 }
 
 export class UpdateProfileDto {
+  @IsString()
+  firstName: string;
+
+  @IsString()
+  lastName: string;
+
   @IsOptional()
   @IsString()
   phone: string;
