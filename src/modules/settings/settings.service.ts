@@ -1,10 +1,12 @@
 import { CreatePinDto } from './dto/create-pin.dto';
 import { ChangeForgotCurrentPinDto, ChangePinDto, ForgotCurrentPinDto } from './dto/change-pin.dto';
 import { Service } from 'typedi';
-import User from '@/models/user.model';
+import User, { UserStatus } from '@/models/user.model';
 import { BadRequestError, ForbiddenError, UnauthorizedError } from 'routing-controllers';
 import bcrypt, { compare } from 'bcryptjs';
 import { createId } from '@paralleldrive/cuid2';
+import Permission from '@/models/permission.model';
+import { AuthUser } from '../common/interfaces/auth-user';
 @Service()
 export class SettingsService {
   constructor(
@@ -79,8 +81,20 @@ export class SettingsService {
   }
 
   async getPermissions(userId: string) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new BadRequestError('User not found');
+    }
+    return Permission.find().lean()
   }
 
-  async getUsersByRole(userId: string) {
+  async getUsersByRole(auth: AuthUser, role: string) {
+    // check if role is allowed
+    const users = await User.find({
+      organization: auth.orgId,
+      role: { $ne: role },
+      status: { $ne: UserStatus.DELETED },
+    })
+    return users
   }
 }
