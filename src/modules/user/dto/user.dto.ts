@@ -17,6 +17,10 @@ export class RegisterDto {
   @IsString()
   @MinLength(6)
   password: string;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 }
 
 export class LoginDto {
@@ -139,6 +143,16 @@ export class UpdateEmployeeDto {
   @IsString()
   @IsEnum(Role)
   role: Role;
+}
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  phone: string;
+
+  @IsString()
+  @IsOptional()
+  avatar: string;
 }
 
 export class GetMembersQueryDto {

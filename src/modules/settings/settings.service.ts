@@ -77,4 +77,10 @@ export class SettingsService {
     await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(changeForgotCurrentPinDto.pin, 12), })
     return { message: "pin changed" };
   }
+
+  async getPermissions(userId: string) {
+  }
+
+  async getUsersByRole(userId: string) {
+  }
 }

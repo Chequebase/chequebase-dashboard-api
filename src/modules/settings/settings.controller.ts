@@ -1,7 +1,7 @@
 import { CreatePinDto } from './dto/create-pin.dto';
 import { ChangeForgotCurrentPinDto, ChangePinDto, ForgotCurrentPinDto } from './dto/change-pin.dto';
 import { Service } from 'typedi';
-import { Authorized, Body, CurrentUser, ForbiddenError, JsonController, Post } from 'routing-controllers';
+import { Authorized, Body, CurrentUser, ForbiddenError, Get, JsonController, Post } from 'routing-controllers';
 import { AuthUser } from '../common/interfaces/auth-user';
 import { SettingsService } from './settings.service';
 import { Role } from '../user/dto/user.dto';
@@ -33,5 +33,17 @@ export default class SettingsController {
   @Post('/change-forgot-pin')
   async changeForgotPin(@CurrentUser() auth: AuthUser, @Body() changeForgotCurrentPinDto: ChangeForgotCurrentPinDto) {
     return this.settingsService.changeForgotCurrentPin(auth.userId, changeForgotCurrentPinDto);
+  }
+
+  @Get('/')
+  @Authorized()
+  getPermissions(@CurrentUser() auth: AuthUser) {
+    return this.settingsService.getPermissions(auth.userId)
+  }
+
+  @Get('/:role/users')
+  @Authorized()
+  getRoleUsers(@CurrentUser() auth: AuthUser) {
+    return this.settingsService.getUsersByRole(auth.userId)
   }
 }
