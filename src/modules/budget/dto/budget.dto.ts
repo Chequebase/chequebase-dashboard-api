@@ -31,6 +31,41 @@ export class CreateTranferBudgetDto {
   priority = BudgetPriority.Medium
 }
 
+export class EditBudgetDto {
+  @IsString()
+  name: string
+
+  @IsString()
+  @IsOptional()
+  description: string
+
+  @IsInt()
+  amount: number
+
+  @IsInt()
+  @IsOptional()
+  threshold?: number
+
+  @IsDateString()
+  @IsOptional()
+  expiry?: Date
+
+  @IsString()
+  @IsOptional()
+  @IsEnum(BudgetCurrency)
+  currency = BudgetCurrency.Ngn
+
+  @IsEnum(BudgetPriority)
+  @IsOptional()
+  priority = BudgetPriority.Medium
+
+  @Type(() => BeneficiaryDto)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  beneficiaries: BeneficiaryDto[]
+}
+
 export class CreateBudgetDto extends CreateTranferBudgetDto {
   @Type(() => BeneficiaryDto)
   @ValidateNested({ each: true })
@@ -75,6 +110,10 @@ export class CloseBudgetBodyDto {
 export class PauseBudgetBodyDto {
   @IsString()
   pin: string
+
+  @IsBoolean()
+  @IsOptional()
+  pause = true
 }
 
 export class GetBudgetsDto {

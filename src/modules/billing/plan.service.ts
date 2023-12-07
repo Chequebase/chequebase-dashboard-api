@@ -99,7 +99,7 @@ export class PlanService {
 
   async getCurrentSubscription(orgId: string) {
     const org = await Organization.findById(orgId).select('subscription').lean()
-    if (!org) return null
+    if (!org || !org.subscription?.object) return null
 
     return Subscription.findById(org.subscription.object)
       .select('plan status startedAt endingAt renewAt trial terminatedAt')

@@ -1,5 +1,5 @@
 import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams } from 'routing-controllers';
-import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto } from './dto/user.dto';
+import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
 import { Service } from 'typedi';
@@ -77,6 +77,15 @@ export default class UserController {
     return this.userService.getProfile(auth.userId);
   }
 
+  @Authorized()
+  @Put('/profile')
+  updateProfile(
+    @CurrentUser() auth: AuthUser,
+    @Body() updateProfileDto: UpdateProfileDto
+  ) {
+    return this.userService.updateProfile(auth.userId, updateProfileDto, auth.orgId);
+  }
+
   @Authorized(Role.Owner)
   @Post('/members/invite')
   sendInvite(@CurrentUser() auth: AuthUser, @Body() body: CreateEmployeeDto) {
@@ -98,7 +107,7 @@ export default class UserController {
   @Authorized(Role.Owner)
   @Get('/members/all')
   getUnpaginatedMembers(@CurrentUser() auth: AuthUser) {
-    return this.userService.getUnpaginatedMembers(auth.orgId);
+    return this.userService.getUnpaginatedMembers(auth);
   }
 
   @Authorized(Role.Owner)
@@ -126,7 +135,7 @@ export default class UserController {
   @Authorized(Role.Owner)
   @Get('/members/:id/resend-invite')
   resendInvite(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
-    return this.userService.resendInvite(id, auth.userId);
+    return this.userService.resendInvite(id, auth.orgId);
   }
 
   // @Authorized(Role.Owner)

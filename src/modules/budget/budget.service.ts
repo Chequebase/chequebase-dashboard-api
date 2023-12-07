@@ -2,7 +2,7 @@ import { Service } from "typedi";
 import { ObjectId } from 'mongodb'
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
@@ -99,6 +99,57 @@ export default class BudgetService {
     return budget
   }
 
+  async editBudget(auth: AuthUser, id: string, data: EditBudgetDto) {
+    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
+    if (!budget) {
+      throw new NotFoundError('Budget not found')
+    }
+
+    if (budget.status !== BudgetStatus.Pending) {
+      throw new BadRequestError('Budget cannot be updated')
+    }
+
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new BadRequestError('User not found')
+    }
+
+    if (user.role !== Role.Owner && !budget.createdBy.equals(auth.userId)) {
+      throw new BadRequestError("Budget cannot be updated")
+    }
+
+    await budget.set({
+      name: data.name,
+      amount: data.amount,
+      expiry: data.expiry,
+      threshold: data.threshold ?? data.amount,
+      beneficiaries: data.beneficiaries,
+      description: data.description,
+      priority: data.priority,
+    }).save()
+
+    return budget
+  }
+
+  async cancelBudget(auth: AuthUser, id: string) {
+    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
+    if (!budget) {
+      throw new NotFoundError('Budget not found')
+    }
+
+    if (budget.status !== BudgetStatus.Pending) {
+      throw new BadRequestError('Budget cannot be cancelled')
+    }
+
+    if (!budget.createdBy.equals(auth.userId)) {
+      throw new BadRequestError("Budget cannot be cancelled")
+    }
+
+    await budget.set({ status: BudgetStatus.Closed }).save()
+
+    return budget
+  }
+
   async createTransferBudget(auth: AuthUser, data: CreateTranferBudgetDto) {
     const user = await User.findById(auth.userId)
     if (!user) {
@@ -164,7 +215,7 @@ export default class BudgetService {
       throw new BadRequestError("User not found")
     }
 
-    if (user.role !== Role.Owner) {
+    if (!query.paginated || (user.role !== Role.Owner)) {
       filter.set('beneficiaries.user', new ObjectId(auth.userId)) 
     }
 
@@ -266,19 +317,25 @@ export default class BudgetService {
       throw new BadRequestError('Only active budgets can be paused')
     }
 
-    if (budget.paused) {
+    if (budget.paused && data.pause) {
       throw new BadRequestError('Budget is already paused')
     }
 
-    await budget.set({ paused: true }).save()
+    if (!budget.paused && !data.pause) {
+      throw new BadRequestError('Budget is not paused')
+    }
 
-    const owner = (await User.findOne({ organization: auth.orgId, role: Role.Owner }))!
-    this.emailService.sendBudgetPausedEmail(owner.email, {
-      budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
-      budgetBalance: formatMoney(budget.amount - budget.amountUsed),
-      budgetName: budget.name,
-      employeeName: owner.firstName
-    })
+    await budget.set({ paused: data.pause }).save()
+
+    if (data.pause) {
+      const owner = (await User.findOne({ organization: auth.orgId, role: Role.Owner }))!
+      this.emailService.sendBudgetPausedEmail(owner.email, {
+        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
+        budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+        budgetName: budget.name,
+        employeeName: owner.firstName
+      })
+    }
 
     return budget
   }
@@ -357,7 +414,7 @@ export default class BudgetService {
         foreignField: '_id',
         as: 'approvedBy'
       })
-      .unwind('$approvedBy')
+      .unwind({ path: '$approvedBy', preserveNullAndEmptyArrays: true })
       .lookup({
         from: 'users',
         localField: 'beneficiaries.user',

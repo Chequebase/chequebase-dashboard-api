@@ -1,7 +1,7 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, Put, QueryParams } from "routing-controllers";
 import { Service } from "typedi";
 import BudgetService from "./budget.service";
-import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
+import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { Role } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
@@ -49,6 +49,18 @@ export default class BudgetController {
   @Authorized()
   resolveAccountNumber(@Body() body: ResolveAccountDto) {
     return this.budgetTransferService.resolveAccountNumber(body)
+  }
+
+  @Put('/:id')
+  @Authorized()
+  editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
+    return this.budgetService.editBudget(auth, id, dto)
+  }
+
+  @Put('/:id/cancel')
+  @Authorized()
+  cancelBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.budgetService.cancelBudget(auth, id)
   }
 
   @Get('/:id')
