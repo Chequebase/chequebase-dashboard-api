@@ -2,9 +2,6 @@ import { IsString, MinLength, IsOptional, IsEmail, IsNumber } from "class-valida
 
 export class UpdateBusinessDocumentationDto {
   @IsString()
-  bnNumber: string;
-
-  @IsString()
   regDate: string;
 }
 
