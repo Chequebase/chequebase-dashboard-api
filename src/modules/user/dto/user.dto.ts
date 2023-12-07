@@ -157,10 +157,6 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   phone: string;
-
-  @IsString()
-  @IsOptional()
-  avatar: string;
 }
 
 export class GetMembersQueryDto {
