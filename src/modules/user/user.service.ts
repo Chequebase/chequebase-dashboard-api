@@ -12,6 +12,8 @@ import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
 import { PlanUsageService } from "../billing/plan-usage.service";
+import WalletService from "../wallet/wallet.service";
+import { WalletEntryScope } from "@/models/wallet-entry.model";
 
 const logger = new Logger('user-service')
 
@@ -385,7 +387,8 @@ export class UserService {
     };
   }
 
-  async sendInvite(data: CreateEmployeeDto, orgId: string) {
+  async sendInvite(data: CreateEmployeeDto, auth: AuthUser) {
+    const { userId, orgId } = auth
     const organization = await Organization.findById(orgId).lean()
     if (!organization) {
       throw new NotFoundError(`Orgniaztion with ID ${orgId} not found`);
@@ -396,7 +399,7 @@ export class UserService {
       throw new BadRequestError('Account with same email already exists');
     }
 
-    await this.planUsageService.checkUsersUsage(orgId)
+    const usage = await this.planUsageService.checkUsersUsage(orgId)
 
     const code = createId()
     await User.create({
@@ -410,6 +413,16 @@ export class UserService {
       role: data.role,
       status: UserStatus.INVITED
     })
+
+    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
+      await WalletService.chargeWallet(orgId, {
+        amount: usage.feature.costPerUnit.NGN,
+        narration: 'Add organization user',
+        scope: WalletEntryScope.PlanSubscription,
+        currency: 'NGN',
+        initiatedBy: userId,
+      })
+    }
 
     this.emailService.sendEmployeeInviteEmail(data.email, {
       inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${code}&companyName=${organization.businessName}`,

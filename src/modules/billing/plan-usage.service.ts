@@ -47,7 +47,7 @@ export class PlanUsageService {
     return true
   }
 
-  async checkUsersUsage(orgId: string, userId?: string) {
+  async checkUsersUsage(orgId: string) {
     const organization = await Organization.findById(orgId)
       .populate({ path: 'subscription.object', populate: 'plan' })
       .select('subscription')
@@ -79,16 +79,6 @@ export class PlanUsageService {
       )
     }
 
-    if (exhaustedFreeUnits && !exhuastedMaxUnits) {
-      await WalletService.chargeWallet(orgId, {
-        amount: feature.costPerUnit.NGN,
-        narration: 'Add organization user',
-        scope: WalletEntryScope.PlanSubscription,
-        currency: 'NGN',
-        initiatedBy: userId,
-      })
-    }
-
-    return true
+    return { feature, exhaustedFreeUnits, exhuastedMaxUnits }
   }
 }
