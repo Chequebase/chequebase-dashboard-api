@@ -1,7 +1,8 @@
-import { Get, CurrentUser, JsonController } from 'routing-controllers';
+import { Get, CurrentUser, JsonController, Authorized, QueryParams } from 'routing-controllers';
 import { Service } from 'typedi';
 import { OverviewService } from './overview.service';
 import { AuthUser } from '../common/interfaces/auth-user';
+import { GetCashflowTrendDto, GetOverviewSummaryDto } from './dto/overview.dto';
 
 @Service()
 @JsonController('/overview', { transformResponse: false })
@@ -9,7 +10,14 @@ export class OverviewController {
   constructor(private readonly overviewService: OverviewService) { }
 
   @Get('/summary')
-  getDashboardSummary() {
-    return this.overviewService.getOverviewSummary();
+  @Authorized()
+  getDashboardSummary(@CurrentUser() auth: AuthUser, @QueryParams() query: GetOverviewSummaryDto) {
+    return this.overviewService.getOverviewSummary(auth.orgId, query);
+  }
+
+  @Get('/trends/cashflow')
+  @Authorized()
+  cashflowTrend(@CurrentUser() auth: AuthUser, @QueryParams() query: GetCashflowTrendDto) {
+    return this.overviewService.cashflowTrend(auth.orgId, query);
   }
 }
