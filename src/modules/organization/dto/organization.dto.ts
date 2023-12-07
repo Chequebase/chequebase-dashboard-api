@@ -43,6 +43,22 @@ export class UpdateCompanyInfoDto {
 
   @IsString()
   postalCode: string
+
+  @IsOptional()
+  @IsString()
+  tin: string
+
+  @IsOptional()
+  @IsString()
+  businessNumber: string
+
+  @IsOptional()
+  @IsString()
+  rcNumber: string
+
+  @IsOptional()
+  @IsString()
+  cacItNumber: string
 }
 
 export class DirectorDto {
