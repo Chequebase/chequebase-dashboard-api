@@ -1,8 +1,17 @@
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
+import advancedFormat from 'dayjs/plugin/advancedFormat';
 import { MailService } from '@sendgrid/mail';
 import { Service } from 'typedi';
 import { getEnvOrThrow } from './utils';
 import * as T from './interfaces/email-service.interface';
 import { SESService } from './aws/ses.service';
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(advancedFormat)
+dayjs.tz.setDefault('Africa/Lagos')
 
 @Service()
 export default class EmailService {
@@ -166,6 +175,52 @@ export default class EmailService {
       subject: 'Budget Created Successfully',
       templateId: 'd-e5a4d74bd816487e993f3588fbef8d0d',
       dynamicTemplateData: data
+    })
+  }
+
+  sendSubscriptionTrialEndEmail(to: string, data: T.SubscriptionTrialEnd) {
+    const endDate = dayjs(data.endDate).format('YYYY-MM-DD')
+    return this.send({
+      to,
+      templateId: 'd-0e52ad635eba4d1599b4b80723108619',
+      dynamicTemplateData: { ...data, endDate }
+    })
+  }
+
+  sendPlanChangeEmail(to: string, data: T.SubscriptionPlanChange) {
+    const changeDate = dayjs(data.changeDate).format('YYYY-MM-DD')
+    return this.send({
+      to,
+      templateId: 'd-eda49ef2c2da4c03b6560e49984442cd',
+      dynamicTemplateData: { ...data, changeDate }
+    })
+  }
+
+  sendSubscriptionExpiryWarning(to: string, data: T.SubscriptionExpiryWarning) {
+    const expirationDate = dayjs(data.expirationDate).format()
+    return this.send({
+      to,
+      templateId: 'd-0eff25b8e1e04bd2a9df736001bee864',
+      dynamicTemplateData: { ...data, expirationDate }
+    })
+  }
+
+  sendSubscriptionRenewal(to: string, data: T.SubscriptionRenewal) {
+    const startDate = dayjs(data.startDate).format()
+    const endDate = dayjs(data.endDate).format()
+    return this.send({
+      to,
+      templateId: 'd-8eda558e63ff4779b506eede8a5ec19f',
+      dynamicTemplateData: { ...data, startDate, endDate }
+    })
+  }
+
+  sendSubscriptionExpired(to: string, data: T.SubscriptionExpired) {
+    const expirationDate = dayjs(data.expirationDate).format()
+    return this.send({
+      to,
+      templateId: 'd-ce91a49d583d4feb9249cc2a74be8616',
+      dynamicTemplateData: { ...data, expirationDate }
     })
   }
 }
