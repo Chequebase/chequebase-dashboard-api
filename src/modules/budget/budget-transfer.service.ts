@@ -56,7 +56,7 @@ export class BudgetTransferService {
 
     if (typeof flatAmount !== 'number') {
       logger.error('budget transfer fee not found', { orgId, amount, currency })
-      throw new ServiceUnavailableError('Unable to complete transfer at the moment, please try')
+      throw new ServiceUnavailableError('Unable to complete transfer at the moment, please try again')
     }
 
     return flatAmount
