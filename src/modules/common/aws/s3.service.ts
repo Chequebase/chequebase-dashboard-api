@@ -1,4 +1,5 @@
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getEnvOrThrow } from '../utils';
 import { Service } from 'typedi';
 
@@ -19,6 +20,18 @@ export class S3Service {
 
     const command = new PutObjectCommand(s3Params);
     return await this.s3.send(command);
+  }
+
+  async putObjectWithSignUrl(bucket: string, key: string, data: Buffer) {
+    const s3Params = {
+      Bucket: bucket,
+      Key: key,
+      Body: data
+    };
+
+    const command = new PutObjectCommand(s3Params);
+    return await getSignedUrl(this.s3, command);
+    // return await this.s3.send(command);
   }
 
   async getObject(bucket: string, key: string): Promise<Uint8Array> {

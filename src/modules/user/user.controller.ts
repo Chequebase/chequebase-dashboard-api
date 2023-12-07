@@ -1,10 +1,12 @@
-import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams } from 'routing-controllers';
+import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from 'routing-controllers';
 import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
 import { Service } from 'typedi';
 import { verifyToken } from '@/modules/common/middlewares/rbac.middleware';
 import { getEnvOrThrow } from '@/modules/common/utils';
+import multer from 'multer';
+import { Request } from 'express';
 
 @Service()
 @JsonController('/auth', { transformResponse: false })
@@ -84,6 +86,17 @@ export default class UserController {
     @Body() updateProfileDto: UpdateProfileDto
   ) {
     return this.userService.updateProfile(auth.userId, updateProfileDto, auth.orgId);
+  }
+
+  @Authorized(Role.Owner)
+  @Post('/profile/avatar')
+  @UseBefore(multer().any())
+  updatebusinessDocumentation(
+    @CurrentUser() auth: AuthUser,
+    @Req() req: Request
+  ) {
+    const file = req.file as any
+    return this.userService.uploadAvatar(auth, file)
   }
 
   @Authorized(Role.Owner)

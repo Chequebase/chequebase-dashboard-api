@@ -14,12 +14,14 @@ import { createId } from "@paralleldrive/cuid2";
 import { PlanUsageService } from "../billing/plan-usage.service";
 import WalletService from "../wallet/wallet.service";
 import { WalletEntryScope } from "@/models/wallet-entry.model";
+import { S3Service } from "../common/aws/s3.service";
 
 const logger = new Logger('user-service')
 
 @Service()
 export class UserService {
   constructor (
+    private s3Service: S3Service,
     private emailService: EmailService,
     private planUsageService: PlanUsageService
   ) { }
@@ -568,5 +570,27 @@ export class UserService {
     await user.updateOne({ ...data })
 
     return { message: 'Update profile details' }
+  }
+
+  async uploadAvatar(
+    auth: AuthUser,
+    file: any
+  ) {
+    const user = await User.findOne({_id: auth.userId, organization: auth.orgId, status: { $ne: UserStatus.DELETED } });
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+    const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}`;
+    const url = await this.s3Service.putObjectWithSignUrl(
+      getEnvOrThrow('AVATAR_BUCKET_NAME'),
+      key,
+      file.buffer
+    );
+    
+    await User.updateOne({ _id: auth.userId }, {
+      avatar: url
+    })
+
+    return { message: 'upload successful' };
   }
 }
