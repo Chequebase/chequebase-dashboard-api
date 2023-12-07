@@ -5,7 +5,7 @@ import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranfe
 import { AuthUser } from "../common/interfaces/auth-user";
 import { Role } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
-import { InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
+import { GetTransferFee, InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
@@ -35,8 +35,8 @@ export default class BudgetController {
   
   @Get('/transfer-fee')
   @Authorized()
-  getTransactionFee() {
-    return this.budgetTransferService.getTransactionFee()
+  getTransactionFee(@CurrentUser() auth: AuthUser, @QueryParams() query: GetTransferFee) {
+    return this.budgetTransferService.getTransferFee(auth.orgId, query)
   }
 
   @Get('/banks')

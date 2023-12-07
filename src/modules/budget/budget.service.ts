@@ -13,12 +13,16 @@ import { UserService } from "../user/user.service";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney, getEnvOrThrow } from "../common/utils";
 import EmailService from "../common/email.service";
+import { PlanUsageService } from "../billing/plan-usage.service";
 
 const logger = new Logger('budget-service')
 
 @Service()
 export default class BudgetService {
-  constructor (private emailService: EmailService) { }
+  constructor (
+    private emailService: EmailService,
+    private planUsageService: PlanUsageService
+  ) { }
   
   static async getBudgetBalances(id: string | ObjectId) {
     const [balances] = await Budget.aggregate()
@@ -63,6 +67,8 @@ export default class BudgetService {
       if (balances.availableBalance < data.amount) {
         throw new BadRequestError('Insufficient Balance')
       }
+
+      await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
     }
     
     const budget = await Budget.create({
@@ -167,6 +173,8 @@ export default class BudgetService {
       if (balances.availableBalance < data.amount) {
         throw new BadRequestError('Insufficient Balance')
       }
+
+      await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
     }
     
     const beneficiaries: BeneficiaryDto[] = [{ user: auth.userId }]
@@ -274,6 +282,8 @@ export default class BudgetService {
     if (balances.availableBalance < budget.amount) {
       throw new BadRequestError('Insufficient Balance')
     }
+
+    await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
 
     await budget.set({
       status: BudgetStatus.Active,

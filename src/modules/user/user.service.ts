@@ -11,12 +11,18 @@ import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, 
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
+import { PlanUsageService } from "../billing/plan-usage.service";
+import WalletService from "../wallet/wallet.service";
+import { WalletEntryScope } from "@/models/wallet-entry.model";
 
 const logger = new Logger('user-service')
 
 @Service()
 export class UserService {
-  constructor (private emailService: EmailService) { }
+  constructor (
+    private emailService: EmailService,
+    private planUsageService: PlanUsageService
+  ) { }
 
   static async verifyTransactionPin(id: string, pin: string) {
     const user = await User.findById(id).select('pin')
@@ -381,7 +387,8 @@ export class UserService {
     };
   }
 
-  async sendInvite(data: CreateEmployeeDto, orgId: string) {
+  async sendInvite(data: CreateEmployeeDto, auth: AuthUser) {
+    const { userId, orgId } = auth
     const organization = await Organization.findById(orgId).lean()
     if (!organization) {
       throw new NotFoundError(`Orgniaztion with ID ${orgId} not found`);
@@ -391,6 +398,8 @@ export class UserService {
     if (userExists) {
       throw new BadRequestError('Account with same email already exists');
     }
+
+    const usage = await this.planUsageService.checkUsersUsage(orgId)
 
     const code = createId()
     await User.create({
@@ -404,6 +413,16 @@ export class UserService {
       role: data.role,
       status: UserStatus.INVITED
     })
+
+    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
+      await WalletService.chargeWallet(orgId, {
+        amount: usage.feature.costPerUnit.NGN,
+        narration: 'Add organization user',
+        scope: WalletEntryScope.PlanSubscription,
+        currency: 'NGN',
+        initiatedBy: userId,
+      })
+    }
 
     this.emailService.sendEmployeeInviteEmail(data.email, {
       inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${code}&companyName=${organization.businessName}`,
@@ -420,6 +439,7 @@ export class UserService {
       throw new NotFoundError('Invalid or expired invite link');
     }
 
+    await this.planUsageService.checkUsersUsage(user.organization.toString())
     const hashedPassword = await bcrypt.hash(password, 12)
 
     await user.set({

@@ -2,6 +2,8 @@ import { cdb } from '@/modules/common/mongoose';
 import mongoose, { Schema, Types } from 'mongoose';
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
+import { IOrganization } from './organization.model';
+import { ISubscriptionPlan } from './subscription-plan.model';
 
 export enum SubscriptionStatus {
   Active = 'active',
@@ -11,8 +13,8 @@ export enum SubscriptionStatus {
   
 export interface ISubscription {
   _id: Types.ObjectId
-  organization: Types.ObjectId
-  plan: Types.ObjectId
+  organization: Types.ObjectId | IOrganization
+  plan: Types.ObjectId | ISubscriptionPlan
   status: SubscriptionStatus
   startedAt: Date
   endingAt: Date

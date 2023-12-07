@@ -164,7 +164,7 @@ export class UpdateProfileDto {
 }
 
 export class GetMembersQueryDto {
-  @IsNumber()
+  @IsInt()
   @Min(1)
   page: number;
 

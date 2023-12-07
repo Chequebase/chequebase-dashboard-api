@@ -1,7 +1,7 @@
-import { IsNumber, IsString, Length, Max, Min } from "class-validator";
+import { IsInt, IsString, Length, Max, Min } from "class-validator";
 
 export class InitiateTransferDto {
-  @IsNumber()
+  @IsInt()
   @Min(200_00)
   @Max(1_000_000_00)
   amount: number
@@ -24,4 +24,12 @@ export class ResolveAccountDto {
 
   @IsString()
   bankCode: string
+}
+
+export class GetTransferFee {
+  @IsInt()
+  amount: number
+
+  @IsString()
+  budget: string
 }

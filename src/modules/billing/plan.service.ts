@@ -3,7 +3,7 @@ import numeral from 'numeral';
 import dayjs from 'dayjs';
 import { createId } from '@paralleldrive/cuid2';
 import { BadRequestError, NotFoundError } from 'routing-controllers';
-import { ObjectId, TransactionOptions } from 'mongodb'
+import { ObjectId } from 'mongodb'
 import SubscriptionPlan, { ISubscriptionPlan } from '@/models/subscription-plan.model';
 import { AuthUser } from '../common/interfaces/auth-user';
 import { GetSubscriptionHistoryDto, InitiateSubscriptionDto } from './dto/plan.dto';
@@ -16,18 +16,14 @@ import Wallet from '@/models/wallet.model';
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from '@/models/wallet-entry.model';
 import Subscription, { ISubscription, SubscriptionStatus } from '@/models/subscription.model';
 import { subscriptionQueue } from '@/queues';
-import { SubscriptionPlanChange } from '@/queues/jobs/subscription/subscription-plan-change';
+import { SubscriptionPlanChange } from '@/queues/jobs/subscription/subscription-plan-change.job';
+import { transactionOpts } from '../common/utils';
 
 const logger = new Logger('plan-service')
-const transactionOpts: TransactionOptions = {
-  readPreference: 'primary',
-  readConcern: 'local',
-  writeConcern: { w: 'majority' }
-}
 
 @Service()
 export class PlanService {
-  private async chargeWalletForSubscription(orgId: string, data: ChargeWalletForSubscription) {
+  async chargeWalletForSubscription(orgId: string, data: ChargeWalletForSubscription) {
     const reference = `ps_${createId()}`
     const { plan, amount } = data
 
@@ -125,7 +121,7 @@ export class PlanService {
     }
 
     const subscription = org.subscription.object as ISubscription
-    const samePlan = subscription && plan._id.equals(subscription.plan)
+    const samePlan = subscription && plan._id.equals(subscription.plan._id)
     // allow renewal if it's most 5 before subscription ending
     if (samePlan && dayjs().add(5, 'days').isBefore(subscription.endingAt, 'day')) {
       throw new BadRequestError("You cannot renew your subscription at the moment")

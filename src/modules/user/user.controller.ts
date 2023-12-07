@@ -89,7 +89,7 @@ export default class UserController {
   @Authorized(Role.Owner)
   @Post('/members/invite')
   sendInvite(@CurrentUser() auth: AuthUser, @Body() body: CreateEmployeeDto) {
-    return this.userService.sendInvite(body, auth.orgId);
+    return this.userService.sendInvite(body, auth);
   }
 
   // @Authorized([Role.Owner, Role.Cfo, Role.Employee])

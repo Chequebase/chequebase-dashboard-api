@@ -14,7 +14,7 @@ import { cdb } from "@/modules/common/mongoose";
 import Budget, { IBudget } from "@/models/budget.model";
 import EmailService from '@/modules/common/email.service';
 import { IUser } from '@/models/user.model';
-import { formatMoney } from '@/modules/common/utils';
+import { formatMoney, transactionOpts } from '@/modules/common/utils';
 import Counterparty from '@/models/counterparty.model';
 
 dayjs.extend(utc)
@@ -30,11 +30,6 @@ export interface WalletOutflowData {
 
 const emailService = Container.get(EmailService)
 const logger = new Logger('wallet-inflow.job')
-const tnxOpts: TransactionOptions = {
-  readPreference: 'primary',
-  readConcern: 'local',
-  writeConcern: { w: 'majority' }
-}
 
 async function processWalletOutflow(job: Job<WalletOutflowData>) {
   const data = job.data;
@@ -146,7 +141,7 @@ async function handleFailed(data: WalletOutflowData) {
       await Wallet.updateOne({ _id: entry.wallet }, {
         $inc: { balance: reverseAmount }
       }, { session })
-    }, tnxOpts)
+    }, transactionOpts)
 
     return { message: 'transfer failed ' + entry._id }
   } catch (err: any) {
@@ -228,7 +223,7 @@ async function handleReversed(data: WalletOutflowData) {
       await Wallet.updateOne({ _id: entry.wallet }, {
         $inc: { balance: reverseAmount }
       }, { session })
-    }, tnxOpts)
+    }, transactionOpts)
 
     return { message: 'transfer reversed ' + entry._id }
   } catch (err: any) {

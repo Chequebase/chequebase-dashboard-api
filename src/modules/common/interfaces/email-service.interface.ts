@@ -1,7 +1,7 @@
 export interface SendEmail {
   to: string | string[]
   cc?: string | string[]
-  subject: string
+  subject?: string
   dynamicTemplateData: any
   templateId: string
 }
@@ -86,4 +86,42 @@ export interface BudgetCreatedEmail {
   budgetName: string
   budgetAmount: string
   dashboardLink: string
+}
+
+export interface SubscriptionTrialEnd {
+  userName: string
+  planName: string
+  endDate: Date
+}
+
+export interface SubscriptionPlanChange {
+  userName: string
+  oldPlanName: string
+  newPlanName: string
+  changeDate: Date
+  firstNewBenefit: string
+  secondNewBenefit: string
+}
+
+export interface SubscriptionExpiryWarning {
+  planName: string
+  userName: string
+  expirationDate: Date
+}
+
+export interface SubscriptionRenewal {
+  planName: string
+  userName: string
+  startDate: Date
+  endDate: Date
+  firstBenefit: string
+  secondBenefit: string
+  thirdBenefit: string
+}
+
+export interface SubscriptionExpired {
+  planName: string
+  userName: string
+  expirationDate: Date
+  loginLink: string
 }

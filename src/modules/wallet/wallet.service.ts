@@ -11,12 +11,15 @@ import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./d
 import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
 import VirtualAccount from "@/models/virtual-account.model";
-import WalletEntry from "@/models/wallet-entry.model";
+import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { BudgetStatus } from "@/models/budget.model";
 import QueryFilter from "../common/utils/query-filter";
-import { escapeRegExp, formatMoney } from "../common/utils";
+import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import Counterparty from "@/models/counterparty.model";
+import { cdb } from "../common/mongoose";
+import { ChargeWallet } from "./interfaces/wallet.interface";
+import numeral from "numeral";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -24,6 +27,50 @@ dayjs.extend(timezone)
 @Service()
 export default class WalletService {
   constructor (private virtualAccountService: VirtualAccountService) { }
+
+  static async chargeWallet(orgId: string, data: ChargeWallet) {
+    const reference = createId()
+    const { amount, narration, currency } = data
+    const filter: any = currency ? { currency } : { primary: true }
+
+    await cdb.transaction(async (session) => {
+      const wallet = await Wallet.findOneAndUpdate(
+        { organization: orgId, ...filter, balance: { $gte: amount } },
+        { $inc: { balance: -amount } },
+        { session, new: true }
+      )
+
+      if (!wallet) {
+        throw new BadRequestError("Insufficient funds")
+      }
+
+      const [entry] = await WalletEntry.create([{
+        organization: orgId,
+        wallet: wallet._id,
+        initiatedBy: data.initiatedBy,
+        currency: wallet.currency,
+        type: WalletEntryType.Debit,
+        balanceBefore: numeral(wallet.balance).add(amount).value(),
+        balanceAfter: wallet.balance,
+        amount,
+        scope: data.scope,
+        paymentMethod: 'wallet',
+        provider: 'wallet',
+        providerRef: reference,
+        narration: narration,
+        reference,
+        meta: data.meta,
+        status: WalletEntryStatus.Successful,
+      }], { session })
+
+      await wallet.updateOne({ walletEntry: entry._id })
+    }, transactionOpts)
+
+    return {
+      status: 'successful',
+      message: 'Payment successful'
+    }
+  }
 
   static async getWalletBalances(id: string | ObjectId) {
     const [wallet] = await Wallet.aggregate()

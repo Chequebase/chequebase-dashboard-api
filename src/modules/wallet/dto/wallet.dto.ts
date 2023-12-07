@@ -43,7 +43,7 @@ export class GetWalletEntriesDto {
   @IsOptional()
   to: string
 
-  @IsNumber()
+  @IsInt()
   @Min(1)
   page = 1
 
