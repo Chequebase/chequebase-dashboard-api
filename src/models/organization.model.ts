@@ -47,6 +47,10 @@ export interface IOrganization {
   address: string
   email: string,
   status: string
+  tin: string,
+  businessNumber: string,
+  rcNumber: string,
+  cacItNumber: string,
   numberOfEmployees: string
   documents: { [key: string]: string }
   phone: string
@@ -96,6 +100,10 @@ const organizationSchma = new Schema<IOrganization>(
     postalCode: String,
     regDate: String,
     state: String,
+    tin: String,
+    businessNumber: String,
+    rcNumber: String,
+    cacItNumber: String,
     directors: [shareholderSchema],
     owners: [shareholderSchema],
     subscription: {
