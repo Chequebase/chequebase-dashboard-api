@@ -1,12 +1,24 @@
 import { cdb } from '@/modules/common/mongoose';
 import { Schema, Types } from 'mongoose';
 
+export interface TransferFee {
+  budget: {
+    lowerBound: number
+    upperBound: number
+    flatAmount: {
+      NGN: number,
+      [key: string]: number
+    }
+  }[]
+}
+
 export interface ISubscriptionPlan {
   _id: Types.ObjectId
   name: string
   code: string
   amount: { NGN: number }
   description: string
+  transferFee: TransferFee
   features: {
     code: string
     name: string
@@ -19,6 +31,18 @@ export interface ISubscriptionPlan {
   createdAt: Date
   updatedAt: Date
 }
+
+const transferFeeSchema = new Schema<TransferFee>({
+  budget: [{
+    lowerBound: { type: Number, required: true },
+    upperBound: { type: Number, required: true },
+    flatAmount: {
+      _id: false,
+      type: { NGN: Number },
+      required: true
+    },
+  }]
+}, { _id: false })
 
 const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
   {
@@ -35,6 +59,7 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
       },
     },
     description: { type: String, required: true },
+    transferFee: transferFeeSchema,
     features: {
       _id: false,
       type: [{

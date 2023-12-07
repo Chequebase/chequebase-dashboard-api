@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import { BudgetCurrency, BudgetPriority, BudgetStatus } from "@/models/budget.model";
-import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from "class-validator";
 
 export class CreateTranferBudgetDto {
   @IsString()
@@ -10,10 +10,10 @@ export class CreateTranferBudgetDto {
   @IsOptional()
   description: string
 
-  @IsNumber()
+  @IsInt()
   amount: number
 
-  @IsNumber()
+  @IsInt()
   @IsOptional()
   threshold?: number
 
@@ -46,7 +46,7 @@ export class BeneficiaryDto {
   @IsString()
   user: string
 
-  @IsNumber()
+  @IsInt()
   @IsOptional()
   allocation?: number
 }
@@ -56,8 +56,7 @@ export class ApproveBudgetBodyDto {
   @IsOptional()
   expiry?: Date
 
-  @IsNumber()
-  @Min(1_000_000_00)
+  @IsInt()
   @IsOptional()
   threshold?: number
 
@@ -79,7 +78,7 @@ export class PauseBudgetBodyDto {
 }
 
 export class GetBudgetsDto {
-  @IsNumber()
+  @IsInt()
   @Min(1)
   page = 1
 

@@ -6,7 +6,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
 import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
-import { ResolveAccountDto, InitiateTransferDto } from "./dto/budget-transfer.dto"
+import { ResolveAccountDto, InitiateTransferDto, GetTransferFee } from "./dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import Wallet from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
@@ -21,8 +21,13 @@ import { Role } from "../user/dto/user.dto"
 import WalletService from "../wallet/wallet.service"
 import BudgetService from "./budget.service"
 import { transactionOpts } from "../common/utils"
+import Organization from "@/models/organization.model"
+import { ISubscription } from "@/models/subscription.model"
+import { ISubscriptionPlan } from "@/models/subscription-plan.model"
+import { ServiceUnavailableError } from "../common/utils/service-errors"
+import Logger from "../common/utils/logger"
 
-const TRANSFER_FEE = 25_00
+const logger = new Logger('budget-transfer-service')
 
 @Service()
 export class BudgetTransferService {
@@ -30,6 +35,32 @@ export class BudgetTransferService {
     private transferService: TransferService,
     private anchorService: AnchorService
   ) { }
+
+  private async calcTransferFee(orgId: string, amount: number, currency: string) {
+    const org = await Organization.findById(orgId)
+      .select('subscription')
+      .populate({
+        path: 'subscription.object',
+        select: 'plan',
+        populate: { path: 'plan', select: 'transferFee' }
+      })
+      .lean()
+    
+    if (!org || !org.subscription?.object) {
+      throw new BadRequestError('Organization has no subscription')
+    }
+
+    const fee = (<ISubscriptionPlan>(<ISubscription>org.subscription.object).plan).transferFee.budget
+      .find((f) => amount >= f.lowerBound && (amount <= f.upperBound || f.upperBound === -1))
+    const flatAmount = fee?.flatAmount?.[currency.toUpperCase()] 
+
+    if (typeof flatAmount !== 'number') {
+      logger.error('budget transfer fee not found', { orgId, amount, currency })
+      throw new ServiceUnavailableError('Unable to complete transfer at the moment, please try')
+    }
+
+    return flatAmount
+  }
 
   private async getCounterparty(auth: AuthUser, data: InitiateTransferDto) {
     const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
@@ -225,9 +256,10 @@ export class BudgetTransferService {
       throw new BadRequestError('Invalid pin')
     }
 
+    const fee = await this.calcTransferFee(auth.orgId, data.amount, budget.currency)
     const provider = TransferClientName.Anchor // could be dynamic in the future
-    const amountToDeduct = numeral(data.amount).add(TRANSFER_FEE).value()!
-    const payload = { budget, auth, data, amountToDeduct, provider, fee: TRANSFER_FEE }
+    const amountToDeduct = numeral(data.amount).add(fee).value()!
+    const payload = { budget, auth, data, amountToDeduct, provider, fee }
     await this.runSecurityChecks(payload)
     const counterparty = await this.getCounterparty(auth, data)
     const entry = await this.createTransferRecord({...payload, counterparty })
@@ -261,8 +293,16 @@ export class BudgetTransferService {
     return this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
   }
 
-  async getTransactionFee() {
-    return { transferFee: TRANSFER_FEE }
+  async getTransferFee(orgId: string, data: GetTransferFee) {
+    const budget = await Budget.findOne({ _id: data.budget, organization: orgId })
+      .select('currency').lean()
+    if (!budget) {
+      throw new BadRequestError('Invalid budget')
+    }
+
+    const transferFee = await this.calcTransferFee(orgId, data.amount, budget.currency)
+
+    return { transferFee }
   }
 
   async getBanks() {

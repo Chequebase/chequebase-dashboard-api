@@ -8,10 +8,12 @@ import Logger from "../common/utils/logger"
 import User, { UserStatus } from "@/models/user.model"
 import { WalletEntryScope } from "@/models/wallet-entry.model"
 import WalletService from "../wallet/wallet.service"
+import { Service } from "typedi"
 
 const logger = new Logger('plan-usage-service')
 
 // TODO: maybe add have a single function to check usage for any plan feature
+@Service()
 export class PlanUsageService {
   async checkActiveBudgetUsage(orgId: string) {
     const organization = await Organization.findById(orgId)

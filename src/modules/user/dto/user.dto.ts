@@ -142,7 +142,7 @@ export class UpdateEmployeeDto {
 }
 
 export class GetMembersQueryDto {
-  @IsNumber()
+  @IsInt()
   @Min(1)
   page: number;
 
