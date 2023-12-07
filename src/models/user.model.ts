@@ -38,6 +38,7 @@ export interface IUser {
   KYBStatus: KycStatus
   hashRt: string
   emailVerifyCode: string
+  avatar: string
   passwordResetCode: string
   forgotPinCode: string
   inviteCode: string
@@ -76,6 +77,7 @@ const userSchema = new Schema<IUser>(
     passwordResetCode: String,
     phone: String,
     inviteCode: String,
+    avatar: String,
     status: {
       type: String,
       enum: Object.values(UserStatus)
