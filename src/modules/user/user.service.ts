@@ -406,8 +406,6 @@ export class UserService {
     const code = createId()
     await User.create({
       email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
       inviteCode: code,
       phone: data.phone,
       emailVerified: false,
