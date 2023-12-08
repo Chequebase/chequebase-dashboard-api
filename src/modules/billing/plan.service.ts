@@ -152,14 +152,14 @@ export class PlanService {
 
     if (data.paymentMethod === BillingMethod.Wallet) {
       const payload = Object.assign(data, { userId: auth.userId, plan, amount })
-      try {
-        const response = await this.chargeWalletForSubscription(auth.orgId, payload)
-        await this.activatePlan(auth.orgId, data)
+      // try {
+      const response = await this.chargeWalletForSubscription(auth.orgId, payload)
+      await this.activatePlan(auth.orgId, data)
 
         return response
-      } catch (error) {
-        throw new BadRequestError("Insufficient funds")
-      }
+      // } catch (error) {
+      //   throw new BadRequestError("Insufficient funds")
+      // }
     }
 
     let intent = await PaymentIntent.create({
