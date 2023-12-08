@@ -199,7 +199,7 @@ export class PlanService {
     let days = currentSub ? months * 30 : 5
     let startedAt = new Date()
     let endingAt = dayjs(startedAt).add(days, 'days').toDate()
-    const oldPlanId = currentSub ? currentSub?.plan?.toString() : 'random4b5b1fb1eb14714440'
+    const oldPlanId = currentSub ? currentSub?.plan?.toString() : undefined
     // const currentSub = organization.subscription.object as ISubscription
     if (currentSub) {
       // add leftover days if renewal
