@@ -152,10 +152,14 @@ export class PlanService {
 
     if (data.paymentMethod === BillingMethod.Wallet) {
       const payload = Object.assign(data, { userId: auth.userId, plan, amount })
-      const response = this.chargeWalletForSubscription(auth.orgId, payload)
-      await this.activatePlan(auth.orgId, data)
+      try {
+        const response = this.chargeWalletForSubscription(auth.orgId, payload)
+        await this.activatePlan(auth.orgId, data)
 
-      return response
+        return response
+      } catch (error) {
+        throw error
+      }
     }
 
     let intent = await PaymentIntent.create({
