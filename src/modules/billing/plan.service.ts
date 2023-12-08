@@ -18,6 +18,7 @@ import Subscription, { ISubscription, SubscriptionStatus } from '@/models/subscr
 import { subscriptionQueue } from '@/queues';
 import { SubscriptionPlanChange } from '@/queues/jobs/subscription/subscription-plan-change.job';
 import { transactionOpts } from '../common/utils';
+import User from '@/models/user.model';
 
 const logger = new Logger('plan-service')
 
@@ -115,6 +116,12 @@ export class PlanService {
       throw new NotFoundError('Organization not found')
     }
 
+    const user = await User.findById(auth.userId)
+    .lean()
+    if (!user) {
+      throw new NotFoundError('User not found')
+    }
+
     const plan = await SubscriptionPlan.findById(data.plan).lean()
     if (!plan) {
       throw new BadRequestError('Unknown plan selected')
@@ -159,6 +166,12 @@ export class PlanService {
         months: data.months,
       }
     });
+
+    if (!user.hasActivePlan) {
+      await User.updateOne({ _id: auth.userId }, {
+        hasActivePlan: true
+      })
+    }
 
     return {
       status: 'pending',
