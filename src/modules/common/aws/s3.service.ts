@@ -22,16 +22,13 @@ export class S3Service {
     return await this.s3.send(command);
   }
 
-  async putObjectWithSignUrl(bucket: string, key: string, data: Buffer) {
+  async getSignedUrl(bucket: string, key: string) {
     const s3Params = {
       Bucket: bucket,
       Key: key,
-      Body: data
     };
-
-    const command = new PutObjectCommand(s3Params);
+    const command = new GetObjectCommand(s3Params);
     return await getSignedUrl(this.s3, command, { expiresIn: 3600 });
-    // return await this.s3.send(command);
   }
 
   async getObject(bucket: string, key: string): Promise<Uint8Array> {

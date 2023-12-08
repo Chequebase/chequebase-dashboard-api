@@ -581,11 +581,12 @@ export class UserService {
       throw new NotFoundError("User not found");
     }
     const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}`;
-    const url = await this.s3Service.putObjectWithSignUrl(
+    await this.s3Service.putObject(
       getEnvOrThrow('AVATAR_BUCKET_NAME'),
       key,
       file.buffer
     );
+    const url = await this.s3Service.getSignedUrl(getEnvOrThrow('AVATAR_BUCKET_NAME'), key)
     
     await User.updateOne({ _id: auth.userId }, {
       avatar: url
