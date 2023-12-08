@@ -85,7 +85,7 @@ export class SettingsService {
     if (!user) {
       throw new BadRequestError('User not found');
     }
-    return Permission.find().select('updatedAt, role, permissions').lean()
+    return Permission.find().select('updatedAt role permissions _id role name').lean()
   }
 
   async getUsersByRole(auth: AuthUser, role: string) {
