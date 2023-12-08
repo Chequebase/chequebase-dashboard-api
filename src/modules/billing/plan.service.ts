@@ -81,7 +81,9 @@ export class PlanService {
   }
 
   async fetchPlans() {
-    return SubscriptionPlan.find().lean()
+    const plans = await SubscriptionPlan.find().lean()
+    
+    return plans.map((p) => ({ ...p, mostPopular: p.code === 'plus' }))
   }
 
   async getSubscriptionHistory(orgId: string, query: GetSubscriptionHistoryDto) {
