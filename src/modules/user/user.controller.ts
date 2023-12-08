@@ -95,8 +95,8 @@ export default class UserController {
     @CurrentUser() auth: AuthUser,
     @Req() req: Request
   ) {
-    const file = req.file as any
-    return this.userService.uploadAvatar(auth, file)
+    const files = req.files as any
+    return this.userService.uploadAvatar(auth, files[0])
   }
 
   @Authorized(Role.Owner)
