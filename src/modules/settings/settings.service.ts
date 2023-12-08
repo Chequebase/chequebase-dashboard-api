@@ -43,7 +43,7 @@ export class SettingsService {
     if (!await compare(changePinDto.currentPin, user.pin)) {
       throw new UnauthorizedError('Wrong current pin!')
     }
-    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(changePinDto.currentPin, 12), })
+    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(changePinDto.newPin, 12), })
     return { message: "pin changed" };
   }
 

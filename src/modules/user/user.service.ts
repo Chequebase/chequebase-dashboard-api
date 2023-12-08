@@ -345,6 +345,7 @@ export class UserService {
     await User.updateOne({ _id: userId }, {
       hashRt: ''
     })
+    return { message: 'logout out' }
   }
 
   async getProfile(userId: string) {
