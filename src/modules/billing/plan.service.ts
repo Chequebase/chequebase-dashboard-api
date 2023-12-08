@@ -158,7 +158,7 @@ export class PlanService {
 
         return response
       } catch (error) {
-        throw error
+        throw new BadRequestError("Insufficient funds")
       }
     }
 
