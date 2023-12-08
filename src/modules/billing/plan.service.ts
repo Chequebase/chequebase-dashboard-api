@@ -193,18 +193,20 @@ export class PlanService {
     if (!organization) throw new BadRequestError('Organization not found')
     if (!plan) throw new BadRequestError('Plan not found')
 
-    const currentSub = organization.subscription.object as ISubscription
-    const oldPlanId = currentSub?.plan?.toString()
-
+    const sub = organization?.subscription
+    const currentSub = sub ? sub.object as ISubscription : undefined
     // 5 days trial for first timers
     let days = currentSub ? months * 30 : 5
     let startedAt = new Date()
     let endingAt = dayjs(startedAt).add(days, 'days').toDate()
-
-    // add leftover days if renewal
-    if (oldPlanId === data.plan && dayjs().isBefore(currentSub.endingAt)) {
-      const leftover = dayjs(currentSub.endingAt).diff(dayjs(), 'days', true)
-      endingAt = dayjs(endingAt).add(leftover, 'days').toDate()
+    const oldPlanId = currentSub ? currentSub?.plan?.toString() : 'random4b5b1fb1eb14714440'
+    // const currentSub = organization.subscription.object as ISubscription
+    if (currentSub) {
+      // add leftover days if renewal
+      if (oldPlanId === data.plan && dayjs().isBefore(currentSub.endingAt)) {
+        const leftover = dayjs(currentSub.endingAt).diff(dayjs(), 'days', true)
+        endingAt = dayjs(endingAt).add(leftover, 'days').toDate()
+      }
     }
 
     let subscription: ISubscription
