@@ -30,7 +30,7 @@ export class S3Service {
     };
 
     const command = new PutObjectCommand(s3Params);
-    return await getSignedUrl(this.s3, command);
+    return await getSignedUrl(this.s3, command, { expiresIn: 3600 });
     // return await this.s3.send(command);
   }
 
