@@ -1,4 +1,5 @@
 import { cdb } from '@/modules/common/mongoose';
+import { Role } from '@/modules/user/dto/user.dto';
 import { Schema, Types } from 'mongoose';
 
 export interface IPermission {
@@ -6,9 +7,9 @@ export interface IPermission {
   name: string
   description: string
   permissions: {
-    name: string
-    constraints: string[]
-  }[]
+    [feature: string]: string[]
+  }
+  role: Role
   createdAt: Date
   updatedAt: Date
 }
@@ -19,12 +20,11 @@ const permissionSchema = new Schema<IPermission>(
     description: { type: String, required: true },
     permissions: {
       _id: false,
-      type: [{
-        name: String,
-        constraints: {
+      type: {
+        feature: {
             type: [String]
         }
-      }]
+      }
     }
   },
   { timestamps: true },
