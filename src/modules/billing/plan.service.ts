@@ -126,9 +126,8 @@ export class PlanService {
       throw new BadRequestError('Unknown plan selected')
     }
 
-    const subscription = org?.subscription
-    if (subscription) {
-      const subscriptionObj = subscription?.object as ISubscription
+    if (org?.subscription) {
+      const subscriptionObj = org.subscription.object as ISubscription
       const samePlan = subscriptionObj && plan._id.equals(subscriptionObj.plan._id)
       // allow renewal if it's most 5 before subscription ending
       if (samePlan && dayjs().add(5, 'days').isBefore(subscriptionObj.endingAt, 'day')) {
@@ -136,8 +135,14 @@ export class PlanService {
       }
     }
 
+    if (!user.hasActivePlan) {
+      await User.updateOne({ _id: auth.userId }, {
+        hasActivePlan: true
+      })
+    }
+
     const amount = this.calculateSubscriptionCost(plan, data.months)
-    if (amount === 0 || !subscription) {
+    if (amount === 0 || !org?.subscription) {
       await this.activatePlan(auth.orgId, data)
       return {
         status: 'successful',
@@ -168,12 +173,6 @@ export class PlanService {
         months: data.months,
       }
     });
-
-    if (!user.hasActivePlan) {
-      await User.updateOne({ _id: auth.userId }, {
-        hasActivePlan: true
-      })
-    }
 
     return {
       status: 'pending',
