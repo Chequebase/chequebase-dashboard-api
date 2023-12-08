@@ -116,8 +116,7 @@ export class PlanService {
       throw new NotFoundError('Organization not found')
     }
 
-    const user = await User.findById(auth.userId)
-    .lean()
+    const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new NotFoundError('User not found')
     }
@@ -127,11 +126,14 @@ export class PlanService {
       throw new BadRequestError('Unknown plan selected')
     }
 
-    const subscription = org.subscription.object as ISubscription
-    const samePlan = subscription && plan._id.equals(subscription.plan._id)
-    // allow renewal if it's most 5 before subscription ending
-    if (samePlan && dayjs().add(5, 'days').isBefore(subscription.endingAt, 'day')) {
-      throw new BadRequestError("You cannot renew your subscription at the moment")
+    const subscription = org?.subscription
+    if (subscription) {
+      const subscriptionObj = subscription?.object as ISubscription
+      const samePlan = subscriptionObj && plan._id.equals(subscriptionObj.plan._id)
+      // allow renewal if it's most 5 before subscription ending
+      if (samePlan && dayjs().add(5, 'days').isBefore(subscriptionObj.endingAt, 'day')) {
+        throw new BadRequestError("You cannot renew your subscription at the moment")
+      }
     }
 
     const amount = this.calculateSubscriptionCost(plan, data.months)
