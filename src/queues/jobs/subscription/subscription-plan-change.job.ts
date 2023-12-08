@@ -10,7 +10,7 @@ const logger = new Logger('subscription-plan-change.job')
 export interface SubscriptionPlanChange {
   orgId: string
   newPlanId: string
-  oldPlanId: string
+  oldPlanId?: string
 }
 
 async function processSubscriptionPlanChange(job: Job<SubscriptionPlanChange>) {
