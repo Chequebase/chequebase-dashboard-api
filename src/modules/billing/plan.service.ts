@@ -146,7 +146,7 @@ export class PlanService {
       await this.activatePlan(auth.orgId, data)
       return {
         status: 'successful',
-        message: 'Plan activiated successful'
+        message: 'Plan activated successful'
       }
     }
 
