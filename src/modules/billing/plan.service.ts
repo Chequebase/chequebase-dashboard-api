@@ -105,7 +105,7 @@ export class PlanService {
     if (!org || !org.subscription?.object) return null
 
     return Subscription.findById(org.subscription.object)
-      .select('plan status startedAt endingAt renewAt trial terminatedAt')
+      .select('plan status startedAt endingAt renewAt trial terminatedAt meta.months')
       .populate('plan')
       .lean()
   }
@@ -137,12 +137,6 @@ export class PlanService {
       }
     }
 
-    if (!user.hasActivePlan) {
-      await User.updateOne({ _id: auth.userId }, {
-        hasActivePlan: true
-      })
-    }
-
     const amount = this.calculateSubscriptionCost(plan, data.months)
     if (amount === 0 || !org?.subscription) {
       await this.activatePlan(auth.orgId, data)
@@ -154,14 +148,9 @@ export class PlanService {
 
     if (data.paymentMethod === BillingMethod.Wallet) {
       const payload = Object.assign(data, { userId: auth.userId, plan, amount })
-      // try {
       const response = await this.chargeWalletForSubscription(auth.orgId, payload)
       await this.activatePlan(auth.orgId, data)
-
-        return response
-      // } catch (error) {
-      //   throw new BadRequestError("Insufficient funds")
-      // }
+      return response
     }
 
     let intent = await PaymentIntent.create({

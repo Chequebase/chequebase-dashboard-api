@@ -43,7 +43,6 @@ export interface IUser {
   forgotPinCode: string
   inviteCode: string
   phone: string
-  hasActivePlan: boolean
   otpExpiresAt: number
   otp: string
   pin: string
@@ -77,7 +76,6 @@ const userSchema = new Schema<IUser>(
     emailVerifyCode: String,
     passwordResetCode: String,
     phone: String,
-    hasActivePlan: { type: Boolean, default: false },
     inviteCode: String,
     avatar: String,
     status: {
