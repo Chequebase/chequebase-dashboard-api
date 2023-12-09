@@ -74,21 +74,21 @@ export class OverviewService {
     }
 
     let currentBalances = await Promise.all(budgets.map(async (b) =>
-      getBalanceQuery({ _id: b._id, ...currentFilter })))
+      getBalanceQuery({ budget: b._id, ...currentFilter })))
     
     let prevBalances = await Promise.all(budgets.map(async (b) =>
-      getBalanceQuery({ _id: b._id, ...prevFilter })))
+      getBalanceQuery({ budget: b._id, ...prevFilter })))
 
     currentBalances = await Promise.all(currentBalances.map(async (balance, idx) => {
       if (typeof balance === 'number') return balance
       return await getBalanceBeforeDate(budgets[idx]._id, to)
     }))
 
-    prevBalances = await Promise.all(currentBalances.map(async (balance, idx) => {
+    prevBalances = await Promise.all(prevBalances.map(async (balance, idx) => {
       if (typeof balance === 'number') return balance
       return await getBalanceBeforeDate(budgets[idx]._id, prevTo)
     }))
-    
+
     const currentBalance = currentBalances.reduce((a, b) => a! + b!, 0)
     const prevBalance = prevBalances.reduce((a, b) => a! + b!, 0)
 
