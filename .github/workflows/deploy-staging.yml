@@ -29,6 +29,7 @@ jobs:
           existing_bucket_name: chequebase-elb-app-deployment
           application_name: chequebase-dashboard-api
           environment_name: chequebase-dashboard-api-staging
+          wait_for_environment_recovery: 60
           use_existing_version_if_available: true
           version_label: staging-${{ github.SHA }}
           region: eu-central-1
