@@ -23,5 +23,5 @@ export class GetCashflowTrendDto {
   period: string
 
   @IsIn(["NGN"])
-  currency = 'NGN'
+  currency: string
 }
