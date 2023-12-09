@@ -63,7 +63,7 @@ export class OverviewService {
 
       return result?.balance as number | undefined
     }
-    
+
     const getBalanceBeforeDate = async (id: any, date: Date) => {
       const entry = await WalletEntry
         .findOne({ _id: id, createdAt: { $lte: date } })
@@ -73,20 +73,18 @@ export class OverviewService {
       return entry?.meta?.budgetBalanceAfter || 0
     }
 
-    let currentBalances = await Promise.all(budgets.map(async (b) =>
-      getBalanceQuery({ budget: b._id, ...currentFilter })))
-    
-    let prevBalances = await Promise.all(budgets.map(async (b) =>
-      getBalanceQuery({ budget: b._id, ...prevFilter })))
-
-    currentBalances = await Promise.all(currentBalances.map(async (balance, idx) => {
+    let currentBalances = await Promise.all(budgets.map(async (b) => {
+      const balance = await getBalanceQuery({ budget: b._id, ...currentFilter })
       if (typeof balance === 'number') return balance
-      return await getBalanceBeforeDate(budgets[idx]._id, to)
+
+      return getBalanceBeforeDate(b._id, to)
     }))
 
-    prevBalances = await Promise.all(prevBalances.map(async (balance, idx) => {
+    let prevBalances = await Promise.all(budgets.map(async (b) => {
+      const balance = await getBalanceQuery({ budget: b._id, ...prevFilter })
       if (typeof balance === 'number') return balance
-      return await getBalanceBeforeDate(budgets[idx]._id, prevTo)
+
+      return getBalanceBeforeDate(b._id, to)
     }))
 
     const currentBalance = currentBalances.reduce((a, b) => a! + b!, 0)
