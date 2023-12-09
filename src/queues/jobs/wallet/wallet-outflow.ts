@@ -87,7 +87,7 @@ async function handleSuccessful(data: WalletOutflowData) {
     
     const counterparty = await Counterparty.findById(entry.meta.counterparty)
     if (counterparty) {
-      const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss')
+      const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss').split(' ')
       emailService.sendTransferSuccessEmail(entry.initiatedBy.email, {
         userName: entry.initiatedBy.firstName,
         accountBalance: formatMoney(entry.wallet.balance),
@@ -129,13 +129,18 @@ async function handleFailed(data: WalletOutflowData) {
     const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
     await cdb.transaction(async (session) => {
       await entry.updateOne({
-        gatewayResponse: data.gatewayResponse,
-        status: WalletEntryStatus.Failed,
-        balanceAfter: entry.balanceBefore,
+        $set: {
+          gatewayResponse: data.gatewayResponse,
+          status: WalletEntryStatus.Failed,
+          balanceAfter: entry.balanceBefore,
+        },
+        $inc: {
+          'meta.budgetBalanceAfter': reverseAmount
+        }
       }, { session })
 
       await Budget.updateOne({ _id: entry.budget }, {
-        $inc: { amountUsed: -reverseAmount }
+        $inc: { amountUsed: -reverseAmount, balance: reverseAmount }
       }, { session })
 
       await Wallet.updateOne({ _id: entry.wallet }, {
@@ -154,7 +159,7 @@ async function handleReversed(data: WalletOutflowData) {
   try {
     const entry = await WalletEntry.findOne({ reference: data.reference })
       .populate<{ wallet: IWallet }>('wallet')
-
+    
     if (!entry) {
       logger.error('entry not found', { reference: data.reference })
       throw new BadRequestError('Wallet entry does not exist')
@@ -191,12 +196,15 @@ async function handleReversed(data: WalletOutflowData) {
           paymentMethod: 'transfer',
           reference: `btrev_${createId()}`,
           provider: entry.provider,
-          meta: entry.meta
+          meta: {
+            budgetBalanceAfter: numeral(entry.meta.budgetBalanceAfter).add(reverseAmount).value(),
+            ...entry.toObject().meta
+          }
         }], { session })
 
         await Budget.updateOne(
           { _id: entry.budget },
-          { $inc: { amountUsed: -reverseAmount } },
+          { $inc: { amountUsed: -reverseAmount, balance: reverseAmount } },
           { session }
         )
 
@@ -211,12 +219,17 @@ async function handleReversed(data: WalletOutflowData) {
 
       if (entry.status === WalletEntryStatus.Pending) {
         await entry.updateOne({
-          status: WalletEntryStatus.Failed,
-          balanceAfter: entry.balanceBefore,
+          $set: {
+            status: WalletEntryStatus.Failed,
+            balanceAfter: entry.balanceBefore,
+          },
+          $inc: {
+            'meta.budgetBalanceAfter': reverseAmount
+          }
         }, { session })
 
         await Budget.updateOne({ _id: entry.budget }, {
-          amountUsed: -reverseAmount,
+          $inc: { amountUsed: -reverseAmount, balance: reverseAmount }
         }, { session })
       }
 

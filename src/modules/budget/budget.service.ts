@@ -29,7 +29,7 @@ export default class BudgetService {
       .match({ _id: new ObjectId(id) })
       .project({
         _id: null,
-        balance: '$amount',
+        balance: '$balance',
         availableBalance: { $subtract: ['$amount', '$amountUsed'] },
       })
 
@@ -77,6 +77,7 @@ export default class BudgetService {
       name: data.name,
       status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
       amount: data.amount,
+      balance: data.amount,
       currency: wallet.currency,
       expiry: data.expiry,
       threshold: data.threshold ?? data.amount,
@@ -184,6 +185,7 @@ export default class BudgetService {
       name: data.name,
       status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
       amount: data.amount,
+      balance: data.amount,
       currency: wallet.currency,
       expiry: data.expiry,
       threshold: data.threshold ?? data.amount,

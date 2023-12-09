@@ -91,7 +91,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
       writeConcern: { w: 'majority' }
     })
 
-    const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss')
+    const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss').split(' ')
     emailService.sendFundedWalletEmail(organization.email, {
       accountBalance: formatMoney(balanceAfter),
       accountNumber: data.sourceAccount.accountNumber,
