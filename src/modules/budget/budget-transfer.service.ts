@@ -90,12 +90,13 @@ export class BudgetTransferService {
         reference: `bt_${createId()}`,
         provider: payload.provider,
         meta: {
-          counterparty: payload.counterparty._id
+          counterparty: payload.counterparty._id,
+          budgetBalanceAfter: numeral(budget.balance).subtract(amountToDeduct).value()
         }
       })
 
       await Budget.updateOne({ _id: entry.budget }, {
-        $inc: { amountUsed: amountToDeduct }
+        $inc: { amountUsed: amountToDeduct, balance: -amountToDeduct }
       }, { session })
 
       await wallet.updateOne({
@@ -111,9 +112,14 @@ export class BudgetTransferService {
     const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
     await cdb.transaction(async (session) => {
       await WalletEntry.updateOne({ _id: entry._id }, {
-        gatewayResponse: transferResponse?.gatewayResponse,
-        status: WalletEntryStatus.Failed,
-        balanceAfter: entry.balanceBefore,
+        $set: {
+          gatewayResponse: transferResponse?.gatewayResponse,
+          status: WalletEntryStatus.Failed,
+          balanceAfter: entry.balanceBefore,
+        },
+        $inc: {
+          'meta.budgetBalanceAfter': reverseAmount
+        }
       }, { session })
 
       await Wallet.updateOne({ _id: entry.wallet }, {
@@ -121,7 +127,7 @@ export class BudgetTransferService {
       }, { session })
 
       await Budget.updateOne({ _id: entry.budget }, {
-        $inc: { amountUsed: -reverseAmount }
+        $inc: { amountUsed: -reverseAmount, balance: reverseAmount }
       }, { session })
     }, transactionOpts)
   }

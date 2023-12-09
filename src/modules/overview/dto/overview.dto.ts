@@ -7,6 +7,9 @@ export class GetOverviewSummaryDto {
 
   @IsDateString()
   to: string
+
+  @IsIn(["NGN"])
+  currency: string
 }
 
 export class GetCashflowTrendDto {

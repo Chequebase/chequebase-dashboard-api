@@ -29,6 +29,7 @@ export interface IBudget {
   priority: BudgetPriority
   name: string
   amount: number
+  balance: number
   amountUsed: number
   currency: BudgetCurrency
   threshold?: number
@@ -61,6 +62,7 @@ const budgetSchema = new Schema<IBudget>(
       enum: [BudgetPriority.High, BudgetPriority.Low, BudgetPriority.Medium]
     },
     description: String,
+    balance: { type: Number, required: true },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User'
