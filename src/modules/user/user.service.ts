@@ -481,7 +481,7 @@ export class UserService {
       organization: auth.orgId,
       id: { $ne: auth.userId },
       status: { $ne: UserStatus.DELETED },
-    })
+    }).select('firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone')
     
     return users
   }
