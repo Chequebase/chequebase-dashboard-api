@@ -8,7 +8,7 @@ import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { ResolveAccountDto, InitiateTransferDto, GetTransferFee } from "./dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
-import Wallet from "@/models/wallet.model"
+import Wallet, { IWallet } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget, { BudgetStatus } from "@/models/budget.model"
 import { TransferService } from "../transfer/transfer.service"
@@ -18,8 +18,6 @@ import { CreateTransferRecord } from "./interfaces/budget-transfer.interface"
 import { UserService } from "../user/user.service"
 import User from "@/models/user.model"
 import { Role } from "../user/dto/user.dto"
-import WalletService from "../wallet/wallet.service"
-import BudgetService from "./budget.service"
 import { transactionOpts } from "../common/utils"
 import Organization from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
@@ -45,14 +43,14 @@ export class BudgetTransferService {
         populate: { path: 'plan', select: 'transferFee' }
       })
       .lean()
-    
+
     if (!org || !org.subscription?.object) {
       throw new BadRequestError('Organization has no subscription')
     }
 
     const fee = (<ISubscriptionPlan>(<ISubscription>org.subscription.object).plan).transferFee.budget
       .find((f) => amount >= f.lowerBound && (amount <= f.upperBound || f.upperBound === -1))
-    const flatAmount = fee?.flatAmount?.[currency.toUpperCase()] 
+    const flatAmount = fee?.flatAmount?.[currency.toUpperCase()]
 
     if (typeof flatAmount !== 'number') {
       logger.error('budget transfer fee not found', { orgId, amount, currency })
@@ -86,30 +84,37 @@ export class BudgetTransferService {
   }
 
   private async createTransferRecord(payload: CreateTransferRecord) {
-    const { auth, budget, data, amountToDeduct } = payload
+    let { auth, data, amountToDeduct } = payload
 
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
-      const wallet = await Wallet.findOne({
-        _id: budget.wallet,
+      let budget = await Budget.findOneAndUpdate({
+        _id: payload.budget._id,
+        status: BudgetStatus.Active,
         balance: { $gte: amountToDeduct }
-      }, null, { session })
-      
-      if (!wallet) {
-        throw new BadRequestError('Insufficient wallet balance')
+      }, {
+        $inc: {
+          amountUsed: amountToDeduct,
+          balance: -amountToDeduct
+        }
+      }, { new: true, session })
+        .populate<{ wallet: IWallet }>('wallet')
+
+      if (!budget) {
+        throw new BadRequestError("Insufficient funds")
       }
 
       entry = await WalletEntry.create({
         organization: auth.orgId,
-        balanceBefore: wallet.balance,
+        balanceBefore: budget.wallet.balance,
         status: WalletEntryStatus.Pending,
         budget: budget._id,
         currency: budget.currency,
-        wallet: wallet._id,
+        wallet: budget.wallet._id,
         amount: data.amount,
         fee: payload.fee,
         initiatedBy: auth.userId,
-        balanceAfter: numeral(wallet.balance).subtract(amountToDeduct).value(),
+        balanceAfter: budget.wallet.balance,
         scope: WalletEntryScope.BudgetTransfer,
         type: WalletEntryType.Debit,
         narration: 'Budget Transfer',
@@ -118,39 +123,25 @@ export class BudgetTransferService {
         provider: payload.provider,
         meta: {
           counterparty: payload.counterparty._id,
-          budgetBalanceAfter: numeral(budget.balance).subtract(amountToDeduct).value()
+          budgetBalanceAfter: budget.balance
         }
       })
-
-      await Budget.updateOne({ _id: entry.budget }, {
-        $inc: { amountUsed: amountToDeduct, balance: -amountToDeduct }
-      }, { session })
-
-      await wallet.updateOne({
-        $set: { walletEntry: entry._id },
-        $inc: { balance: -Number(amountToDeduct) }
-      }, { session })
     }, transactionOpts)
 
     return entry!
   }
 
-  private async reverseWalletDebit(entry: IWalletEntry, transferResponse: any) {
+  private async reverseBudgetDebit(entry: IWalletEntry, transferResponse: any) {
     const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
     await cdb.transaction(async (session) => {
       await WalletEntry.updateOne({ _id: entry._id }, {
         $set: {
           gatewayResponse: transferResponse?.gatewayResponse,
-          status: WalletEntryStatus.Failed,
-          balanceAfter: entry.balanceBefore,
+          status: WalletEntryStatus.Failed
         },
         $inc: {
           'meta.budgetBalanceAfter': reverseAmount
         }
-      }, { session })
-
-      await Wallet.updateOne({ _id: entry.wallet }, {
-        $inc: { balance: reverseAmount }
       }, { session })
 
       await Budget.updateOne({ _id: entry.budget }, {
@@ -204,7 +195,7 @@ export class BudgetTransferService {
       initiatedBy: new ObjectId(auth.userId),
       status: { $ne: WalletEntryStatus.Failed }
     }
-    
+
     const [entries] = await WalletEntry.aggregate()
       .match(filter)
       .group({ _id: null, totalSpent: { $sum: '$amount' } })
@@ -229,20 +220,12 @@ export class BudgetTransferService {
       throw new BadRequestError('Budget is expired')
     }
 
-    const [walletBalances, budgetBalances] = await Promise.all([
-      WalletService.getWalletBalances(budget.wallet),
-      BudgetService.getBudgetBalances(budget._id),
+    await Promise.all([
       this.runBeneficiaryCheck(payload),
       this.runTransferWindowCheck(payload),
     ])
 
-    if (walletBalances.balance < amountToDeduct) {
-      throw new BadRequestError(
-        'Insufficient funds: Wallet available balance is less than the requested transfer amount'
-      )
-    }
-
-    if (budgetBalances.availableBalance < amountToDeduct) {
+    if (budget.balance < amountToDeduct) {
       throw new BadRequestError(
         'Insufficient funds: Budget available balance is less than the requested transfer amount'
       )
@@ -268,7 +251,7 @@ export class BudgetTransferService {
     const payload = { budget, auth, data, amountToDeduct, provider, fee }
     await this.runSecurityChecks(payload)
     const counterparty = await this.getCounterparty(auth, data)
-    const entry = await this.createTransferRecord({...payload, counterparty })
+    const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
       reference: entry.reference,
@@ -286,7 +269,7 @@ export class BudgetTransferService {
     }
 
     if (transferResponse.status === 'failed') {
-      await this.reverseWalletDebit(entry, transferResponse)
+      await this.reverseBudgetDebit(entry, transferResponse)
     }
 
     return {

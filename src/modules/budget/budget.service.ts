@@ -3,17 +3,17 @@ import { ObjectId } from 'mongodb'
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
-import Budget, { BudgetStatus } from "@/models/budget.model";
-import Wallet from "@/models/wallet.model";
+import Budget, { BudgetStatus, IBudget } from "@/models/budget.model";
+import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
 import User, { IUser } from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
-import WalletService from "../wallet/wallet.service";
 import { UserService } from "../user/user.service";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney, getEnvOrThrow } from "../common/utils";
 import EmailService from "../common/email.service";
 import { PlanUsageService } from "../billing/plan-usage.service";
+import { cdb } from "../common/mongoose";
 
 const logger = new Logger('budget-service')
 
@@ -23,21 +23,6 @@ export default class BudgetService {
     private emailService: EmailService,
     private planUsageService: PlanUsageService
   ) { }
-  
-  static async getBudgetBalances(id: string | ObjectId) {
-    const [balances] = await Budget.aggregate()
-      .match({ _id: new ObjectId(id) })
-      .project({
-        _id: null,
-        balance: '$balance',
-        availableBalance: { $subtract: ['$amount', '$amountUsed'] },
-      })
-
-    return {
-      balance: Number(balances.balance || 0),
-      availableBalance: Number(balances.availableBalance || 0)
-    }
-  }
 
   async createBudget(auth: AuthUser, data: CreateBudgetDto) {
     const user = await User.findById(auth.userId)
@@ -63,42 +48,48 @@ export default class BudgetService {
     const isOwner = user.role === Role.Owner
     // wallet balance needs to be checked because the budget will be automatically approved
     if (isOwner) {
-      const balances = await WalletService.getWalletBalances(wallet.id)
-      if (balances.availableBalance < data.amount) {
+      if (wallet.balance < data.amount) {
         throw new BadRequestError('Insufficient Balance')
       }
 
       await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
     }
-    
-    const budget = await Budget.create({
-      organization: auth.orgId,
-      wallet: wallet._id,
-      name: data.name,
-      status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
-      amount: data.amount,
-      balance: data.amount,
-      currency: wallet.currency,
-      expiry: data.expiry,
-      threshold: data.threshold ?? data.amount,
-      beneficiaries: data.beneficiaries,
-      createdBy: auth.userId,
-      description: data.description,
-      priority: data.priority,
-      ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
+
+    let budget: IBudget
+    await cdb.transaction(async session => {
+      [budget] = await Budget.create([{
+        organization: auth.orgId,
+        wallet: wallet._id,
+        name: data.name,
+        status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
+        amount: data.amount,
+        balance: isOwner ? data.amount : 0,
+        currency: wallet.currency,
+        expiry: data.expiry,
+        threshold: data.threshold ?? data.amount,
+        beneficiaries: data.beneficiaries,
+        createdBy: auth.userId,
+        description: data.description,
+        priority: data.priority,
+        ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
+      }], { session })
+
+      await Wallet.updateOne({ _id: wallet._id }, {
+        $inc: { balance: -data.amount }
+      }, { session })
     })
 
     if (isOwner) {
       this.emailService.sendBudgetCreatedEmail(user.email, {
-        budgetAmount: formatMoney(budget.amount),
-        budgetName: budget.name,
-        currency: budget.currency,
-        dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
+        budgetAmount: formatMoney(budget!.amount),
+        budgetName: budget!.name,
+        currency: budget!.currency,
+        dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
         employeeName: user.firstName
       })
     }
 
-    return budget
+    return budget!
   }
 
   async editBudget(auth: AuthUser, id: string, data: EditBudgetDto) {
@@ -135,7 +126,7 @@ export default class BudgetService {
 
   async cancelBudget(auth: AuthUser, id: string) {
     const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
-      .populate<{createdBy: IUser}>('createdBy')
+      .populate<{ createdBy: IUser }>('createdBy')
     if (!budget) {
       throw new NotFoundError('Budget not found')
     }
@@ -178,42 +169,48 @@ export default class BudgetService {
     const isOwner = user.role === Role.Owner
     // wallet balance needs to be checked because the budget will be automatically approved
     if (isOwner) {
-      const balances = await WalletService.getWalletBalances(wallet.id)
-      if (balances.availableBalance < data.amount) {
+      if (wallet.balance < data.amount) {
         throw new BadRequestError('Insufficient Balance')
       }
 
       await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
     }
-    
+
     const beneficiaries: BeneficiaryDto[] = [{ user: auth.userId }]
-    const budget = await Budget.create({
-      organization: auth.orgId,
-      wallet: wallet._id,
-      name: data.name,
-      status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
-      amount: data.amount,
-      balance: data.amount,
-      currency: wallet.currency,
-      expiry: data.expiry,
-      threshold: data.threshold ?? data.amount,
-      beneficiaries,
-      createdBy: auth.userId,
-      description: data.description,
-      priority: data.priority,
-      ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
+    let budget: IBudget
+    await cdb.transaction(async session => {
+      [budget] = await Budget.create([{
+        organization: auth.orgId,
+        wallet: wallet._id,
+        name: data.name,
+        status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
+        amount: data.amount,
+        balance: isOwner ? data.amount : 0,
+        currency: wallet.currency,
+        expiry: data.expiry,
+        threshold: data.threshold ?? data.amount,
+        beneficiaries,
+        createdBy: auth.userId,
+        description: data.description,
+        priority: data.priority,
+        ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
+      }], { session })
+
+      await Wallet.updateOne({ _id: wallet._id }, {
+        $inc: { balance: -data.amount }
+      }, { session })
     })
 
     if (!isOwner) {
       this.emailService.sendBudgetRequestEmail(user.email, {
-        budgetName: budget.name,
-        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
+        budgetName: budget!.name,
+        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
         employeeName: user.firstName,
-        currency: budget.currency
+        currency: budget!.currency
       })
     }
 
-    return budget
+    return budget!
   }
 
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
@@ -226,7 +223,7 @@ export default class BudgetService {
     }
 
     if (user.role !== Role.Owner) {
-      filter.set('beneficiaries.user', new ObjectId(auth.userId)) 
+      filter.set('beneficiaries.user', new ObjectId(auth.userId))
     }
 
     if (query.search) {
@@ -276,6 +273,7 @@ export default class BudgetService {
   async approveBudget(auth: AuthUser, id: string, data: ApproveBudgetBodyDto) {
     const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
       .populate<{ createdBy: IUser }>('createdBy')
+      .populate<{ wallet: IWallet }>('wallet')
     if (!budget) {
       throw new NotFoundError('Budget not found')
     }
@@ -289,19 +287,25 @@ export default class BudgetService {
       throw new BadRequestError('Only pending budgets can be approved')
     }
 
-    const balances = await WalletService.getWalletBalances(budget.wallet)
-    if (balances.availableBalance < budget.amount) {
+    if (budget.wallet.balance < budget.amount) {
       throw new BadRequestError('Insufficient Balance')
     }
 
     await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
 
-    await budget.set({
-      status: BudgetStatus.Active,
-      approvedBy: auth.userId,
-      approvedDate: new Date(),
-      ...data
-    }).save()
+    await cdb.transaction(async session => {
+      await budget.set({
+        status: BudgetStatus.Active,
+        approvedBy: auth.userId,
+        approvedDate: new Date(),
+        ...data,
+        balance: budget.amount,
+      }).save({ session })
+      
+      await Wallet.updateOne({ _id: budget.wallet }, {
+        $inc: { balance: -budget.amount }
+      }, { session })
+    })
 
     this.emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
       budgetAmount: formatMoney(budget.balance),
@@ -382,10 +386,17 @@ export default class BudgetService {
       }
     }
 
-    await budget.set({
-      status: BudgetStatus.Closed,
-      ...update
-    }).save()
+    await cdb.transaction(async (session) => {
+      await budget.set({
+        status: BudgetStatus.Closed,
+        balance: 0,
+        ...update
+      }).save({ session })
+
+      await Wallet.updateOne({ _id: budget.wallet }, {
+        $inc: { balance: budget.balance }
+      }, { session })
+    })
 
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`;
     if (isDeclined) {
@@ -400,7 +411,7 @@ export default class BudgetService {
 
       return { message: 'Budget request declined' }
     }
-    
+
     this.emailService.sendBudgetClosedEmail(budget.createdBy.email, {
       budgetBalance: formatMoney(budget.balance),
       budgetName: budget.name,
@@ -443,7 +454,6 @@ export default class BudgetService {
         amount: 1,
         amountUsed: 1,
         balance: 1,
-        availableAmount: { $subtract: ['$amount', '$amountUsed'] },
         currency: 1,
         threshold: 1,
         status: 1,

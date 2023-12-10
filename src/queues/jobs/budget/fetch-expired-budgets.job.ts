@@ -30,8 +30,6 @@ async function fetchExpiredBudgets(job: Job) {
       }
     ]
   })
-    .populate('createdBy', 'firstName email')
-    .populate('organization', 'businessName')
     .lean()
 
   const expired = budgets.filter((b) => dayjs().isSameOrAfter(b.expiry, 'day'))
@@ -44,7 +42,7 @@ async function fetchExpiredBudgets(job: Job) {
 
   const bulk = budgets.map((budget) => ({
     name: 'closeExpiredBudget',
-    data: { budget },
+    data: { budget: {_id: budget._id} },
   }))
 
   await job.queue.addBulk(bulk)

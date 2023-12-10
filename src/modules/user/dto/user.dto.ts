@@ -121,19 +121,24 @@ export class AddEmployeeDto {
 
 export class UpdateEmployeeDto {
   @IsString()
+  @IsOptional()
   firstName: string;
 
   @IsString()
+  @IsOptional()
   lastName: string;
 
   @IsString()
+  @IsOptional()
   email: string;
 
   @IsString()
+  @IsOptional()
   phone: string;
 
   @IsString()
   @IsEnum(Role)
+  @IsOptional()
   role: Role;
 }
 

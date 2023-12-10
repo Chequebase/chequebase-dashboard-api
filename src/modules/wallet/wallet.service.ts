@@ -11,9 +11,8 @@ import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./d
 import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
 import VirtualAccount from "@/models/virtual-account.model";
-import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import WalletEntry, { WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
-import { BudgetStatus } from "@/models/budget.model";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import Counterparty from "@/models/counterparty.model";
@@ -72,52 +71,6 @@ export default class WalletService {
     return {
       status: 'successful',
       message: 'Payment successful'
-    }
-  }
-
-  static async getWalletBalances(id: string | ObjectId) {
-    const [wallet] = await Wallet.aggregate()
-      .match({ _id: new ObjectId(id) })
-      .lookup({
-        from: 'budgets',
-        let: { wallet: '$_id' },
-        as: 'budgets',
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ['$$wallet', '$wallet'] },
-              status: BudgetStatus.Active
-            }
-          },
-          {
-            $group: {
-              _id: null,
-              totalUsed: { $sum: '$amountUsed' },
-              totalAmount: { $sum: '$amount' }
-            }
-          }
-        ]
-      })
-      .unwind({ path: '$budgets', preserveNullAndEmptyArrays: true })
-      .addFields({
-        totalBudgetSpent: { $ifNull: ['$budgets.totalUsed', 0] },
-        totalBudgetAmount: { $ifNull: ['$budgets.totalAmount', 0] }
-      })
-      .project({
-        _id: null,
-        balance: 1,
-        availableBalance: {
-          $subtract: [
-            { $add: ['$balance', '$totalBudgetSpent'] },
-            '$totalBudgetAmount'
-          ]
-        }
-      })
-
-    // availableBalance = balance+totalBudgetSpent - totalBudgetAmount
-    return {
-      availableBalance: Number(wallet.availableBalance || 0),
-      balance: Number(wallet.balance || 0)
     }
   }
 
@@ -203,12 +156,7 @@ export default class WalletService {
       })
       .lean()
     
-    const populatedWallets = await Promise.all(wallets.map(async (wallet) => {
-      const balances = await WalletService.getWalletBalances(wallet._id)
-      return Object.assign(wallet, balances)
-    }))
-
-    return populatedWallets
+    return wallets
   }
 
   async getWallet(orgId: string, walletId?: string) {
@@ -223,9 +171,6 @@ export default class WalletService {
       return null
     }
     
-    const balances = await WalletService.getWalletBalances(wallet._id)
-    wallet = Object.assign(wallet, balances)
-
     return wallet
   }
 
