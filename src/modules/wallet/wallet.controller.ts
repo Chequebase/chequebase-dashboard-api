@@ -27,7 +27,7 @@ export default class WalletController {
   @Get('/history')
   @Authorized()
   getWalletHistory(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletEntriesDto) {
-    return this.walletService.getWalletEntries(auth.orgId, query)
+    return this.walletService.getWalletEntries(auth, query)
   }
 
   @Get('/statement')

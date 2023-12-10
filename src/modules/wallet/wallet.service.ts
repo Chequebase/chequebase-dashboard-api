@@ -20,6 +20,9 @@ import Counterparty from "@/models/counterparty.model";
 import { cdb } from "../common/mongoose";
 import { ChargeWallet } from "./interfaces/wallet.interface";
 import numeral from "numeral";
+import { AuthUser } from "../common/interfaces/auth-user";
+import User from "@/models/user.model";
+import { Role } from "../user/dto/user.dto";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -226,13 +229,19 @@ export default class WalletService {
     return wallet
   }
 
-  async getWalletEntries(organization: string, query: GetWalletEntriesDto) {
+  async getWalletEntries(auth: AuthUser, query: GetWalletEntriesDto) {
+    const user = await User.findById(auth.userId).select('role').lean()
+    if (!user) {
+      throw new BadRequestError("User not found")
+    }
+
     const from = query.from ?? dayjs().subtract(30, 'days').toDate()
     const to = query.to ?? dayjs()
-    const filter = new QueryFilter({ organization })
+    const filter = new QueryFilter({ organization: auth.orgId })
       .set('wallet', query.wallet)
       .set('type', query.type)
       .set('budget', query.budget)
+      .set('initiatedBy', user.role === Role.Owner ? undefined : user._id)
       .set('createdAt', {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()
