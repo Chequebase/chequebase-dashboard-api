@@ -83,7 +83,11 @@ const shareholderSchema = new Schema<Shareholder>({
 
 const organizationSchma = new Schema<IOrganization>(
   {
-    admin: { type: Schema.Types.ObjectId, required: true },
+    admin: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
     averageMonthlyExpenses: String,
     bnNumber: String,
     businessIndustry: String,

@@ -91,8 +91,6 @@ export class UserService {
       throw new UnauthorizedError('Wrong login credentials!')
     }
 
-    console.log({ IsVlaid: (user.rememberMe > new Date().getTime()) })
-
     if (user?.rememberMe && dayjs(user.rememberMe).isAfter(new Date())) {
       //password match
       const tokens = await this.getTokens(user.id, user.email, organization.id);

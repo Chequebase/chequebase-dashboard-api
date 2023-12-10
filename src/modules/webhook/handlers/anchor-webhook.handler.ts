@@ -28,7 +28,7 @@ export default class AnchorWebhookHandler {
       paymentMethod: payment.type,
       sourceAccount: {
         accountName: payment.counterParty?.accountName,
-        accountNumber: payment.counterParty?.accountName,
+        accountNumber: payment.counterParty?.accountNumber,
         bankName: payment.counterParty?.bank?.name
       }
     }

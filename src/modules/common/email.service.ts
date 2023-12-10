@@ -169,6 +169,15 @@ export default class EmailService {
     })
   }
 
+  sendBudgetExpiryReminderEmail(to: string, data: T.BudgetExpiryReminder) {
+    return this.send({
+      to,
+      subject: 'Budget Expiry Notification',
+      templateId: 'd-2f95e57107884653b28a6a5e05890922',
+      dynamicTemplateData: data
+    })
+  }
+
   sendBudgetCreatedEmail(to: string, data: T.BudgetCreatedEmail) {
     return this.send({
       to,

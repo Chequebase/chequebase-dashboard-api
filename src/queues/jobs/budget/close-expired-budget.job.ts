@@ -21,10 +21,11 @@ async function closeExpiredBudget(job: Job) {
   try {
     // not yet expired, send notification
     if (dayjs().isBefore(budget.expiry, 'day')) {
-      await emailService.sendBudgetExpiryNotifEmail(budget.createdBy.email, {
-        budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+      await emailService.sendBudgetExpiryReminderEmail(budget.createdBy.email, {
+        currency: budget.currency,
+        budgetBalance: formatMoney(budget.balance),
         budgetName: budget.name,
-        budgetSummaryLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgets/${budget._id}`,
+        budgetSummaryLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
         employeeName: budget.createdBy.firstName,
         expiryDate: dayjs(budget.expiry).format('YYYY-MM-DD')
       })
@@ -40,6 +41,13 @@ async function closeExpiredBudget(job: Job) {
     })
 
     logger.log('closed budget', { budget: budget._id })
+
+    await emailService.sendBudgetExpiryNotifEmail(budget.createdBy.email, {
+      platformName: budget.organization.businessName,
+      budgetName: budget.name,
+      budgetSummaryLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
+      employeeName: budget.createdBy.firstName,
+    })
 
     return { message: 'closed budget ' + budget._id }
   } catch (err: any) {

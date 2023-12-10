@@ -8,20 +8,19 @@ export interface SendEmail {
 
 export interface FundedWalletEmail {
   businessName: string
-  creditAmount: string
+  amount: string
   accountBalance: string
   bankName: string,
   accountNumber: string
   beneficiaryName: string
   currency: string
-  transferAmount: string
-  transactionDate: string,
+  transactionDate: string
   transactionTime: string
 }
 
 export interface TransferSuccessEmail {
   userName: string
-  transferAmount: string
+  amount: string
   accountBalance: string
   bankName: string
   budgetName: string
@@ -30,17 +29,20 @@ export interface TransferSuccessEmail {
   transactionDate: string
   currency: string
   transactionTime: string
+  businessName: string
 }
 
 export interface BudgetRequestEmail {
   employeeName: string
   budgetName: string
+  currency: string
   budgetLink: string
 }
 
 export interface BudgetPausedEmail {
   employeeName: string
-  budgetName: string,
+  budgetName: string
+  currency: string
   budgetLink: string
   budgetBalance: string
 }
@@ -49,13 +51,14 @@ export interface BudgetDeclinedEmail {
   employeeName: string,
   budgetName: string,
   budgetBalance: string
-  employerReasonForDecliningTheBudget: string
+  declineReason: string
   budgetReviewLink: string
 }
 
 export interface BudgetClosedEmail {
   budgetLink: string
-  employeeName: string,
+  employeeName: string
+  currency: string
   budgetName: string,
   budgetBalance: string
 }
@@ -70,12 +73,21 @@ export interface BudgetApprovedEmail {
   employeeName: string
   budgetName: string,
   budgetLink: string
+  currency: string
   budgetAmount: string
 }
 
 export interface BudgetExpiryNotifEmail {
   employeeName: string
-  budgetName: string,
+  budgetName: string
+  platformName: string
+  budgetSummaryLink: string
+}
+
+export interface BudgetExpiryReminder {
+  employeeName: string
+  budgetName: string
+  currency: string
   budgetBalance: string
   expiryDate: string
   budgetSummaryLink: string
@@ -83,6 +95,7 @@ export interface BudgetExpiryNotifEmail {
 
 export interface BudgetCreatedEmail {
   employeeName: string
+  currency: string
   budgetName: string
   budgetAmount: string
   dashboardLink: string

@@ -31,6 +31,7 @@ async function fetchExpiredBudgets(job: Job) {
     ]
   })
     .populate('createdBy', 'firstName email')
+    .populate('organization', 'businessName')
     .lean()
 
   const expired = budgets.filter((b) => dayjs().isSameOrAfter(b.expiry, 'day'))

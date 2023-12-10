@@ -11,8 +11,9 @@ import { BadRequestError } from "routing-controllers";
 import { cdb } from "@/modules/common/mongoose";
 import Container from "typedi";
 import EmailService from "@/modules/common/email.service";
-import { formatMoney } from "@/modules/common/utils";
+import { formatMoney, transactionOpts } from "@/modules/common/utils";
 import { IOrganization } from "@/models/organization.model";
+import { IUser } from "@/models/user.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -47,9 +48,14 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
       throw new BadRequestError('Duplicate payment')
     }
 
+    type PopulateOrg = { organization: IOrganization & { admin: IUser } }
     const virtualAccount = await VirtualAccount.findOne({ accountNumber })
       .populate<{ wallet: IWallet }>('wallet')
-      .populate<{ organization: IOrganization }>('organization')
+      .populate<PopulateOrg>({
+        path: 'organization',
+        select: 'businessName admin',
+        populate: {path: 'admin', select: 'email'}
+      })
     if (!virtualAccount) {
       logger.error('strangely cannot find virtual account', { reference, accountNumber })
       throw new BadRequestError('Virtual account not found')
@@ -85,21 +91,16 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         $set: { walletEntry: entry._id },
         $inc: { balance: Number(amount) }
       },{ session } )
-    }, {
-      readPreference: 'primary',
-      readConcern: 'local',
-      writeConcern: { w: 'majority' }
-    })
+    }, transactionOpts)
 
     const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss').split(' ')
-    emailService.sendFundedWalletEmail(organization.email, {
+    emailService.sendFundedWalletEmail(organization.admin.email, {
       accountBalance: formatMoney(balanceAfter),
       accountNumber: data.sourceAccount.accountNumber,
       bankName: data.sourceAccount.bankName,
-      beneficiaryName: virtualAccount.name,
+      beneficiaryName: data.sourceAccount.accountName,
       businessName: organization.businessName,
-      creditAmount: formatMoney(data.amount),
-      transferAmount: formatMoney(data.amount),
+      amount: formatMoney(data.amount),
       transactionDate: date,
       currency: data.currency,
       transactionTime: time,

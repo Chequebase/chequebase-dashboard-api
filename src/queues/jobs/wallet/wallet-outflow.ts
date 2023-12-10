@@ -16,6 +16,7 @@ import EmailService from '@/modules/common/email.service';
 import { IUser } from '@/models/user.model';
 import { formatMoney, transactionOpts } from '@/modules/common/utils';
 import Counterparty from '@/models/counterparty.model';
+import { IOrganization } from "@/models/organization.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -66,6 +67,7 @@ async function handleSuccessful(data: WalletOutflowData) {
       .populate<{ initiatedBy: IUser }>('initiatedBy')
       .populate<{ wallet: IWallet }>('wallet')
       .populate<{ budget: IBudget }>('budget')
+      .populate<{ organization: IOrganization }>('organization', 'businessName')
     if (!entry) {
       logger.error('entry not found', { reference: data.reference })
       throw new BadRequestError('Wallet entry does not exist')
@@ -98,7 +100,8 @@ async function handleSuccessful(data: WalletOutflowData) {
         currency: entry.currency,
         transactionDate: date,
         transactionTime: time,
-        transferAmount: formatMoney(entry.amount)
+        businessName: entry.organization.businessName,
+        amount: formatMoney(entry.amount)
       })
     }
 
