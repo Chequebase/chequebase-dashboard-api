@@ -93,7 +93,7 @@ async function handleSuccessful(data: WalletOutflowData) {
       emailService.sendTransferSuccessEmail(entry.initiatedBy.email, {
         userName: entry.initiatedBy.firstName,
         accountBalance: formatMoney(entry.wallet.balance),
-        accountNumber: counterparty.accountName,
+        accountNumber: counterparty.accountNumber,
         bankName: counterparty.bankName,
         beneficiaryName: counterparty.accountName,
         budgetName: entry.budget.name,

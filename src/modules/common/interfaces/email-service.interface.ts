@@ -51,6 +51,7 @@ export interface BudgetDeclinedEmail {
   employeeName: string,
   budgetName: string,
   budgetBalance: string
+  currency: string
   declineReason: string
   budgetReviewLink: string
 }

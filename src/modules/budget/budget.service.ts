@@ -255,6 +255,7 @@ export default class BudgetService {
         status: 1,
         paused: 1,
         availableAmount: { $subtract: ['$amount', '$amountUsed'] },
+        balance: 1,
         currency: 1,
         threshold: 1,
         expiry: 1,
@@ -342,7 +343,7 @@ export default class BudgetService {
       const owner = (await User.findOne({ organization: auth.orgId, role: Role.Owner }))!
       this.emailService.sendBudgetPausedEmail(owner.email, {
         budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
-        budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+        budgetBalance: formatMoney(budget.balance),
         budgetName: budget.name,
         currency: budget.currency,
         employeeName: owner.firstName
@@ -390,7 +391,8 @@ export default class BudgetService {
     if (isDeclined) {
       this.emailService.sendBudgetDeclinedEmail(budget.createdBy.email, {
         budgetReviewLink: link,
-        budgetBalance: formatMoney(budget.amount - budget.amountUsed),
+        budgetBalance: formatMoney(budget.balance),
+        currency: budget.currency,
         budgetName: budget.name,
         employeeName: budget.createdBy.firstName,
         declineReason: data.reason
@@ -440,6 +442,7 @@ export default class BudgetService {
         name: 1,
         amount: 1,
         amountUsed: 1,
+        balance: 1,
         availableAmount: { $subtract: ['$amount', '$amountUsed'] },
         currency: 1,
         threshold: 1,
