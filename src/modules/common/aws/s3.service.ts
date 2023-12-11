@@ -22,12 +22,15 @@ export class S3Service {
     return await this.s3.send(command);
   }
 
-  async getSignedUrl(bucket: string, key: string) {
+  async getObjectUrl(bucket: string, key: string) {
     const s3Params = {
       Bucket: bucket,
       Key: key,
     };
     const command = new GetObjectCommand(s3Params);
+    const response = await this.s3.send(command);
+    console.log({ response })
+
     return await getSignedUrl(this.s3, command, { expiresIn: 3600 });
   }
 
