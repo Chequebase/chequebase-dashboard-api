@@ -579,17 +579,16 @@ export class UserService {
       throw new NotFoundError("User not found");
     }
     const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}`;
-    const putObject = await this.s3Service.putObject(
+    const url = `https://${getEnvOrThrow('AVATAR_BUCKET_NAME')}.s3-${getEnvOrThrow('AWS_REGION')}.amazonaws.com/${key}`
+    await this.s3Service.putObject(
       getEnvOrThrow('AVATAR_BUCKET_NAME'),
       key,
       file.buffer
     );
-    console.log({ putObject })
-    const s3Object = await this.s3Service.getObjectUrl(getEnvOrThrow('AVATAR_BUCKET_NAME'), key)
-    console.log({ s3Object })
+    console.log({ url })
     
     await User.updateOne({ _id: auth.userId }, {
-      avatar: 'url'
+      avatar: url
     })
 
     return { message: 'upload successful' };
