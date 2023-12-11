@@ -585,7 +585,7 @@ export class UserService {
       file.buffer
     );
     console.log({ putObject })
-    const s3Object = await this.s3Service.getObject(getEnvOrThrow('AVATAR_BUCKET_NAME'), key)
+    const s3Object = await this.s3Service.getObjectUrl(getEnvOrThrow('AVATAR_BUCKET_NAME'), key)
     console.log({ s3Object })
     
     await User.updateOne({ _id: auth.userId }, {
