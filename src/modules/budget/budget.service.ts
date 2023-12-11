@@ -269,6 +269,18 @@ export default class BudgetService {
     return budgets
   }
 
+  async getBeneficiariyBudgets(auth: AuthUser) {
+    const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
+      .set('status', BudgetStatus.Active)
+      .set('beneficiaries.user', new ObjectId(auth.userId))
+
+    const budgets = await Budget.find(filter.object)
+      .select('amount balance currency amountUsed status createdAt')
+      .sort({ amount: 1, createdAt: -1 })
+
+    return budgets
+  }
+
   async approveBudget(auth: AuthUser, id: string, data: ApproveBudgetBodyDto) {
     const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
       .populate<{ createdBy: IUser }>('createdBy')
