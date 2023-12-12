@@ -14,6 +14,9 @@ import { escapeRegExp, formatMoney, getEnvOrThrow } from "../common/utils";
 import EmailService from "../common/email.service";
 import { PlanUsageService } from "../billing/plan-usage.service";
 import { cdb } from "../common/mongoose";
+import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import { createId } from "@paralleldrive/cuid2";
+import numeral from "numeral";
 
 const logger = new Logger('budget-service')
 
@@ -74,9 +77,31 @@ export default class BudgetService {
         ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
       }], { session })
 
-      await Wallet.updateOne({ _id: wallet._id }, {
-        $inc: { balance: -data.amount }
-      }, { session })
+      if (isOwner) {
+        const [entry] = await WalletEntry.create([{
+          organization: budget.organization,
+          budget: budget._id,
+          wallet: budget.wallet,
+          initiatedBy: auth.userId,
+          currency: budget.currency,
+          type: WalletEntryType.Debit,
+          balanceBefore: wallet.balance,
+          balanceAfter: numeral(wallet.balance).subtract(budget.balance).value(),
+          amount: budget.amount,
+          scope: WalletEntryScope.BudgetFunding,
+          narration: `Budget "${budget.name}" activated`,
+          reference: createId(),
+          status: WalletEntryStatus.Successful,
+          entry: {
+            budgetBalanaceAfter: budget.balance
+          }
+        }], { session })
+
+        await wallet.updateOne({
+          $set: { walletEntry: entry._id },
+          $inc: { balance: -budget.amount }
+        }, { session })
+      }
     })
 
     if (isOwner) {
@@ -196,9 +221,31 @@ export default class BudgetService {
         ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
       }], { session })
 
-      await Wallet.updateOne({ _id: wallet._id }, {
-        $inc: { balance: -data.amount }
-      }, { session })
+      if (isOwner) {
+        const [entry] = await WalletEntry.create([{
+          organization: budget.organization,
+          budget: budget._id,
+          wallet: budget.wallet,
+          initiatedBy: auth.userId,
+          currency: budget.currency,
+          type: WalletEntryType.Debit,
+          balanceBefore: wallet.balance,
+          balanceAfter: numeral(wallet.balance).subtract(budget.balance).value(),
+          amount: budget.amount,
+          scope: WalletEntryScope.BudgetFunding,
+          narration: `Budget "${budget.name}" activated`,
+          reference: createId(),
+          status: WalletEntryStatus.Successful,
+          entry: {
+            budgetBalanaceAfter: budget.balance
+          }
+        }], { session })
+
+        await wallet.updateOne({
+          $set: { walletEntry: entry._id },
+          $inc: { balance: -budget.amount }
+        }, { session })
+      }
     })
 
     if (!isOwner) {
@@ -312,8 +359,28 @@ export default class BudgetService {
         ...data,
         balance: budget.amount,
       }).save({ session })
-      
-      await Wallet.updateOne({ _id: budget.wallet }, {
+
+      const [entry] = await WalletEntry.create([{
+        organization: budget.organization,
+        budget: budget._id,
+        wallet: budget.wallet,
+        initiatedBy: auth.userId,
+        currency: budget.currency,
+        type: WalletEntryType.Debit,
+        balanceBefore: budget.wallet.balance,
+        balanceAfter: numeral(budget.wallet.balance).subtract(budget.balance).value(),
+        amount: budget.amount,
+        scope: WalletEntryScope.BudgetFunding,
+        narration: `Budget "${budget.name}" activated`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        entry: {
+          budgetBalanaceAfter: budget.balance
+        }
+      }], { session })
+
+      await Wallet.updateOne({ _id: budget.wallet._id }, {
+        $set: { walletEntry: entry._id },
         $inc: { balance: -budget.amount }
       }, { session })
     })
@@ -396,17 +463,43 @@ export default class BudgetService {
         declineReason: data.reason
       }
     }
-
     await cdb.transaction(async (session) => {
+      const wallet = await Wallet.findOne({ _id: budget.wallet }).session(session)
+      if (!wallet) {
+        throw new BadRequestError("wallet not found")
+      }
+
+      if (!isDeclined) {
+        const [entry] = await WalletEntry.create([{
+          organization: budget.organization,
+          budget: budget._id,
+          wallet: budget.wallet,
+          initiatedBy: auth.userId,
+          currency: budget.currency,
+          type: WalletEntryType.Credit,
+          balanceBefore: wallet.balance,
+          balanceAfter: numeral(wallet.balance).add(budget.balance).value(),
+          amount: budget.amount,
+          scope: WalletEntryScope.BudgetClosure,
+          narration: `Budget "${budget.name}" closed`,
+          reference: createId(),
+          status: WalletEntryStatus.Successful,
+          entry: {
+            budgetBalanaceAfter: 0
+          }
+        }], { session })
+
+        await wallet.updateOne({
+          $set: { walletEntry: entry._id },
+          $inc: { balance: budget.balance }
+        }, { session })
+      }
+
       await budget.set({
         status: BudgetStatus.Closed,
         balance: 0,
         ...update
       }).save({ session })
-
-      await Wallet.updateOne({ _id: budget.wallet }, {
-        $inc: { balance: budget.balance }
-      }, { session })
     })
 
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`;

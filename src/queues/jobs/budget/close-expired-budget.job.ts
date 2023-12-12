@@ -1,3 +1,5 @@
+import numeral from "numeral";
+import { createId } from "@paralleldrive/cuid2";
 import { Job } from "bull";
 import dayjs from "dayjs";
 import utc from 'dayjs/plugin/utc';
@@ -8,10 +10,11 @@ import Logger from "@/modules/common/utils/logger";
 import EmailService from "@/modules/common/email.service";
 import { formatMoney, getEnvOrThrow, transactionOpts } from "@/modules/common/utils";
 import { cdb } from "@/modules/common/mongoose";
-import Wallet from "@/models/wallet.model";
+import Wallet, { IWallet } from "@/models/wallet.model";
 import { BadRequestError } from "routing-controllers";
 import { IUser } from "@/models/user.model";
 import { IOrganization } from "@/models/organization.model";
+import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -24,6 +27,7 @@ async function closeExpiredBudget(job: Job) {
   const budget = await Budget.findById(job.data.budget._id)
     .populate<{ createdBy: IUser }>('createdBy', 'firstName email')
     .populate<{ organization: IOrganization }>('organization', 'businessName')
+    .populate<{ wallet: IWallet }>('wallet', 'balance')
   if (!budget) {
     throw new BadRequestError('budget not found')
   }
@@ -46,17 +50,33 @@ async function closeExpiredBudget(job: Job) {
     }
     
     await cdb.transaction(async (session) => {
-      const updatedBudget = await Budget.findOneAndUpdate({ _id: budget._id, status: BudgetStatus.Active }, {
-        status: BudgetStatus.Active,
+      await budget.updateOne({
+        status: BudgetStatus.Closed,
         closeReason: 'Budget expired',
         balance: 0
-      }, { session, new: true })
-      if (!updatedBudget) {
-        throw new BadRequestError('Budget not found')
-      }
+      }, { session })
 
-      await Wallet.updateOne({ _id: budget.wallet }, {
-        $inc: { balance: updatedBudget.balance }
+      const [entry] = await WalletEntry.create([{
+        organization: budget.organization,
+        budget: budget._id,
+        wallet: budget.wallet._id,
+        currency: budget.currency,
+        type: WalletEntryType.Credit,
+        balanceBefore: budget.wallet.balance,
+        balanceAfter: numeral(budget.wallet.balance).add(budget.balance).value(),
+        amount: budget.amount,
+        scope: WalletEntryScope.BudgetClosure,
+        narration: `Budget "${budget.name}" closed`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        entry: {
+          budgetBalanaceAfter: 0
+        }
+      }], { session })
+
+      await Wallet.updateOne({_id: budget.wallet},{
+        $set: { walletEntry: entry._id },
+        $inc: { balance: budget.balance }
       }, { session })
     }, transactionOpts)
 
