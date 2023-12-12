@@ -322,7 +322,7 @@ export default class BudgetService {
       .set('beneficiaries.user', new ObjectId(auth.userId))
 
     const budgets = await Budget.find(filter.object)
-      .select('amount balance currency amountUsed status createdAt')
+      .select('name amount balance currency amountUsed status createdAt')
       .sort({ amount: 1, createdAt: -1 })
 
     return budgets
