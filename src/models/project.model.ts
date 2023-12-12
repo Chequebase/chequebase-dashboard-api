@@ -24,14 +24,7 @@ export interface IProject {
   balance: number
   currency: ProjectCurrency
   threshold?: number
-  description: string
   createdBy: ObjectId
-  closeReason?: string
-  closedBy?: ObjectId
-  beneficiaries: {
-    user: ObjectId,
-    allocation: number
-  }[] // organization users
   expiry?: Date
   createdAt: Date;
   updatedAt: Date;
@@ -43,7 +36,6 @@ interface BudgetModel extends
 
 const projectSchema = new Schema<IProject>(
   {
-    description: String,
     balance: { type: Number, required: true },
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -74,22 +66,6 @@ const projectSchema = new Schema<IProject>(
     name: { type: String, required: true },
     threshold: Number,
     paused: { type: Boolean, default: false },
-    closeReason: String,
-    closedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    beneficiaries: {
-      _id: false,
-      type: [{
-        allocation: Number,
-        user: {
-          type: Schema.Types.ObjectId,
-          required: true,
-          ref: 'User'
-        }
-      }]
-    }
   },
   { timestamps: true },
 );

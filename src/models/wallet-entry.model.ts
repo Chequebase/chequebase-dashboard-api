@@ -21,6 +21,8 @@ export enum WalletEntryScope {
   BudgetTransfer = 'budget_transfer',
   BudgetFunding = 'budget_funding',
   BudgetClosure = 'budget_closure',
+  ProjectFunding = 'project_funding',
+  ProjectClosure = 'project_closure',
 }
 
 interface WalletEntryModel extends
@@ -31,6 +33,7 @@ export interface IWalletEntry {
   _id: ObjectId
   organization: ObjectId
   budget?: ObjectId
+  project?: ObjectId
   wallet: ObjectId
   initiatedBy: ObjectId
   currency: string
@@ -72,6 +75,10 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     budget: {
       type: Schema.Types.ObjectId,
       ref: 'Budget'
+    },
+    project: {
+      type: Schema.Types.ObjectId,
+      ref: 'Project'
     },
     wallet: {
       type: Schema.Types.ObjectId,

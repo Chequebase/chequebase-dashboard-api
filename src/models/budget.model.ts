@@ -24,6 +24,7 @@ export interface IBudget {
   _id: ObjectId
   paused: boolean
   wallet: ObjectId
+  project?: ObjectId
   status: BudgetStatus
   organization: ObjectId
   priority: BudgetPriority
@@ -81,6 +82,10 @@ const budgetSchema = new Schema<IBudget>(
       type: Schema.Types.ObjectId,
       required: true, 
       ref: 'Wallet'
+    },
+    project: {
+      type: Schema.Types.ObjectId,
+      ref: 'Project'
     },
     status: {
       type: String,

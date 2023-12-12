@@ -6,9 +6,8 @@ import { NotFoundError, BadRequestError } from "routing-controllers"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
 import Logger from "../common/utils/logger"
 import User, { UserStatus } from "@/models/user.model"
-import { WalletEntryScope } from "@/models/wallet-entry.model"
-import WalletService from "../wallet/wallet.service"
 import { Service } from "typedi"
+import Project, { ProjectStatus } from "@/models/project.model"
 
 const logger = new Logger('plan-usage-service')
 
@@ -34,13 +33,45 @@ export class PlanUsageService {
     const plan = subscription.plan as ISubscriptionPlan
     const budgets = await Budget.countDocuments({ organization: orgId, status: BudgetStatus.Active })
     const feature = plan.features.find((f) => f.code === code)
-    if (!feature) {
+    if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new ServiceUnavailableError('Unable to complete request at the moment, please try again later')
+      throw new ServiceUnavailableError('Organization does not have access to this feature')
     }
     if (budgets >= feature.freeUnits && feature.maxUnits !== -1) {
       throw new BadRequestError(
         'Organization has reached its maximum limit for active budgets. To continue adding active budgets, consider upgrading your plan'
+      )
+    }
+
+    return true
+  }
+  async checkProjectUsage(orgId: string) {
+    const organization = await Organization.findById(orgId)
+      .populate({ path: 'subscription.object', populate: 'plan' })
+      .select('subscription')
+      .lean()
+
+    if (!organization) {
+      throw new NotFoundError("Organization not found")
+    }
+
+    const subscription = organization.subscription?.object as ISubscription
+    if (!subscription || subscription?.status === 'expired') {
+      throw new BadRequestError('Organization has no active subscription')
+    }
+
+    const code = 'projects'
+    const plan = subscription.plan as ISubscriptionPlan
+    const projects = await Project.countDocuments({ organization: orgId, status: ProjectStatus.Active })
+    const feature = plan.features.find((f) => f.code === code)
+    if (!feature || !feature.available) {
+      logger.error('feature not found', { code, plan: plan._id })
+      throw new ServiceUnavailableError('Organization does not have access to this feature')
+    }
+
+    if (projects >= feature.freeUnits && feature.maxUnits !== -1) {
+      throw new BadRequestError(
+        'Organization has reached its maximum limit for projects. To continue adding projects, consider upgrading your plan'
       )
     }
 
@@ -66,9 +97,9 @@ export class PlanUsageService {
     const plan = subscription.plan as ISubscriptionPlan
     const users = await User.countDocuments({ organization: orgId, status: { $ne: UserStatus.DELETED } })
     const feature = plan.features.find((f) => f.code === code)
-    if (!feature) {
+    if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new ServiceUnavailableError('Unable to complete request at the moment, please try again later')
+      throw new ServiceUnavailableError('Organization does not have access to this feature')
     }
 
     const exhuastedMaxUnits = feature.maxUnits === -1 ? false : users >= feature.maxUnits

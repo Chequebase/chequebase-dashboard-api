@@ -6,14 +6,35 @@ import { AuthUser } from "../common/interfaces/auth-user";
 import { Role } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
 import { GetTransferFee, InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
+import { ProjectService } from "./project.service";
+import { CreateProjectDto } from "./dto/project.dto";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
 export default class BudgetController {
   constructor (
     private budgetService: BudgetService,
-    private budgetTransferService: BudgetTransferService
+    private budgetTransferService: BudgetTransferService,
+    private projectService: ProjectService
   ) { }
+
+  @Post('/project')
+  @Authorized()
+  createProject(@CurrentUser() auth: AuthUser, @Body() dto: CreateProjectDto) {
+    return this.projectService.createProject(auth, dto)
+  }
+
+  @Get('/project')
+  @Authorized()
+  getProjects(@CurrentUser() auth: AuthUser, @Body() dto: CreateProjectDto) {
+    return this.projectService.createProject(auth, dto)
+  }
+
+  @Get('/project/:id')
+  @Authorized()
+  getProject(@CurrentUser() auth: AuthUser, @Body() dto: CreateProjectDto) {
+    return this.projectService.createProject(auth, dto)
+  }
 
   @Post('/')
   @Authorized()
