@@ -110,6 +110,12 @@ export class PlanService {
       .lean()
   }
 
+  async getIntentStatus(orgId: string, id: string) {
+    return PaymentIntent.findOne({ _id: id, organization: orgId })
+      .select('-meta')
+      .lean()
+  }
+
   async initiateSubscription(auth: AuthUser, data: InitiateSubscriptionDto) {
     const org = await Organization.findById(auth.orgId)
       .populate('subscription.object')

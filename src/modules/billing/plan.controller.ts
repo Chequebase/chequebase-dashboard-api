@@ -1,4 +1,4 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Post, QueryParams } from 'routing-controllers';
+import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams } from 'routing-controllers';
 import { Service } from 'typedi';
 import { PlanService } from './plan.service';
 import { Role } from '../user/dto/user.dto';
@@ -9,6 +9,12 @@ import { AuthUser } from '../common/interfaces/auth-user';
 @JsonController('/billing', { transformResponse: false })
 export default class BillingController {
   constructor (private readonly plansService: PlanService) { }
+
+  @Get('/intents/:id')
+  @Authorized()
+  getIntentStatus(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.plansService.getIntentStatus(auth.orgId, id)
+  }
 
   @Get('/plans')
   @Authorized()
