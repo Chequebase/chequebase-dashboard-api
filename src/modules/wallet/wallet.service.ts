@@ -11,7 +11,7 @@ import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./d
 import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
 import VirtualAccount from "@/models/virtual-account.model";
-import WalletEntry, { WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
@@ -206,6 +206,7 @@ export default class WalletService {
     const filter = new QueryFilter({ organization: auth.orgId })
       .set('wallet', query.wallet)
       .set('type', query.type)
+      .set('scope', { $nin: [WalletEntryScope.BudgetFunding, WalletEntryScope.BudgetClosure] })
       .set('budget', query.budget)
       .set('initiatedBy', user.role === Role.Owner ? undefined : user._id)
       .set('createdAt', {
@@ -243,6 +244,7 @@ export default class WalletService {
   async getWalletStatement(orgId: string, query: GetWalletStatementDto) {
     const filter: any = {
       organization: orgId,
+      scope: { $nin: [WalletEntryScope.BudgetFunding, WalletEntryScope.BudgetClosure] },
       createdAt: {
         $gte: dayjs(query.from).startOf('day').toDate(),
         $lte: dayjs(query.to).endOf('day').toDate()
