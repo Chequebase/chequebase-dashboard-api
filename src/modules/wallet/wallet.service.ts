@@ -22,7 +22,7 @@ import numeral from "numeral";
 import { AuthUser } from "../common/interfaces/auth-user";
 import User from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
-import Budget from "@/models/budget.model";
+import Budget, { BudgetStatus } from "@/models/budget.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -183,7 +183,7 @@ export default class WalletService {
       .project({ _id: 0, currency: '$_id', balance: 1 })
 
     const budgetAgg = Budget.aggregate()
-      .match({ organization })
+      .match({ organization, status: BudgetStatus.Active })
       .group({ _id: '$currency', balance: { $sum: '$balance' } })
       .project({ _id: 0, currency: '$_id', balance: 1 })
 
