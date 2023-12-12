@@ -22,6 +22,7 @@ import numeral from "numeral";
 import { AuthUser } from "../common/interfaces/auth-user";
 import User from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
+import Budget from "@/models/budget.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -172,6 +173,26 @@ export default class WalletService {
     }
     
     return wallet
+  }
+
+  async getBalances(orgId: string) {
+    const organization = new ObjectId(orgId)
+    const walletAgg = Wallet.aggregate()
+      .match({ organization })
+      .group({ _id: '$currency', balance: { $sum: '$balance' } })
+      .project({ _id: 0, currency: '$_id', balance: 1 })
+
+    const budgetAgg = Budget.aggregate()
+      .match({ organization })
+      .group({ _id: '$currency', balance: { $sum: '$balance' } })
+      .project({ _id: 0, currency: '$_id', balance: 1 })
+
+    const [wallet, budget] = await Promise.all([
+      walletAgg,
+      budgetAgg
+    ])
+
+    return { wallet, budget }
   }
 
   async getWalletEntries(auth: AuthUser, query: GetWalletEntriesDto) {

@@ -18,7 +18,9 @@ export enum WalletEntryStatus {
 export enum WalletEntryScope {
   PlanSubscription = 'plan_subscription',
   WalletFunding = 'wallet_funding',
-  BudgetTransfer = 'budget_transfer'
+  BudgetTransfer = 'budget_transfer',
+  BudgetFunding = 'budget_funding',
+  BudgetClosure = 'budget_closure',
 }
 
 interface WalletEntryModel extends
