@@ -92,7 +92,7 @@ export default class BudgetService {
           narration: `Budget "${budget.name}" activated`,
           reference: createId(),
           status: WalletEntryStatus.Successful,
-          entry: {
+          meta: {
             budgetBalanaceAfter: budget.balance
           }
         }], { session })
@@ -236,7 +236,7 @@ export default class BudgetService {
           narration: `Budget "${budget.name}" activated`,
           reference: createId(),
           status: WalletEntryStatus.Successful,
-          entry: {
+          meta: {
             budgetBalanaceAfter: budget.balance
           }
         }], { session })
@@ -374,7 +374,7 @@ export default class BudgetService {
         narration: `Budget "${budget.name}" activated`,
         reference: createId(),
         status: WalletEntryStatus.Successful,
-        entry: {
+        meta: {
           budgetBalanaceAfter: budget.balance
         }
       }], { session })
@@ -484,7 +484,7 @@ export default class BudgetService {
           narration: `Budget "${budget.name}" closed`,
           reference: createId(),
           status: WalletEntryStatus.Successful,
-          entry: {
+          meta: {
             budgetBalanaceAfter: 0
           }
         }], { session })
