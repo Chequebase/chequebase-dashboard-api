@@ -463,6 +463,8 @@ export default class BudgetService {
         declineReason: data.reason
       }
     }
+    
+    const closingBalance = budget.balance
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOne({ _id: budget.wallet }).session(session)
       if (!wallet) {
@@ -517,7 +519,7 @@ export default class BudgetService {
     }
 
     this.emailService.sendBudgetClosedEmail(budget.createdBy.email, {
-      budgetBalance: formatMoney(budget.balance),
+      budgetBalance: formatMoney(closingBalance),
       budgetName: budget.name,
       budgetLink: link,
       currency: budget.currency,
