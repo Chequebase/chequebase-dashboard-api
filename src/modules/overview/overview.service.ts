@@ -3,7 +3,7 @@ import isBetween from 'dayjs/plugin/isBetween';
 import { ObjectId } from 'mongodb';
 import { Service } from 'typedi';
 import Budget, { BudgetStatus } from '@/models/budget.model';
-import WalletEntry from '@/models/wallet-entry.model';
+import WalletEntry, { WalletEntryScope } from '@/models/wallet-entry.model';
 import { getPercentageDiff } from '../common/utils';
 import { getDates, getPrevFromAndTo } from '../common/utils/date';
 import { GetCashflowTrendDto, GetOverviewSummaryDto } from './dto/overview.dto';
@@ -14,7 +14,11 @@ dayjs.extend(isBetween)
 export class OverviewService {
   private async getWalletBalanceSummary(orgId: string, query: GetOverviewSummaryDto) {
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
-    const filter = { organization: new ObjectId(orgId), currency: query.currency }
+    const filter = {
+      organization: new ObjectId(orgId),
+      currency: query.currency,
+      scope: { $nin: [WalletEntryScope.BudgetFunding, WalletEntryScope.BudgetClosure] },
+    }
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
 
@@ -128,7 +132,13 @@ export class OverviewService {
 
   async cashflowTrend(orgId: string, query: GetCashflowTrendDto) {
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
-    const filter = { organization: new ObjectId(orgId), type: query.type, currency: query.currency }
+    const filter = {
+      organization: new ObjectId(orgId),
+      type: query.type,
+      currency: query.currency,
+      scope: { $nin: [WalletEntryScope.BudgetFunding, WalletEntryScope.BudgetClosure] },
+    }
+
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
 

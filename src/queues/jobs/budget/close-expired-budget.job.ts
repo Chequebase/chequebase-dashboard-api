@@ -70,7 +70,7 @@ async function closeExpiredBudget(job: Job) {
         reference: createId(),
         status: WalletEntryStatus.Successful,
         meta: {
-          budgetBalanaceAfter: 0
+          budgetBalanceAfter: 0
         }
       }], { session })
 
