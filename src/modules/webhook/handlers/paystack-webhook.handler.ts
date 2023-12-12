@@ -10,7 +10,7 @@ import { subscriptionQueue } from "@/queues";
 @Service()
 export class PaystackWebhookHandler {
   private logger = new Logger(PaystackWebhookHandler.name)
-  
+
   constructor (private paystackService: PaystackService) { }
 
   private createHmac(body: string) {
@@ -22,19 +22,18 @@ export class PaystackWebhookHandler {
 
   private async onChargeSuccess(body: any) {
     const reference = body.data.reference
-    const verifyResponse = await this.paystackService.verifyPaymentByReference(reference)
-
+    const { data } = await this.paystackService.verifyPaymentByReference(reference)
     const jobData: SubscriptionPaymentJob = {
-      chargedAmount: verifyResponse.amount,
-      currency: verifyResponse.currency,
-      fees: Number(verifyResponse.fees),
-      meta: verifyResponse.metadata,
+      chargedAmount: data.amount,
+      currency: data.currency,
+      fees: Number(data.fees),
+      meta: data.metadata,
       status: 'successful',
-      reference: verifyResponse.reference,
+      reference: data.reference,
       webhookDump: JSON.stringify(body),
-      providerRef: verifyResponse.reference,
+      providerRef: data.reference,
       provider: 'paystack',
-      paymentType: verifyResponse.channel
+      paymentType: data.channel
     }
 
     await subscriptionQueue.add('processSubscriptionPayment', jobData)
@@ -51,17 +50,17 @@ export class PaystackWebhookHandler {
     }
 
     body = JSON.parse(body)
-    const { data } = body;
-    if (!allowedWebooks.includes(data.type)) {
-      this.logger.log('event type not allowed', { event: data.type })
-      return;
+    const { event } = body;
+    if (!allowedWebooks.includes(event)) {
+      this.logger.log('event type not allowed', { event })
+      return { message: 'webhook_logged' }
     }
 
-    switch (data.type as typeof allowedWebooks[number]) {
+    switch (event as typeof allowedWebooks[number]) {
       case 'charge.success':
         return this.onChargeSuccess(body)
       default:
-        this.logger.log('unhandled event', { event: data.type })
+        this.logger.log('unhandled event', { event })
         break;
     }
 
