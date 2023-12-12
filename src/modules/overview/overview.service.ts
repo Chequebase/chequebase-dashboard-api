@@ -169,8 +169,6 @@ export class OverviewService {
       getCashflowQuery('debit'),
     ])
 
-    console.log({ incomeTrendResult, expenseTrendResult })
-
     const boundaries = getDates(from, to, query.period)
     const trend = boundaries.map((boundary: any) => {
       const incomeMatch = incomeTrendResult.filter((t) =>
