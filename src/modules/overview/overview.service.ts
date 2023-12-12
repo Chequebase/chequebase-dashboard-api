@@ -99,7 +99,12 @@ export class OverviewService {
 
   private async getTotalSpendSummary(orgId: string, query: GetOverviewSummaryDto) {
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
-    const filter = { organization: new ObjectId(orgId), type: 'debit', currency: query.currency }
+    const filter = {
+      organization: new ObjectId(orgId),
+      type: 'debit',
+      currency: query.currency,
+      scope: { $nin: [WalletEntryScope.BudgetFunding, WalletEntryScope.BudgetClosure] },
+    }
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
 
