@@ -39,7 +39,7 @@ export const RBAC = async (requestAction: Action, action: string[] = []) => {
   }
 
   const { sub: id } = requestAction.request.auth as AuthUser;
-  const user = await User.findById(id).populate<{ organization: IOrganization, status: UserStatus }>('organization, status')
+  const user = await User.findById(id).populate<{ organization: IOrganization }>('organization, status')
   if (!user || !user.organization || user.status === UserStatus.DELETED) {
     throw new UnauthorizedError('Unauthorized')
   }
