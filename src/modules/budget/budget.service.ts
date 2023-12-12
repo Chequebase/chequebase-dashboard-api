@@ -316,7 +316,7 @@ export default class BudgetService {
     return budgets
   }
 
-  async getBeneficiariyBudgets(auth: AuthUser) {
+  async getBeneficiaryBudgets(auth: AuthUser) {
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', BudgetStatus.Active)
       .set('beneficiaries.user', new ObjectId(auth.userId))

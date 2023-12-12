@@ -35,8 +35,8 @@ export default class BudgetController {
 
   @Get('/beneficiary')
   @Authorized()
-  getBeneficiariyBudgets(@CurrentUser() auth: AuthUser) {
-    return this.budgetService.getBeneficiariyBudgets(auth)
+  getBeneficiaryBudgets(@CurrentUser() auth: AuthUser) {
+    return this.budgetService.getBeneficiaryBudgets(auth)
   }
   
   @Get('/transfer-fee')
