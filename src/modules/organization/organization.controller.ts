@@ -16,25 +16,25 @@ export default class OrganizationsController {
   constructor (private readonly organizationsService: OrganizationsService) { }
 
   @Authorized(Role.Owner)
-  @Patch('/:id/update-company-info')
+  @Patch('/update-company-info')
   updateCompanyInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: UpdateCompanyInfoDto) {
     return this.organizationsService.updateCompanyInfo(auth.orgId, kycDto);
   }
 
   @Authorized(Role.Owner)
-  @Patch('/:id/update-owner-info')
+  @Patch('/update-owner-info')
   updateOwnerInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: OwnerDto) {
     return this.organizationsService.updateOwnerInfo(auth.orgId, kycDto);
   }
 
   @Authorized(Role.Owner)
-  @Patch('/:id/delete-owner-info')
+  @Patch('/delete-owner-info')
   deleteOwnerInfo(@CurrentUser() auth: AuthUser, @Body() ownerOrDirectorId: UpdateOwnerDto) {
     return this.organizationsService.deleteOwnerInfo(auth.orgId, ownerOrDirectorId);
   }
 
   @Authorized(Role.Owner)
-  @Post('/:id/update-business-documentation')
+  @Post('/update-business-documentation')
   @UseBefore(multer().any())
   updatebusinessDocumentation(
     @CurrentUser() auth: AuthUser,
@@ -46,13 +46,13 @@ export default class OrganizationsController {
   }
 
   @Authorized(Role.Owner)
-  @Patch('/:id/apply-for-approval')
+  @Patch('/apply-for-approval')
   applyForApproval(@CurrentUser() auth: AuthUser) {
     return this.organizationsService.applyForApproval(auth.orgId);
   }
 
   @Authorized(Role.Owner)
-  @Get('/:id')
+  @Get('/get-organization')
   findOne(@CurrentUser() auth: AuthUser) {
     return Organization.findById(auth.orgId).lean()
   }
