@@ -1,5 +1,5 @@
 import { City, State } from 'country-state-city';
-import { Post, Authorized, Body, Get, Param, Patch, UseBefore, Req, JsonController } from 'routing-controllers';
+import { Post, Authorized, Body, Get, Param, Patch, UseBefore, Req, JsonController, CurrentUser } from 'routing-controllers';
 import { OwnerDto, UpdateBusinessDocumentationDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { OrganizationsService } from './organization.service';
 import { Role } from '../user/dto/user.dto';
@@ -8,6 +8,7 @@ import Organization from '@/models/organization.model';
 import { Service } from 'typedi';
 import multer from 'multer';
 import { Request } from 'express';
+import { AuthUser } from '../common/interfaces/auth-user';
 
 @Service()
 @JsonController('/organizations', { transformResponse: false })
@@ -16,44 +17,44 @@ export default class OrganizationsController {
 
   @Authorized(Role.Owner)
   @Patch('/:id/update-company-info')
-  updateCompanyInfo(@Param('id') id: string, @Body() kycDto: UpdateCompanyInfoDto) {
-    return this.organizationsService.updateCompanyInfo(id, kycDto);
+  updateCompanyInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: UpdateCompanyInfoDto) {
+    return this.organizationsService.updateCompanyInfo(auth.orgId, kycDto);
   }
 
   @Authorized(Role.Owner)
   @Patch('/:id/update-owner-info')
-  updateOwnerInfo(@Param('id') id: string, @Body() kycDto: OwnerDto) {
-    return this.organizationsService.updateOwnerInfo(id, kycDto);
+  updateOwnerInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: OwnerDto) {
+    return this.organizationsService.updateOwnerInfo(auth.orgId, kycDto);
   }
 
   @Authorized(Role.Owner)
   @Patch('/:id/delete-owner-info')
-  deleteOwnerInfo(@Param('id') id: string, @Body() ownerOrDirectorId: UpdateOwnerDto) {
-    return this.organizationsService.deleteOwnerInfo(id, ownerOrDirectorId);
+  deleteOwnerInfo(@CurrentUser() auth: AuthUser, @Body() ownerOrDirectorId: UpdateOwnerDto) {
+    return this.organizationsService.deleteOwnerInfo(auth.orgId, ownerOrDirectorId);
   }
 
   @Authorized(Role.Owner)
   @Post('/:id/update-business-documentation')
   @UseBefore(multer().any())
   updatebusinessDocumentation(
-    @Param('id') id: string,
+    @CurrentUser() auth: AuthUser,
     @Body() data: UpdateBusinessDocumentationDto,
     @Req() req: Request
   ) {
     const files = req.files as any[] || []
-    return this.organizationsService.updateBusinessDocumentation(id, files, data)
+    return this.organizationsService.updateBusinessDocumentation(auth.orgId, files, data)
   }
 
   @Authorized(Role.Owner)
   @Patch('/:id/apply-for-approval')
-  applyForApproval(@Param('id') id: string) {
-    return this.organizationsService.applyForApproval(id);
+  applyForApproval(@CurrentUser() auth: AuthUser) {
+    return this.organizationsService.applyForApproval(auth.orgId);
   }
 
   @Authorized(Role.Owner)
   @Get('/:id')
-  findOne(@Param('id') id: string) {
-    return Organization.findById(id).lean()
+  findOne(@CurrentUser() auth: AuthUser) {
+    return Organization.findById(auth.orgId).lean()
   }
 
   @Authorized(Role.Owner)
