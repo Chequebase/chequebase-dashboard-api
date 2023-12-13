@@ -48,7 +48,7 @@ export class OverviewService {
     if (!prevBalance) prevBalance = await getBalanceBefore(prevTo)
     if (!currentBalance) currentBalance = await getBalanceBefore(to)
 
-    return getPercentageDiff(previous?.balance, current?.balance)
+    return getPercentageDiff(prevBalance, currentBalance)
   }
 
   private async getBudgetBalanceSummary(orgId: string, query: GetOverviewSummaryDto) {
@@ -70,7 +70,7 @@ export class OverviewService {
 
     const getBalanceBeforeDate = async (id: any, date: Date) => {
       const entry = await WalletEntry
-        .findOne({ _id: id, createdAt: { $lte: date } })
+        .findOne({ budget: id, createdAt: { $lte: date } })
         .select('meta.budgetBalanceAfter')
         .sort('-createdAt')
 
