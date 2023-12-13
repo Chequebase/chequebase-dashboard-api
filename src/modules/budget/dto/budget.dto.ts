@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import { BudgetCurrency, BudgetPriority, BudgetStatus } from "@/models/budget.model";
 import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import { ProjectCurrency } from "@/models/project.model";
 
 export class CreateTranferBudgetDto {
   @IsString()

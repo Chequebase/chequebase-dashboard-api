@@ -1,5 +1,7 @@
 import { Service } from "typedi";
 import { ObjectId } from 'mongodb'
+import { createId } from "@paralleldrive/cuid2";
+import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
@@ -10,13 +12,11 @@ import User, { IUser } from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
 import { UserService } from "../user/user.service";
 import QueryFilter from "../common/utils/query-filter";
-import { escapeRegExp, formatMoney, getEnvOrThrow } from "../common/utils";
+import { escapeRegExp, formatMoney, getEnvOrThrow, transactionOpts } from "../common/utils";
 import EmailService from "../common/email.service";
 import { PlanUsageService } from "../billing/plan-usage.service";
 import { cdb } from "../common/mongoose";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
-import { createId } from "@paralleldrive/cuid2";
-import numeral from "numeral";
 
 const logger = new Logger('budget-service')
 
@@ -102,7 +102,7 @@ export default class BudgetService {
           $inc: { balance: -budget.amount }
         }, { session })
       }
-    })
+    }, transactionOpts)
 
     if (isOwner) {
       this.emailService.sendBudgetCreatedEmail(user.email, {
@@ -246,7 +246,7 @@ export default class BudgetService {
           $inc: { balance: -budget.amount }
         }, { session })
       }
-    })
+    }, transactionOpts)
 
     if (!isOwner) {
       this.emailService.sendBudgetRequestEmail(user.email, {
@@ -383,7 +383,7 @@ export default class BudgetService {
         $set: { walletEntry: entry._id },
         $inc: { balance: -budget.amount }
       }, { session })
-    })
+    }, transactionOpts)
 
     this.emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
       budgetAmount: formatMoney(budget.balance),
@@ -502,7 +502,7 @@ export default class BudgetService {
         balance: 0,
         ...update
       }).save({ session })
-    })
+    }, transactionOpts)
 
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`;
     if (isDeclined) {
