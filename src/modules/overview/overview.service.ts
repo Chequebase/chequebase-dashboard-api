@@ -17,7 +17,7 @@ export class OverviewService {
     const filter = {
       organization: new ObjectId(orgId),
       currency: query.currency,
-      scope: { $nin: [WalletEntryScope.BudgetFunding, WalletEntryScope.BudgetClosure] },
+      scope: { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] },
     }
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
@@ -103,7 +103,7 @@ export class OverviewService {
       organization: new ObjectId(orgId),
       type: 'debit',
       currency: query.currency,
-      scope: { $nin: [WalletEntryScope.BudgetFunding, WalletEntryScope.BudgetClosure] },
+      scope: { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] },
     }
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
@@ -140,7 +140,7 @@ export class OverviewService {
     const filter = {
       organization: new ObjectId(orgId),
       currency: query.currency,
-      scope: { $nin: [WalletEntryScope.BudgetFunding, WalletEntryScope.BudgetClosure] },
+      scope: { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] },
     }
 
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }

@@ -11,9 +11,11 @@ import { PlanUsageService } from "../billing/plan-usage.service"
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget, { BudgetStatus } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
+import { Service } from "typedi"
 
 const logger = new Logger('project-service')
 
+@Service()
 export class ProjectService {
   constructor (private planUsageService: PlanUsageService) { }
   
