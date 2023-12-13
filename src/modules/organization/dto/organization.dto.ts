@@ -33,12 +33,6 @@ export class UpdateCompanyInfoDto {
   readonly state: string;
 
   @IsString()
-  readonly numberOfEmployees: string;
-
-  @IsString()
-  readonly averageMonthlyExpenses: string;
-
-  @IsString()
   postalCode: string
 
   @IsOptional()
@@ -67,6 +61,7 @@ export class DirectorDto {
   phone: string
   @IsString()
   dob: string
+  @IsOptional()
   @IsEmail()
   @IsString()
   email: string
