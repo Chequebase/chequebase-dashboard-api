@@ -61,6 +61,7 @@ export class DirectorDto {
   phone: string
   @IsString()
   dob: string
+  @IsOptional()
   @IsEmail()
   @IsString()
   email: string
