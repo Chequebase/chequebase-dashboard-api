@@ -58,19 +58,19 @@ export default class OrganizationsController {
   }
 
   @Authorized(Role.Owner)
-  @Get('/:id/countries')
+  @Get('/countries')
   getCountries() {
     return Countries
   }
 
   @Authorized(Role.Owner)
-  @Get('/:id/countries/:country/states')
+  @Get('/countries/:country/states')
   getStatesByCountry(@Param('country') country: string) {
     return State.getStatesOfCountry(country);
   }
 
   @Authorized(Role.Owner)
-  @Get('/:id/countries/:country/states/:state/cities')
+  @Get('/countries/:country/states/:state/cities')
   getCitiesByCountry(@Param('country') country: string, @Param('state') state: string) {
     return City.getCitiesOfState(country, state);
   }
