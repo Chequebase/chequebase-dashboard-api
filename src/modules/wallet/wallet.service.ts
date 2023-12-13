@@ -11,7 +11,7 @@ import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./d
 import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
 import VirtualAccount from "@/models/virtual-account.model";
-import WalletEntry, { WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
@@ -22,7 +22,7 @@ import numeral from "numeral";
 import { AuthUser } from "../common/interfaces/auth-user";
 import User from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
-import Budget from "@/models/budget.model";
+import Budget, { BudgetStatus } from "@/models/budget.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -183,7 +183,7 @@ export default class WalletService {
       .project({ _id: 0, currency: '$_id', balance: 1 })
 
     const budgetAgg = Budget.aggregate()
-      .match({ organization })
+      .match({ organization, status: BudgetStatus.Active })
       .group({ _id: '$currency', balance: { $sum: '$balance' } })
       .project({ _id: 0, currency: '$_id', balance: 1 })
 
@@ -206,6 +206,7 @@ export default class WalletService {
     const filter = new QueryFilter({ organization: auth.orgId })
       .set('wallet', query.wallet)
       .set('type', query.type)
+      .set('scope', { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] })
       .set('budget', query.budget)
       .set('initiatedBy', user.role === Role.Owner ? undefined : user._id)
       .set('createdAt', {
@@ -243,6 +244,7 @@ export default class WalletService {
   async getWalletStatement(orgId: string, query: GetWalletStatementDto) {
     const filter: any = {
       organization: orgId,
+      scope: { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] },
       createdAt: {
         $gte: dayjs(query.from).startOf('day').toDate(),
         $lte: dayjs(query.to).endOf('day').toDate()

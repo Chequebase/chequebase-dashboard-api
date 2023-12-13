@@ -78,7 +78,7 @@ export class UserService {
 
   async login(data: LoginDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i")
-    const user = await User.findOne({ email: { $regex } }).select('+password')
+    const user = await User.findOne({ email: { $regex }, status: { $ne: UserStatus.DELETED } }).select('+password')
     if (!user) {
       throw new UnauthorizedError('Wrong login credentials!')
     }
@@ -579,8 +579,7 @@ export class UserService {
       throw new NotFoundError("User not found");
     }
     const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}`;
-    const url = `https://${getEnvOrThrow('AVATAR_BUCKET_NAME')}.s3-${getEnvOrThrow('AWS_REGION')}.amazonaws.com/${key}`
-    await this.s3Service.putObject(
+    const url = await this.s3Service.uploadObject(
       getEnvOrThrow('AVATAR_BUCKET_NAME'),
       key,
       file.buffer

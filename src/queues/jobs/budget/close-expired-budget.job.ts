@@ -69,8 +69,8 @@ async function closeExpiredBudget(job: Job) {
         narration: `Budget "${budget.name}" closed`,
         reference: createId(),
         status: WalletEntryStatus.Successful,
-        entry: {
-          budgetBalanaceAfter: 0
+        meta: {
+          budgetBalanceAfter: 0
         }
       }], { session })
 

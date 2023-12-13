@@ -13,9 +13,6 @@ export class GetOverviewSummaryDto {
 }
 
 export class GetCashflowTrendDto {
-  @IsEnum(WalletEntryType)
-  type: WalletEntryType
-
   @IsDateString()
   from: string
 

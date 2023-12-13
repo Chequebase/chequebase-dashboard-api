@@ -92,8 +92,8 @@ export default class BudgetService {
           narration: `Budget "${budget.name}" activated`,
           reference: createId(),
           status: WalletEntryStatus.Successful,
-          entry: {
-            budgetBalanaceAfter: budget.balance
+          meta: {
+            budgetBalanceAfter: budget.balance
           }
         }], { session })
 
@@ -236,8 +236,8 @@ export default class BudgetService {
           narration: `Budget "${budget.name}" activated`,
           reference: createId(),
           status: WalletEntryStatus.Successful,
-          entry: {
-            budgetBalanaceAfter: budget.balance
+          meta: {
+            budgetBalanceAfter: budget.balance
           }
         }], { session })
 
@@ -316,13 +316,13 @@ export default class BudgetService {
     return budgets
   }
 
-  async getBeneficiariyBudgets(auth: AuthUser) {
+  async getBeneficiaryBudgets(auth: AuthUser) {
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', BudgetStatus.Active)
       .set('beneficiaries.user', new ObjectId(auth.userId))
 
     const budgets = await Budget.find(filter.object)
-      .select('amount balance currency amountUsed status createdAt')
+      .select('name amount balance currency amountUsed status createdAt')
       .sort({ amount: 1, createdAt: -1 })
 
     return budgets
@@ -374,8 +374,8 @@ export default class BudgetService {
         narration: `Budget "${budget.name}" activated`,
         reference: createId(),
         status: WalletEntryStatus.Successful,
-        entry: {
-          budgetBalanaceAfter: budget.balance
+        meta: {
+          budgetBalanceAfter: budget.balance
         }
       }], { session })
 
@@ -463,6 +463,8 @@ export default class BudgetService {
         declineReason: data.reason
       }
     }
+    
+    const closingBalance = budget.balance
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOne({ _id: budget.wallet }).session(session)
       if (!wallet) {
@@ -484,8 +486,8 @@ export default class BudgetService {
           narration: `Budget "${budget.name}" closed`,
           reference: createId(),
           status: WalletEntryStatus.Successful,
-          entry: {
-            budgetBalanaceAfter: 0
+          meta: {
+            budgetBalanceAfter: 0
           }
         }], { session })
 
@@ -517,7 +519,7 @@ export default class BudgetService {
     }
 
     this.emailService.sendBudgetClosedEmail(budget.createdBy.email, {
-      budgetBalance: formatMoney(budget.balance),
+      budgetBalance: formatMoney(closingBalance),
       budgetName: budget.name,
       budgetLink: link,
       currency: budget.currency,

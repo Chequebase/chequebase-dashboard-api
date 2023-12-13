@@ -15,7 +15,7 @@ import renewSubscription from './jobs/subscription/renew-subscription.job';
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
 
-setupEventLogger([walletQueue])
+setupEventLogger([walletQueue, subscriptionQueue])
 
 function setupQueues() {
   try {

@@ -102,7 +102,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     fee: { type: Number, default: 0 },
     gatewayResponse: String,
     paymentMethod: String,
-    provider: { type: String, required: true },
+    provider: { type: String, required: true, default: 'wallet' },
     providerRef: { type: String },
     narration: String,
     reference: { type: String, required: true },

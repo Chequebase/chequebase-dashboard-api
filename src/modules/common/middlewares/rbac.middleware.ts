@@ -2,7 +2,7 @@ import { Action, UnauthorizedError } from 'routing-controllers'
 import jwt from "jsonwebtoken";
 import { getEnvOrThrow } from '../utils';
 import Logger from '../utils/logger';
-import User from '@/models/user.model';
+import User, { UserStatus } from '@/models/user.model';
 import { IOrganization } from '@/models/organization.model';
 import { AuthUser } from '../interfaces/auth-user';
 
@@ -40,7 +40,7 @@ export const RBAC = async (requestAction: Action, action: string[] = []) => {
 
   const { sub: id } = requestAction.request.auth as AuthUser;
   const user = await User.findById(id).populate<{ organization: IOrganization }>('organization')
-  if (!user || !user.organization) {
+  if (!user || !user.organization || user.status === UserStatus.DELETED) {
     throw new UnauthorizedError('Unauthorized')
   }
 
