@@ -439,7 +439,6 @@ export class UserService {
       throw new NotFoundError('Invalid or expired invite link');
     }
 
-    await this.planUsageService.checkUsersUsage(user.organization.toString())
     const hashedPassword = await bcrypt.hash(password, 12)
 
     await user.set({
