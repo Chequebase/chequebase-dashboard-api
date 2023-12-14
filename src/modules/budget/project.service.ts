@@ -276,14 +276,9 @@ export class ProjectService {
       throw new BadRequestError('Project not found');
     }
 
-    const [allocatedResult] = await Budget.aggregate()
-      .match({ project: project._id })
-      .group({ _id: null, amount: { $sum: '$amount' } })
-    
-    const allocated = allocatedResult?.amount || 0
     const newAllocation = budgets.reduce((a, b) => a + b.amount, 0)
-    if ((newAllocation + allocated) >= project.amount) {
-      throw new BadRequestError('Project already fully allocated')
+    if (project.balance < newAllocation) {
+      throw new BadRequestError('Insufficient project available balance')
     }
 
     await cdb.transaction(async (session) => {

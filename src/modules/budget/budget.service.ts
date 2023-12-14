@@ -267,6 +267,7 @@ export default class BudgetService {
     query.status ??= BudgetStatus.Active
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', query.status)
+      .set('project', { $exists: false })
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new BadRequestError("User not found")
