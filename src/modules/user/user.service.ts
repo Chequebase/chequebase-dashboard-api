@@ -414,6 +414,7 @@ export class UserService {
       emailVerified: false,
       organization: orgId,
       role: data.role,
+      inviteSentAt: Math.round(new Date().getTime() / 1000),
       status: UserStatus.INVITED
     })
 
@@ -439,6 +440,11 @@ export class UserService {
     const { code, firstName, lastName, phone, password } = data
     const user = await User.findOne({ inviteCode: code, status: { $ne: UserStatus.DELETED } })
     if (!user) {
+      throw new NotFoundError('Invalid or expired invite link');
+    }
+    const now = Math.round(new Date().getTime() / 1000);
+    const yesterday = now - (24 * 3600);
+    if (user.inviteSentAt && dayjs(user.inviteSentAt).isBefore(yesterday)) {
       throw new NotFoundError('Invalid or expired invite link');
     }
 
