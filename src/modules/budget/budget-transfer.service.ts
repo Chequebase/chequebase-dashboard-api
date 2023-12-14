@@ -8,7 +8,7 @@ import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { ResolveAccountDto, InitiateTransferDto, GetTransferFee } from "./dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
-import Wallet, { IWallet } from "@/models/wallet.model"
+import { IWallet } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget, { BudgetStatus } from "@/models/budget.model"
 import { TransferService } from "../transfer/transfer.service"
@@ -111,6 +111,7 @@ export class BudgetTransferService {
         budget: budget._id,
         currency: budget.currency,
         wallet: budget.wallet._id,
+        project: budget.project,
         amount: data.amount,
         fee: payload.fee,
         initiatedBy: auth.userId,
@@ -147,6 +148,7 @@ export class BudgetTransferService {
       await Budget.updateOne({ _id: entry.budget }, {
         $inc: { amountUsed: -reverseAmount, balance: reverseAmount }
       }, { session })
+
     }, transactionOpts)
   }
 

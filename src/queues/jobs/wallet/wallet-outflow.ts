@@ -6,7 +6,7 @@ import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
 import { Job } from "bull";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
-import Wallet, { IWallet } from "@/models/wallet.model";
+import { IWallet } from "@/models/wallet.model";
 import Logger from "@/modules/common/utils/logger";
 import { BadRequestError } from "routing-controllers";
 import { cdb } from "@/modules/common/mongoose";
@@ -193,6 +193,7 @@ async function handleReversed(data: WalletOutflowData) {
           budget: entry.budget,
           currency: entry.currency,
           wallet: entry.wallet,
+          project: entry.project,
           scope: WalletEntryScope.BudgetTransfer,
           amount: reverseAmount,
           balanceAfter: entry.wallet.balance,

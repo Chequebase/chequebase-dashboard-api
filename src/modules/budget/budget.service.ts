@@ -17,6 +17,7 @@ import EmailService from "../common/email.service";
 import { PlanUsageService } from "../billing/plan-usage.service";
 import { cdb } from "../common/mongoose";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import Project from "@/models/project.model";
 
 const logger = new Logger('budget-service')
 
@@ -83,6 +84,7 @@ export default class BudgetService {
           budget: budget._id,
           wallet: budget.wallet,
           initiatedBy: auth.userId,
+          project: budget.project,
           currency: budget.currency,
           type: WalletEntryType.Debit,
           balanceBefore: wallet.balance,
@@ -227,6 +229,7 @@ export default class BudgetService {
           budget: budget._id,
           wallet: budget.wallet,
           initiatedBy: auth.userId,
+          project: budget.project,
           currency: budget.currency,
           type: WalletEntryType.Debit,
           balanceBefore: wallet.balance,
@@ -363,6 +366,7 @@ export default class BudgetService {
       const [entry] = await WalletEntry.create([{
         organization: budget.organization,
         budget: budget._id,
+        project: budget.project,
         wallet: budget.wallet,
         initiatedBy: auth.userId,
         currency: budget.currency,
@@ -475,6 +479,7 @@ export default class BudgetService {
         const [entry] = await WalletEntry.create([{
           organization: budget.organization,
           budget: budget._id,
+          project: budget.project,
           wallet: budget.wallet,
           initiatedBy: auth.userId,
           currency: budget.currency,
@@ -491,6 +496,14 @@ export default class BudgetService {
           }
         }], { session })
 
+        if (budget.project) {
+          await Project.updateOne({ _id: budget.project }, {
+            $inc: { balance: budget.balance }
+          }, { session })
+
+          return;
+        } 
+          
         await wallet.updateOne({
           $set: { walletEntry: entry._id },
           $inc: { balance: budget.balance }

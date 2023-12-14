@@ -2,18 +2,18 @@ import { ObjectId } from 'mongodb'
 import numeral from "numeral"
 import { createId } from "@paralleldrive/cuid2"
 import Project, { IProject, ProjectStatus } from "@/models/project.model"
-import Wallet from "@/models/wallet.model"
-import { BadRequestError } from "routing-controllers"
+import Wallet, { IWallet } from "@/models/wallet.model"
+import { BadRequestError, NotFoundError } from "routing-controllers"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { cdb } from "../common/mongoose"
-import { CreateProjectDto, GetProjectsDto } from "./dto/project.dto"
+import { CreateProjectDto, CreateSubBudgets, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto"
 import Logger from "../common/utils/logger"
 import { PlanUsageService } from "../billing/plan-usage.service"
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget, { BudgetStatus } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
 import { Service } from "typedi"
-import { lookup } from 'dns'
+import { UserService } from '../user/user.service'
 
 const logger = new Logger('project-service')
 
@@ -21,6 +21,93 @@ const logger = new Logger('project-service')
 export class ProjectService {
   constructor (private planUsageService: PlanUsageService) { }
   
+  private async createSubBudgets(data: CreateSubBudgets) {
+    const { wallet, budgets, auth, session, project } = data;
+
+    await Promise.all(budgets.map(async (b) => {
+      const [budget] = await Budget.create([{
+        organization: auth.orgId,
+        wallet: wallet._id,
+        name: b.name,
+        status: BudgetStatus.Active,
+        amount: b.amount,
+        balance: b.amount,
+        currency: wallet.currency,
+        expiry: b.expiry,
+        threshold: b.threshold ?? b.amount,
+        beneficiaries: b.beneficiaries,
+        createdBy: auth.userId,
+        description: b.description,
+        priority: b.priority,
+        project: project._id,
+        approvedBy: auth.userId,
+        approvedDate: new Date(),
+      }], { session })
+
+      const updatedProject = await Project.findOneAndUpdate(
+        {
+          _id: project._id,
+          status: ProjectStatus.Active,
+          balance: { $gte: budget.amount }
+        },
+        { $inc: { balance: -budget.amount } },
+        { session }
+      )
+
+      if (!updatedProject) {
+        throw new BadRequestError('Insufficient project available balance')
+      }
+
+      await WalletEntry.insertMany([{
+        organization: budget.organization,
+        budget: budget._id,
+        wallet: budget.wallet,
+        initiatedBy: auth.userId,
+        currency: budget.currency,
+        type: WalletEntryType.Debit,
+        balanceBefore: wallet.balance,
+        balanceAfter: wallet.balance,
+        amount: budget.amount,
+        scope: WalletEntryScope.BudgetFunding,
+        narration: `Sub budget "${budget.name}" activated`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          projectBalanceAfter: updatedProject!.balance,
+          budgetBalanceAfter: budget.balance
+        }
+      }], { session })
+    }))
+  }
+
+  async pauseProject(auth: AuthUser, id: string, data: PauseProjectDto) {
+    const project = await Project.findOne({ _id: id, organization: auth.orgId })
+    if (!project) {
+      throw new NotFoundError('Project not found')
+    }
+
+    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!valid) {
+      throw new BadRequestError('Invalid pin')
+    }
+
+    if (project.status !== ProjectStatus.Active) {
+      throw new BadRequestError('Only active projects can be paused')
+    }
+
+    if (project.paused && data.pause) {
+      throw new BadRequestError('Project is already paused')
+    }
+
+    if (!project.paused && !data.pause) {
+      throw new BadRequestError('Project is not paused')
+    }
+
+    await project.set({ paused: data.pause }).save()
+
+    return project
+  }
+
   async createProject(auth: AuthUser, data: CreateProjectDto) {
     const wallet = await Wallet.findOne({
       organization: auth.orgId,
@@ -68,8 +155,8 @@ export class ProjectService {
         narration: `Project "${project.name}" activated`,
         reference: createId(),
         status: WalletEntryStatus.Successful,
-        entry: {
-          projectBalanaceAfter: project.balance
+        meta: {
+          projectBalanceAfter: project.balance
         }
       }], { session })
 
@@ -78,46 +165,8 @@ export class ProjectService {
         $inc: { balance: -project.amount }
       }, { session })
 
-      // create subsudgets
-      await Promise.all(data.budgets.map(async (b) => {
-        const [budget] = await Budget.create([{
-          organization: auth.orgId,
-          wallet: wallet._id,
-          name: b.name,
-          status: BudgetStatus.Active,
-          amount: b.amount,
-          balance: b.amount,
-          currency: wallet.currency,
-          expiry: b.expiry,
-          threshold: b.threshold ?? b.amount,
-          beneficiaries: b.beneficiaries,
-          createdBy: auth.userId,
-          description: b.description,
-          priority: b.priority,
-          project: project._id,
-          approvedBy: auth.userId,
-          approvedDate: new Date(),
-        }], { session })
-        
-        await WalletEntry.insertMany([{
-          organization: budget.organization,
-          budget: budget._id,
-          wallet: budget.wallet,
-          initiatedBy: auth.userId,
-          currency: budget.currency,
-          type: WalletEntryType.Debit,
-          balanceBefore: wallet.balance,
-          balanceAfter: wallet.balance,
-          amount: budget.amount,
-          scope: WalletEntryScope.BudgetFunding,
-          narration: `Sub budget "${budget.name}" activated`,
-          reference: createId(),
-          status: WalletEntryStatus.Successful,
-          entry: {
-            budgetBalanceAfter: budget.balance
-          }
-        }], { session })
-      }))
+      const payload = { session, wallet, project, auth, budgets: data.budgets }
+      await this.createSubBudgets(payload)
     }, transactionOpts)
 
     return project!
@@ -195,7 +244,15 @@ export class ProjectService {
       })
       .unwind('$createdBy')
       .addFields({
-        totalSpent: { $subtract: ['$amount', '$balance'] },
+        totalSpent: {
+          $sum: {
+            $map: {
+              input: '$budgets',
+              as: 'budget',
+              in: { $subtract: ['$budget.amount', '$budget.balance'] },
+            },
+          }
+        },
         allocatedAmount: {
           $sum: {
             $map: {
@@ -211,5 +268,32 @@ export class ProjectService {
       })
 
     return project
+  }
+
+  async addSubBudgets(auth: AuthUser, id: string, budgets: ProjectSubBudget[]) {
+    const project = await Project.findOne({ _id: id, organization: auth.orgId }).lean();
+    if (!project) {
+      throw new BadRequestError('Project not found');
+    }
+
+    const [allocatedResult] = await Budget.aggregate()
+      .match({ project: project._id })
+      .group({ _id: null, amount: { $sum: '$amount' } })
+    
+    const allocated = allocatedResult?.amount || 0
+    const newAllocation = budgets.reduce((a, b) => a + b.amount, 0)
+    if ((newAllocation + allocated) >= project.amount) {
+      throw new BadRequestError('Project already fully allocated')
+    }
+
+    await cdb.transaction(async (session) => {
+      const wallet = await Wallet.findOne({ organization: auth.orgId, currency: project.currency })
+      if (!wallet) throw new BadRequestError('Wallet not found')
+      
+      const payload = { session, wallet, project, auth, budgets }
+      await this.createSubBudgets(payload)
+    })
+
+    return { message: 'Sub budgets added successfully'}
   }
 }

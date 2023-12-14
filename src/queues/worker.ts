@@ -29,6 +29,7 @@ function setupQueues() {
       repeat: { cron: '0  * * * *', tz } // every hour
     })
     
+    // TODO: cron and job to close expired projects
     budgetQueue.process('closeExpiredBudget', closeExpiredBudget)
     budgetQueue.process('fetchExpiredBudgets', fetchExpiredBudgets)
     budgetQueue.add('fetchExpiredBudgets', null, {

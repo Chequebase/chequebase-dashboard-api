@@ -15,6 +15,7 @@ import { BadRequestError } from "routing-controllers";
 import { IUser } from "@/models/user.model";
 import { IOrganization } from "@/models/organization.model";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import Project from "@/models/project.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -61,6 +62,7 @@ async function closeExpiredBudget(job: Job) {
         budget: budget._id,
         wallet: budget.wallet._id,
         currency: budget.currency,
+        project: budget.project,
         type: WalletEntryType.Credit,
         balanceBefore: budget.wallet.balance,
         balanceAfter: numeral(budget.wallet.balance).add(budget.balance).value(),
@@ -73,6 +75,14 @@ async function closeExpiredBudget(job: Job) {
           budgetBalanceAfter: 0
         }
       }], { session })
+
+      if (budget.project) {
+        await Project.updateOne({ _id: budget.project }, {
+          $inc: { balance: budget.balance }
+        }, { session })
+
+        return;
+      }
 
       await Wallet.updateOne({_id: budget.wallet},{
         $set: { walletEntry: entry._id },
