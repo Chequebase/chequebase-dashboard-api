@@ -73,6 +73,7 @@ export class GetProjectsDto {
   page = 1
 
   @IsEnum(ProjectStatus)
+  @IsOptional()
   status: ProjectStatus
 }
 

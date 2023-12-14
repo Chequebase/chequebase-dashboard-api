@@ -176,7 +176,7 @@ export class ProjectService {
     const agg = Project.aggregate()
       .match({
         organization: new ObjectId(orgId),
-        status: ProjectStatus.Active
+        status: query.status || ProjectStatus.Active
       })
       .sort({ createdAt: -1 })
       .lookup({
