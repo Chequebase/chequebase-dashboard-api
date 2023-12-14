@@ -6,7 +6,7 @@ import Wallet, { IWallet } from "@/models/wallet.model"
 import { BadRequestError, NotFoundError } from "routing-controllers"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { cdb } from "../common/mongoose"
-import { CreateProjectDto, CreateSubBudgets, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto"
+import { CloseProjectBodyDto, CreateProjectDto, CreateSubBudgets, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto"
 import Logger from "../common/utils/logger"
 import { PlanUsageService } from "../billing/plan-usage.service"
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
@@ -290,5 +290,75 @@ export class ProjectService {
     })
 
     return { message: 'Sub budgets added successfully'}
+  }
+
+  async closeProject(auth: AuthUser, id: string, data: CloseProjectBodyDto) {
+    const project = await Project.findOne({ _id: id, organization: auth.orgId })
+    if (!project) {
+      throw new NotFoundError('Budget not found')
+    }
+
+    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!valid) {
+      throw new BadRequestError('Invalid pin')
+    }
+
+    if (project.status === ProjectStatus.Closed) {
+      throw new BadRequestError('Budget is already closed')
+    }
+
+    await cdb.transaction(async (session) => {
+      const wallet = await Wallet.findOne({ _id: project.wallet }).session(session)
+      if (!wallet) {
+        throw new BadRequestError("wallet not found")
+      }
+
+      const budgets = await Budget.find({ project: project._id, status: BudgetStatus.Active })
+        .session(session)
+      const totalBudgetBalance = budgets.reduce((a, b) => a + b.balance, 0)
+      const balance = numeral(totalBudgetBalance).add(project.balance).value()
+
+      const [entry] = await WalletEntry.create([{
+        organization: project.organization,
+        project: project._id,
+        wallet: project.wallet,
+        initiatedBy: auth.userId,
+        currency: project.currency,
+        type: WalletEntryType.Credit,
+        balanceBefore: wallet.balance,
+        balanceAfter: numeral(wallet.balance).add(balance).value(),
+        amount: balance,
+        scope: WalletEntryScope.ProjectClosure,
+        narration: `Project "${project.name}" closed`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          projectBalanceAfter: 0
+        }
+      }], { session })
+
+      await wallet.updateOne({
+        $set: { walletEntry: entry._id },
+        $inc: { balance }
+      }, { session })
+
+      const update = {
+        closeReason: data.reason,
+        closedAt: new Date(),
+        balance: 0
+      }
+
+      await project.set({
+        status: BudgetStatus.Closed,
+        ...update
+      }).save({ session })
+
+      await Budget.updateMany({ project: project._id, status: BudgetStatus.Active }, {
+        status: BudgetStatus.Closed,
+        ...update
+      })
+    }, transactionOpts)
+
+    return { message: 'Project closed' }
   }
 }

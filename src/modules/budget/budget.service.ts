@@ -487,7 +487,7 @@ export default class BudgetService {
           type: WalletEntryType.Credit,
           balanceBefore: wallet.balance,
           balanceAfter: numeral(wallet.balance).add(budget.balance).value(),
-          amount: budget.amount,
+          amount: budget.balance,
           scope: WalletEntryScope.BudgetClosure,
           narration: `Budget "${budget.name}" closed`,
           reference: createId(),

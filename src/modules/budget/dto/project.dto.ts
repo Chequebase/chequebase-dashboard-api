@@ -92,3 +92,11 @@ export class PauseProjectDto {
   @IsOptional()
   pause = true
 }
+
+export class CloseProjectBodyDto {
+  @IsString()
+  reason: string
+
+  @IsString()
+  pin: string
+}

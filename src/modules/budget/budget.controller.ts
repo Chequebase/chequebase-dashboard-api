@@ -7,7 +7,7 @@ import { Role } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
 import { GetTransferFee, InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
 import { ProjectService } from "./project.service";
-import { CreateProjectDto, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto";
+import { CloseProjectBodyDto, CreateProjectDto, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
@@ -54,6 +54,16 @@ export default class BudgetController {
     @Body() body: ProjectSubBudget[]
   ) {
     return this.projectService.addSubBudgets(auth, id, body)
+  }
+
+  @Post('/project/:id/close')
+  @Authorized(Role.Owner)
+  closeProject(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Body() body: CloseProjectBodyDto
+  ) {
+    return this.projectService.closeProject(auth, id, body)
   }
 
   @Post('/')

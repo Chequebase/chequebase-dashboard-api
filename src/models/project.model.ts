@@ -25,6 +25,8 @@ export interface IProject {
   currency: ProjectCurrency
   threshold?: number
   createdBy: ObjectId
+  closeReason: string
+  closedAt: Object
   expiry?: Date
   createdAt: Date;
   updatedAt: Date;
@@ -48,7 +50,7 @@ const projectSchema = new Schema<IProject>(
     },
     wallet: {
       type: Schema.Types.ObjectId,
-      required: true, 
+      required: true,
       ref: 'Wallet'
     },
     status: {
@@ -66,6 +68,8 @@ const projectSchema = new Schema<IProject>(
     name: { type: String, required: true },
     threshold: Number,
     paused: { type: Boolean, default: false },
+    closeReason: String,
+    closedAt: Date,
   },
   { timestamps: true },
 );
