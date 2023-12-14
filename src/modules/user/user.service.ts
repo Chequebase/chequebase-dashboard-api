@@ -515,11 +515,7 @@ export class UserService {
       throw new NotFoundError('User not found');
     }
 
-    await User.updateOne({ _id: id, organization: orgId }, {
-      status: UserStatus.DELETED,
-      emailVerifyCode: this.generateRandomString(3),
-      emailVerified: false,
-    })
+    await User.deleteOne({ _id: id, organization: orgId })
 
     return { message: 'invite deleted' }
   }
@@ -553,10 +549,7 @@ export class UserService {
       throw new NotFoundError('User not found');
     }
 
-    await User.updateOne({ _id: id, organization: orgId }, {
-      status: UserStatus.DELETED,
-      emailVerified: false,
-    })
+    await User.deleteOne({ _id: id, organization: orgId })
 
     return { message: 'Member deleted' }
   }
