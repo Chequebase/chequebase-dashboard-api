@@ -78,7 +78,10 @@ export class UserService {
 
   async login(data: LoginDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i")
-    const user = await User.findOne({ email: { $regex }, status: { $ne: UserStatus.DELETED } }).select('+password')
+    const user = await User.findOne({
+      email: { $regex },
+      status: { $nin: [UserStatus.DELETED, UserStatus.DISABLED] }
+    }).select('+password')
     if (!user) {
       throw new UnauthorizedError('Wrong login credentials!')
     }

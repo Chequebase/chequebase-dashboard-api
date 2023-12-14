@@ -2,8 +2,6 @@ import { IsInt, IsString, Length, Max, Min } from "class-validator";
 
 export class InitiateTransferDto {
   @IsInt()
-  @Min(200_00)
-  @Max(1_000_000_00)
   amount: number
 
   @IsString()

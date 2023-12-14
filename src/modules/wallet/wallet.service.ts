@@ -206,7 +206,13 @@ export default class WalletService {
     const filter = new QueryFilter({ organization: auth.orgId })
       .set('wallet', query.wallet)
       .set('type', query.type)
-      .set('scope', { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] })
+      .set('scope', {
+        $in: [
+          WalletEntryScope.PlanSubscription,
+          WalletEntryScope.WalletFunding,
+          WalletEntryScope.BudgetTransfer
+        ]
+      })
       .set('budget', query.budget)
       .set('initiatedBy', user.role === Role.Owner ? undefined : user._id)
       .set('createdAt', {
@@ -244,7 +250,13 @@ export default class WalletService {
   async getWalletStatement(orgId: string, query: GetWalletStatementDto) {
     const filter: any = {
       organization: orgId,
-      scope: { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] },
+      scope: {
+        $in: [
+          WalletEntryScope.PlanSubscription,
+          WalletEntryScope.WalletFunding,
+          WalletEntryScope.BudgetTransfer
+        ]
+      },
       createdAt: {
         $gte: dayjs(query.from).startOf('day').toDate(),
         $lte: dayjs(query.to).endOf('day').toDate()

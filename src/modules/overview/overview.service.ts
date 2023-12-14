@@ -17,7 +17,13 @@ export class OverviewService {
     const filter = {
       organization: new ObjectId(orgId),
       currency: query.currency,
-      scope: { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] },
+      scope: {
+        $in: [
+          WalletEntryScope.PlanSubscription,
+          WalletEntryScope.WalletFunding,
+          WalletEntryScope.BudgetTransfer
+        ]
+      },
     }
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
@@ -103,7 +109,13 @@ export class OverviewService {
       organization: new ObjectId(orgId),
       type: 'debit',
       currency: query.currency,
-      scope: { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] },
+      scope: {
+        $in: [
+          WalletEntryScope.PlanSubscription,
+          WalletEntryScope.WalletFunding,
+          WalletEntryScope.BudgetTransfer
+        ]
+      },
     }
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
@@ -140,7 +152,13 @@ export class OverviewService {
     const filter = {
       organization: new ObjectId(orgId),
       currency: query.currency,
-      scope: { $in: [WalletEntryScope.PlanSubscription, WalletEntryScope.WalletFunding, WalletEntryScope.BudgetTransfer] },
+      scope: {
+        $in: [
+          WalletEntryScope.PlanSubscription,
+          WalletEntryScope.WalletFunding,
+          WalletEntryScope.BudgetTransfer
+        ]
+      },
     }
 
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
@@ -157,11 +175,11 @@ export class OverviewService {
         date: '$_id',
         value: 1
       })
-    
+
     const getCashflowQuery = (type: string) => WalletEntry.aggregate()
       .match({ ...prevFilter, type })
       .group({ _id: null, value: { $sum: '$amount' } })
-    
+
     const [incomeTrendResult, expenseTrendResult, [prevIncome], [prevExpense]] = await Promise.all([
       getTrendQuery('credit'),
       getTrendQuery('debit'),
