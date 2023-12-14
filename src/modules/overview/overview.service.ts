@@ -17,13 +17,6 @@ export class OverviewService {
     const filter = {
       organization: new ObjectId(orgId),
       currency: query.currency,
-      scope: {
-        $in: [
-          WalletEntryScope.PlanSubscription,
-          WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer
-        ]
-      },
     }
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
