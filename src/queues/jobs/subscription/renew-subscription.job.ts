@@ -6,9 +6,13 @@ import Subscription, { ISubscription } from "@/models/subscription.model";
 import Logger from "@/modules/common/utils/logger";
 import { PlanService } from "@/modules/billing/plan.service";
 import { ISubscriptionPlan } from "@/models/subscription-plan.model";
+import EmailService from "@/modules/common/email.service";
+import { IUser } from "@/models/user.model";
+import { getEnvOrThrow } from "@/modules/common/utils";
 
 const logger = new Logger('process-charge.job');
 const planService = Container.get(PlanService)
+const emailService = Container.get(EmailService)
 
 async function renewSubscription(job: Job<{ subscription: ISubscription }>) {
   const { subscription } = job.data
@@ -64,6 +68,10 @@ async function chargeSubscription(subscription: ISubscription) {
 
 async function handleFailedRenewal(chargeResponse: any, subscription: ISubscription) {
   const organization = (<IOrganization>subscription.organization)
+  const plan = (<ISubscriptionPlan>subscription.plan)
+  const admin = (<IUser>organization.admin)
+  admin.email ||= admin.email.split('@')[0]
+
   logger.log('renewal failed', {
     subscription: subscription._id,
     orgId: organization._id
@@ -78,10 +86,16 @@ async function handleFailedRenewal(chargeResponse: any, subscription: ISubscript
   const gracePeriod = organization.subscription.gracePeriod
   const gracePeriodEnd = dayjs(subscription.endingAt).add(gracePeriod, 'day');
   if (dayjs().isAfter(gracePeriodEnd)) {
-    // TODO: send expiry email
     await Subscription.updateOne({ _id: subscription._id }, {
       status: 'expired',
       terminatedAt: new Date()
+    })
+
+    emailService.sendSubscriptionExpired(admin.email, {
+      expirationDate: subscription.endingAt,
+      loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
+      planName: plan.name,
+      userName: admin.firstName
     })
 
     return { message: 'subscription expired' };

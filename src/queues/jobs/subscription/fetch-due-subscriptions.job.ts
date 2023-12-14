@@ -16,8 +16,11 @@ async function fetchDueSubscriptions() {
     }
 
     const subscriptions = await Subscription.find(filter)
-      .populate('organization')
       .populate('plan')
+      .populate({
+        path: 'organization', select: 'admin subscription',
+        populate: 'firstName email'
+      })
       .lean()
 
     logger.log('due subscriptions found', { subscriptions: subscriptions.length })

@@ -215,8 +215,8 @@ export default class EmailService {
   }
 
   sendSubscriptionRenewal(to: string, data: T.SubscriptionRenewal) {
-    const startDate = dayjs(data.startDate).format()
-    const endDate = dayjs(data.endDate).format()
+    const startDate = dayjs(data.startDate).format('YYYY-MM-DD')
+    const endDate = dayjs(data.endDate).format('YYYY-MM-DD')
     return this.send({
       to,
       templateId: 'd-8eda558e63ff4779b506eede8a5ec19f',
@@ -225,7 +225,7 @@ export default class EmailService {
   }
 
   sendSubscriptionExpired(to: string, data: T.SubscriptionExpired) {
-    const expirationDate = dayjs(data.expirationDate).format()
+    const expirationDate = dayjs(data.expirationDate).format('YYYY-MM-DD')
     return this.send({
       to,
       templateId: 'd-ce91a49d583d4feb9249cc2a74be8616',

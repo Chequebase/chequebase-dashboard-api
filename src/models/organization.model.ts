@@ -2,6 +2,7 @@ import { cdb } from '@/modules/common/mongoose';
 import { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import { ISubscription } from './subscription.model';
+import { IUser } from './user.model';
 
 export enum BillingMethod {
   Wallet = 'wallet',
@@ -29,7 +30,7 @@ export interface Shareholder {
 
 export interface IOrganization {
   _id: ObjectId
-  admin: ObjectId
+  admin: ObjectId | IUser
   subscription: {
     billingMethod: BillingMethod,
     months: number // 1|12
