@@ -12,9 +12,10 @@ const logger = new Logger('exception-filter')
 export class ExceptionFilter implements ExpressErrorMiddlewareInterface {
   error(error: any, request: Request, response: Response, next: NextFunction) {
     if (error?.errors?.[0] instanceof ValidationError) {
+      const errors = formatValidationErrors(error.errors)
       return response.status(400).json({
-        message: 'Validation error',
-        errors: formatValidationErrors(error.errors)
+        message: errors[0].message,
+        errors
       })
     }
 
@@ -39,7 +40,7 @@ export class ExceptionFilter implements ExpressErrorMiddlewareInterface {
   }
 }
 
-function formatValidationErrors(errors: ValidationError[], parentPath = ''): string[] {
+function formatValidationErrors(errors: ValidationError[], parentPath = ''): any[] {
   const errorMessages: any[] = [];
 
   for (const error of errors) {
