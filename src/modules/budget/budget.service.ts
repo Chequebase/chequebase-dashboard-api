@@ -303,7 +303,7 @@ export default class BudgetService {
         threshold: 1,
         expiry: 1,
         description: 1,
-        beneficiaries: { email: 1, firstName: 1, lastName: 1, picture: 1 }
+        beneficiaries: { email: 1, firstName: 1, lastName: 1, avatar: 1 }
       })
 
     const budgets = await Budget.aggregatePaginate(aggregate, {
@@ -568,7 +568,7 @@ export default class BudgetService {
         approvedDate: 1,
         description: 1,
         approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
-        beneficiaries: { email: 1, firstName: 1, lastName: 1, picture: 1 },
+        beneficiaries: { email: 1, firstName: 1, lastName: 1, avatar: 1 },
       })
 
     if (!budget) {

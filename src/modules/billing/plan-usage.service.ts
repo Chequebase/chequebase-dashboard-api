@@ -3,7 +3,6 @@ import Organization from "@/models/organization.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
 import { ISubscription } from "@/models/subscription.model"
 import { NotFoundError, BadRequestError } from "routing-controllers"
-import { ServiceUnavailableError } from "../common/utils/service-errors"
 import Logger from "../common/utils/logger"
 import User, { UserStatus } from "@/models/user.model"
 import { Service } from "typedi"
@@ -35,7 +34,7 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new ServiceUnavailableError('Organization does not have access to this feature')
+      throw new BadRequestError('Organization does not have access to this feature')
     }
     if (budgets >= feature.freeUnits && feature.maxUnits !== -1) {
       throw new BadRequestError(
@@ -45,6 +44,7 @@ export class PlanUsageService {
 
     return true
   }
+
   async checkProjectUsage(orgId: string) {
     const organization = await Organization.findById(orgId)
       .populate({ path: 'subscription.object', populate: 'plan' })
@@ -66,7 +66,7 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new ServiceUnavailableError('Organization does not have access to this feature')
+      throw new BadRequestError('Organization does not have access to this feature')
     }
 
     if (projects >= feature.freeUnits && feature.maxUnits !== -1) {
@@ -99,7 +99,7 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new ServiceUnavailableError('Organization does not have access to this feature')
+      throw new BadRequestError('Organization does not have access to this feature')
     }
 
     const exhuastedMaxUnits = feature.maxUnits === -1 ? false : users >= feature.maxUnits

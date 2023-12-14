@@ -1,7 +1,7 @@
 import { BudgetPriority } from "@/models/budget.model"
-import { ProjectCurrency } from "@/models/project.model"
+import { ProjectCurrency, ProjectStatus } from "@/models/project.model"
 import { Type } from "class-transformer"
-import { IsString, IsOptional, IsInt, IsDateString, IsEnum, ValidateNested, IsArray, ArrayMinSize } from "class-validator"
+import { IsString, IsOptional, IsInt, IsDateString, IsEnum, ValidateNested, IsArray, ArrayMinSize, Min } from "class-validator"
 import { BeneficiaryDto, CreateBudgetDto } from "./budget.dto"
 
 export class ProjectSubBudget {
@@ -53,7 +53,6 @@ export class CreateProjectDto {
   expiry?: Date
 
   @IsString()
-  @IsOptional()
   @IsEnum(ProjectCurrency)
   currency: ProjectCurrency
 
@@ -63,4 +62,13 @@ export class CreateProjectDto {
   @ArrayMinSize(1)
   @IsOptional()
   budgets: ProjectSubBudget[]
+}
+
+export class GetProjectsDto {
+  @IsInt()
+  @Min(1)
+  page = 1
+
+  @IsEnum(ProjectStatus)
+  status: ProjectStatus
 }

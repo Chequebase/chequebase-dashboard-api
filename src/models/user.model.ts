@@ -27,7 +27,6 @@ export interface IUser {
   _id: ObjectId
   firstName: string
   lastName: string
-  picture: string
   email: string;
   emailVerified: boolean;
   password: string;
@@ -59,7 +58,6 @@ const userSchema = new Schema<IUser>(
   {
     firstName: String,
     lastName: String,
-    picture: String,
     email: { type: String, required: true, unique: true },
     emailVerified: { type: Boolean, default: false },
     password: { type: String, select: false },

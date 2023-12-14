@@ -1,3 +1,4 @@
+import { ObjectId } from 'mongodb'
 import numeral from "numeral"
 import { createId } from "@paralleldrive/cuid2"
 import Project, { IProject, ProjectStatus } from "@/models/project.model"
@@ -5,13 +6,14 @@ import Wallet from "@/models/wallet.model"
 import { BadRequestError } from "routing-controllers"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { cdb } from "../common/mongoose"
-import { CreateProjectDto } from "./dto/project.dto"
+import { CreateProjectDto, GetProjectsDto } from "./dto/project.dto"
 import Logger from "../common/utils/logger"
 import { PlanUsageService } from "../billing/plan-usage.service"
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget, { BudgetStatus } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
 import { Service } from "typedi"
+import { lookup } from 'dns'
 
 const logger = new Logger('project-service')
 
@@ -30,7 +32,12 @@ export class ProjectService {
       throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
     }
 
-    await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
+    const totalAllocated = data.budgets.reduce((a, b) => a + b.amount, 0)
+    if (totalAllocated > data.amount) {
+      throw new BadRequestError('Total allocated must not exceed project amount')
+    }
+
+    await this.planUsageService.checkProjectUsage(auth.orgId)
 
     let project: IProject
     await cdb.transaction(async session => {
@@ -92,7 +99,7 @@ export class ProjectService {
           approvedDate: new Date(),
         }], { session })
         
-        const [entry] = await WalletEntry.create([{
+        await WalletEntry.insertMany([{
           organization: budget.organization,
           budget: budget._id,
           wallet: budget.wallet,
@@ -100,22 +107,109 @@ export class ProjectService {
           currency: budget.currency,
           type: WalletEntryType.Debit,
           balanceBefore: wallet.balance,
-          balanceAfter: numeral(wallet.balance).subtract(budget.balance).value(),
+          balanceAfter: wallet.balance,
           amount: budget.amount,
           scope: WalletEntryScope.BudgetFunding,
           narration: `Sub budget "${budget.name}" activated`,
           reference: createId(),
           status: WalletEntryStatus.Successful,
           entry: {
-            budgetBalanaceAfter: budget.balance
+            budgetBalanceAfter: budget.balance
           }
         }], { session })
-
-        await Project.updateOne({ _id: project._id }, {
-          $set: { walletEntry: entry._id },
-          $inc: { balance: -budget.amount }
-        }, { session })
       }))
     }, transactionOpts)
+
+    return project!
+  }
+
+  async getProjects(orgId: string, query: GetProjectsDto) {
+    const agg = Project.aggregate()
+      .match({
+        organization: new ObjectId(orgId),
+        status: ProjectStatus.Active
+      })
+      .sort({ createdAt: -1 })
+      .lookup({
+        from: 'budgets',
+        localField: '_id',
+        foreignField: 'project',
+        as: 'budgets'
+      })
+      .lookup({
+        as: 'createdBy',
+        from: 'users',
+        let: { createdBy: '$createdBy' },
+        pipeline: [
+          { $match: { $expr: { $eq: ['$$createdBy', '$_id'] } } },
+          { $project: { firstName: 1, lastName: 1, role: 1, avatar: 1 } }
+        ]
+      })
+      .unwind('$createdBy')
+      .addFields({
+        totalSpent: { $subtract: ['$amount', '$balance'] },
+        allocatedAmount: {
+          $sum: {
+            $map: {
+              input: '$budgets',
+              as: 'budget',
+              in: '$$budget.amount',
+            },
+          }
+        },
+        budgets: 0,
+      })
+      .addFields({
+        unallocatedAmount: { $subtract: ['$amount', '$allocatedAmount'] }
+      })
+    
+    const projects = await Project.aggregatePaginate(agg, {
+      page: query.page,
+      limit: 10,
+      lean: true
+    })
+
+    return projects
+  }
+
+  async getProject(orgId: string, id: string) {
+    const project = await Project.aggregate()
+      .match({
+        organization: new ObjectId(orgId),
+        status: ProjectStatus.Active
+      })
+      .lookup({
+        from: 'budgets',
+        localField: '_id',
+        foreignField: 'project',
+        as: 'budgets'
+      })
+      .lookup({
+        as: 'createdBy',
+        from: 'users',
+        let: { createdBy: '$createdBy' },
+        pipeline: [
+          { $match: { $expr: { $eq: ['$$createdBy', '$_id'] } } },
+          { $project: { firstName: 1, lastName: 1, role: 1, avatar: 1 } }
+        ]
+      })
+      .unwind('$createdBy')
+      .addFields({
+        totalSpent: { $subtract: ['$amount', '$balance'] },
+        allocatedAmount: {
+          $sum: {
+            $map: {
+              input: '$budgets',
+              as: 'budget',
+              in: '$$budget.amount',
+            },
+          }
+        },
+      })
+      .addFields({
+        unallocatedAmount: { $subtract: ['$amount', '$allocatedAmount'] }
+      })
+
+    return project
   }
 }
