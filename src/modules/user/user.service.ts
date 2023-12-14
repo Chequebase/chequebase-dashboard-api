@@ -94,19 +94,19 @@ export class UserService {
       throw new UnauthorizedError('Wrong login credentials!')
     }
 
-    if (user?.rememberMe && dayjs(user.rememberMe).isAfter(new Date())) {
+    if (user?.rememberMe) {
       //password match
       const tokens = await this.getTokens(user.id, user.email, organization.id);
       await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       return { tokens, userId: user.id, rememberMe: true }
     }
 
-    const expirationDate = this.getRememberMeExpirationDate(data)
+    // const expirationDate = this.getRememberMeExpirationDate(data)
     const otp = Math.floor(100000 + Math.random() * 900000);
     const otpExpiresAt = this.getOtpExpirationDate()
 
     await user.updateOne({
-      rememberMe: expirationDate,
+      rememberMe: data.rememberMe || false,
       otpExpiresAt,
       otp
     })
@@ -116,18 +116,18 @@ export class UserService {
       otp
     })
 
-    return { userId: user.id, rememberMe: false }
+    return { userId: user.id, rememberMe: data.rememberMe || false }
   }
 
-  getRememberMeExpirationDate(data: LoginDto) {
-    if (!data?.rememberMe) {
-      return Date.now()
-    }
+  // getRememberMeExpirationDate(data: LoginDto) {
+  //   if (!data?.rememberMe) {
+  //     return Date.now()
+  //   }
 
-    const expirationDate = new Date();
-    expirationDate.setUTCDate(expirationDate.getUTCDate() + 30);
-    return expirationDate.getTime();
-  }
+  //   const expirationDate = new Date();
+  //   expirationDate.setUTCDate(expirationDate.getUTCDate() + 30);
+  //   return expirationDate.getTime();
+  // }
 
   getOtpExpirationDate() {
     const optExpriresAt = new Date();
