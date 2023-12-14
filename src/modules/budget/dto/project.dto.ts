@@ -61,5 +61,6 @@ export class CreateProjectDto {
   @ValidateNested({ each: true })
   @IsArray()
   @ArrayMinSize(1)
+  @IsOptional()
   budgets: ProjectSubBudget[]
 }
