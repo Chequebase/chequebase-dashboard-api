@@ -206,7 +206,7 @@ export default class EmailService {
   }
 
   sendSubscriptionExpiryWarning(to: string, data: T.SubscriptionExpiryWarning) {
-    const expirationDate = dayjs(data.expirationDate).format()
+    const expirationDate = dayjs(data.expirationDate).format('YYYY-MM-DD')
     return this.send({
       to,
       templateId: 'd-0eff25b8e1e04bd2a9df736001bee864',

@@ -11,6 +11,8 @@ import processSubscriptionPlanChange from './jobs/subscription/subscription-plan
 import processSubscriptionPayment from './jobs/subscription/subscription-payment.job';
 import fetchDueSubscriptions from './jobs/subscription/fetch-due-subscriptions.job';
 import renewSubscription from './jobs/subscription/renew-subscription.job';
+import fetchUpcomingSubscriptions from './jobs/subscription/fetch-upcoming-subscriptions.job';
+import sendSubscriptionReminderEmail from './jobs/subscription/send-subscription-reminder-email';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -43,6 +45,13 @@ function setupQueues() {
     subscriptionQueue.add('fetchDueSubscriptions', null, {
       repeat: { cron: '0 8 * * *', tz }  // every day at 8am 
     })
+
+    subscriptionQueue.process('sendSubscriptionReminderEmail', 5, sendSubscriptionReminderEmail)
+    subscriptionQueue.process('fetchUpcomingSubscriptions', fetchUpcomingSubscriptions)
+    subscriptionQueue.add('fetchUpcomingSubscriptions', null, {
+      repeat: { cron: '0 8 * * *', tz }  // every day at 8am 
+    })
+    
     // TODO: add a job for payment intent clearance
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
