@@ -282,7 +282,7 @@ export class ProjectService {
     }
 
     await cdb.transaction(async (session) => {
-      const wallet = await Wallet.findOne({ organization: auth.orgId, currency: project.currency })
+      const wallet = await Wallet.findOne({ _id: project.wallet }).session(session)
       if (!wallet) throw new BadRequestError('Wallet not found')
       
       const payload = { session, wallet, project, auth, budgets }
@@ -356,7 +356,7 @@ export class ProjectService {
       await Budget.updateMany({ project: project._id, status: BudgetStatus.Active }, {
         status: BudgetStatus.Closed,
         ...update
-      })
+      }, { session })
     }, transactionOpts)
 
     return { message: 'Project closed' }

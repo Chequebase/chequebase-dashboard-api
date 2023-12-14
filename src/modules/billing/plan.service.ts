@@ -61,7 +61,7 @@ export class PlanService {
         }
       }], { session })
 
-      await wallet.updateOne({ walletEntry: entry._id })
+      await wallet.updateOne({ walletEntry: entry._id }, { session })
     }, transactionOpts)
 
     return {

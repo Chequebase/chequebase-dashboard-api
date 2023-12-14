@@ -104,14 +104,14 @@ export class BudgetTransferService {
         throw new BadRequestError("Insufficient funds")
       }
 
-      entry = await WalletEntry.create({
+      [entry] = await WalletEntry.create([{
         organization: auth.orgId,
         balanceBefore: budget.wallet.balance,
         status: WalletEntryStatus.Pending,
         budget: budget._id,
         currency: budget.currency,
         wallet: budget.wallet._id,
-        project: budget.project,
+        project: budget.project?._id,
         amount: data.amount,
         fee: payload.fee,
         initiatedBy: auth.userId,
@@ -126,7 +126,7 @@ export class BudgetTransferService {
           counterparty: payload.counterparty._id,
           budgetBalanceAfter: budget.balance
         }
-      })
+      }], { session })
     }, transactionOpts)
 
     return entry!
@@ -218,6 +218,10 @@ export class BudgetTransferService {
       throw new BadRequestError("Budget is paused")
     }
 
+    if (budget.project && budget.project.paused) {
+      throw new BadRequestError("Project is paused")
+    }
+
     if (budget.expiry && dayjs().isAfter(budget.expiry)) {
       throw new BadRequestError('Budget is expired')
     }
@@ -238,6 +242,7 @@ export class BudgetTransferService {
 
   async initiateTransfer(auth: AuthUser, id: string, data: InitiateTransferDto) {
     const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
+      .populate('project')
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
     }

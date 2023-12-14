@@ -81,7 +81,7 @@ export interface CreateSubBudgets {
   project: IProject
   wallet: IWallet
   budgets: ProjectSubBudget[]
-  session?: ClientSession
+  session: ClientSession
 }
 
 export class PauseProjectDto {
