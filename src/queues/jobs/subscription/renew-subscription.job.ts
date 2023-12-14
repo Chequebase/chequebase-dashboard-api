@@ -70,7 +70,7 @@ async function handleFailedRenewal(chargeResponse: any, subscription: ISubscript
   const organization = (<IOrganization>subscription.organization)
   const plan = (<ISubscriptionPlan>subscription.plan)
   const admin = (<IUser>organization.admin)
-  admin.email ||= admin.email.split('@')[0]
+  admin.firstName ||= admin.email.split('@')[0]
 
   logger.log('renewal failed', {
     subscription: subscription._id,

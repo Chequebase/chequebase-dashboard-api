@@ -113,8 +113,6 @@ export interface SubscriptionPlanChange {
   oldPlanName: string
   newPlanName: string
   changeDate: Date
-  firstNewBenefit: string
-  secondNewBenefit: string
 }
 
 export interface SubscriptionExpiryWarning {
@@ -128,9 +126,6 @@ export interface SubscriptionRenewal {
   userName: string
   startDate: Date
   endDate: Date
-  firstBenefit: string
-  secondBenefit: string
-  thirdBenefit: string
 }
 
 export interface SubscriptionExpired {

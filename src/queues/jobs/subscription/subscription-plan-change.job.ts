@@ -2,9 +2,12 @@ import { Job } from "bull"
 import { BadRequestError } from "routing-controllers"
 import Organization, { IOrganization } from "@/models/organization.model"
 import SubscriptionPlan, { ISubscriptionPlan } from "@/models/subscription-plan.model"
-import User, { UserStatus } from "@/models/user.model"
+import User, { IUser, UserStatus } from "@/models/user.model"
 import Logger from "@/modules/common/utils/logger"
 import Budget, { BudgetStatus } from "@/models/budget.model"
+import Container from "typedi"
+import EmailService from "@/modules/common/email.service"
+import { ISubscription } from "@/models/subscription.model"
 
 const logger = new Logger('subscription-plan-change.job')
 export interface SubscriptionPlanChange {
@@ -12,23 +15,44 @@ export interface SubscriptionPlanChange {
   newPlanId: string
   oldPlanId?: string
 }
+const emailService = Container.get(EmailService)
 
 async function processSubscriptionPlanChange(job: Job<SubscriptionPlanChange>) {
   const { orgId, newPlanId, oldPlanId } = job.data
 
   const [organization, oldPlan, newPlan] = await Promise.all([
-    Organization.findById(orgId).lean(),
+    Organization.findById(orgId)
+      .populate('admin')
+      .populate('subscription.object')
+      .lean(),
     SubscriptionPlan.findById(oldPlanId).lean(),
     SubscriptionPlan.findById(newPlanId).lean()
   ])
-
   if (!organization) throw new BadRequestError("Organization not found")
-  if (!oldPlan) throw new BadRequestError("Old plan not found")
-  if (!newPlan) throw new BadRequestError("New plan not found")
 
-  if (newPlan.amount.NGN === oldPlan.amount.NGN) {
-    return { message: 'subscription renewal, no update' }
+  const subscription = (<ISubscription>organization.subscription.object)
+  const admin = (<IUser>organization.admin)
+
+  if (!newPlan) throw new BadRequestError("New plan not found")
+  
+  if (!oldPlan || newPlan.amount.NGN === oldPlan.amount.NGN) {
+    emailService.sendSubscriptionRenewal(admin.email, {
+      endDate: subscription.endingAt,
+      userName: admin.firstName,
+      planName: newPlan.name,
+      startDate: subscription.startedAt
+    })
+
+    return { message: 'new/renewing subscription' }
   }
+
+  const sendNotification = () =>
+    emailService.sendPlanChangeEmail(admin.email, {
+      changeDate: subscription.createdAt,
+      newPlanName: newPlan.name,
+      oldPlanName: oldPlan.name,
+      userName: admin.firstName,
+    })
 
   if (newPlan.amount.NGN < oldPlan.amount.NGN) {
     await Promise.all([
@@ -36,12 +60,15 @@ async function processSubscriptionPlanChange(job: Job<SubscriptionPlanChange>) {
       handleActiveBudgetDowngrade(organization, newPlan)
     ])
 
+    await sendNotification()
     return { message: 'subscription downgraded' }
   }
 
   await Promise.all([
     handleUserFeatureUpgrade(organization, newPlan)
   ])
+
+  await sendNotification()
 
   return { message: 'subscription upgraded' }
 }
@@ -57,7 +84,7 @@ async function handleUserFeatureDowngrade(org: IOrganization, plan: ISubscriptio
     .sort('-createdAt')
     .select('_id')
     .lean()
-  
+
   const isUnlimited = userFeature.maxUnits === -1
   if (isUnlimited || members.length <= userFeature.maxUnits) {
     return;
@@ -84,11 +111,11 @@ async function handleUserFeatureUpgrade(org: IOrganization, plan: ISubscriptionP
     .sort('createdAt')
     .select('_id status')
     .lean()
-  
+
   const disabledMembers = members.filter((m) => m.status === UserStatus.DISABLED).map((m) => m._id)
   const enabledMembers = members.filter((m) => m.status !== UserStatus.DISABLED)
   if (!disabledMembers.length) return;
-  
+
   let availableSlots = disabledMembers.length
   if (userFeature.maxUnits !== -1) {
     availableSlots = userFeature.maxUnits - enabledMembers.length
@@ -115,7 +142,7 @@ async function handleActiveBudgetDowngrade(org: IOrganization, plan: ISubscripti
     .select('_id')
     .sort('-createdAt')
     .lean()
-  
+
   const isUnlimited = activeBudgetFeature.maxUnits === -1
   if (isUnlimited || budgets.length <= activeBudgetFeature.maxUnits) {
     return;
