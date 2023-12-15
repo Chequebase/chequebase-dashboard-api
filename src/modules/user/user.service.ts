@@ -586,7 +586,7 @@ export class UserService {
       file.buffer
     );
     
-    await User.updateOne({ _id: auth.userId }, {
+    await User.updateOne({ _id: auth.userId, organization: auth.orgId }, {
       avatar: url
     })
 
