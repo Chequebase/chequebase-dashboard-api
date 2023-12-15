@@ -96,14 +96,17 @@ export class AnchorTransferClient implements TransferClient {
     try {
       const res = await this.http.post('/api/v1/transfers', { data })
       const result = res.data.data.attributes
+      const status = result.status.toLowerCase()
+      const message = status === 'failed' ?
+        'Transfer failed' : 'Processing transfer'
 
       return {
-        status: result.status.toLowerCase(),
+        status,
+        message,
         providerRef: res.data.data.id,
         currency: result.currency,
         amount: result.amount,
         reference: result.reference,
-        message: 'Processing transfer',
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {

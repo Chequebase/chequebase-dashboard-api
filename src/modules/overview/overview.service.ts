@@ -3,7 +3,7 @@ import isBetween from 'dayjs/plugin/isBetween';
 import { ObjectId } from 'mongodb';
 import { Service } from 'typedi';
 import Budget, { BudgetStatus } from '@/models/budget.model';
-import WalletEntry, { WalletEntryScope } from '@/models/wallet-entry.model';
+import WalletEntry, { WalletEntryScope, WalletEntryStatus } from '@/models/wallet-entry.model';
 import { getPercentageDiff } from '../common/utils';
 import { getDates, getPrevFromAndTo } from '../common/utils/date';
 import { GetCashflowTrendDto, GetOverviewSummaryDto } from './dto/overview.dto';
@@ -17,6 +17,7 @@ export class OverviewService {
     const filter = {
       organization: new ObjectId(orgId),
       currency: query.currency,
+      status: WalletEntryStatus.Successful,
     }
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
@@ -52,7 +53,11 @@ export class OverviewService {
 
   private async getBudgetBalanceSummary(orgId: string, query: GetOverviewSummaryDto) {
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
-    const filter = { organization: orgId, currency: query.currency }
+    const filter = {
+      organization: orgId,
+      status: WalletEntryStatus.Successful,
+      currency: query.currency
+    }
     const budgets = await Budget.find({ ...filter, status: BudgetStatus.Active }).lean()
     const currentFilter = { createdAt: { $gte: from, $lte: to } }
     const prevFilter = { createdAt: { $gte: prevFrom, $lte: prevTo } }
@@ -102,6 +107,7 @@ export class OverviewService {
       organization: new ObjectId(orgId),
       type: 'debit',
       currency: query.currency,
+      status: WalletEntryStatus.Successful,
       scope: {
         $in: [
           WalletEntryScope.PlanSubscription,
@@ -145,6 +151,7 @@ export class OverviewService {
     const filter = {
       organization: new ObjectId(orgId),
       currency: query.currency,
+      status: WalletEntryStatus.Successful,
       scope: {
         $in: [
           WalletEntryScope.PlanSubscription,
