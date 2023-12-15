@@ -224,7 +224,7 @@ export class ProjectService {
   async getProject(orgId: string, id: string) {
     const [project] = await Project.aggregate()
       .match({
-        id: new Object(id),
+        id: new ObjectId(id),
         organization: new ObjectId(orgId),
         status: ProjectStatus.Active
       })
