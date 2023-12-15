@@ -16,6 +16,7 @@ export interface ISubscriptionPlan {
   _id: Types.ObjectId
   name: string
   code: string
+  mostPopular: boolean
   amount: { NGN: number }
   description: string
   transferFee: TransferFee
@@ -46,6 +47,7 @@ const transferFeeSchema = new Schema<TransferFee>({
 
 const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
   {
+    mostPopular: { type: Boolean, default: false },
     code: {
       type: String,
       required: true,
