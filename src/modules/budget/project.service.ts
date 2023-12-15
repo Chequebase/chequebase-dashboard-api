@@ -109,16 +109,6 @@ export class ProjectService {
   }
 
   async createProject(auth: AuthUser, data: CreateProjectDto) {
-    const wallet = await Wallet.findOne({
-      organization: auth.orgId,
-      currency: data.currency
-    })
-
-    if (!wallet) {
-      logger.error('wallet not found', { currency: data.currency, orgId: auth.orgId })
-      throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
-    }
-
     const totalAllocated = data.budgets.reduce((a, b) => a + b.amount, 0)
     if (totalAllocated > data.amount) {
       throw new BadRequestError('Total allocated must not exceed project amount')
@@ -128,6 +118,17 @@ export class ProjectService {
 
     let project: IProject
     await cdb.transaction(async session => {
+      const wallet = await Wallet.findOne({
+        organization: auth.orgId,
+        currency: data.currency,
+        balance: { $gte: data.amount }
+      }).session(session)
+
+      if (!wallet) {
+        logger.error('wallet not found', { currency: data.currency, orgId: auth.orgId })
+        throw new BadRequestError('Insufficient funds')
+      }
+
       [project] = await Project.create([{
         organization: auth.orgId,
         wallet: wallet._id,
