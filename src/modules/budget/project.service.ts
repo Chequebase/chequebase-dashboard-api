@@ -195,6 +195,16 @@ export class ProjectService {
           { $project: { firstName: 1, lastName: 1, role: 1, avatar: 1 } }
         ]
       })
+      .lookup({
+        from: 'users',
+        as: 'beneficiaries',
+        foreignField: '_id',
+        localField: 'budgets.beneficiaries.user',
+        pipeline: [
+          { $project: { _id: 1, firstName: 1, lastName: 1, avatar: 1 } },
+          { $limit: 3 }
+        ]
+      })
       .unwind('$createdBy')
       .addFields({
         totalSpent: { $subtract: ['$amount', '$balance'] },
@@ -207,11 +217,11 @@ export class ProjectService {
             },
           }
         },
-        budgets: 0,
       })
       .addFields({
         unallocatedAmount: { $subtract: ['$amount', '$allocatedAmount'] }
       })
+      .append({ $unset: ['budgets'] })
     
     const projects = await Project.aggregatePaginate(agg, {
       page: query.page,
