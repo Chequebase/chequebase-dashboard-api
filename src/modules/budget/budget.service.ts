@@ -277,10 +277,9 @@ export default class BudgetService {
       filter.set('beneficiaries.user', new ObjectId(auth.userId))
     }
 
-    if (query.createdByUser) {
-      filter.set('createdBy', new ObjectId(auth.userId))
-    } else {
-      filter.set('createdBy', { $ne: new ObjectId(auth.userId) })
+    if (user.role === Role.Owner) {
+      if (query.createdByUser) filter.set('createdBy', new ObjectId(auth.userId))
+      else filter.set('createdBy', { $ne: new ObjectId(auth.userId) })
     }
 
     if (query.search) {
