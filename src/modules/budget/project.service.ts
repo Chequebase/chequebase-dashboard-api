@@ -224,7 +224,7 @@ export class ProjectService {
   async getProject(orgId: string, id: string) {
     const [project] = await Project.aggregate()
       .match({
-        id: new ObjectId(id),
+        _id: new ObjectId(id),
         organization: new ObjectId(orgId),
         status: ProjectStatus.Active
       })
@@ -267,6 +267,10 @@ export class ProjectService {
       .addFields({
         unallocatedAmount: { $subtract: ['$amount', '$allocatedAmount'] }
       })
+    
+    if (!project) {
+      throw new NotFoundError("Project not found")
+    }
 
     return project
   }
