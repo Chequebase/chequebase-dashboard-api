@@ -277,6 +277,10 @@ export default class BudgetService {
       filter.set('beneficiaries.user', new ObjectId(auth.userId))
     }
 
+    if (query.createdByUser) {
+      filter.set('createdBy', new ObjectId(auth.userId))
+    }
+
     if (query.search) {
       const search = escapeRegExp(query.search)
       filter.set('$or', [

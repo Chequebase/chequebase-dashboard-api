@@ -1,8 +1,9 @@
+import { Service } from "typedi"
 import { ObjectId } from 'mongodb'
 import numeral from "numeral"
 import { createId } from "@paralleldrive/cuid2"
 import Project, { IProject, ProjectStatus } from "@/models/project.model"
-import Wallet, { IWallet } from "@/models/wallet.model"
+import Wallet from "@/models/wallet.model"
 import { BadRequestError, NotFoundError } from "routing-controllers"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { cdb } from "../common/mongoose"
@@ -12,7 +13,6 @@ import { PlanUsageService } from "../billing/plan-usage.service"
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget, { BudgetStatus } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
-import { Service } from "typedi"
 import { UserService } from '../user/user.service'
 
 const logger = new Logger('project-service')

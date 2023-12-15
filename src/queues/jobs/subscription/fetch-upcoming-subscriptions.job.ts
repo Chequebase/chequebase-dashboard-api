@@ -45,7 +45,7 @@ async function fetchUpcomingSubscriptions() {
     const [trialSubscriptions, subscriptions] = await Promise.all(filters.map((filter) => (
       Subscription.find(filter)
         .populate({
-          path: 'organization', select: '_id owner',
+          path: 'organization', select: '_id admin',
           populate: { path: 'admin', select: 'email firstName' }
         })
         .populate('plan', 'name')

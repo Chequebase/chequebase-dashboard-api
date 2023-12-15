@@ -139,4 +139,8 @@ export class GetBudgetsDto {
   @IsOptional()
   @Min(1)
   limit = 10
+
+  @IsBoolean()
+  @IsOptional()
+  createdByUser = false
 }

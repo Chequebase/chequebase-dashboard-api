@@ -19,7 +19,7 @@ async function fetchDueSubscriptions() {
       .populate('plan')
       .populate({
         path: 'organization', select: 'admin subscription',
-        populate: 'firstName email'
+        populate: { path: 'admin', select: 'firstName email' }
       })
       .lean()
 
