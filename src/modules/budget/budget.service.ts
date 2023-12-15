@@ -279,6 +279,8 @@ export default class BudgetService {
 
     if (query.createdByUser) {
       filter.set('createdBy', new ObjectId(auth.userId))
+    } else {
+      filter.set('createdBy', { $ne: new ObjectId(auth.userId) })
     }
 
     if (query.search) {
