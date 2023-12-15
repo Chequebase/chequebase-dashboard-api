@@ -93,7 +93,7 @@ async function handleFailedRenewal(chargeResponse: any, subscription: ISubscript
 
     emailService.sendSubscriptionExpired(admin.email, {
       expirationDate: subscription.endingAt,
-      loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
+      renewalLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/settings/license`,
       planName: plan.name,
       userName: admin.firstName
     })

@@ -224,6 +224,16 @@ export default class EmailService {
     })
   }
 
+  sendSubscriptionConfirmation(to: string, data: T.SubscriptionConfirmation) {
+    const startDate = dayjs(data.startDate).format('YYYY-MM-DD')
+    const endDate = dayjs(data.endDate).format('YYYY-MM-DD')
+    return this.send({
+      to,
+      templateId: 'd-766926d242de4d5f9b9f408ff9438e78 ',
+      dynamicTemplateData: { ...data, startDate, endDate }
+    })
+  }
+
   sendSubscriptionExpired(to: string, data: T.SubscriptionExpired) {
     const expirationDate = dayjs(data.expirationDate).format('YYYY-MM-DD')
     return this.send({

@@ -1,4 +1,5 @@
 import EmailService from "@/modules/common/email.service";
+import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { Job } from "bull";
 import Container from "typedi";
@@ -8,16 +9,17 @@ const emailService = Container.get(EmailService)
 
 async function sendSubscriptionReminderEmail(job: Job) {
   const subscription = job.data.subscription
-  console.log(subscription)
   const admin = subscription.organization.admin
   admin.firstName ||= admin.email.split('@')[0]
+  const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/settings/license`
 
   try {
     if (subscription.trial) {
       await emailService.sendSubscriptionTrialEndEmail(admin.email, {
         endDate: subscription.endingAt,
         planName: subscription.plan.name,
-        userName: admin.firstName
+        userName: admin.firstName,
+        renewalLink: link
       })
 
       return { message: 'trial reminder email sent' }
@@ -26,7 +28,8 @@ async function sendSubscriptionReminderEmail(job: Job) {
     await emailService.sendSubscriptionExpiryWarning(admin.email, {
       expirationDate: subscription.endingAt,
       planName: subscription.plan.name,
-      userName: admin.firstName
+      userName: admin.firstName,
+      renewalLink: link
     })
     
     return { message: 'reminder email sent'}

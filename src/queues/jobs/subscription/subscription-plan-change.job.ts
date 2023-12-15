@@ -8,6 +8,7 @@ import Budget, { BudgetStatus } from "@/models/budget.model"
 import Container from "typedi"
 import EmailService from "@/modules/common/email.service"
 import { ISubscription } from "@/models/subscription.model"
+import { getEnvOrThrow } from "@/modules/common/utils"
 
 const logger = new Logger('subscription-plan-change.job')
 export interface SubscriptionPlanChange {
@@ -35,15 +36,29 @@ async function processSubscriptionPlanChange(job: Job<SubscriptionPlanChange>) {
 
   if (!newPlan) throw new BadRequestError("New plan not found")
   
-  if (!oldPlan || newPlan.amount.NGN === oldPlan.amount.NGN) {
-    emailService.sendSubscriptionRenewal(admin.email, {
+  const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/settings/license`
+  if (!oldPlan) {
+    await emailService.sendSubscriptionRenewal(admin.email, {
       endDate: subscription.endingAt,
       userName: admin.firstName,
       planName: newPlan.name,
-      startDate: subscription.startedAt
+      startDate: subscription.startedAt,
+      benefitsLink: link
     })
 
-    return { message: 'new/renewing subscription' }
+    return { message: 'subscription confirmation' }
+  }
+
+  if (newPlan.amount.NGN === oldPlan.amount.NGN) {
+    await emailService.sendSubscriptionRenewal(admin.email, {
+      endDate: subscription.endingAt,
+      userName: admin.firstName,
+      planName: newPlan.name,
+      startDate: subscription.startedAt,
+      benefitsLink: link
+    })
+
+    return { message: 'subscription renewal' }
   }
 
   const sendNotification = () =>
@@ -52,6 +67,7 @@ async function processSubscriptionPlanChange(job: Job<SubscriptionPlanChange>) {
       newPlanName: newPlan.name,
       oldPlanName: oldPlan.name,
       userName: admin.firstName,
+      benefitsLink: link
     })
 
   if (newPlan.amount.NGN < oldPlan.amount.NGN) {

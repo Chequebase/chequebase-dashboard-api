@@ -106,6 +106,7 @@ export interface SubscriptionTrialEnd {
   userName: string
   planName: string
   endDate: Date
+  renewalLink: string
 }
 
 export interface SubscriptionPlanChange {
@@ -113,12 +114,14 @@ export interface SubscriptionPlanChange {
   oldPlanName: string
   newPlanName: string
   changeDate: Date
+  benefitsLink: string
 }
 
 export interface SubscriptionExpiryWarning {
   planName: string
   userName: string
   expirationDate: Date
+  renewalLink: string
 }
 
 export interface SubscriptionRenewal {
@@ -126,11 +129,20 @@ export interface SubscriptionRenewal {
   userName: string
   startDate: Date
   endDate: Date
+  benefitsLink: string
+}
+
+export interface SubscriptionConfirmation {
+  planName: string
+  userName: string
+  startDate: Date
+  endDate: Date
+  benefitsLink: string
 }
 
 export interface SubscriptionExpired {
   planName: string
   userName: string
   expirationDate: Date
-  loginLink: string
+  renewalLink: string
 }
