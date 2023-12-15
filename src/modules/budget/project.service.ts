@@ -214,7 +214,7 @@ export class ProjectService {
     
     const projects = await Project.aggregatePaginate(agg, {
       page: query.page,
-      limit: 10,
+      limit: query.limit,
       lean: true
     })
 
@@ -222,7 +222,7 @@ export class ProjectService {
   }
 
   async getProject(orgId: string, id: string) {
-    const project = await Project.aggregate()
+    const [project] = await Project.aggregate()
       .match({
         organization: new ObjectId(orgId),
         status: ProjectStatus.Active

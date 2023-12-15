@@ -71,6 +71,9 @@ export class GetProjectsDto {
   @Min(1)
   page = 1
 
+  @IsInt()
+  limit = 10
+
   @IsEnum(ProjectStatus)
   @IsOptional()
   status: ProjectStatus
