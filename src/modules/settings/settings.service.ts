@@ -48,12 +48,11 @@ export class SettingsService {
   }
 
   async forgotCurrentPin(userId: string, forgotCurrentPinDto: ForgotCurrentPinDto) {
-    const { password } = forgotCurrentPinDto
     const user = await User.findById(userId);
     if (!user) {
       throw new BadRequestError('User not found');
     }
-    if (!await compare(password, user.password)) {
+    if (!await compare(forgotCurrentPinDto.password, user.password)) {
       throw new UnauthorizedError('Wrong password!')
     }
     const forgotPinCode = createId()
