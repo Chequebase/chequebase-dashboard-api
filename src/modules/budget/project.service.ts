@@ -288,7 +288,7 @@ export class ProjectService {
             $map: {
               input: '$budgets',
               as: 'budget',
-              in: '$$budget.amount',
+              in: { $cond: [{ $eq: ['$$budget.status', BudgetStatus.Active] }, '$$budget.amount', 0] }
             },
           }
         },
@@ -345,7 +345,7 @@ export class ProjectService {
             $map: {
               input: '$budgets',
               as: 'budget',
-              in: '$$budget.amount',
+              in: { $cond: [{ $eq: ['$$budget.status', BudgetStatus.Active] }, '$$budget.amount', 0] }
             },
           }
         },
