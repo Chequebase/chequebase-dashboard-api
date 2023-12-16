@@ -59,7 +59,7 @@ export class CreateProjectDto {
   @IsEnum(ProjectCurrency)
   currency: ProjectCurrency
 
-  @Type(() => CreateBudgetDto)
+  @Type(() => ProjectSubBudget)
   @ValidateNested({ each: true })
   @IsArray()
   @IsOptional()
@@ -102,4 +102,14 @@ export class CloseProjectBodyDto {
 
   @IsString()
   pin: string
+}
+
+export class AddSubBudgets {
+  @IsString()
+  pin: string
+
+  @Type(() => ProjectSubBudget)
+  @ValidateNested({ each: true })
+  @IsArray()
+  budgets: ProjectSubBudget[]
 }

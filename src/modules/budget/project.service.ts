@@ -7,7 +7,7 @@ import Wallet from "@/models/wallet.model"
 import { BadRequestError, NotFoundError } from "routing-controllers"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { cdb } from "../common/mongoose"
-import { CloseProjectBodyDto, CreateProjectDto, CreateSubBudgets, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto"
+import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, CreateSubBudgets, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto"
 import Logger from "../common/utils/logger"
 import { PlanUsageService } from "../billing/plan-usage.service"
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
@@ -43,6 +43,7 @@ export class ProjectService {
         approvedBy: auth.userId,
         approvedDate: new Date(),
       }], { session })
+
 
       const updatedProject = await Project.findOneAndUpdate(
         {
@@ -109,6 +110,11 @@ export class ProjectService {
   }
 
   async createProject(auth: AuthUser, data: CreateProjectDto) {
+    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!valid) {
+      throw new BadRequestError('Invalid pin')
+    }
+
     const totalAllocated = data.budgets.reduce((a, b) => a + b.amount, 0)
     if (totalAllocated > data.amount) {
       throw new BadRequestError('Total allocated must not exceed project amount')
@@ -286,13 +292,18 @@ export class ProjectService {
     return project
   }
 
-  async addSubBudgets(auth: AuthUser, id: string, budgets: ProjectSubBudget[]) {
+  async addSubBudgets(auth: AuthUser, id: string, data: AddSubBudgets) {
+    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!valid) {
+      throw new BadRequestError('Invalid pin')
+    }
+    
     const project = await Project.findOne({ _id: id, organization: auth.orgId }).lean();
     if (!project) {
       throw new BadRequestError('Project not found');
     }
 
-    const newAllocation = budgets.reduce((a, b) => a + b.amount, 0)
+    const newAllocation = data.budgets.reduce((a, b) => a + b.amount, 0)
     if (project.balance < newAllocation) {
       throw new BadRequestError('Insufficient project available balance')
     }
@@ -301,7 +312,7 @@ export class ProjectService {
       const wallet = await Wallet.findOne({ _id: project.wallet }).session(session)
       if (!wallet) throw new BadRequestError('Wallet not found')
       
-      const payload = { session, wallet, project, auth, budgets }
+      const payload = { session, wallet, project, auth, budgets: data.budgets }
       await this.createSubBudgets(payload)
     })
 

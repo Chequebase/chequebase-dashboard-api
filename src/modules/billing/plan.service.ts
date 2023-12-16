@@ -21,6 +21,7 @@ import { transactionOpts } from '../common/utils';
 import User from '@/models/user.model';
 
 const logger = new Logger('plan-service')
+const YEARLY_DISCOUNT = 0.35
 
 @Service()
 export class PlanService {
@@ -73,7 +74,7 @@ export class PlanService {
   calculateSubscriptionCost(plan: ISubscriptionPlan, months: number) {
     let amount = numeral(plan.amount.NGN).multiply(months).value()!
     if (months === 12) {
-      const discount = numeral(amount).multiply(0.35).value()!.toFixed() // ensure no float
+      const discount = numeral(amount).multiply(YEARLY_DISCOUNT).value()!.toFixed() // ensure no float
       amount -= Number(discount)
     }
 
