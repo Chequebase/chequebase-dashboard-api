@@ -139,14 +139,14 @@ export class PlanService {
     }
 
     if (org?.subscription) {
-      const subscriptionObj = org.subscription.object as ISubscription
-      const samePlan = subscriptionObj && plan._id.equals(subscriptionObj.plan._id)
+      const sub = org.subscription.object as ISubscription
+      const samePlan = sub && plan._id.equals(sub.plan._id)
       // allow renewal if it's most 5 before subscription ending
-      if (samePlan && dayjs().add(5, 'days').isBefore(subscriptionObj.endingAt, 'day')) {
+      if (samePlan && sub?.status === 'active' && dayjs().add(5, 'days').isBefore(sub.endingAt, 'day')) {
         throw new BadRequestError("You cannot renew your subscription at the moment")
       }
 
-      const oldPlan = subscriptionObj?.plan as ISubscriptionPlan
+      const oldPlan = sub?.plan as ISubscriptionPlan
       if (oldPlan && oldPlan.amount.NGN > plan.amount.NGN) {
         await Organization.updateOne({ _id: auth.orgId }, { 'subscription.nextPlan': plan._id })
 

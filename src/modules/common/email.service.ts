@@ -38,8 +38,7 @@ export default class EmailService {
       await this.sendGrid.send(data);
       console.log('Email sent successfully');
     } catch (error) {
-      console.error('Error occurred while sending email:', error);
-      throw new Error('Failed to send email');
+      console.error('Error occurred while sending email: %o', error);
     }
   }
 
@@ -229,7 +228,7 @@ export default class EmailService {
     const endDate = dayjs(data.endDate).format('YYYY-MM-DD')
     return this.send({
       to,
-      templateId: 'd-766926d242de4d5f9b9f408ff9438e78 ',
+      templateId: 'd-766926d242de4d5f9b9f408ff9438e78',
       dynamicTemplateData: { ...data, startDate, endDate }
     })
   }
