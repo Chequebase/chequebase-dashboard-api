@@ -3,7 +3,7 @@ import { ChangeForgotCurrentPinDto, ChangePinDto, ForgotCurrentPinDto } from './
 import { Service } from 'typedi';
 import User, { UserStatus } from '@/models/user.model';
 import { BadRequestError, ForbiddenError, UnauthorizedError } from 'routing-controllers';
-import bcrypt, { compare } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { createId } from '@paralleldrive/cuid2';
 import Permission from '@/models/permission.model';
 import { AuthUser } from '../common/interfaces/auth-user';
@@ -24,7 +24,8 @@ export class SettingsService {
     if (user.pin) {
       throw new ForbiddenError('Pin has already been set');
     }
-    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(createPinDto.pin, 12) })
+    const hashed = await hash(createPinDto.pin, 12)
+    await User.updateOne({ _id: userId }, { pin: hashed })
     return { message: "pin created" };
   }
 
@@ -43,22 +44,22 @@ export class SettingsService {
     if (!await compare(changePinDto.currentPin, user.pin)) {
       throw new UnauthorizedError('Wrong current pin!')
     }
-    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(changePinDto.newPin, 12), })
+    await User.updateOne({ _id: userId }, { pin: await hash(changePinDto.newPin, 12), })
     return { message: "pin changed" };
   }
 
   async forgotCurrentPin(userId: string, forgotCurrentPinDto: ForgotCurrentPinDto) {
-    const { password } = forgotCurrentPinDto
     const user = await User.findById(userId);
     if (!user) {
       throw new BadRequestError('User not found');
     }
-    if (!await compare(password, user.password)) {
+    if (!await compare(forgotCurrentPinDto.password, user.password)) {
       throw new UnauthorizedError('Wrong password!')
     }
     const forgotPinCode = createId()
+    const hashed = await hash(forgotPinCode, 12)
     await User.updateOne({ _id: userId }, { forgotPinCode })
-    return { hash: await bcrypt.hash(forgotPinCode, 12) }
+    return { hash: hashed }
   }
 
   async changeForgotCurrentPin(userId: string, changeForgotCurrentPinDto: ChangeForgotCurrentPinDto) {
@@ -76,7 +77,8 @@ export class SettingsService {
     if (!await compare(changeForgotCurrentPinDto.hash, user.forgotPinCode)) {
       throw new UnauthorizedError('Invalid Credentials!')
     }
-    await User.updateOne({ _id: userId }, { pin: await bcrypt.hash(changeForgotCurrentPinDto.pin, 12), })
+    const hashed = await hash(changeForgotCurrentPinDto.pin, 12)
+    await User.updateOne({ _id: userId }, { pin: hashed })
     return { message: "pin changed" };
   }
 
