@@ -34,7 +34,7 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new BadRequestError('Organization does not have access to this feature')
+      throw new BadRequestError('Organization does not have access to this feature', 'FEATURE_UNAVAILABLE')
     }
     if (budgets >= feature.freeUnits && feature.maxUnits !== -1) {
       throw new BadRequestError(
@@ -66,7 +66,7 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new BadRequestError('Organization does not have access to this feature')
+      throw new BadRequestError('Organization does not have access to this feature', 'FEATURE_UNAVAILABLE')
     }
 
     if (projects >= feature.freeUnits && feature.maxUnits !== -1) {
@@ -99,7 +99,7 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new BadRequestError('Organization does not have access to this feature')
+      throw new BadRequestError('Organization does not have access to this feature', 'FEATURE_UNAVAILABLE')
     }
 
     const exhuastedMaxUnits = feature.maxUnits === -1 ? false : users >= feature.maxUnits
