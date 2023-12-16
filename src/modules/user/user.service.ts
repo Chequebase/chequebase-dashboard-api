@@ -116,7 +116,7 @@ export class UserService {
       otp
     })
 
-    return { userId: user.id, rememberMe: data.rememberMe || false }
+    return { userId: user.id, rememberMe: false }
   }
 
   // getRememberMeExpirationDate(data: LoginDto) {
