@@ -2,11 +2,12 @@ import Budget, { BudgetStatus } from "@/models/budget.model"
 import Organization from "@/models/organization.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
 import { ISubscription } from "@/models/subscription.model"
-import { NotFoundError, BadRequestError } from "routing-controllers"
+import { NotFoundError } from "routing-controllers"
 import Logger from "../common/utils/logger"
 import User, { UserStatus } from "@/models/user.model"
 import { Service } from "typedi"
 import Project, { ProjectStatus } from "@/models/project.model"
+import { FeatureLimitExceededError, FeatureUnavailableError } from "../common/utils/service-errors"
 
 const logger = new Logger('plan-usage-service')
 
@@ -25,7 +26,7 @@ export class PlanUsageService {
 
     const subscription = organization.subscription?.object as ISubscription
     if (!subscription || subscription?.status === 'expired') {
-      throw new BadRequestError('Organization has no active subscription')
+      throw new FeatureUnavailableError('Organization has no active subscription')
     }
 
     const code = 'active_budgets'
@@ -34,10 +35,10 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new BadRequestError('Organization does not have access to this feature', 'FEATURE_UNAVAILABLE')
+      throw new FeatureUnavailableError('Organization does not have access to this feature')
     }
     if (budgets >= feature.freeUnits && feature.maxUnits !== -1) {
-      throw new BadRequestError(
+      throw new FeatureLimitExceededError(
         'Organization has reached its maximum limit for active budgets. To continue adding active budgets, consider upgrading your plan'
       )
     }
@@ -57,7 +58,7 @@ export class PlanUsageService {
 
     const subscription = organization.subscription?.object as ISubscription
     if (!subscription || subscription?.status === 'expired') {
-      throw new BadRequestError('Organization has no active subscription')
+      throw new FeatureUnavailableError('Organization has no active subscription')
     }
 
     const code = 'projects'
@@ -66,11 +67,11 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new BadRequestError('Organization does not have access to this feature', 'FEATURE_UNAVAILABLE')
+      throw new FeatureUnavailableError('Organization does not have access to this feature')
     }
 
     if (projects >= feature.freeUnits && feature.maxUnits !== -1) {
-      throw new BadRequestError(
+      throw new FeatureLimitExceededError(
         'Organization has reached its maximum limit for projects. To continue adding projects, consider upgrading your plan'
       )
     }
@@ -90,7 +91,7 @@ export class PlanUsageService {
 
     const subscription = organization.subscription?.object as ISubscription
     if (!subscription || subscription?.status === 'expired') {
-      throw new BadRequestError('Organization has no active subscription')
+      throw new FeatureUnavailableError('Organization has no active subscription')
     }
 
     const code = 'users'
@@ -99,13 +100,13 @@ export class PlanUsageService {
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new BadRequestError('Organization does not have access to this feature', 'FEATURE_UNAVAILABLE')
+      throw new FeatureUnavailableError('Organization does not have access to this feature')
     }
 
     const exhuastedMaxUnits = feature.maxUnits === -1 ? false : users >= feature.maxUnits
     const exhaustedFreeUnits = users >= feature.freeUnits
     if (exhaustedFreeUnits && exhuastedMaxUnits) {
-      throw new BadRequestError(
+      throw new FeatureLimitExceededError(
         'Organization has reached its maximum limit for users. To continue adding users, consider upgrading your plan'
       )
     }

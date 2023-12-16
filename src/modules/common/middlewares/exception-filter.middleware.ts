@@ -4,6 +4,7 @@ import { MulterError } from 'multer'
 import { Service } from "typedi";
 import { ValidationError } from "class-validator";
 import Logger from "../utils/logger";
+import { FeatureError } from "../utils/service-errors";
 
 const logger = new Logger('exception-filter')
 
@@ -16,6 +17,13 @@ export class ExceptionFilter implements ExpressErrorMiddlewareInterface {
       return response.status(400).json({
         message: errors[0].message,
         errors
+      })
+    }
+
+    if (error instanceof FeatureError) {
+      return response.status(error.httpCode).json({
+        message: error.message,
+        code: error.code
       })
     }
 
