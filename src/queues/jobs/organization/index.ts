@@ -73,32 +73,7 @@ function transformGetAnchorCustomerData(org: IOrganization) {
     officers: [],
   };
 
-  // Transform directors and add to officers array
-  if ((org.directors && org.directors.length > 0) || (org.owners && org.owners.length > 0)) {
-    const directors = org.directors.map((director) => ({
-      role: director.title,
-      fullName: {
-        firstName: director.firstName,
-        lastName: director.lastName,
-      },
-      dateOfBirth: director.dob,
-      email: director.email,
-      phoneNumber: director.phone,
-      nationality: director.country,
-      address: {
-        addressLine_1: director.address,
-        country: director.country,
-        city: director.city,
-        postalCode: director.postalCode,
-        state: director.state,
-      },
-      bvn: director.bvn,
-      percentOwned: parseFloat(director.percentOwned as any),
-      title: director.title,
-      identificationType: director.idType,
-      idDocumentNumber: director.idNumber,
-    }));
-
+  if (org.owners && org.owners.length > 0) {
     const owners = org.owners.map((owner) => ({
       role: owner.title,
       fullName: {
@@ -123,7 +98,7 @@ function transformGetAnchorCustomerData(org: IOrganization) {
       idDocumentNumber: owner.idNumber,
     }));
     
-    transformedData.officers = [...owners, ...directors]
+    transformedData.officers = [...owners]
   }
 
   return transformedData;

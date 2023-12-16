@@ -110,7 +110,7 @@ export default class WalletService {
       currency: baseWallet.currency,
       identity: {
         type: 'bvn',
-        number: organization.owners[0]?.bvn ?? organization.directors[0]?.bvn,
+        number: organization.owners[0]?.bvn,
       }
     })
 
