@@ -64,14 +64,12 @@ export default class BudgetService {
         await Project.updateOne({ _id: budget.project }, {
           $inc: { balance: budget.balance }
         }, { session });
-
-        return;
+      } else {
+        await Wallet.updateOne({ _id: wallet._id }, {
+          $set: { walletEntry: entry._id },
+          $inc: { balance: budget.balance }
+        }, { session });
       }
-
-      await Wallet.updateOne({ _id: wallet._id }, {
-        $set: { walletEntry: entry._id },
-        $inc: { balance: budget.balance }
-      }, { session });
 
       await budget.updateOne({
         status: BudgetStatus.Closed,

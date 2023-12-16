@@ -12,6 +12,7 @@ import { BadRequestError } from "routing-controllers";
 import { IUser } from "@/models/user.model";
 import { IOrganization } from "@/models/organization.model";
 import BudgetService from "@/modules/budget/budget.service";
+import { IProject, ProjectStatus } from "@/models/project.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -90,11 +91,21 @@ async function fetchExpiredBudgets(job: Job) {
       }
     ]
   })
+    .populate<{ project: IProject }>('project', 'expiry status')
     .lean()
-
-  const expired = budgets.filter((b) => dayjs().isSameOrAfter(b.expiry, 'day'))
+  
   const upcoming = budgets.filter((b) => dayjs().isBefore(b.expiry, 'day'))
 
+  const expired = budgets.filter((b) => dayjs().isSameOrAfter(b.expiry, 'day'))
+    // filter out budgets with same expiry with it's project expiry
+    .filter(budget => {
+      const project = budget.project
+      if (!project || !project?.expiry) return true
+
+      const sameExpiryDay = dayjs(project.expiry).isSame(budget.expiry, 'day')
+      if (sameExpiryDay || project.status !== ProjectStatus.Active) return false
+    })
+  
   logger.log('fetched budgets', { expired: expired.length, upcoming: upcoming.length })
   if (!budgets.length) {
     return { message: 'no expired budgets found' }

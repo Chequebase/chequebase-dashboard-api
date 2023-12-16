@@ -29,6 +29,13 @@ export class PlanService {
     const reference = `ps_${createId()}`
     const { plan, amount } = data
 
+    if (amount === 0) {
+      return {
+        status: 'successful',
+        message: 'Payment successful'
+      }
+    }
+
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
         { organization: orgId, balance: { $gte: amount } },
