@@ -58,7 +58,7 @@ export class UserService {
       hashRt: '',
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
-      avatar: 'default'
+      avatar: ''
     });
 
     const organization = await Organization.create({
