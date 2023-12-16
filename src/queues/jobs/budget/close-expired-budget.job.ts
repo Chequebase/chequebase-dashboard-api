@@ -1,24 +1,21 @@
-import numeral from "numeral";
-import { createId } from "@paralleldrive/cuid2";
 import { Job } from "bull";
 import dayjs from "dayjs";
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import Container from "typedi";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import Logger from "@/modules/common/utils/logger";
 import EmailService from "@/modules/common/email.service";
-import { formatMoney, getEnvOrThrow, transactionOpts } from "@/modules/common/utils";
-import { cdb } from "@/modules/common/mongoose";
-import Wallet, { IWallet } from "@/models/wallet.model";
+import { formatMoney, getEnvOrThrow } from "@/modules/common/utils";
 import { BadRequestError } from "routing-controllers";
 import { IUser } from "@/models/user.model";
 import { IOrganization } from "@/models/organization.model";
-import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
-import Project from "@/models/project.model";
+import BudgetService from "@/modules/budget/budget.service";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
+dayjs.extend(isSameOrAfter)
 dayjs.tz.setDefault('Africa/Lagos')
 
 const emailService = Container.get(EmailService)
@@ -28,7 +25,6 @@ async function closeExpiredBudget(job: Job) {
   const budget = await Budget.findById(job.data.budget._id)
     .populate<{ createdBy: IUser }>('createdBy', 'firstName email')
     .populate<{ organization: IOrganization }>('organization', 'businessName')
-    .populate<{ wallet: IWallet }>('wallet', 'balance')
   if (!budget) {
     throw new BadRequestError('budget not found')
   }
@@ -50,45 +46,10 @@ async function closeExpiredBudget(job: Job) {
       return { message: 'notification email sent ' + budget._id }
     }
     
-    await cdb.transaction(async (session) => {
-      await budget.updateOne({
-        status: BudgetStatus.Closed,
-        closeReason: 'Budget expired',
-        balance: 0
-      }, { session })
-
-      const [entry] = await WalletEntry.create([{
-        organization: budget.organization,
-        budget: budget._id,
-        wallet: budget.wallet._id,
-        currency: budget.currency,
-        project: budget.project,
-        type: WalletEntryType.Credit,
-        balanceBefore: budget.wallet.balance,
-        balanceAfter: numeral(budget.wallet.balance).add(budget.balance).value(),
-        amount: budget.amount,
-        scope: WalletEntryScope.BudgetClosure,
-        narration: `Budget "${budget.name}" closed`,
-        reference: createId(),
-        status: WalletEntryStatus.Successful,
-        meta: {
-          budgetBalanceAfter: 0
-        }
-      }], { session })
-
-      if (budget.project) {
-        await Project.updateOne({ _id: budget.project }, {
-          $inc: { balance: budget.balance }
-        }, { session })
-
-        return;
-      }
-
-      await Wallet.updateOne({_id: budget.wallet},{
-        $set: { walletEntry: entry._id },
-        $inc: { balance: budget.balance }
-      }, { session })
-    }, transactionOpts)
+    await BudgetService.initiateBudgetClosure({
+      budgetId: budget._id,
+      reason: 'Budget expired'
+    })
 
     logger.log('closed budget', { budget: budget._id })
 
@@ -110,4 +71,46 @@ async function closeExpiredBudget(job: Job) {
   }
 }
 
-export default closeExpiredBudget
+async function fetchExpiredBudgets(job: Job) {
+  const logger = new Logger('fetch-expired-budgets')
+
+  const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD')
+  // get budgets expired and expiring tomorrow
+  const budgets = await Budget.find({
+    status: BudgetStatus.Active,
+    $or: [
+      { expiry: { $lte: new Date() } },
+      {
+        $expr: {
+          $eq: [
+            { $dateToString: { format: "%Y-%m-%d", date: "$expiry", timezone: 'Africa/Lagos' } },
+            tomorrow
+          ],
+        }
+      }
+    ]
+  })
+    .lean()
+
+  const expired = budgets.filter((b) => dayjs().isSameOrAfter(b.expiry, 'day'))
+  const upcoming = budgets.filter((b) => dayjs().isBefore(b.expiry, 'day'))
+
+  logger.log('fetched budgets', { expired: expired.length, upcoming: upcoming.length })
+  if (!budgets.length) {
+    return { message: 'no expired budgets found' }
+  }
+
+  const bulk = budgets.map((budget) => ({
+    name: 'closeExpiredBudget',
+    data: { budget: { _id: budget._id } },
+  }))
+
+  await job.queue.addBulk(bulk)
+
+  return { message: 'queued expired budgets' }
+}
+
+export {
+  fetchExpiredBudgets,
+  closeExpiredBudget
+}

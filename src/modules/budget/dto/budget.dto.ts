@@ -1,7 +1,7 @@
 import { Type } from "class-transformer";
 import { BudgetCurrency, BudgetPriority, BudgetStatus } from "@/models/budget.model";
 import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from "class-validator";
-import { ProjectCurrency } from "@/models/project.model";
+import { ObjectId } from "mongodb";
 
 export class CreateTranferBudgetDto {
   @IsString()
@@ -143,4 +143,10 @@ export class GetBudgetsDto {
   @IsBoolean()
   @IsOptional()
   createdByUser = false
+}
+
+export class InitiateProjectClosure {
+  budgetId: string | ObjectId
+  userId?: string
+  reason: string
 }

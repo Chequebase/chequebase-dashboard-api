@@ -9,8 +9,12 @@ import Container from "typedi"
 import EmailService from "@/modules/common/email.service"
 import { ISubscription } from "@/models/subscription.model"
 import { getEnvOrThrow } from "@/modules/common/utils"
+import Project, { ProjectStatus } from "@/models/project.model"
+import { ProjectService } from "@/modules/budget/project.service"
+import BudgetService from "@/modules/budget/budget.service"
 
 const logger = new Logger('subscription-plan-change.job')
+
 export interface SubscriptionPlanChange {
   orgId: string
   newPlanId: string
@@ -73,7 +77,8 @@ async function processSubscriptionPlanChange(job: Job<SubscriptionPlanChange>) {
   if (newPlan.amount.NGN < oldPlan.amount.NGN) {
     await Promise.all([
       handleUserFeatureDowngrade(organization, newPlan),
-      handleActiveBudgetDowngrade(organization, newPlan)
+      handleActiveBudgetDowngrade(organization, newPlan),
+      handleProjectDowngrade(organization, newPlan)
     ])
 
     await sendNotification()
@@ -154,7 +159,7 @@ async function handleActiveBudgetDowngrade(org: IOrganization, plan: ISubscripti
     return logger.error('unable to find active budget on plan', { code, plan: plan._id })
   }
 
-  const budgets = await Budget.find({ organization: org._id })
+  const budgets = await Budget.find({ organization: org._id, status: BudgetStatus.Active })
     .select('_id')
     .sort('-createdAt')
     .lean()
@@ -167,11 +172,44 @@ async function handleActiveBudgetDowngrade(org: IOrganization, plan: ISubscripti
   const excess = budgets.length - activeBudgetFeature.freeUnits
   const budgetsToClose = budgets.slice(0, excess).map((m) => m._id)
 
-  await Budget.updateOne({ _id: { $in: budgetsToClose } }, {
-    status: BudgetStatus.Closed
-  })
+  await Promise.all(budgetsToClose.map(budget => (
+    BudgetService.initiateBudgetClosure({
+      budgetId: budget._id,
+      reason: 'Plan was downgraded'
+    })
+  )))
 
   logger.log('budgets closed', { budgets: budgetsToClose.length })
+}
+
+async function handleProjectDowngrade(org: IOrganization, plan: ISubscriptionPlan) {
+  const code = 'projects'
+  const projectFeature = plan.features.find(f => f.code === code)
+  if (!projectFeature) {
+    return logger.error('unable to find projects on plan', { code, plan: plan._id })
+  }
+
+  const projects = await Project.find({ organization: org._id, status: ProjectStatus.Active })
+    .select('_id')
+    .sort('-createdAt')
+    .lean()
+
+  const isUnlimited = projectFeature.maxUnits === -1
+  if (isUnlimited || projects.length <= projectFeature.maxUnits) {
+    return;
+  }
+
+  const excess = projects.length - projectFeature.freeUnits
+  const projectsToClose = projects.slice(0, excess)
+  
+  await Promise.all(projectsToClose.map((project) => 
+    ProjectService.initiateProjectClosure({
+      projectId: project._id,
+      reason: 'Plan was downgraded'
+    })
+  ))
+
+  logger.log('projects closed', { projects: projectsToClose.length })
 }
 
 export default processSubscriptionPlanChange

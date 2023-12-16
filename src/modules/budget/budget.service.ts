@@ -4,7 +4,7 @@ import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto } from "./dto/budget.dto";
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model";
 import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
@@ -27,6 +27,87 @@ export default class BudgetService {
     private emailService: EmailService,
     private planUsageService: PlanUsageService
   ) { }
+
+  static async initiateBudgetClosure(data: InitiateProjectClosure) {
+    const { budgetId, reason, userId } = data
+
+    await cdb.transaction(async (session) => {
+      const budget = await Budget.findOne({ _id: budgetId, status: BudgetStatus.Active })
+        .populate<{ wallet: IWallet }>('wallet')
+        .session(session);
+      if (!budget) {
+        throw new BadRequestError("Unable to close budget")
+      }
+
+      const wallet = budget.wallet
+      const [entry] = await WalletEntry.create([{
+        organization: budget.organization,
+        budget: budget._id,
+        project: budget.project,
+        wallet: budget.wallet,
+        initiatedBy: userId,
+        currency: budget.currency,
+        type: WalletEntryType.Credit,
+        balanceBefore: wallet.balance,
+        balanceAfter: numeral(wallet.balance).add(budget.balance).value(),
+        amount: budget.balance,
+        scope: WalletEntryScope.BudgetClosure,
+        narration: `Budget "${budget.name}" closed`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          budgetBalanceAfter: 0
+        }
+      }], { session });
+
+      if (budget.project) {
+        await Project.updateOne({ _id: budget.project }, {
+          $inc: { balance: budget.balance }
+        }, { session });
+
+        return;
+      }
+
+      await Wallet.updateOne({ _id: wallet._id }, {
+        $set: { walletEntry: entry._id },
+        $inc: { balance: budget.balance }
+      }, { session });
+
+      await budget.updateOne({
+        status: BudgetStatus.Closed,
+        balance: 0,
+        closedBy: userId,
+        closeReason: reason
+      }).session(session);
+    }, transactionOpts);
+  }
+
+  private async declineBudget(auth: AuthUser, id: string, data: CloseBudgetBodyDto) {
+    const budget = await Budget.findOne({ _id: id, status: BudgetStatus.Pending })
+      .populate<{ createdBy: IUser }>('createdBy')
+    if (!budget) {
+      throw new BadRequestError('Unable to decline budget request')
+    }
+
+    await budget.set({
+      status: BudgetStatus.Closed,
+      balance: 0,
+      declinedBy: auth.userId,
+      declineReason: data.reason
+    }).save()
+
+    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`;
+    this.emailService.sendBudgetDeclinedEmail(budget.createdBy.email, {
+      budgetReviewLink: link,
+      budgetBalance: formatMoney(budget.amount),
+      currency: budget.currency,
+      budgetName: budget.name,
+      employeeName: budget.createdBy.firstName,
+      declineReason: data.reason
+    })
+
+    return { message: 'Budget request declined' }
+  }
 
   async createBudget(auth: AuthUser, data: CreateBudgetDto) {
     const user = await User.findById(auth.userId)
@@ -461,86 +542,17 @@ export default class BudgetService {
       throw new BadRequestError('Budget is already closed')
     }
 
-    let update: any = {
-      closedBy: auth.userId,
-      closeReason: data.reason
-    }
-
-    const isDeclined = budget.status === BudgetStatus.Pending
-    if (isDeclined) {
-      update = {
-        declinedBy: auth.userId,
-        declineReason: data.reason
-      }
+    if (budget.status === BudgetStatus.Pending) {
+      return this.declineBudget(auth, budget.id, data)
     }
     
-    const closingBalance = budget.balance
-    await cdb.transaction(async (session) => {
-      const wallet = await Wallet.findOne({ _id: budget.wallet }).session(session)
-      if (!wallet) {
-        throw new BadRequestError("wallet not found")
-      }
-
-      if (!isDeclined) {
-        const [entry] = await WalletEntry.create([{
-          organization: budget.organization,
-          budget: budget._id,
-          project: budget.project,
-          wallet: budget.wallet,
-          initiatedBy: auth.userId,
-          currency: budget.currency,
-          type: WalletEntryType.Credit,
-          balanceBefore: wallet.balance,
-          balanceAfter: numeral(wallet.balance).add(budget.balance).value(),
-          amount: budget.balance,
-          scope: WalletEntryScope.BudgetClosure,
-          narration: `Budget "${budget.name}" closed`,
-          reference: createId(),
-          status: WalletEntryStatus.Successful,
-          meta: {
-            budgetBalanceAfter: 0
-          }
-        }], { session })
-
-        if (budget.project) {
-          await Project.updateOne({ _id: budget.project }, {
-            $inc: { balance: budget.balance }
-          }, { session })
-
-          return;
-        } 
-          
-        await wallet.updateOne({
-          $set: { walletEntry: entry._id },
-          $inc: { balance: budget.balance }
-        }, { session })
-      }
-
-      await budget.set({
-        status: BudgetStatus.Closed,
-        balance: 0,
-        ...update
-      }).save({ session })
-    }, transactionOpts)
-
-    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`;
-    if (isDeclined) {
-      this.emailService.sendBudgetDeclinedEmail(budget.createdBy.email, {
-        budgetReviewLink: link,
-        budgetBalance: formatMoney(budget.balance),
-        currency: budget.currency,
-        budgetName: budget.name,
-        employeeName: budget.createdBy.firstName,
-        declineReason: data.reason
-      })
-
-      return { message: 'Budget request declined' }
-    }
+    const payload = { budgetId: budget._id, userId: auth.userId, reason: data.reason }
+    await BudgetService.initiateBudgetClosure(payload);
 
     this.emailService.sendBudgetClosedEmail(budget.createdBy.email, {
-      budgetBalance: formatMoney(closingBalance),
+      budgetBalance: formatMoney(budget.balance),
       budgetName: budget.name,
-      budgetLink: link,
+      budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
       currency: budget.currency,
       employeeName: budget.createdBy.firstName
     })

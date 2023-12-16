@@ -1,10 +1,12 @@
+import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from "class-validator"
+import { Type } from "class-transformer"
+import { ObjectId } from 'mongodb'
+import { ClientSession } from "mongoose"
 import { BudgetPriority } from "@/models/budget.model"
 import { IProject, ProjectCurrency, ProjectStatus } from "@/models/project.model"
-import { Type } from "class-transformer"
-import { IsString, IsOptional, IsInt, IsDateString, IsEnum, ValidateNested, IsArray, ArrayMinSize, Min, IsBoolean } from "class-validator"
-import { BeneficiaryDto, CreateBudgetDto } from "./budget.dto"
 import { IWallet } from "@/models/wallet.model"
-import { ClientSession } from "mongoose"
+import { BeneficiaryDto } from "./budget.dto"
+
 import { AuthUser } from "@/modules/common/interfaces/auth-user"
 
 export class ProjectSubBudget {
@@ -112,4 +114,10 @@ export class AddSubBudgets {
   @ValidateNested({ each: true })
   @IsArray()
   budgets: ProjectSubBudget[]
+}
+
+export class InitiateProjectClosure {
+  projectId: string | ObjectId
+  userId?: string
+  reason: string
 }

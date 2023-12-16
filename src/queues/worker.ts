@@ -5,14 +5,14 @@ import processOrganizationEventHandler from './jobs/organization';
 import processWalletInflow from './jobs/wallet/wallet-inflow';
 import processWalletOutflow from './jobs/wallet/wallet-outflow';
 import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance';
-import closeExpiredBudget from './jobs/budget/close-expired-budget.job';
-import fetchExpiredBudgets from './jobs/budget/fetch-expired-budgets.job';
 import processSubscriptionPlanChange from './jobs/subscription/subscription-plan-change.job';
 import processSubscriptionPayment from './jobs/subscription/subscription-payment.job';
 import fetchDueSubscriptions from './jobs/subscription/fetch-due-subscriptions.job';
 import renewSubscription from './jobs/subscription/renew-subscription.job';
 import fetchUpcomingSubscriptions from './jobs/subscription/fetch-upcoming-subscriptions.job';
 import sendSubscriptionReminderEmail from './jobs/subscription/send-subscription-reminder-email';
+import { closeExpiredBudget, fetchExpiredBudgets } from './jobs/budget/close-expired-budget.job';
+import { closeExpiredProject, fetchExpiredProjects } from './jobs/budget/close-expired-project.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -31,10 +31,14 @@ function setupQueues() {
       repeat: { cron: '0  * * * *', tz } // every hour
     })
     
-    // TODO: cron and job to close expired projects
     budgetQueue.process('closeExpiredBudget', closeExpiredBudget)
     budgetQueue.process('fetchExpiredBudgets', fetchExpiredBudgets)
     budgetQueue.add('fetchExpiredBudgets', null, {
+      repeat: { cron: '0 0 * * *', tz } // every midnight
+    })
+    budgetQueue.process('closeExpiredProject', closeExpiredProject)
+    budgetQueue.process('fetchExpiredProjects', fetchExpiredProjects)
+    budgetQueue.add('fetchExpiredProjects', null, {
       repeat: { cron: '0 0 * * *', tz } // every midnight
     })
 
@@ -51,8 +55,6 @@ function setupQueues() {
     subscriptionQueue.add('fetchUpcomingSubscriptions', null, {
       repeat: { cron: '0 8 * * *', tz }  // every day at 8am 
     })
-    
-    // TODO: add a job for payment intent clearance
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message
