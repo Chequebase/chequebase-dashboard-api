@@ -58,7 +58,6 @@ export interface IOrganization {
   postalCode: string
   regDate: string
   state: string
-  directors: Shareholder[]
   owners: Shareholder[]
   createdAt: Date;
   updatedAt: Date;
@@ -109,7 +108,6 @@ const organizationSchma = new Schema<IOrganization>(
     businessNumber: String,
     rcNumber: String,
     cacItNumber: String,
-    directors: [shareholderSchema],
     owners: [shareholderSchema],
     subscription: {
       _id: false,

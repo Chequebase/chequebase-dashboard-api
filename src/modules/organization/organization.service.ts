@@ -75,28 +75,16 @@ export class OrganizationsService {
 
     if (organization.admin) {
       const owners: any[] = organization?.owners || []
-      const directors: any[] = organization?.directors || []
-      const ownerIdOrDirectorId = kycDto?.id || uuid()
-      const existingOwnerIndex = owners.findIndex((x) => x.id === ownerIdOrDirectorId);
-      const existingDirectorIndex = directors.findIndex((x) => x.id === ownerIdOrDirectorId);
-
-      if (kycDto?.percentOwned) {
-        if (existingOwnerIndex !== -1) {
-          owners[existingOwnerIndex] = { ...kycDto, id: ownerIdOrDirectorId };
-        } else {
-          owners.push({ ...kycDto, id: ownerIdOrDirectorId });
-        }
+      const ownerId = kycDto?.id || uuid()
+      const existingOwnerIndex = owners.findIndex((x) => x.id === ownerId);
+      if (existingOwnerIndex !== -1) {
+        owners[existingOwnerIndex] = { ...kycDto, id: ownerId };
       } else {
-        if (existingDirectorIndex !== -1) {
-          directors[existingDirectorIndex] = { ...kycDto, id: ownerIdOrDirectorId };
-        } else {
-          directors.push({ ...kycDto, id: ownerIdOrDirectorId });
-        }
+        owners.push({ ...kycDto, id: ownerId });
       }
 
       await organization.updateOne({
         owners,
-        directors,
         status: KycStatus.OWNER_INFO_SUBMITTED
       })
 
@@ -116,18 +104,13 @@ export class OrganizationsService {
 
     if (organization.admin) {
       const owners = organization?.owners || []
-      const directors = organization?.directors || []
       const existingOwnerIndex = owners.findIndex((x) => x.id === ownerIdOrDirector.id);
-      const existingDirectorIndex = directors.findIndex((x) => x.id === ownerIdOrDirector.id);
 
       if (existingOwnerIndex !== -1) {
         delete owners[existingOwnerIndex]
       }
-      if (existingDirectorIndex !== -1) {
-        delete directors[existingDirectorIndex]
-      }
 
-      await organization.updateOne({ owners, directors })
+      await organization.updateOne({ owners })
 
       return organization;
     }

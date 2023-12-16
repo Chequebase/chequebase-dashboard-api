@@ -1,4 +1,4 @@
-import { IsString, MinLength, IsOptional, IsEmail, IsNumber } from "class-validator";
+import { IsString, MinLength, IsOptional, IsEmail, IsNumber, IsArray } from "class-validator";
 
 export class UpdateBusinessDocumentationDto {
   @IsString()
@@ -52,7 +52,7 @@ export class UpdateCompanyInfoDto {
   cacItNumber: string
 }
 
-export class DirectorDto {
+export class OwnerDto {
   @IsString()
   firstName: string
   @IsString()
@@ -62,12 +62,11 @@ export class DirectorDto {
   @IsString()
   dob: string
   @IsOptional()
-  @IsEmail()
   @IsString()
   email: string
   @IsOptional()
-  @IsString()
-  title?: string
+  @IsArray()
+  title?: string[]
   @IsString()
   country: string
   @IsString()
@@ -87,9 +86,6 @@ export class DirectorDto {
   @IsString()
   @IsOptional()
   id?: string
-}
-
-export class OwnerDto extends DirectorDto {
   @IsNumber()
   @IsOptional()
   percentOwned?: number
