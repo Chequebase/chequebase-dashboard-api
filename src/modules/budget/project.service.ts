@@ -11,7 +11,7 @@ import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, CreateSubBudgets,
 import Logger from "../common/utils/logger"
 import { PlanUsageService } from "../billing/plan-usage.service"
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
-import Budget, { BudgetStatus } from "@/models/budget.model"
+import Budget, { BudgetStatus, IBudget } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
 import { UserService } from '../user/user.service'
 
@@ -274,7 +274,15 @@ export class ProjectService {
       })
       .unwind('$createdBy')
       .addFields({
-        totalSpent: { $subtract: ['$amount', '$balance'] },
+        totalSpent: {
+          $sum: {
+            $map: {
+              input: '$budgets',
+              as: 'budget',
+              in: '$$budget.amountUsed',
+            },
+          }
+        },
         allocatedAmount: {
           $sum: {
             $map: {
@@ -328,7 +336,7 @@ export class ProjectService {
             $map: {
               input: '$budgets',
               as: 'budget',
-              in: { $subtract: ['$budget.amount', '$budget.balance'] },
+              in: '$$budget.amountUsed'
             },
           }
         },
@@ -349,6 +357,9 @@ export class ProjectService {
     if (!project) {
       throw new NotFoundError("Project not found")
     }
+
+    project.budgets = project.budgets
+      .filter((budget: IBudget) => budget.status === BudgetStatus.Active)
 
     return project
   }
