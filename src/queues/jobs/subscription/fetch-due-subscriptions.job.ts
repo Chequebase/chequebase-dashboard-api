@@ -16,10 +16,12 @@ async function fetchDueSubscriptions() {
     }
 
     const subscriptions = await Subscription.find(filter)
-      .populate('plan')
       .populate({
         path: 'organization', select: 'admin subscription',
-        populate: { path: 'admin', select: 'firstName email' }
+        populate: [
+          { path: 'admin', select: 'firstName email' },
+          { path: 'subscription.nextPlan', select: '-transferFee -features' }
+        ]
       })
       .lean()
 

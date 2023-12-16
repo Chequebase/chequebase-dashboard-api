@@ -38,7 +38,7 @@ async function processSubscriptionPlanChange(job: Job<SubscriptionPlanChange>) {
   
   const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/settings/license`
   if (!oldPlan) {
-    await emailService.sendSubscriptionRenewal(admin.email, {
+    await emailService.sendSubscriptionConfirmation(admin.email, {
       endDate: subscription.endingAt,
       userName: admin.firstName,
       planName: newPlan.name,
@@ -148,7 +148,7 @@ async function handleUserFeatureUpgrade(org: IOrganization, plan: ISubscriptionP
 }
 
 async function handleActiveBudgetDowngrade(org: IOrganization, plan: ISubscriptionPlan) {
-  const code = 'active_budget'
+  const code = 'active_budgets'
   const activeBudgetFeature = plan.features.find(f => f.code === code)
   if (!activeBudgetFeature) {
     return logger.error('unable to find active budget on plan', { code, plan: plan._id })

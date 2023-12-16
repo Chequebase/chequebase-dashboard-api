@@ -21,7 +21,7 @@ import { transactionOpts } from '../common/utils';
 import User from '@/models/user.model';
 
 const logger = new Logger('plan-service')
-const YEARLY_DISCOUNT = 0.35
+const YEARLY_DISCOUNT = 0.30
 
 @Service()
 export class PlanService {
@@ -119,7 +119,10 @@ export class PlanService {
 
   async initiateSubscription(auth: AuthUser, data: InitiateSubscriptionDto) {
     const org = await Organization.findById(auth.orgId)
-      .populate('subscription.object')
+      .populate({
+        path: 'subscription.object',
+        populate: { path: 'plan', select: 'amount' }
+      })
       .lean()
     if (!org) {
       throw new NotFoundError('Organization not found')
@@ -141,6 +144,16 @@ export class PlanService {
       // allow renewal if it's most 5 before subscription ending
       if (samePlan && dayjs().add(5, 'days').isBefore(subscriptionObj.endingAt, 'day')) {
         throw new BadRequestError("You cannot renew your subscription at the moment")
+      }
+
+      const oldPlan = subscriptionObj?.plan as ISubscriptionPlan
+      if (oldPlan && oldPlan.amount.NGN > plan.amount.NGN) {
+        await Organization.updateOne({ _id: auth.orgId }, { 'subscription.nextPlan': plan._id })
+
+        return {
+          status: 'successful',
+          message: 'Plan will be activated at the end of the current subscription period'
+        }
       }
     }
 

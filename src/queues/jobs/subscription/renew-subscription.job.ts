@@ -10,7 +10,7 @@ import EmailService from "@/modules/common/email.service";
 import { IUser } from "@/models/user.model";
 import { getEnvOrThrow } from "@/modules/common/utils";
 
-const logger = new Logger('process-charge.job');
+const logger = new Logger('renew-subscription.job');
 const planService = Container.get(PlanService)
 const emailService = Container.get(EmailService)
 
@@ -36,7 +36,7 @@ async function renewSubscription(job: Job<{ subscription: ISubscription }>) {
 
 async function chargeSubscription(subscription: ISubscription) {
   const org = subscription.organization as IOrganization
-  const plan = subscription.plan as ISubscriptionPlan
+  const plan = org.subscription.nextPlan as ISubscriptionPlan
   const months = org.subscription.months || 1
 
   try {
@@ -67,14 +67,15 @@ async function chargeSubscription(subscription: ISubscription) {
 }
 
 async function handleFailedRenewal(chargeResponse: any, subscription: ISubscription) {
-  const organization = (<IOrganization>subscription.organization)
-  const plan = (<ISubscriptionPlan>subscription.plan)
-  const admin = (<IUser>organization.admin)
+  const org = (<IOrganization>subscription.organization)
+  const plan = (<ISubscriptionPlan>org.subscription.nextPlan)
+  const admin = (<IUser>org.admin)
   admin.firstName ||= admin.email.split('@')[0]
 
   logger.log('renewal failed', {
     subscription: subscription._id,
-    orgId: organization._id
+    orgId: org._id,
+    chargeResponse: JSON.stringify(chargeResponse)
   })
 
   subscription = (await Subscription.findById(subscription._id))!
@@ -83,7 +84,7 @@ async function handleFailedRenewal(chargeResponse: any, subscription: ISubscript
     return { message: 'subscription is expired' }
   }
 
-  const gracePeriod = organization.subscription.gracePeriod
+  const gracePeriod = org.subscription.gracePeriod
   const gracePeriodEnd = dayjs(subscription.endingAt).add(gracePeriod, 'day');
   if (dayjs().isAfter(gracePeriodEnd)) {
     await Subscription.updateOne({ _id: subscription._id }, {

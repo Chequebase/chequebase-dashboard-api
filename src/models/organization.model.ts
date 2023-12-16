@@ -3,6 +3,7 @@ import { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import { ISubscription } from './subscription.model';
 import { IUser } from './user.model';
+import { ISubscriptionPlan } from './subscription-plan.model';
 
 export enum BillingMethod {
   Wallet = 'wallet',
@@ -35,7 +36,7 @@ export interface IOrganization {
     billingMethod: BillingMethod,
     months: number // 1|12
     gracePeriod: number
-    nextPlan: ObjectId
+    nextPlan: ObjectId | ISubscriptionPlan
     object: ObjectId | ISubscription
   }
   averageMonthlyExpenses: string
