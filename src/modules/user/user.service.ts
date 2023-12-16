@@ -94,6 +94,7 @@ export class UserService {
       throw new UnauthorizedError('Wrong login credentials!')
     }
 
+    const returnRememberMe = data.rememberMe ? true : user?.rememberMe
     if (user?.rememberMe) {
       //password match
       const tokens = await this.getTokens(user.id, user.email, organization.id);
@@ -101,7 +102,7 @@ export class UserService {
       await user.updateOne({
         rememberMe: data.rememberMe,
       })
-      return { tokens, userId: user.id, rememberMe: user?.rememberMe }
+      return { tokens, userId: user.id, rememberMe: true }
     }
 
     // const expirationDate = this.getRememberMeExpirationDate(data)
@@ -119,7 +120,7 @@ export class UserService {
       otp
     })
 
-    return { userId: user.id, rememberMe: data.rememberMe }
+    return { userId: user.id, rememberMe: returnRememberMe }
   }
 
   // getRememberMeExpirationDate(data: LoginDto) {
