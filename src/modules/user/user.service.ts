@@ -98,7 +98,10 @@ export class UserService {
       //password match
       const tokens = await this.getTokens(user.id, user.email, organization.id);
       await this.updateHashRefreshToken(user.id, tokens.refresh_token);
-      return { tokens, userId: user.id, rememberMe: true }
+      await user.updateOne({
+        rememberMe: data.rememberMe,
+      })
+      return { tokens, userId: user.id, rememberMe: user?.rememberMe }
     }
 
     // const expirationDate = this.getRememberMeExpirationDate(data)
@@ -106,7 +109,7 @@ export class UserService {
     const otpExpiresAt = this.getOtpExpirationDate()
 
     await user.updateOne({
-      rememberMe: data.rememberMe || false,
+      rememberMe: data.rememberMe,
       otpExpiresAt,
       otp
     })
@@ -116,7 +119,7 @@ export class UserService {
       otp
     })
 
-    return { userId: user.id, rememberMe: false }
+    return { userId: user.id, rememberMe: data.rememberMe }
   }
 
   // getRememberMeExpirationDate(data: LoginDto) {
