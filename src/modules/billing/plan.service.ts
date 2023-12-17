@@ -125,6 +125,8 @@ export class PlanService {
   }
 
   async initiateSubscription(auth: AuthUser, data: InitiateSubscriptionDto) {
+    data.paymentMethod ||= BillingMethod.Wallet
+
     const org = await Organization.findById(auth.orgId)
       .populate({
         path: 'subscription.object',
@@ -155,7 +157,10 @@ export class PlanService {
 
       const oldPlan = sub?.plan as ISubscriptionPlan
       if (oldPlan && oldPlan.amount.NGN > plan.amount.NGN) {
-        await Organization.updateOne({ _id: auth.orgId }, { 'subscription.nextPlan': plan._id })
+        await Organization.updateOne({ _id: auth.orgId }, {
+          'subscription.nextPlan': plan._id,
+          'subscription.months': data.months
+        })
 
         return {
           status: 'successful',

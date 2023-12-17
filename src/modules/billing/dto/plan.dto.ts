@@ -6,10 +6,11 @@ export class InitiateSubscriptionDto {
   plan: string
 
   @IsIn([1, 12])
-  months: number
+  @IsOptional()
+  months = 1
 
   @IsEnum(BillingMethod)
-  @IsString()
+  @IsOptional()
   paymentMethod: BillingMethod
 }
 
