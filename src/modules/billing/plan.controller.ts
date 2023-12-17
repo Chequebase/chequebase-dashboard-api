@@ -17,7 +17,6 @@ export default class BillingController {
   }
 
   @Get('/plans')
-  @Authorized()
   getPlans() {
     return this.plansService.fetchPlans()
   }
