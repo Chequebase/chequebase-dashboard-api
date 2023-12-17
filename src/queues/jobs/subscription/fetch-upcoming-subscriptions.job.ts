@@ -16,8 +16,8 @@ const logger = new Logger('fetch-upcoming-subscriptions.job')
 
 async function fetchUpcomingSubscriptions() {
   try {
-    const in3days = dayjs().add(3, 'days').format('YYYY-MM-DD')
-    const in1Week = dayjs().add(1, 'week').format('YYYY-MM-DD')
+    const in3days = dayjs().tz().add(3, 'days').format('YYYY-MM-DD')
+    const in1Week = dayjs().tz().add(1, 'week').format('YYYY-MM-DD')
     const trialFilter = {
       status: SubscriptionStatus.Active,
       trial: true,

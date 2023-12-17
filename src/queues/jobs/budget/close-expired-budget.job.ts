@@ -74,8 +74,8 @@ async function closeExpiredBudget(job: Job) {
 
 async function fetchExpiredBudgets(job: Job) {
   const logger = new Logger('fetch-expired-budgets')
+  const tomorrow = dayjs().tz().add(1, 'day').format('YYYY-MM-DD')
 
-  const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD')
   // get budgets expired and expiring tomorrow
   const budgets = await Budget.find({
     status: BudgetStatus.Active,
@@ -91,6 +91,7 @@ async function fetchExpiredBudgets(job: Job) {
       }
     ]
   })
+    .select('expiry status')
     .populate<{ project: IProject }>('project', 'expiry status')
     .lean()
   
