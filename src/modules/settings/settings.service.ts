@@ -2,7 +2,7 @@ import { CreatePinDto } from './dto/create-pin.dto';
 import { ChangeForgotCurrentPinDto, ChangePinDto, ForgotCurrentPinDto } from './dto/change-pin.dto';
 import { Service } from 'typedi';
 import User, { UserStatus } from '@/models/user.model';
-import { BadRequestError, ForbiddenError, UnauthorizedError } from 'routing-controllers';
+import { BadRequestError, ForbiddenError, UnauthorizedError, UseBefore } from 'routing-controllers';
 import { compare, hash } from 'bcryptjs';
 import { createId } from '@paralleldrive/cuid2';
 import Permission from '@/models/permission.model';
@@ -49,7 +49,7 @@ export class SettingsService {
   }
 
   async forgotCurrentPin(userId: string, forgotCurrentPinDto: ForgotCurrentPinDto) {
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select('+password');
     if (!user) {
       throw new BadRequestError('User not found');
     }
@@ -58,15 +58,15 @@ export class SettingsService {
     }
     const forgotPinCode = createId()
     const hashed = await hash(forgotPinCode, 12)
-    await User.updateOne({ _id: userId }, { forgotPinCode })
-    return { hash: hashed }
+    await User.updateOne({ _id: userId }, { forgotPinCode: hashed })
+    return { hash: forgotPinCode }
   }
 
   async changeForgotCurrentPin(userId: string, changeForgotCurrentPinDto: ChangeForgotCurrentPinDto) {
     if (changeForgotCurrentPinDto.pin.length !== 4 || !/^\d+$/.test(changeForgotCurrentPinDto.pin)) {
       throw new ForbiddenError('Invalid PIN format.');
     }
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select('+pin');
     if (!user) {
       throw new BadRequestError('User not found')
     }
@@ -74,7 +74,7 @@ export class SettingsService {
     if (!user.pin) {
       throw new ForbiddenError('Pin does not exist');
     }
-    if (!await compare(changeForgotCurrentPinDto.hash, user.forgotPinCode)) {
+    if (!(await compare(changeForgotCurrentPinDto.hash, user.forgotPinCode))) {
       throw new UnauthorizedError('Invalid Credentials!')
     }
     const hashed = await hash(changeForgotCurrentPinDto.pin, 12)
