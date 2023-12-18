@@ -407,6 +407,8 @@ export default class BudgetService {
   async getBeneficiaryBudgets(auth: AuthUser) {
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', BudgetStatus.Active)
+      .set('project', { $exists: false })
+      .set('paused', false)
       .set('beneficiaries.user', new ObjectId(auth.userId))
 
     const budgets = await Budget.find(filter.object)

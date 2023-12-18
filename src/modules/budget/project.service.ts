@@ -14,6 +14,7 @@ import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } fro
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
 import { UserService } from '../user/user.service'
+import QueryFilter from "../common/utils/query-filter"
 
 const logger = new Logger('project-service')
 
@@ -410,5 +411,31 @@ export class ProjectService {
     await ProjectService.initiateProjectClosure(payload)
 
     return { message: 'Project closed' }
+  }
+
+  async getBeneficiaryProjects(auth: AuthUser) {
+    const userId = new ObjectId(auth.userId)
+    let projects = await Project.aggregate()
+      .match({
+        organization: new ObjectId(auth.orgId),
+        status: ProjectStatus.Active,
+        paused: false
+      })
+      .sort({ amount: 1, createdAt: -1 })
+      .lookup({
+        from: 'budgets',
+        localField: '_id',
+        foreignField: 'project',
+        as: 'budgets'
+      })
+      .match({ 'budgets.beneficiaries.user': userId })
+      
+    projects = projects.map((project) => {
+      const budgets = project.budgets.filter((budget: IBudget) =>
+        budget.beneficiaries.some((b: any) => b.user.equals(userId)))
+      return Object.assign(project, { budgets })
+    })
+    
+    return projects
   }
 }
