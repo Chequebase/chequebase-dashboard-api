@@ -432,7 +432,10 @@ export class ProjectService {
       
     projects = projects.map((project) => {
       const budgets = project.budgets.filter((budget: IBudget) =>
-        budget.beneficiaries.some((b: any) => b.user.equals(userId)))
+        budget.status === BudgetStatus.Active &&
+        budget.beneficiaries.some((b: any) => b.user.equals(userId))
+      )
+      
       return Object.assign(project, { budgets })
     })
     
