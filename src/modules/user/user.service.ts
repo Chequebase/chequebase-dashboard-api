@@ -265,11 +265,6 @@ export class UserService {
       status: UserStatus.ACTIVE
     })
 
-    this.emailService.sendEmailVerified(user.email,{
-      customerName: email,
-      businessName: organization.businessName
-    })
-
     return { message: 'success' };
   }
 

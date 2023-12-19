@@ -11,24 +11,25 @@ export default class BillingController {
   constructor (private readonly plansService: PlanService) { }
 
   @Get('/intents/:id')
-  @Authorized()
+  @Authorized(Role.Owner)
   getIntentStatus(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.plansService.getIntentStatus(auth.orgId, id)
   }
 
   @Get('/plans')
+  @Authorized(Role.Owner)
   getPlans() {
     return this.plansService.fetchPlans()
   }
 
   @Get('/subscription')
-  @Authorized()
+  @Authorized(Role.Owner)
   getCurrentSubscription(@CurrentUser() auth: AuthUser) {
     return this.plansService.getCurrentSubscription(auth.orgId)
   }
 
   @Get('/subscription/history')
-  @Authorized()
+  @Authorized(Role.Owner)
   getSubscriptionHistory(@CurrentUser() auth: AuthUser, @QueryParams() query: GetSubscriptionHistoryDto) {
     return this.plansService.getSubscriptionHistory(auth.orgId, query)
   }
