@@ -1,0 +1,37 @@
+name: Deploy to prod environment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: setup node
+        uses: actions/setup-node@master
+        with:
+          node-version: "18"
+      - run: npm install
+      - run: npm run build
+      - name: Generate zip file
+        run: |
+          echo "Removing node_modules and src"
+          rm -rf ./node_modules
+          rm -rf ./src
+          zip -r deploy.zip . -x '*.git*'
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          existing_bucket_name: chequebase-elb-app-deployment
+          application_name: chequebase-dashboard-api
+          environment_name: chequebase-dashboard-api-prod
+          wait_for_environment_recovery: 60
+          use_existing_version_if_available: true
+          version_label: prod-${{ github.SHA }}
+          region: eu-central-1
+          deployment_package: deploy.zip
+          version_description: ${{ github.SHA }}
