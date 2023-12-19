@@ -7,18 +7,27 @@ import WalletEntry, { WalletEntryScope, WalletEntryStatus } from '@/models/walle
 import { getPercentageDiff } from '../common/utils';
 import { getDates, getPrevFromAndTo } from '../common/utils/date';
 import { GetCashflowTrendDto, GetOverviewSummaryDto } from './dto/overview.dto';
+import { AuthUser } from '../common/interfaces/auth-user';
+import User, { IUser } from '@/models/user.model';
+import { BadRequestError } from 'routing-controllers';
+import { Role } from '../user/dto/user.dto';
 
 dayjs.extend(isBetween)
 
 @Service()
 export class OverviewService {
-  private async getWalletBalanceSummary(orgId: string, query: GetOverviewSummaryDto) {
+  private async getWalletBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
+    if (user.role !== Role.Owner) {
+      return { value: null, percentageDiff: null }
+    }
+
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
     const filter = {
-      organization: new ObjectId(orgId),
+      organization: user.organization,
       currency: query.currency,
       status: WalletEntryStatus.Successful,
     }
+
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
 
@@ -51,14 +60,20 @@ export class OverviewService {
     return getPercentageDiff(prevBalance, currentBalance)
   }
 
-  private async getBudgetBalanceSummary(orgId: string, query: GetOverviewSummaryDto) {
+  private async getBudgetBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
-    const filter = {
-      organization: orgId,
+    const filter: any = {
+      organization: user.organization,
       status: WalletEntryStatus.Successful,
       currency: query.currency
     }
-    const budgets = await Budget.find({ ...filter, status: BudgetStatus.Active }).lean()
+
+    const budgets = await Budget.find({
+      ...filter,
+      status: BudgetStatus.Active,
+      ...(user.role !== Role.Owner && { 'beneficiaries.user': user._id }),
+    }).lean()
+
     const currentFilter = { createdAt: { $gte: from, $lte: to } }
     const prevFilter = { createdAt: { $gte: prevFrom, $lte: prevTo } }
 
@@ -101,10 +116,10 @@ export class OverviewService {
     return getPercentageDiff(prevBalance, currentBalance)
   }
 
-  private async getTotalSpendSummary(orgId: string, query: GetOverviewSummaryDto) {
+  private async getTotalSpendSummary(user: IUser, query: GetOverviewSummaryDto) {
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
-    const filter = {
-      organization: new ObjectId(orgId),
+    const filter: any = {
+      organization: user.organization,
       type: 'debit',
       currency: query.currency,
       status: WalletEntryStatus.Successful,
@@ -116,6 +131,12 @@ export class OverviewService {
         ]
       },
     }
+
+    if (user.role !== Role.Owner) {
+      filter.initiatedBy = user._id
+      filter.scope.$in = [WalletEntryScope.BudgetTransfer]
+    }
+
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
 
@@ -131,11 +152,14 @@ export class OverviewService {
     return getPercentageDiff(previous?.amount, current?.amount)
   }
 
-  async getOverviewSummary(orgId: string, query: GetOverviewSummaryDto) {
+  async getOverviewSummary(auth: AuthUser, query: GetOverviewSummaryDto) {
+    const user = await User.findById(auth.userId).lean()
+    if (!user) throw new BadRequestError("User not found")
+
     const [accountBalance, budgetBalance, totalSpend] = await Promise.all([
-      this.getWalletBalanceSummary(orgId, query),
-      this.getBudgetBalanceSummary(orgId, query),
-      this.getTotalSpendSummary(orgId, query)
+      this.getWalletBalanceSummary(user, query),
+      this.getBudgetBalanceSummary(user, query),
+      this.getTotalSpendSummary(user, query)
     ])
 
     return {
@@ -146,10 +170,14 @@ export class OverviewService {
     };
   }
 
-  async cashflowTrend(orgId: string, query: GetCashflowTrendDto) {
+  async cashflowTrend(auth: AuthUser, query: GetCashflowTrendDto) {
+    const user = await User.findById(auth.userId)
+    if (!user) throw new BadRequestError('User not found')
+    const isOwner = user.role === Role.Owner
+
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
     const filter = {
-      organization: new ObjectId(orgId),
+      organization: new ObjectId(auth.orgId),
       currency: query.currency,
       status: WalletEntryStatus.Successful,
       scope: {
@@ -158,15 +186,36 @@ export class OverviewService {
           WalletEntryScope.WalletFunding,
           WalletEntryScope.BudgetTransfer
         ]
-      },
+      }
+    }
+
+    if (!isOwner) {
+      filter.scope.$in = [WalletEntryScope.BudgetTransfer, WalletEntryScope.BudgetFunding]
     }
 
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
+    const userId = new ObjectId(auth.userId)
 
-    const getTrendQuery = (type: string) => WalletEntry.aggregate()
-      .match({ ...currentFilter, type })
-      .group({
+    const getTrendQuery = (type: string) => {
+     const agg = WalletEntry.aggregate()
+       .match({ ...currentFilter, type })
+       
+      if (!isOwner) {
+        agg.lookup({
+          from: 'budgets',
+          localField: 'budget',
+          foreignField: '_id',
+          as: 'budgets'
+        })
+          
+        if (type === 'credit')
+          agg.match({ 'budgets.beneficiaries.user': userId })
+        else
+          agg.match({ initiatedBy: userId })
+      }
+
+     agg.group({
         _id: { $dateToString: { format: "%Y-%m-%d", date: '$createdAt' } },
         value: { $sum: '$amount' }
       })
@@ -176,9 +225,31 @@ export class OverviewService {
         value: 1
       })
 
-    const getCashflowQuery = (type: string) => WalletEntry.aggregate()
-      .match({ ...prevFilter, type })
-      .group({ _id: null, value: { $sum: '$amount' } })
+      return agg
+    }
+
+    const getCashflowQuery = (type: string) => {
+      const agg = WalletEntry.aggregate()
+        .match({ ...prevFilter, type })
+
+      if (!isOwner) {
+        agg.lookup({
+          from: 'budgets',
+          localField: 'budget',
+          foreignField: '_id',
+          as: 'budgets'
+        })
+
+        if (type === 'credit')
+          agg.match({ 'budgets.beneficiaries.user': userId })
+        else
+          agg.match({ initiatedBy: userId })
+      }
+
+      agg.group({ _id: null, value: { $sum: '$amount' } })
+
+      return agg
+    }
 
     const [incomeTrendResult, expenseTrendResult, [prevIncome], [prevExpense]] = await Promise.all([
       getTrendQuery('credit'),

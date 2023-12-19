@@ -12,12 +12,12 @@ export class OverviewController {
   @Get('/summary')
   @Authorized()
   getDashboardSummary(@CurrentUser() auth: AuthUser, @QueryParams() query: GetOverviewSummaryDto) {
-    return this.overviewService.getOverviewSummary(auth.orgId, query);
+    return this.overviewService.getOverviewSummary(auth, query);
   }
 
   @Get('/trends/cashflow')
   @Authorized()
   cashflowTrend(@CurrentUser() auth: AuthUser, @QueryParams() query: GetCashflowTrendDto) {
-    return this.overviewService.cashflowTrend(auth.orgId, query);
+    return this.overviewService.cashflowTrend(auth, query);
   }
 }
