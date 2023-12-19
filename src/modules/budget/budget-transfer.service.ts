@@ -222,7 +222,7 @@ export class BudgetTransferService {
       throw new BadRequestError("Project is paused")
     }
 
-    if (budget.expiry && dayjs().isAfter(budget.expiry)) {
+    if (budget.expiry && dayjs().isAfter(budget.expiry, 'day')) {
       throw new BadRequestError('Budget is expired')
     }
 
