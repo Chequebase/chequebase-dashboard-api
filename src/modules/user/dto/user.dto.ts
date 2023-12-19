@@ -128,6 +128,14 @@ export class AddEmployeeDto {
 export class UpdateEmployeeDto {
   @IsString()
   @IsOptional()
+  firstName: string;
+
+  @IsString()
+  @IsOptional()
+  lastName: string;
+
+  @IsString()
+  @IsOptional()
   email: string;
 
   @IsString()
@@ -141,14 +149,6 @@ export class UpdateEmployeeDto {
 }
 
 export class UpdateProfileDto {
-  @IsOptional()
-  @IsString()
-  firstName: string;
-
-  @IsOptional()
-  @IsString()
-  lastName: string;
-
   @IsOptional()
   @IsString()
   phone: string;
