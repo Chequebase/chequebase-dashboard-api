@@ -209,7 +209,7 @@ export class OverviewService {
           as: 'budgets'
         })
           
-        if (type === 'credit')
+        if (type === 'income')
           agg.match({ 'budgets.beneficiaries.user': userId })
         else
           agg.match({ initiatedBy: userId })
@@ -229,8 +229,14 @@ export class OverviewService {
     }
 
     const getCashflowQuery = (type: string) => {
+      let scopes: any = []
+      if (isOwner && type === 'income') scopes = ownerIncomeScopes
+      else if (isOwner && type === 'expense') scopes = ownerExpenseScopes
+      else if (!isOwner && type === 'income') scopes = employeeIncomeScopes
+      else if (!isOwner && type === 'expense') scopes = employeeExpenseScopes
+
       const agg = WalletEntry.aggregate()
-        .match({ ...prevFilter, type })
+        .match({ ...prevFilter, scope: { $in: scopes } })
 
       if (!isOwner) {
         agg.lookup({
@@ -240,7 +246,7 @@ export class OverviewService {
           as: 'budgets'
         })
 
-        if (type === 'credit')
+        if (type === 'income')
           agg.match({ 'budgets.beneficiaries.user': userId })
         else
           agg.match({ initiatedBy: userId })
