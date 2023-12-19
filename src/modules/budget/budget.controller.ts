@@ -114,6 +114,12 @@ export default class BudgetController {
     return this.budgetTransferService.resolveAccountNumber(body)
   }
 
+  @Get('/balances')
+  @Authorized()
+  getBalances(@CurrentUser() auth: AuthUser) {
+    return this.budgetService.getBalances(auth)
+  }
+
   @Put('/:id')
   @Authorized()
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {

@@ -608,4 +608,17 @@ export default class BudgetService {
 
     return budget
   }
+
+  async getBalances(auth: AuthUser) {
+    const budgetAgg = await Budget.aggregate()
+      .match({
+        organization: new ObjectId(auth.orgId),
+        // status: BudgetStatus.Active,
+        // 'beneficiaries.user': new ObjectId(auth.userId)
+      })
+      .group({ _id: '$currency', balance: { $sum: '$balance' } })
+      .project({ _id: 0, currency: '$_id', balance: 1 })
+    
+    return budgetAgg
+  }
 }
