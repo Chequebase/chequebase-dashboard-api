@@ -173,33 +173,33 @@ export class OverviewService {
   async cashflowTrend(auth: AuthUser, query: GetCashflowTrendDto) {
     const user = await User.findById(auth.userId)
     if (!user) throw new BadRequestError('User not found')
+
+    const userId = new ObjectId(auth.userId)
     const isOwner = user.role === Role.Owner
+    const ownerExpenseScopes = [WalletEntryScope.PlanSubscription, WalletEntryScope.BudgetTransfer]
+    const ownerIncomeScopes = [WalletEntryScope.WalletFunding]
+    const employeeExpenseScopes = [WalletEntryScope.BudgetTransfer]
+    const employeeIncomeScopes = [WalletEntryScope.BudgetFunding]
 
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
     const filter = {
       organization: new ObjectId(auth.orgId),
       currency: query.currency,
       status: WalletEntryStatus.Successful,
-      scope: {
-        $in: [
-          WalletEntryScope.PlanSubscription,
-          WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer
-        ]
-      }
-    }
-
-    if (!isOwner) {
-      filter.scope.$in = [WalletEntryScope.BudgetTransfer, WalletEntryScope.BudgetFunding]
     }
 
     const currentFilter = { ...filter, createdAt: { $gte: from, $lte: to } }
     const prevFilter = { ...filter, createdAt: { $gte: prevFrom, $lte: prevTo } }
-    const userId = new ObjectId(auth.userId)
 
     const getTrendQuery = (type: string) => {
+      let scopes: any = []
+      if (isOwner && type === 'income') scopes = ownerIncomeScopes
+      else if (isOwner && type === 'expense') scopes = ownerExpenseScopes
+      else if (!isOwner && type === 'income') scopes = employeeIncomeScopes
+      else if (!isOwner && type === 'expense') scopes = employeeExpenseScopes
+
      const agg = WalletEntry.aggregate()
-       .match({ ...currentFilter, type })
+        .match({ ...currentFilter, scope: { $in: scopes } })
        
       if (!isOwner) {
         agg.lookup({
@@ -252,10 +252,10 @@ export class OverviewService {
     }
 
     const [incomeTrendResult, expenseTrendResult, [prevIncome], [prevExpense]] = await Promise.all([
-      getTrendQuery('credit'),
-      getTrendQuery('debit'),
-      getCashflowQuery('credit'),
-      getCashflowQuery('debit'),
+      getTrendQuery('income'),
+      getTrendQuery('expense'),
+      getCashflowQuery('income'),
+      getCashflowQuery('expense'),
     ])
 
     const boundaries = getDates(from, to, query.period)
