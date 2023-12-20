@@ -14,7 +14,6 @@ import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } fro
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
 import { UserService } from '../user/user.service'
-import QueryFilter from "../common/utils/query-filter"
 
 const logger = new Logger('project-service')
 
@@ -319,7 +318,18 @@ export class ProjectService {
         from: 'budgets',
         localField: '_id',
         foreignField: 'project',
-        as: 'budgets'
+        as: 'budgets',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              as: 'beneficiaries',
+              foreignField: '_id',
+              localField: 'beneficiaries.user',
+              pipeline: [{ $project: { firstName: 1, lastName: 1, email: 1, avatar: 1 } }]
+            }
+          }
+        ]
       })
       .lookup({
         as: 'createdBy',
