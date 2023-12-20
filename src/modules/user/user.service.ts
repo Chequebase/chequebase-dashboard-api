@@ -351,7 +351,10 @@ export class UserService {
   async getProfile(userId: string) {
     const user = await User.findById(userId)
       .select('firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone')
-      .populate({ path: 'organization', select: 'subscription' })
+      .populate({
+        path: 'organization', select: 'subscription',
+        populate: 'subscription.object'
+      })
       .lean()
     
     if (!user) {
