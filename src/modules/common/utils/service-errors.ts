@@ -24,20 +24,16 @@ export class FeatureError extends Error {
 }
 
 export class FeatureUnavailableError extends FeatureError {
-  httpCode = 400
-
-  constructor (message: string, feature: string) {
-    super(message, { errorCode: 'FEATURE_UNAVAILABLE', featureCode: feature });
+  constructor (message: string, featureCode: string) {
+    super(message, { errorCode: 'FEATURE_UNAVAILABLE', featureCode });
     this.name = FeatureUnavailableError.name;
     Object.setPrototypeOf(this, FeatureUnavailableError.prototype);
   }
 }
 
 export class FeatureLimitExceededError extends FeatureError {
-  httpCode = 400
-
   constructor (message: string, featureCode: string) {
-    super(message, {errorCode: 'FEATURE_LIMIT_EXCEEDED', featureCode});
+    super(message, { errorCode: 'FEATURE_LIMIT_EXCEEDED', featureCode });
     this.name = FeatureLimitExceededError.name;
     Object.setPrototypeOf(this, FeatureLimitExceededError.prototype);
   }

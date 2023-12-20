@@ -21,6 +21,7 @@ export interface ISubscriptionPlan {
   description: string
   transferFee: TransferFee
   features: {
+    group: string
     code: string
     name: string
     description: string
@@ -65,6 +66,7 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
     features: {
       _id: false,
       type: [{
+        group: String,
         code: String,
         name: String,
         description: String,
