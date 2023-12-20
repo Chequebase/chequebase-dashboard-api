@@ -15,6 +15,7 @@ const logger = new Logger('plan-usage-service')
 @Service()
 export class PlanUsageService {
   async checkActiveBudgetUsage(orgId: string) {
+    const code = 'active_budgets'
     const organization = await Organization.findById(orgId)
       .populate({ path: 'subscription.object', populate: 'plan' })
       .select('subscription')
@@ -26,27 +27,27 @@ export class PlanUsageService {
 
     const subscription = organization.subscription?.object as ISubscription
     if (!subscription || subscription?.status === 'expired') {
-      throw new FeatureUnavailableError('Organization has no active subscription')
+      throw new FeatureUnavailableError('Organization has no active subscription', code)
     }
 
-    const code = 'active_budgets'
     const plan = subscription.plan as ISubscriptionPlan
     const budgets = await Budget.countDocuments({ organization: orgId, status: BudgetStatus.Active })
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new FeatureUnavailableError('Organization does not have access to this feature')
+      throw new FeatureUnavailableError('Organization does not have access to this feature', code)
     }
     if (budgets >= feature.freeUnits && feature.maxUnits !== -1) {
       throw new FeatureLimitExceededError(
         'Organization has reached its maximum limit for active budgets. To continue adding active budgets, consider upgrading your plan'
-      )
+        , code)
     }
 
     return true
   }
 
   async checkProjectUsage(orgId: string) {
+    const code = 'projects'
     const organization = await Organization.findById(orgId)
       .populate({ path: 'subscription.object', populate: 'plan' })
       .select('subscription')
@@ -58,28 +59,28 @@ export class PlanUsageService {
 
     const subscription = organization.subscription?.object as ISubscription
     if (!subscription || subscription?.status === 'expired') {
-      throw new FeatureUnavailableError('Organization has no active subscription')
+      throw new FeatureUnavailableError('Organization has no active subscription', code)
     }
 
-    const code = 'projects'
     const plan = subscription.plan as ISubscriptionPlan
     const projects = await Project.countDocuments({ organization: orgId, status: ProjectStatus.Active })
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new FeatureUnavailableError('Organization does not have access to this feature')
+      throw new FeatureUnavailableError('Organization does not have access to this feature', code)
     }
 
     if (projects >= feature.freeUnits && feature.maxUnits !== -1) {
       throw new FeatureLimitExceededError(
         'Organization has reached its maximum limit for projects. To continue adding projects, consider upgrading your plan'
-      )
+        , code)
     }
 
     return true
   }
 
   async checkUsersUsage(orgId: string) {
+    const code = 'users'
     const organization = await Organization.findById(orgId)
       .populate({ path: 'subscription.object', populate: 'plan' })
       .select('subscription')
@@ -91,16 +92,15 @@ export class PlanUsageService {
 
     const subscription = organization.subscription?.object as ISubscription
     if (!subscription || subscription?.status === 'expired') {
-      throw new FeatureUnavailableError('Organization has no active subscription')
+      throw new FeatureUnavailableError('Organization has no active subscription', code)
     }
 
-    const code = 'users'
     const plan = subscription.plan as ISubscriptionPlan
     const users = await User.countDocuments({ organization: orgId, status: { $ne: UserStatus.DELETED } })
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })
-      throw new FeatureUnavailableError('Organization does not have access to this feature')
+      throw new FeatureUnavailableError('Organization does not have access to this feature', code)
     }
 
     const exhuastedMaxUnits = feature.maxUnits === -1 ? false : users >= feature.maxUnits
@@ -108,7 +108,7 @@ export class PlanUsageService {
     if (exhaustedFreeUnits && exhuastedMaxUnits) {
       throw new FeatureLimitExceededError(
         'Organization has reached its maximum limit for users. To continue adding users, consider upgrading your plan'
-      )
+        , code)
     }
 
     return { feature, exhaustedFreeUnits, exhuastedMaxUnits }

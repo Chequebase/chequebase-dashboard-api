@@ -23,7 +23,7 @@ export class ExceptionFilter implements ExpressErrorMiddlewareInterface {
     if (error instanceof HttpError || error instanceof FeatureError) {
       return response.status(error.httpCode).json({
         message: error.message,
-        code: (<FeatureError>error)?.code
+        data: (<FeatureError>error)?.data
       })
     }
 
