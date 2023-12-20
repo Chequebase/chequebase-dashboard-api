@@ -120,9 +120,9 @@ export class OverviewService {
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
     const filter: any = {
       organization: user.organization,
-      type: 'debit',
-      currency: query.currency,
       status: WalletEntryStatus.Successful,
+      currency: query.currency,
+      type: 'debit',
       scope: {
         $in: [
           WalletEntryScope.PlanSubscription,

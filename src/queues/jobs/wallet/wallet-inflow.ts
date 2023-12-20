@@ -56,6 +56,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         select: 'businessName admin',
         populate: {path: 'admin', select: 'email'}
       })
+      .sort({ createdAt: -1 })
     if (!virtualAccount) {
       logger.error('strangely cannot find virtual account', { reference, accountNumber })
       throw new BadRequestError('Virtual account not found')

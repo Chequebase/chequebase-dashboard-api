@@ -20,24 +20,24 @@ async function fetchUpcomingSubscriptions() {
     const in1Week = dayjs().tz().add(1, 'week').format('YYYY-MM-DD')
     const trialFilter = {
       status: SubscriptionStatus.Active,
-      trial: true,
       $expr: {
         $eq: [
-          { $dateToString: { format: "%Y-%m-%d", date: "$expiry", timezone: 'Africa/Lagos' } },
+          { $dateToString: { format: "%Y-%m-%d", date: "$renewAt", timezone: 'Africa/Lagos' } },
           in3days
         ],
-      }
+      },
+      trial: true,
     }
 
     const filter = {
       status: SubscriptionStatus.Active,
-      trial: false,
       $expr: {
         $eq: [
-          { $dateToString: { format: "%Y-%m-%d", date: "$expiry", timezone: 'Africa/Lagos' } },
+          { $dateToString: { format: "%Y-%m-%d", date: "$renewAt", timezone: 'Africa/Lagos' } },
           in1Week
         ],
-      }
+      },
+      trial: false,
     }
 
     const filters = [trialFilter, filter]

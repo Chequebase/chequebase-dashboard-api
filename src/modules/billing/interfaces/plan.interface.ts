@@ -10,6 +10,7 @@ export interface ActivatePlan {
 export interface ChargeWalletForSubscription {
   userId?: string
   amount: number
+  currency: string
   months: number
   plan: { _id: ObjectId, name: string }
 }

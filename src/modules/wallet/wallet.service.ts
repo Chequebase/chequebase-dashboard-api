@@ -34,11 +34,10 @@ export default class WalletService {
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()
     const { amount, narration, currency } = data
-    const filter: any = currency ? { currency } : { primary: true }
 
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
-        { organization: orgId, ...filter, balance: { $gte: amount } },
+        { organization: orgId, currency, balance: { $gte: amount } },
         { $inc: { balance: -amount } },
         { session, new: true }
       )
@@ -91,8 +90,8 @@ export default class WalletService {
     }
 
     const wallets = await Wallet.find({
-      baseWallet: baseWallet._id,
-      organization: organization._id
+      organization: organization._id,
+      baseWallet: baseWallet._id
     })
 
     if (wallets.some((w) => w.baseWallet.equals(baseWallet._id))) {

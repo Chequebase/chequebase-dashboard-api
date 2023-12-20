@@ -27,7 +27,7 @@ const YEARLY_DISCOUNT = 0.30
 export class PlanService {
   async chargeWalletForSubscription(orgId: string, data: ChargeWalletForSubscription) {
     const reference = `ps_${createId()}`
-    const { plan, amount } = data
+    const { plan, amount, currency } = data
 
     if (amount === 0) {
       return {
@@ -38,7 +38,7 @@ export class PlanService {
 
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
-        { organization: orgId, balance: { $gte: amount } },
+        { organization: orgId, currency, balance: { $gte: amount } },
         { $inc: { balance: -amount } },
         { session, new: true }
       )
@@ -179,7 +179,7 @@ export class PlanService {
     }
 
     if (data.paymentMethod === BillingMethod.Wallet) {
-      const payload = Object.assign(data, { userId: auth.userId, plan, amount })
+      const payload = Object.assign(data, { userId: auth.userId, plan, amount, currency: 'NGN'  })
       const response = await this.chargeWalletForSubscription(auth.orgId, payload)
       await this.activatePlan(auth.orgId, data)
       return response

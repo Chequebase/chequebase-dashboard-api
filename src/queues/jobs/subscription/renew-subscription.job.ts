@@ -41,7 +41,7 @@ async function chargeSubscription(subscription: ISubscription) {
 
   try {
     const amount = planService.calculateSubscriptionCost(plan, months)
-    const payload = { amount, months, plan }
+    const payload = { amount, months, plan, currency: 'NGN' }
     const chargeResponse = await planService.chargeWalletForSubscription(org._id.toString(), payload)
 
     const successful = chargeResponse.status === 'successful'
