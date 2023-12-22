@@ -94,16 +94,16 @@ export class UserService {
       throw new UnauthorizedError('Wrong login credentials!')
     }
 
-    const returnRememberMe = data.rememberMe ? true : user?.rememberMe
-    if (user?.rememberMe) {
-      //password match
-      const tokens = await this.getTokens(user.id, user.email, organization.id);
-      await this.updateHashRefreshToken(user.id, tokens.refresh_token);
-      await user.updateOne({
-        rememberMe: data.rememberMe,
-      })
-      return { tokens, userId: user.id, rememberMe: true }
-    }
+    // const returnRememberMe = data.rememberMe ? true : user?.rememberMe
+    // if (user?.rememberMe) {
+    //   //password match
+    //   const tokens = await this.getTokens(user.id, user.email, organization.id);
+    //   await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    //   await user.updateOne({
+    //     rememberMe: data.rememberMe,
+    //   })
+    //   return { tokens, userId: user.id, rememberMe: true }
+    // }
 
     // const expirationDate = this.getRememberMeExpirationDate(data)
     const otp = Math.floor(100000 + Math.random() * 900000);
@@ -120,7 +120,7 @@ export class UserService {
       otp
     })
 
-    return { userId: user.id, rememberMe: returnRememberMe }
+    return { userId: user.id }
   }
 
   // getRememberMeExpirationDate(data: LoginDto) {
@@ -197,7 +197,7 @@ export class UserService {
     const tokens = await this.getTokens(user.id, user.email, organization.id);
     await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
-    return { tokens, userId: user.id, rememberMe: true }
+    return { tokens, userId: user.id }
   }
 
   async refreshToken(userId: string, rt: string) {
