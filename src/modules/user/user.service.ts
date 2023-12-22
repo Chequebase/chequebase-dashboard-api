@@ -419,7 +419,8 @@ export class UserService {
       organization: orgId,
       role: data.role,
       inviteSentAt: Math.round(new Date().getTime() / 1000),
-      status: UserStatus.INVITED
+      status: UserStatus.INVITED,
+      KYBStatus: KycStatus.NOT_STARTED
     })
 
     if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
@@ -471,10 +472,10 @@ export class UserService {
     return { tokens, userId: user.id }
   }
 
-  async getMembers(orgId: string, query: GetMembersQueryDto) {
+  async getMembers(auth: AuthUser, query: GetMembersQueryDto) {
     const users = await User.paginate({
-      organization: orgId,
-      role: { $ne: Role.Owner },
+      organization: auth.orgId,
+      _id: { $ne: auth.userId },
       status: query.status
     }, {
       page: Number(query.page),

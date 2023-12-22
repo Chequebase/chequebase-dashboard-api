@@ -114,7 +114,7 @@ export default class UserController {
   @Authorized(Role.Owner)
   @Get('/members')
   getMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: GetMembersQueryDto) {
-    return this.userService.getMembers(auth.orgId, query);
+    return this.userService.getMembers(auth, query);
   }
 
   @Authorized(Role.Owner)
