@@ -462,7 +462,8 @@ export class UserService {
       lastName,
       phone,
       password: hashedPassword,
-      status: UserStatus.ACTIVE
+      status: UserStatus.ACTIVE,
+      KYBStatus: KycStatus.APPROVED
     }).save()
 
     const tokens = await this.getTokens(user.id, user.email, user.organization.toString());
