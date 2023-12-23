@@ -593,6 +593,7 @@ export default class BudgetService {
         balance: 1,
         currency: 1,
         threshold: 1,
+        priority: 1,
         status: 1,
         paused: 1,
         expiry: 1,
