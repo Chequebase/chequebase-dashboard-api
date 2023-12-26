@@ -152,7 +152,7 @@ export default class WalletService {
 
   async getWallets(orgId: string) {
     let wallets = await Wallet.find({ organization: orgId })
-      .select('primary currency balance')
+      .select('primary currency balance ledgerBalance')
       .populate({
         path: 'virtualAccounts',
         select: 'accountNumber bankName bankCode name'
