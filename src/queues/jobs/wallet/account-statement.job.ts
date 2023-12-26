@@ -39,7 +39,7 @@ async function sendAccountStatement(job: Job<WalletInflowData>) {
     const wallet = await Wallet.findOne({ _id: walletId, organization: orgId })
       .populate({ path: 'virtualAccounts' })
       .populate({
-        path: 'organization', select: 'name',
+        path: 'organization', select: 'businessName',
         populate: { path: 'admin', select: 'firstName lastName email' }
       })
 
