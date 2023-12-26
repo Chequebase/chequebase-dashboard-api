@@ -65,6 +65,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
     const wallet = virtualAccount.wallet
     const organization = virtualAccount.organization
     const balanceAfter = numeral(wallet.balance).add(amount).value()!
+    const ledgerBalanceAfter = numeral(wallet.ledgerBalance).value()!
 
     await cdb.transaction(async (session) => {
       const [entry] = await WalletEntry.create([{
@@ -80,8 +81,10 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         status: WalletEntryStatus.Successful,
         type: WalletEntryType.Credit,
         provider: virtualAccount.provider,
-        balanceAfter,
+        ledgerBalanceBefore: wallet.ledgerBalance,
+        ledgerBalanceAfter,
         balanceBefore: wallet.balance,
+        balanceAfter,
         providerRef: data.providerRef,
         meta: {
           sourceAccount: data.sourceAccount
@@ -90,7 +93,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
 
       await Wallet.updateOne({ _id: virtualAccount.wallet }, {
         $set: { walletEntry: entry._id },
-        $inc: { balance: Number(amount) }
+        $inc: { ledgerBalance: Number(amount), balance: Number(amount) }
       },{ session } )
     }, transactionOpts)
 

@@ -1,4 +1,4 @@
-import { IsInt, IsString, Length, Max, Min } from "class-validator";
+import { IsInt, IsString, Length } from "class-validator";
 
 export class InitiateTransferDto {
   @IsInt()

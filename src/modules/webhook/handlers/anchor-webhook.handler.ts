@@ -2,8 +2,8 @@ import crypto from 'crypto'
 import { Inject, Service } from "typedi";
 import Logger from "@/modules/common/utils/logger";
 import { walletQueue } from "@/queues";
-import { WalletInflowData } from "@/queues/jobs/wallet/wallet-inflow";
-import { WalletOutflowData } from "@/queues/jobs/wallet/wallet-outflow";
+import { WalletInflowData } from "@/queues/jobs/wallet/wallet-inflow.job";
+import { WalletOutflowData } from "@/queues/jobs/wallet/wallet-outflow.job";
 import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { UnauthorizedError } from 'routing-controllers';

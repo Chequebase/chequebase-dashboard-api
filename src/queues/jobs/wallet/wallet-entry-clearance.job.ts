@@ -3,7 +3,7 @@ import { BadRequestError } from "routing-controllers";
 import { Job } from "bull";
 import dayjs from "dayjs";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus } from "@/models/wallet-entry.model";
-import { WalletOutflowData } from "./wallet-outflow";
+import { WalletOutflowData } from "./wallet-outflow.job";
 import Logger from "@/modules/common/utils/logger";
 import ProviderRegistry from "@/modules/transfer/provider-registry";
 import { TransferClient, TransferClientName } from "@/modules/transfer/providers/transfer.client";

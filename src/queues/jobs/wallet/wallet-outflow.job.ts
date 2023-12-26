@@ -6,7 +6,7 @@ import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
 import { Job } from "bull";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
-import { IWallet } from "@/models/wallet.model";
+import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "@/modules/common/utils/logger";
 import { BadRequestError } from "routing-controllers";
 import { cdb } from "@/modules/common/mongoose";
@@ -81,10 +81,20 @@ async function handleSuccessful(data: WalletOutflowData) {
       return { message: 'entry already in conclusive state' }
     }
 
-    await entry.updateOne({
-      gatewayResponse: data.gatewayResponse,
-      status: WalletEntryStatus.Successful
-    })
+    const amountDeducted = numeral(entry.amount).add(entry.fee).value()!
+    await cdb.transaction(async (session) => {
+      await entry.updateOne({
+        $set: {
+          gatewayResponse: data.gatewayResponse,
+          status: WalletEntryStatus.Successful
+        },
+        $inc: { ledgerBalanceAfter: -amountDeducted }
+      }).session(session)
+
+      await Wallet.updateOne({ _id: entry.wallet }, {
+        $inc: { ledgerBalance: -amountDeducted },
+      }, { session })
+    }, transactionOpts)
 
     const counterparty = await Counterparty.findById(entry.meta.counterparty)
     if (counterparty) {
@@ -188,7 +198,6 @@ async function handleReversed(data: WalletOutflowData) {
         const [reversalEntry] = await WalletEntry.create([{
           gatewayResponse: data.gatewayResponse,
           organization: entry.organization,
-          balanceBefore: entry.wallet.balance,
           status: WalletEntryStatus.Successful,
           budget: entry.budget,
           currency: entry.currency,
@@ -196,6 +205,9 @@ async function handleReversed(data: WalletOutflowData) {
           project: entry.project,
           scope: WalletEntryScope.BudgetTransfer,
           amount: reverseAmount,
+          ledgerBalanceBefore: entry.wallet.ledgerBalance,
+          ledgerBalanceAfter: numeral(entry.wallet.ledgerBalance).add(reverseAmount).value(),
+          balanceBefore: entry.wallet.balance,
           balanceAfter: entry.wallet.balance,
           type: WalletEntryType.Credit,
           narration: 'Budget Transfer Reversal',
@@ -207,6 +219,10 @@ async function handleReversed(data: WalletOutflowData) {
             ...entry.toObject().meta
           }
         }], { session })
+
+        await Wallet.updateOne({ _id: entry.wallet }, {
+          $inc: { ledgerBalance: reverseAmount }
+        }, { session })
 
         // ensure reversal doesn't happen multiple times
         await entry.updateOne({

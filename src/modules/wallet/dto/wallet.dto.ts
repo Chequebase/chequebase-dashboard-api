@@ -59,4 +59,8 @@ export class GetWalletStatementDto {
 
   @IsDateString()
   to: string
+
+  @IsString()
+  @IsOptional()
+  wallet: string
 }

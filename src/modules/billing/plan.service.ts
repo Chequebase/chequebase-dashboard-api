@@ -39,7 +39,7 @@ export class PlanService {
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
         { organization: orgId, currency, balance: { $gte: amount } },
-        { $inc: { balance: -amount } },
+        { $inc: { balance: -amount, ledgerBalance: -amount } },
         { session, new: true }
       )
 
@@ -54,6 +54,8 @@ export class PlanService {
         currency: wallet.currency,
         type: WalletEntryType.Debit,
         balanceBefore: numeral(wallet.balance).add(amount).value(),
+        ledgerBalanceBefore: numeral(wallet.ledgerBalance).add(amount).value(),
+        ledgerBalanceAfter: wallet.ledgerBalance,
         balanceAfter: wallet.balance,
         amount,
         scope: WalletEntryScope.PlanSubscription,

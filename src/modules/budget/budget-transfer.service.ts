@@ -106,7 +106,6 @@ export class BudgetTransferService {
 
       [entry] = await WalletEntry.create([{
         organization: auth.orgId,
-        balanceBefore: budget.wallet.balance,
         status: WalletEntryStatus.Pending,
         budget: budget._id,
         currency: budget.currency,
@@ -115,6 +114,9 @@ export class BudgetTransferService {
         amount: data.amount,
         fee: payload.fee,
         initiatedBy: auth.userId,
+        ledgerBalanceAfter: budget.wallet.ledgerBalance,
+        ledgerBalanceBefore: budget.wallet.ledgerBalance,
+        balanceBefore: budget.wallet.balance,
         balanceAfter: budget.wallet.balance,
         scope: WalletEntryScope.BudgetTransfer,
         type: WalletEntryType.Debit,

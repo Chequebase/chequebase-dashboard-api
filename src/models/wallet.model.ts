@@ -1,15 +1,18 @@
 import { cdb } from '@/modules/common/mongoose';
 import { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
+import { IVirtualAccount } from './virtual-account.model';
+import { IOrganization } from './organization.model';
 
 export interface IWallet {
   _id: ObjectId
-  organization: ObjectId
+  organization: ObjectId | IOrganization
   baseWallet: ObjectId
   currency: string
   balance: number
+  ledgerBalance: number
   walletEntry: ObjectId
-  virtualAccounts: ObjectId[]
+  virtualAccounts: IVirtualAccount[] | ObjectId[]
   primary: boolean
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +31,7 @@ const walletSchema = new Schema<IWallet>(
       ref: 'BaseWallet'
     },
     currency: { type: String, required: true },
+    ledgerBalance: { type: Number, default: 0 },
     balance: { type: Number, default: 0 },
     primary: { type: Boolean, default: false },
     virtualAccounts: {

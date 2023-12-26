@@ -31,7 +31,7 @@ export default class WalletController {
     return this.walletService.getWalletEntries(auth, query)
   }
 
-  @Get('/statement')
+  @Get('/statement/csv')
   @Authorized(Role.Owner)
   async getWalletStatement(
     @Res() res: Response,
@@ -48,6 +48,12 @@ export default class WalletController {
     stream.pipe(passthrough);
 
     return passthrough
+  }
+
+  @Get('/statement')
+  @Authorized(Role.Owner)
+  async getAccountStatement(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletStatementDto) {
+    return this.walletService.sendWalletStatement(auth.orgId, query)
   }
 
   @Get('/balances')

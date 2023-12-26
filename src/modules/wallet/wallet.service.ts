@@ -23,6 +23,7 @@ import { AuthUser } from "../common/interfaces/auth-user";
 import User from "@/models/user.model";
 import { Role } from "../user/dto/user.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
+import { walletQueue } from "@/queues";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -38,7 +39,7 @@ export default class WalletService {
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
         { organization: orgId, currency, balance: { $gte: amount } },
-        { $inc: { balance: -amount } },
+        { $inc: { balance: -amount, ledgerBalance: -amount } },
         { session, new: true }
       )
 
@@ -52,6 +53,8 @@ export default class WalletService {
         initiatedBy: data.initiatedBy,
         currency: wallet.currency,
         type: WalletEntryType.Debit,
+        ledgerBalanceBefore: numeral(wallet.ledgerBalance).add(amount).value(),
+        ledgerBalanceAfter: wallet.ledgerBalance,
         balanceBefore: numeral(wallet.balance).add(amount).value(),
         balanceAfter: wallet.balance,
         amount,
@@ -286,6 +289,24 @@ export default class WalletService {
     cursor.pipe(stream);
 
     return { stream, filename: 'statements.csv' }
+  }
+
+  async sendWalletStatement(orgId: string, query: GetWalletStatementDto) {
+    const entry = await WalletEntry.findOne({ organization: orgId })
+    if (!entry) throw new BadRequestError("No transaction found for organization")
+
+    const filter = query.wallet ? { _id: query.wallet } : { primary: true }
+    const wallet = await Wallet.exists({ ...filter, organization: orgId })
+    if (!wallet) throw new BadRequestError('No transaction found for organization')
+    
+    await walletQueue.add('sendAccountStatement', {
+      orgId,
+      walletId: wallet._id,
+      from: query.from,
+      to: query.to
+    })
+
+    return { message: 'Processing request' }
   }
 
   async getWalletEntry(orgId: string, entryId: string) {

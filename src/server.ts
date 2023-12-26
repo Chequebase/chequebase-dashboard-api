@@ -12,7 +12,6 @@ let server: Server
 
 async function bootstrap() {
   await cdb.asPromise() // establish db connection
-
   const port = process.env.PORT || 3000;
   server = app.listen(port, () => {
     logger.log(`Server started ⚡`, { port, pid: process.pid })

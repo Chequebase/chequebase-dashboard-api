@@ -2,9 +2,9 @@ import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
 import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue } from '.';
 import processOrganizationEventHandler from './jobs/organization';
-import processWalletInflow from './jobs/wallet/wallet-inflow';
-import processWalletOutflow from './jobs/wallet/wallet-outflow';
-import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance';
+import processWalletInflow from './jobs/wallet/wallet-inflow.job';
+import processWalletOutflow from './jobs/wallet/wallet-outflow.job';
+import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance.job';
 import processSubscriptionPlanChange from './jobs/subscription/subscription-plan-change.job';
 import processSubscriptionPayment from './jobs/subscription/subscription-payment.job';
 import fetchDueSubscriptions from './jobs/subscription/fetch-due-subscriptions.job';
@@ -13,6 +13,7 @@ import fetchUpcomingSubscriptions from './jobs/subscription/fetch-upcoming-subsc
 import sendSubscriptionReminderEmail from './jobs/subscription/send-subscription-reminder-email';
 import { closeExpiredBudget, fetchExpiredBudgets } from './jobs/budget/close-expired-budget.job';
 import { closeExpiredProject, fetchExpiredProjects } from './jobs/budget/close-expired-project.job';
+import sendAccountStatement from './jobs/wallet/account-statement.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -23,6 +24,7 @@ function setupQueues() {
   try {
     organizationQueue.process(processOrganizationEventHandler)
 
+    walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 5, processWalletInflow)
     walletQueue.process('processWalletOutflow', 5, processWalletOutflow)
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)

@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
-import { MailService } from '@sendgrid/mail';
+import { MailDataRequired, MailService } from '@sendgrid/mail';
 import { Service } from 'typedi';
 import { getEnvOrThrow } from './utils';
 import * as T from './interfaces/email-service.interface';
@@ -32,6 +32,7 @@ export default class EmailService {
       subject: payload.subject,
       templateId: payload.templateId,
       dynamicTemplateData: payload.dynamicTemplateData,
+      attachments: payload.attachments 
     };
 
     try {
@@ -40,6 +41,18 @@ export default class EmailService {
     } catch (error) {
       console.error('Error occurred while sending email: %o', error);
     }
+  }
+
+  sendAccountStatement(to: string, data: T.AccountStatement, attachment: T.AttachmentData) {
+    const startDate = dayjs(data.startDate).tz().format('YYYY-MM-DD')
+    const endDate = dayjs(data.endDate).tz().format('YYYY-MM-DD')
+
+    return this.send({
+      to,
+      templateId: 'd-e505987b7d9240158a71569fd5f25dc5',
+      dynamicTemplateData: { ...data, startDate, endDate },
+      attachments: [attachment]
+    })
   }
 
   sendVerifyEmail(to: string, data: any) {

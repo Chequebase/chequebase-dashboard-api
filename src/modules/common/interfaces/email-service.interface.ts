@@ -1,9 +1,14 @@
+import { MailDataRequired } from '@sendgrid/mail'
+
+export type AttachmentData = NonNullable<MailDataRequired['attachments']>[0]
+
 export interface SendEmail {
   to: string | string[]
   cc?: string | string[]
   subject?: string
   dynamicTemplateData: any
   templateId: string
+  attachments?: AttachmentData[]
 }
 
 export interface FundedWalletEmail {
@@ -145,4 +150,10 @@ export interface SubscriptionExpired {
   userName: string
   expirationDate: Date
   renewalLink: string
+}
+
+export interface AccountStatement {
+  customerName: string
+  startDate: Date
+  endDate: Date
 }

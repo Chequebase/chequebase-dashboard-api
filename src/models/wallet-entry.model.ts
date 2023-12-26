@@ -38,8 +38,10 @@ export interface IWalletEntry {
   initiatedBy: ObjectId
   currency: string
   type: WalletEntryType
-  balanceBefore: Number
-  balanceAfter: Number
+  balanceBefore: number
+  balanceAfter: number
+  ledgerBalanceBefore: number
+  ledgerBalanceAfter: number
   amount: number
   fee: number
   scope: WalletEntryScope
@@ -94,6 +96,8 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     currency: { type: String, required: true },
     balanceAfter: { type: Number, required: true },
     balanceBefore: { type: Number, required: true },
+    ledgerBalanceBefore: { type: Number, required: true },
+    ledgerBalanceAfter: { type: Number, required: true },
     scope: {
       type: String,
       enum: Object.values(WalletEntryScope),
