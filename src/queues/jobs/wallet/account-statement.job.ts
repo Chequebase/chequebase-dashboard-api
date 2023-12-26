@@ -9,7 +9,7 @@ import Logger from "@/modules/common/utils/logger";
 import EmailService from "@/modules/common/email.service";
 import Wallet, { IWallet } from "@/models/wallet.model";
 import { NotFoundError } from "routing-controllers";
-import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryType } from "@/models/wallet-entry.model";
+import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import { IVirtualAccount } from "@/models/virtual-account.model";
 import { formatMoney, toTitleCase } from "@/modules/common/utils";
 import Counterparty from "@/models/counterparty.model";
@@ -52,6 +52,7 @@ async function sendAccountStatement(job: Job<WalletInflowData>) {
 
     const entries = await WalletEntry.find({
       wallet: wallet._id,
+      status: WalletEntryStatus.Successful,
       scope: {
         $in: [
           WalletEntryScope.PlanSubscription,
@@ -59,7 +60,10 @@ async function sendAccountStatement(job: Job<WalletInflowData>) {
           WalletEntryScope.BudgetTransfer
         ]
       },
-      createdAt: { $gte: from, $lte: to }
+      createdAt: {
+        $gte: dayjs(from).startOf('day').toDate(),
+        $lte: dayjs(to).endOf('day').toDate()
+      }
     })
       .populate({ path: 'meta.counterparty', model: Counterparty })
       .sort('-createdAt')
