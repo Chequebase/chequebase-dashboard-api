@@ -142,7 +142,7 @@ export class OverviewService {
 
     const getTotalSpend = (filter: any) => WalletEntry.aggregate()
       .match(filter)
-      .group({ _id: null, amount: { $sum: '$amount' } })
+      .group({ _id: null, amount: { $sum: { $add: ['$amount', '$fee'] } } })
 
     const [[previous], [current]] = await Promise.all([
       getTotalSpend(prevFilter),
@@ -216,8 +216,8 @@ export class OverviewService {
       }
 
      agg.group({
-        _id: { $dateToString: { format: "%Y-%m-%d", date: '$createdAt' } },
-        value: { $sum: '$amount' }
+       _id: { $dateToString: { format: "%Y-%m-%d", date: '$createdAt' } },
+       value: { $sum: { $add: ['$amount', '$fee'] } }
       })
       .project({
         _id: 0,
@@ -252,7 +252,7 @@ export class OverviewService {
           agg.match({ initiatedBy: userId })
       }
 
-      agg.group({ _id: null, value: { $sum: '$amount' } })
+      agg.group({ _id: null, value: { $sum: { $add: ['$amount', '$fee'] } } })
 
       return agg
     }
