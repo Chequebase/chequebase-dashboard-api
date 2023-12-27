@@ -97,11 +97,7 @@ export default class UserController {
 
   @Authorized(Role.Owner)
   @Post('/profile/avatar')
-  @UseBefore(multer({
-    limits: {
-    fileSize: 52_428_800
-    }
-  }).single('avatar'))
+  @UseBefore(multer({ limits: { fileSize: 52_428_800 } }).single('avatar'))
   uploadAvatar(
     @CurrentUser() auth: AuthUser,
     @Req() req: Request,

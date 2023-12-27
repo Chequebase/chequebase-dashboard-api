@@ -6,7 +6,6 @@ import helmet from "helmet";
 import { routingControllersToSpec } from 'routing-controllers-openapi'
 import * as swaggerUiExpress from 'swagger-ui-express'
 import hpp from "hpp";
-import bodyParser from 'body-parser';
 import cors from "cors";
 import Container from "typedi";
 import apiRequestLogger from "./modules/common/middlewares/api-request-logger";
@@ -28,12 +27,10 @@ app.use(hpp());
 app.set("trust proxy", true);
 app.use(helmet());
 app.use(cors());
-// ?NOTE: make sure to use @JsonController()
-// app.use(express.json({ limit: '50mb' }));
+// !NOTE: do not uncomment!! Make sure to use @JsonController() instead. The body parser middleware breaks the webhook verification logic
+// app.use(express.json());
 app.use(apiRequestLogger)
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json({ limit: '5mb' }));
-
 
 app.get("/health", (_: Request, res: Response) => {
   res.send("<h1>Healthcheck OK! 👍</h1>");
