@@ -94,7 +94,7 @@ export default class UserController {
   uploadAvatar(
     @CurrentUser() auth: AuthUser,
     @Req() req: Request,
-    @UploadedFile('file', {}) uploadedFile: any
+    @UploadedFile('files', {}) uploadedFile: any
   ) {
     console.log({ uploadedFile })
     const files = req.files as any
