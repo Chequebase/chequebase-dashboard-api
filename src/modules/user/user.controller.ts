@@ -8,6 +8,11 @@ import { getEnvOrThrow } from '@/modules/common/utils';
 import multer from 'multer';
 import { Request } from 'express';
 
+const path = require('path');
+
+const uploadOptions = {
+  storage: multer.diskStorage({}),
+};
 @Service()
 @JsonController('/auth', { transformResponse: false })
 export default class UserController {
@@ -94,7 +99,7 @@ export default class UserController {
   uploadAvatar(
     @CurrentUser() auth: AuthUser,
     @Req() req: Request,
-    @UploadedFile('files', {}) uploadedFile: any
+    @UploadedFile('file', {options: uploadOptions}) uploadedFile: any
   ) {
     console.log({ uploadedFile })
     const files = req.files as any
