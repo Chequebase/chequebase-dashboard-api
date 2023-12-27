@@ -2,6 +2,7 @@ import { IsString, MinLength, IsOptional, IsEmail, IsNumber, IsArray } from "cla
 
 export class UpdateBusinessDocumentationDto {
   @IsString()
+  @IsOptional()
   regDate: string;
 }
 
