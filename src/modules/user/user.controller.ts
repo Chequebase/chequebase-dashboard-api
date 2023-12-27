@@ -1,4 +1,4 @@
-import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams, Req, UploadedFile, UseBefore } from 'routing-controllers';
+import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from 'routing-controllers';
 import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
@@ -8,11 +8,13 @@ import { getEnvOrThrow } from '@/modules/common/utils';
 import multer from 'multer';
 import { Request } from 'express';
 
-const path = require('path');
-
-const uploadOptions = {
-  storage: multer.diskStorage({}),
-};
+// const uploadOptions = {
+//   storage: multer.diskStorage({
+//     destination: (req: any, file: any, cb: any) => {
+//       cb(null, 'uploads');
+//     }
+//   })
+// };
 @Service()
 @JsonController('/auth', { transformResponse: false })
 export default class UserController {
@@ -95,13 +97,17 @@ export default class UserController {
 
   @Authorized(Role.Owner)
   @Post('/profile/avatar')
-  // @UseBefore(multer().any())
+  @UseBefore(multer({
+    limits: {
+    fileSize: 52_428_800
+    }
+  }).any())
   uploadAvatar(
     @CurrentUser() auth: AuthUser,
     @Req() req: Request,
-    @UploadedFile('avatar', {options: uploadOptions}) uploadedFile: any
+    // @UploadedFile('avatar', {options: uploadOptions}) uploadedFile: any
   ) {
-    console.log({ uploadedFile })
+    // console.log({ uploadedFile })
     const files = req.files as any
     return this.userService.uploadAvatar(auth, files[0])
   }
