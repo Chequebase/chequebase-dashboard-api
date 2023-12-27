@@ -95,7 +95,7 @@ export default class UserController {
 
   @Authorized(Role.Owner)
   @Post('/profile/avatar')
-  @UseBefore(multer().any())
+  // @UseBefore(multer().any())
   uploadAvatar(
     @CurrentUser() auth: AuthUser,
     @Req() req: Request,
