@@ -11,7 +11,6 @@ import Wallet, { IWallet } from "@/models/wallet.model";
 import { NotFoundError } from "routing-controllers";
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import { IVirtualAccount } from "@/models/virtual-account.model";
-import { formatMoney, toTitleCase } from "@/modules/common/utils";
 import Counterparty from "@/models/counterparty.model";
 import { AttachmentData } from "@/modules/common/interfaces/email-service.interface";
 import { IOrganization } from "@/models/organization.model";
@@ -131,12 +130,12 @@ function getVariables(wallet: IWallet, entries: IWalletEntry[], from: Date, to: 
     }
 
     transactions.push({
-      balance: formatMoney(entry.ledgerBalanceAfter),
+      balance: entry.ledgerBalanceAfter,
       transactionDate: dayjs.tz(entry.createdAt).format('YYYY-MM-DD'),
       transactionType,
       description,
-      credit: formatMoney(credit),
-      debit: formatMoney(debit),
+      credit: credit,
+      debit: debit,
     })
   }
 
@@ -147,8 +146,8 @@ function getVariables(wallet: IWallet, entries: IWalletEntry[], from: Date, to: 
     period: `${dayjs.tz(from).format('YYYY/MM/DD')} to ${dayjs.tz(to).format('YYYY/MM/DD')}`,
     printDate: dayjs.tz().format('YYYY/MM/DD HH:mm:ss'),
     walletNumber: virtualAccount.accountNumber,
-    totalDebits: formatMoney(totalDebits),
-    totalCredits: formatMoney(totalCredits),
+    totalDebits: totalDebits,
+    totalCredits: totalCredits,
     currency: wallet.currency,
     transactions
   }
