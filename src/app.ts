@@ -32,6 +32,7 @@ app.use(cors());
 // app.use(express.json({ limit: '50mb' }));
 app.use(apiRequestLogger)
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '5mb' }));
 
 
 app.get("/health", (_: Request, res: Response) => {
