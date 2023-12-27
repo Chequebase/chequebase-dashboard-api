@@ -9,7 +9,7 @@ import multer from 'multer';
 import { Request } from 'express';
 
 @Service()
-@JsonController('/auth', { transformResponse: false, transformRequest: true })
+@JsonController('/auth', { transformResponse: false })
 export default class UserController {
   constructor (private userService: UserService) { }
 
