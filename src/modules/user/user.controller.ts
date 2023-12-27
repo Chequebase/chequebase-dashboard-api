@@ -99,7 +99,7 @@ export default class UserController {
   uploadAvatar(
     @CurrentUser() auth: AuthUser,
     @Req() req: Request,
-    @UploadedFile('file', {options: uploadOptions}) uploadedFile: any
+    @UploadedFile('avatar', {options: uploadOptions}) uploadedFile: any
   ) {
     console.log({ uploadedFile })
     const files = req.files as any
