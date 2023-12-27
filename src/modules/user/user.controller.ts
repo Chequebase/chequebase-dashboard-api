@@ -101,15 +101,16 @@ export default class UserController {
     limits: {
     fileSize: 52_428_800
     }
-  }).any())
+  }).single('avatar'))
   uploadAvatar(
     @CurrentUser() auth: AuthUser,
     @Req() req: Request,
     // @UploadedFile('avatar', {options: uploadOptions}) uploadedFile: any
   ) {
     // console.log({ uploadedFile })
-    const files = req.files as any
-    return this.userService.uploadAvatar(auth, files[0])
+    const file = req.file as any
+    console.log({ file })
+    return this.userService.uploadAvatar(auth, file)
   }
 
   @Authorized(Role.Owner)
