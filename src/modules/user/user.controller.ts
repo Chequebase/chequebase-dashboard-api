@@ -1,4 +1,4 @@
-import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from 'routing-controllers';
+import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams, Req, UploadedFile, UseBefore } from 'routing-controllers';
 import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
@@ -93,8 +93,10 @@ export default class UserController {
   @UseBefore(multer().any())
   uploadAvatar(
     @CurrentUser() auth: AuthUser,
-    @Req() req: Request
+    @Req() req: Request,
+    @UploadedFile('file', {}) uploadedFile: any
   ) {
+    console.log({ uploadedFile })
     const files = req.files as any
     return this.userService.uploadAvatar(auth, files[0])
   }
