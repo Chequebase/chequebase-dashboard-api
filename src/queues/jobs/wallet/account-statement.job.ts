@@ -16,6 +16,7 @@ import Counterparty from "@/models/counterparty.model";
 import { AttachmentData } from "@/modules/common/interfaces/email-service.interface";
 import { IOrganization } from "@/models/organization.model";
 import { IUser } from "@/models/user.model";
+import SubscriptionPlan from "@/models/subscription-plan.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -66,7 +67,8 @@ async function sendAccountStatement(job: Job<WalletInflowData>) {
       }
     })
       .populate({ path: 'meta.counterparty', model: Counterparty })
-      .sort('-createdAt')
+      .populate({ path: 'meta.plan', model: SubscriptionPlan, select: 'name' })
+      .sort('createdAt')
       .lean()
 
     const variables = getVariables(wallet, entries, from, to)
@@ -95,6 +97,7 @@ async function generatePdf(variables: any) {
 }
 
 function getVariables(wallet: IWallet, entries: IWalletEntry[], from: Date, to: Date) {
+  const organization = (<IOrganization>wallet.organization)
   let totalDebits = 0
   let totalCredits = 0
   const transactions = []
@@ -102,34 +105,45 @@ function getVariables(wallet: IWallet, entries: IWalletEntry[], from: Date, to: 
   for (const entry of entries) {
     const meta = entry.meta
     let amount = numeral(entry.amount).add(entry.fee).value()!
-    let counterpary = ''
-    let credit = 0, debit = 0
-    
+    let description, transactionType, credit = 0, debit = 0
+
+    switch (entry.scope) {
+      case WalletEntryScope.WalletFunding:
+        description = `${meta.sourceAccount.bankName} | ${meta.sourceAccount.accountName} | ${entry._id}`
+        transactionType = 'AC Transfer'
+        break;
+      case WalletEntryScope.BudgetTransfer:
+        description = `${meta.counterparty.bankName} | ${meta.counterparty.accountName} | ${entry._id}`
+        transactionType = 'AC Transfer'
+        break;
+      case WalletEntryScope.PlanSubscription:
+        description = `${organization.businessName} | ${meta.plan.name} Plan`
+        transactionType = 'Subscription'
+        break;
+    }
+
     if (entry.type === WalletEntryType.Debit) {
-      counterpary = meta.counterparty ? `${meta.counterparty.bankName} | ${meta.counterparty.accountName}` : ''
       totalDebits = numeral(totalDebits).add(amount).value()!
       debit = amount
     } else {
-      counterpary = meta.sourceAccount ? `${meta.sourceAccount.bankName} | ${meta.sourceAccount.accountName}` : ''
       credit = amount
       totalCredits = numeral(totalCredits).add(amount).value()!
     }
 
     transactions.push({
       balance: formatMoney(entry.ledgerBalanceAfter),
-      transactionDate: dayjs.tz(entry.createdAt).format('YYYY-MM-DD HH:mm:ss'),
-      transactionType: toTitleCase(entry.scope),
-      counterParty: counterpary,
+      transactionDate: dayjs.tz(entry.createdAt).format('YYYY-MM-DD'),
+      transactionType,
+      description,
       credit: formatMoney(credit),
       debit: formatMoney(debit),
-      id: entry._id
     })
   }
 
   const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
 
   return {
-    name: (<IOrganization>wallet.organization).businessName,
+    name: organization.businessName,
     period: `${dayjs.tz(from).format('YYYY/MM/DD')} to ${dayjs.tz(to).format('YYYY/MM/DD')}`,
     printDate: dayjs.tz().format('YYYY/MM/DD HH:mm:ss'),
     walletNumber: virtualAccount.accountNumber,
