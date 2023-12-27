@@ -109,7 +109,7 @@ export class UserService {
 
     // const expirationDate = this.getRememberMeExpirationDate(data)
     const otp = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate()
+    const otpExpiresAt = this.getOtpExpirationDate(10)
 
     await user.updateOne({
       rememberMe: data.rememberMe,
@@ -135,9 +135,9 @@ export class UserService {
   //   return expirationDate.getTime();
   // }
 
-  getOtpExpirationDate() {
+  getOtpExpirationDate(minutes: number) {
     const optExpriresAt = new Date();
-    optExpriresAt.setUTCMinutes(optExpriresAt.getUTCMinutes() + 10);
+    optExpriresAt.setUTCMinutes(optExpriresAt.getUTCMinutes() + minutes);
     return optExpriresAt.getTime();
   }
 
@@ -164,7 +164,7 @@ export class UserService {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate()
+    const otpExpiresAt = this.getOtpExpirationDate(10)
 
     await user.updateOne({ otp, otpExpiresAt })
     this.emailService.sendOtpEmail(user.email, {
@@ -236,9 +236,28 @@ export class UserService {
       throw new BadRequestError('Account already verified, please login')
     }
 
-    // TODO: it's important to have a rate limiter
-
+    const otpResentAt = userExists.otpResentAt || this.getOtpExpirationDate(60)
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${email}`
+    if (userExists.resentOptCount && userExists.resentOptCount >= 3) {
+      if (userExists.otpResentAt && userExists.otpResentAt > new Date().getTime()) {
+        await userExists.updateOne({
+          resentOptCount: 0,
+          otpResentAt: this.getOtpExpirationDate(60)
+        })
+        this.emailService.sendVerifyEmail(email, {
+          firstName: email,
+          verificationLink: link
+        })
+  
+        return { message: 'success' };
+      }
+      throw new BadRequestError('Please wait another hour and try again')
+    }
+
+    await userExists.updateOne({
+      resentOptCount: (userExists.resentOptCount || 0) + 1,
+      otpResentAt: otpResentAt
+    })
     this.emailService.sendVerifyEmail(email, {
       firstName: email,
       verificationLink: link

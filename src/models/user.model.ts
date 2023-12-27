@@ -44,6 +44,8 @@ export interface IUser {
   inviteSentAt: number
   phone: string
   otpExpiresAt: number
+  resentOptCount: number
+  otpResentAt: number
   otp: string
   pin: string
   createdAt: Date;
@@ -78,6 +80,8 @@ const userSchema = new Schema<IUser>(
     inviteCode: String,
     inviteSentAt: Number,
     avatar: String,
+    resentOptCount: Number,
+    otpResentAt: Number,
     status: {
       type: String,
       enum: Object.values(UserStatus)
