@@ -29,7 +29,7 @@ app.set("trust proxy", true);
 app.use(helmet());
 app.use(cors());
 // ?NOTE: make sure to use @JsonController()
-app.use(express.json({ limit: '50mb' }));
+// app.use(express.json({ limit: '50mb' }));
 app.use(apiRequestLogger)
 app.use(express.urlencoded({ extended: true }));
 // app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
