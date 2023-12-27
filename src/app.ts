@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { routingControllersToSpec } from 'routing-controllers-openapi'
 import * as swaggerUiExpress from 'swagger-ui-express'
 import hpp from "hpp";
+import bodyParser from 'body-parser';
 import cors from "cors";
 import Container from "typedi";
 import apiRequestLogger from "./modules/common/middlewares/api-request-logger";
@@ -30,7 +31,10 @@ app.use(cors());
 // ?NOTE: make sure to use @JsonController()
 // app.use(express.json());
 app.use(apiRequestLogger)
-app.use(express.urlencoded({ extended: true }));
+// app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
 
 app.get("/health", (_: Request, res: Response) => {
   res.send("<h1>Healthcheck OK! 👍</h1>");
