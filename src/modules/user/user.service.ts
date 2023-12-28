@@ -239,9 +239,9 @@ export class UserService {
     const otpResentAt = userExists.otpResentAt || this.getOtpExpirationDate(60)
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${email}`
     if (userExists.resentOptCount && userExists.resentOptCount >= 3) {
-      if (userExists.otpResentAt && userExists.otpResentAt > new Date().getTime()) {
+      if (userExists.otpResentAt && userExists.otpResentAt < new Date().getTime()) {
         await userExists.updateOne({
-          resentOptCount: 0,
+          resentOptCount: 1,
           otpResentAt: this.getOtpExpirationDate(60)
         })
         this.emailService.sendVerifyEmail(email, {
