@@ -131,6 +131,8 @@ export class ProjectService {
         type: WalletEntryType.Debit,
         balanceBefore: wallet.balance,
         balanceAfter: wallet.balance,
+        ledgerBalanceBefore: wallet.ledgerBalance,
+        ledgerBalanceAfter: wallet.ledgerBalance,
         amount: budget.amount,
         scope: WalletEntryScope.BudgetFunding,
         narration: `Sub budget "${budget.name}" activated`,
