@@ -83,17 +83,16 @@ async function handleSuccessful(data: WalletOutflowData) {
 
     const amountDeducted = numeral(entry.amount).add(entry.fee).value()!
     await cdb.transaction(async (session) => {
-      await entry.updateOne({
-        $set: {
-          gatewayResponse: data.gatewayResponse,
-          status: WalletEntryStatus.Successful
-        },
-        $inc: { ledgerBalanceAfter: -amountDeducted }
-      }).session(session)
-
-      await Wallet.updateOne({ _id: entry.wallet }, {
+      const wallet = await Wallet.findOneAndUpdate({ _id: entry.wallet }, {
         $inc: { ledgerBalance: -amountDeducted },
-      }, { session })
+      }, { session, new: true })
+
+      await entry.updateOne({
+        gatewayResponse: data.gatewayResponse,
+        status: WalletEntryStatus.Successful,
+        ledgerBalanceAfter: wallet!.ledgerBalance,
+        ledgerBalanceBefore: numeral(wallet!.ledgerBalance).add(amountDeducted).value()!,
+      }).session(session)
     }, transactionOpts)
 
     const counterparty = await Counterparty.findById(entry.meta.counterparty)
