@@ -107,7 +107,7 @@ export class OverviewService {
       const balance = await getBalanceQuery({ budget: b._id, ...prevFilter })
       if (typeof balance === 'number') return balance
 
-      return getBalanceBeforeDate(b._id, to)
+      return getBalanceBeforeDate(b._id, prevTo)
     }))
 
     const currentBalance = currentBalances.reduce((a, b) => a! + b!, 0)
