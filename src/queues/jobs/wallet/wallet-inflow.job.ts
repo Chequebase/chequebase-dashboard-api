@@ -65,7 +65,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
     const wallet = virtualAccount.wallet
     const organization = virtualAccount.organization
     const balanceAfter = numeral(wallet.balance).add(amount).value()!
-    const ledgerBalanceAfter = numeral(wallet.ledgerBalance).value()!
+    const ledgerBalanceAfter = numeral(wallet.ledgerBalance).add(amount).value()!
 
     await cdb.transaction(async (session) => {
       const [entry] = await WalletEntry.create([{
