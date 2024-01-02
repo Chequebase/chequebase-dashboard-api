@@ -107,7 +107,6 @@ export class ProjectService {
         approvedDate: new Date(),
       }], { session })
 
-
       const updatedProject = await Project.findOneAndUpdate(
         {
           _id: project._id,
@@ -115,7 +114,7 @@ export class ProjectService {
           balance: { $gte: budget.amount }
         },
         { $inc: { balance: -budget.amount } },
-        { session }
+        { session, new: true }
       )
 
       if (!updatedProject) {
@@ -129,6 +128,7 @@ export class ProjectService {
         initiatedBy: auth.userId,
         currency: budget.currency,
         type: WalletEntryType.Debit,
+        project: updatedProject._id,
         balanceBefore: wallet.balance,
         balanceAfter: wallet.balance,
         ledgerBalanceBefore: wallet.ledgerBalance,

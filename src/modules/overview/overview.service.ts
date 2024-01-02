@@ -11,6 +11,7 @@ import { AuthUser } from '../common/interfaces/auth-user';
 import User, { IUser } from '@/models/user.model';
 import { BadRequestError } from 'routing-controllers';
 import { Role } from '../user/dto/user.dto';
+import Project, { ProjectStatus } from '@/models/project.model';
 
 dayjs.extend(isBetween)
 
@@ -61,6 +62,7 @@ export class OverviewService {
   }
 
   private async getBudgetBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
+    const isOwner = user.role === Role.Owner
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
     const filter: any = {
       organization: user.organization,
@@ -68,46 +70,61 @@ export class OverviewService {
       currency: query.currency
     }
 
-    const budgets = await Budget.find({
+    let budgets: any = await Budget.find({
       ...filter,
       status: BudgetStatus.Active,
-      ...(user.role !== Role.Owner && { 'beneficiaries.user': user._id }),
-    }).lean()
+      ...(!isOwner && { 'beneficiaries.user': user._id }),
+    }).select('_id').lean()
+
+    if (isOwner) {
+      const projects = await Project.find({ ...filter, status: ProjectStatus.Active }).select('_id').lean()
+      budgets = budgets.concat(projects.map((project => ({ ...project, isProject: true }))))
+    }
 
     const currentFilter = { createdAt: { $gte: from, $lte: to } }
     const prevFilter = { createdAt: { $gte: prevFrom, $lte: prevTo } }
 
-    const getBalanceQuery = async (filter: any) => {
+    const getBalanceQuery = async (data: any) => {
+      const { budget, filter } = data
+      let balanceField = budget.isProject ? '$meta.projectBalanceAfter' : '$meta.budgetBalanceAfter'
+      let fieldName = budget.isProject ? 'project' : 'budget'
+      filter[fieldName] = budget._id
+      
       const [result] = await WalletEntry.aggregate()
         .match(filter)
         .sort({ createdAt: -1 })
         .limit(1)
-        .project({ balance: '$meta.budgetBalanceAfter' })
+        .project({ balance: balanceField })
 
       return result?.balance as number | undefined
     }
 
-    const getBalanceBeforeDate = async (id: any, date: Date) => {
+    const getBalanceBeforeDate = async (budget: any, date: Date) => {
+      const filter: any = { createdAt: { $lte: date } }
+      const balanceField = budget.isProject ? 'projectBalanceAfter' : 'budgetBalanceAfter'
+      let fieldName = budget.isProject ? 'project' : 'budget'
+      filter[fieldName] = budget._id
+
       const entry = await WalletEntry
-        .findOne({ budget: id, createdAt: { $lte: date } })
-        .select('meta.budgetBalanceAfter')
+        .findOne(filter)
+        .select('meta.' + balanceField)
         .sort('-createdAt')
 
-      return entry?.meta?.budgetBalanceAfter || 0
+      return entry?.meta?.[balanceField] || 0
     }
 
-    let currentBalances = await Promise.all(budgets.map(async (b) => {
-      const balance = await getBalanceQuery({ budget: b._id, ...currentFilter })
+    let currentBalances = await Promise.all(budgets.map(async (budget: any) => {
+      const balance = await getBalanceQuery({ budget, filter: {...currentFilter} })
       if (typeof balance === 'number') return balance
 
-      return getBalanceBeforeDate(b._id, to)
+      return getBalanceBeforeDate(budget, to)
     }))
 
-    let prevBalances = await Promise.all(budgets.map(async (b) => {
-      const balance = await getBalanceQuery({ budget: b._id, ...prevFilter })
+    let prevBalances = await Promise.all(budgets.map(async (budget: any) => {
+      const balance = await getBalanceQuery({ budget, filter: {...prevFilter} })
       if (typeof balance === 'number') return balance
 
-      return getBalanceBeforeDate(b._id, prevTo)
+      return getBalanceBeforeDate(budget, prevTo)
     }))
 
     const currentBalance = currentBalances.reduce((a, b) => a! + b!, 0)
