@@ -144,7 +144,7 @@ function getVariables(wallet: IWallet, entries: IWalletEntry[], from: Date, to: 
   return {
     name: organization.businessName,
     period: `${dayjs.tz(from).format('YYYY/MM/DD')} to ${dayjs.tz(to).format('YYYY/MM/DD')}`,
-    printDate: dayjs.tz().format('YYYY/MM/DD HH:mm:ss'),
+    printDate: dayjs.tz().format('YYYY/MM/DD . HH:mm:ss'),
     walletNumber: virtualAccount.accountNumber,
     totalDebits: totalDebits,
     totalCredits: totalCredits,

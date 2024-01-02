@@ -186,6 +186,13 @@ export default class WalletService {
 
     const budgetAgg = Budget.aggregate()
       .match({ organization, status: BudgetStatus.Active })
+      .unionWith({
+        coll: 'projects',
+        pipeline: [
+          { $match: { organization, status: BudgetStatus.Active } },
+          { $project: { currency: 1, balance: 1 } }
+        ]
+      })
       .group({ _id: '$currency', balance: { $sum: '$balance' } })
       .project({ _id: 0, currency: '$_id', balance: 1 })
 
