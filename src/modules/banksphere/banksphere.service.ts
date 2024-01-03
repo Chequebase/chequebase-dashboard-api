@@ -70,7 +70,7 @@ export class BanksphereService {
   
         return {
           status: 'failed',
-          message: 'Bank failure, could not complete transfer',
+          message: 'Create Customer Failure, could not create customer',
           gatewayResponse: err.message
         }
       }
