@@ -1,9 +1,11 @@
 import { cdb } from '@/modules/common/mongoose';
-import { Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import { ISubscription } from './subscription.model';
 import { IUser } from './user.model';
 import { ISubscriptionPlan } from './subscription-plan.model';
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum BillingMethod {
   Wallet = 'wallet',
@@ -82,6 +84,10 @@ const shareholderSchema = new Schema<Shareholder>({
   phone: String,
 })
 
+interface OrganizationModel extends
+  mongoose.PaginateModel<IOrganization>,
+  mongoose.AggregatePaginateModel<IOrganization> { }
+
 const organizationSchma = new Schema<IOrganization>(
   {
     admin: {
@@ -133,6 +139,9 @@ const organizationSchma = new Schema<IOrganization>(
   { timestamps: true },
 );
 
-const Organization = cdb.model<IOrganization>('Organization', organizationSchma);
+organizationSchma.plugin(aggregatePaginate);
+organizationSchma.plugin(mongoosePaginate);
+
+const Organization = cdb.model<IOrganization, OrganizationModel>('Organization', organizationSchma);
 
 export default Organization
