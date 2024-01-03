@@ -121,7 +121,7 @@ export default class BudgetController {
   }
 
   @Put('/:id')
-  @Authorized()
+  @Authorized(Role.Owner)
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
     return this.budgetService.editBudget(auth, id, dto)
   }

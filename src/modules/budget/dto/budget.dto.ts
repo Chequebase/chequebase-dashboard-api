@@ -33,16 +33,6 @@ export class CreateTranferBudgetDto {
 }
 
 export class EditBudgetDto {
-  @IsString()
-  name: string
-
-  @IsString()
-  @IsOptional()
-  description: string
-
-  @IsInt()
-  amount: number
-
   @IsInt()
   @IsOptional()
   threshold?: number
@@ -50,11 +40,6 @@ export class EditBudgetDto {
   @IsDateString()
   @IsOptional()
   expiry?: Date
-
-  @IsString()
-  @IsOptional()
-  @IsEnum(BudgetCurrency)
-  currency = BudgetCurrency.Ngn
 
   @IsEnum(BudgetPriority)
   @IsOptional()

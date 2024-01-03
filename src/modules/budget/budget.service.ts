@@ -208,26 +208,14 @@ export default class BudgetService {
       throw new NotFoundError('Budget not found')
     }
 
-    if (budget.status !== BudgetStatus.Pending) {
+    if (budget.status !== BudgetStatus.Active) {
       throw new BadRequestError('Budget cannot be updated')
     }
 
-    const user = await User.findById(auth.userId).lean()
-    if (!user) {
-      throw new BadRequestError('User not found')
-    }
-
-    if (user.role !== Role.Owner && !budget.createdBy.equals(auth.userId)) {
-      throw new BadRequestError("Budget cannot be updated")
-    }
-
     await budget.set({
-      name: data.name,
-      amount: data.amount,
       expiry: data.expiry,
-      threshold: data.threshold ?? data.amount,
+      threshold: data.threshold,
       beneficiaries: data.beneficiaries,
-      description: data.description,
       priority: data.priority,
     }).save()
 
