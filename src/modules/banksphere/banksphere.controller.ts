@@ -12,13 +12,15 @@ export default class BanksphereController {
 
   @Get('/accounts')
   @UseBefore(publicApiGuard)
-  getAccounts(@CurrentUser() auth: AuthUser, @QueryParams() dto: GetAccountsDto) {
-    return this.banksphereService.getAccounts(auth, dto)
+  @Authorized()
+  getAccounts(@QueryParams() dto: GetAccountsDto) {
+    return this.banksphereService.getAccounts(dto)
   }
 
   @Get('/accounts/:id')
   @UseBefore(publicApiGuard)
-  getAccount(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
-    return this.banksphereService.getAccount(auth, id)
+  @Authorized()
+  getAccount(@Param('id') id: string) {
+    return this.banksphereService.getAccount(id)
   }
 }

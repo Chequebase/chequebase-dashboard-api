@@ -16,12 +16,8 @@ export class BanksphereService {
     // private sqsClient: SqsClient
   ) { }
 
-  async getAccounts(auth: AuthUser, query: GetAccountsDto) {
+  async getAccounts(query: GetAccountsDto) {
     const filter = new QueryFilter()
-    const user = await User.findById(auth.userId).lean()
-    if (!user) {
-      throw new BadRequestError("User not found")
-    }
 
     if (query.accountType) {
       filter.set('businessType', query.accountType)
@@ -37,26 +33,16 @@ export class BanksphereService {
       ])
     }
 
-    const aggregate = Organization.aggregate()
-      .match(filter.object)
-      .sort({ createdAt: -1 })
-
-    const accounts = await Organization.aggregatePaginate(aggregate, {
+    const accounts = await Organization.paginate(filter.object, {
       page: Number(query.page),
       limit: query.limit,
-      lean: true,
-      pagination: query.paginated
+      lean: true
     })
 
     return accounts
   }
 
-  async getAccount(auth: AuthUser, id: string) {
-    const user = await User.findById(auth.userId).lean()
-    if (!user) {
-      throw new BadRequestError("User not found")
-    }
-
+  async getAccount(id: string) {
     return Organization.findById(id).lean()
   }
 }
