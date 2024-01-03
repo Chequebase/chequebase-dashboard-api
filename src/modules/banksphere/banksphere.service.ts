@@ -1,16 +1,21 @@
 import User, { KycStatus } from '@/models/user.model';
-import { Service } from 'typedi';
+import Container, { Service } from 'typedi';
 // import { ObjectId } from 'mongodb'
 // import { S3Service } from '@/modules/common/aws/s3.service';
 import { AuthUser } from '../common/interfaces/auth-user';
-import { GetAccountsDto } from './dto/banksphere.dto';
+import { CreateCustomerDto, GetAccountsDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
 import { BadRequestError, NotFoundError } from 'routing-controllers';
-import Organization from '@/models/organization.model';
+import Organization, { IOrganization } from '@/models/organization.model';
 import { escapeRegExp } from '../common/utils';
+import ProviderRegistry from './provider-registry';
+import { ServiceUnavailableError } from '../common/utils/service-errors';
+import Logger from '../common/utils/logger';
+import { CustomerClient, CustomerClientName } from './providers/customer.client';
 
 @Service()
 export class BanksphereService {
+  logger = new Logger(BanksphereService.name)
   constructor (
     // private s3Service: S3Service,
     // private sqsClient: SqsClient
@@ -44,5 +49,30 @@ export class BanksphereService {
 
   async getAccount(id: string) {
     return Organization.findById(id).lean()
+  }
+
+  async createCustomer(data: CreateCustomerDto) {
+    const organization = await Organization.findById(data.organization)
+    if (!organization) throw new NotFoundError('Organization not found')
+      try {
+        const token = ProviderRegistry.get(data.provider)
+        if (!token) {
+          this.logger.error('provider not found', { provider: data.provider })
+          throw new ServiceUnavailableError('Provider is not unavailable')
+        }
+  
+        const client = Container.get<CustomerClient>(token)
+  
+        const result = await client.createCustomer({ organization, provider: data.provider })
+        return result
+      } catch (err: any) {
+        this.logger.error('error initiating transfer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'Bank failure, could not complete transfer',
+          gatewayResponse: err.message
+        }
+      }
   }
 }

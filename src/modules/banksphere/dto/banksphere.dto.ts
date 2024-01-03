@@ -29,3 +29,12 @@ export class GetAccountsDto {
   @Min(1)
   limit = 10
 }
+
+export class CreateCustomerDto {
+  @IsString()
+  organization: string
+
+  @IsString()
+  provider: string
+
+}

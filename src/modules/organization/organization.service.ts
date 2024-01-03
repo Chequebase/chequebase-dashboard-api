@@ -132,13 +132,14 @@ export class OrganizationsService {
     if (organization.admin) {
       await Promise.all(files.map(async (file) => {
         const key = `documents/${organization.id}/${file.fieldname}`;
-        await this.s3Service.putObject(
+        const url = await this.s3Service.uploadObject(
           getEnvOrThrow('KYB_BUCKET_NAME'),
           key,
           file.buffer
         );
 
         documents[file.fieldname] = key
+        documents['url'] = url
       }))
       
       await organization.updateOne({
