@@ -10,10 +10,10 @@ import publicApiGuard from '../common/guards/public-api.guard';
 export default class BanksphereController {
   constructor (private readonly banksphereService: BanksphereService) { }
 
-  @Post('/compliance/submit-requirements/:id')
+  @Post('/compliance/submit-requirements')
   @UseBefore(publicApiGuard)
   @Authorized()
-  createCustomer(@Param('id') id: string, @Body() data: CreateCustomerDto) {
+  createCustomer(@Body() data: CreateCustomerDto) {
     return this.banksphereService.createCustomer(data)
   }
 
