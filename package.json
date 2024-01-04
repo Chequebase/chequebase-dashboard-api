@@ -52,8 +52,7 @@
     "speakeasy": "^2.0.0",
     "swagger-ui-express": "^5.0.0",
     "typedi": "^0.10.0",
-    "uuid": "^9.0.1",
-    "validate_nigerian_phone": "^1.0.1"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.1",

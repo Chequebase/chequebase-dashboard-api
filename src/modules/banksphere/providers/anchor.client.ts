@@ -5,7 +5,6 @@ import { CreateCustomerData, CustomerClient } from "./customer.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { IOrganization } from "@/models/organization.model";
-const NigerianPhone = require('validate_nigerian_phone');
 
 export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 
@@ -24,7 +23,7 @@ export class AnchorCustomerClient implements CustomerClient {
     console.log({ data })
 
     try {
-      const res = await this.http.post('/api/v1/customers', { data })
+      const res = await this.http.post('/api/v1/customers', data)
       const attributes = res.data.data.attributes
 
       return {
@@ -42,69 +41,70 @@ export class AnchorCustomerClient implements CustomerClient {
   }
 
   transformGetAnchorCustomerData(org: IOrganization) {
+    console.log({ phone: this.formatPhoneNumber(org.phone), regDate: this.extractDate(org.regDate) })
     return {
+      "data": {
         "attributes": {
           "address": {
-            "country": "NG",
-            "state": "KANO"
+            "country": org.country,
+            "state": org.state
           },
           "basicDetail": {
-            "industry": "Agriculture-AgriculturalCooperatives",
-            "registrationType": "Private_Incorporated",
-            "country": "NG",
-            "businessName": "Test Business 4",
-            "businessBvn": "11111111111",
-            "dateOfRegistration": "1994-06-25",
-            "description": "Test"
+            "industry": org.businessIndustry,
+            "registrationType": org.businessType,
+            "country": org.country,
+            "businessName": org.businessName,
+            "businessBvn": org.owners[0].bvn,
+            "dateOfRegistration": this.extractDate(org.regDate),
+            "description": ""
           },
           "contact": {
             "email": {
-              "general": "email@email.com"
+              "general": org.email
             },
             "address": {
               "main": {
-                "country": "NG",
-                "state": "LAGOS",
-                "addressLine_1": "1 James street",
-                "city": "Yaba",
-                "postalCode": "100032",
-                "addressLine_2": "Onike"
+                "country": org.country,
+                "state": org.state,
+                "addressLine_1": org.address,
+                "city": org.city,
+                "postalCode": org.postalCode,
               },
               "registered": {
-                "country": "NG",
-                "state": "LAGOS",
-                "addressLine_1": "1 James street",
-                "addressLine_2": "Onike",
-                "city": "Yaba",
-                "postalCode": "100032"
+                "country": org.country,
+                "state": org.state,
+                "addressLine_1": org.address,
+                "city": org.city,
+                "postalCode": org.postalCode
               }
             },
-            "phoneNumber": "11111111111"
+            "phoneNumber": this.formatPhoneNumber(org.phone)
           },
           "officers": [
             {
               "role": "OWNER",
               "fullName": {
-                "firstName": "JOHN",
-                "lastName": "DOE"
+                "firstName": org.owners[0].firstName,
+                "lastName": org.owners[0].lastName,
               },
-              "nationality": "NG",
+              "nationality": org.owners[0].country,
               "address": {
-                "country": "NG",
-                "state": "KANO",
-                "addressLine_1": "1 James street",
-                "city": "Yaba",
-                "postalCode": "100032"
+                "country": org.owners[0].country,
+                "state": org.owners[0].state,
+                "addressLine_1": org.owners[0].address,
+                "city": org.owners[0].city,
+                "postalCode":org.owners[0].postalCode,
               },
-              "dateOfBirth": "1994-06-25",
-              "email": "email@email.com",
-              "phoneNumber": "11111111111",
-              "bvn": "22222222226",
-              "percentageOwned": 10
+              "dateOfBirth": this.extractDate(org.owners[0].dob),
+              "email": org.owners[0].email || '',
+              "phoneNumber": this.formatPhoneNumber(org.phone),
+              "bvn": org.owners[0].bvn,
+              "percentageOwned": org.owners[0].percentOwned,
             }
           ]
         },
         "type": "BusinessCustomer"
+      }
     }
 
 
@@ -257,5 +257,36 @@ export class AnchorCustomerClient implements CustomerClient {
     // }
   
     // return transformedData;
+  }
+
+  formatPhoneNumber(phoneNumber: string): string {
+    // Remove spaces and dashes
+    const cleanedNumber = phoneNumber.replace(/[\s\-]/g, '');
+  
+    // Check if the number starts with a country code
+    if (cleanedNumber.startsWith('+234')) {
+      // Remove the country code and add a leading zero
+      return '0' + cleanedNumber.slice(4);
+    } else if (!cleanedNumber.startsWith('0')) {
+      // Add a leading zero if the number doesn't start with 0
+      return '0' + cleanedNumber;
+    }
+  
+    // The number is already in the desired format
+    return cleanedNumber;
+  }
+
+  extractDate(isoDateString: string): string {
+    const isoDate = new Date(isoDateString);
+    
+    // Extract individual date components
+    const year = isoDate.getFullYear();
+    const month = (isoDate.getMonth() + 1).toString().padStart(2, '0'); // Months are zero-indexed
+    const day = isoDate.getDate().toString().padStart(2, '0');
+  
+    // Form the YYYY-MM-DD format
+    const formattedDate = `${year}-${month}-${day}`;
+  
+    return formattedDate;
   }
 }
