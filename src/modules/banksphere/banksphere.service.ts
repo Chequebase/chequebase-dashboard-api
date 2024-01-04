@@ -79,4 +79,33 @@ export class BanksphereService {
         }
       }
   }
+
+  async uploadCustomerDocuments(data: CreateCustomerDto) {
+    const organization = await Organization.findById(data.organization).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const admin = await User.findById(organization.admin).lean()
+    if (!admin) throw new NotFoundError('Admin not found')
+      try {
+        const token = ProviderRegistry.get(data.provider)
+        if (!token) {
+          this.logger.error('provider not found', { provider: data.provider })
+          throw new ServiceUnavailableError('Provider is not unavailable')
+        }
+  
+        const client = Container.get<CustomerClient>(token)
+  
+        const result = await client.createCustomer({ organization: { ...organization, email: admin.email }, provider: data.provider })
+
+        await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
+        return result
+      } catch (err: any) {
+        this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'Create Customer Failure, could not create customer',
+          gatewayResponse: err.message
+        }
+      }
+  }
 }

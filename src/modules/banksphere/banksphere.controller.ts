@@ -1,7 +1,6 @@
 import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, UseBefore } from 'routing-controllers';
 import { BanksphereService } from './banksphere.service';
 import { Service } from 'typedi';
-import { AuthUser } from '../common/interfaces/auth-user';
 import { CreateCustomerDto, GetAccountsDto } from './dto/banksphere.dto';
 import publicApiGuard from '../common/guards/public-api.guard';
 
@@ -15,6 +14,13 @@ export default class BanksphereController {
   @Authorized()
   createCustomer(@Body() data: CreateCustomerDto) {
     return this.banksphereService.createCustomer(data)
+  }
+
+  @Post('/compliance/upload-documents')
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  uploadCustomerDocuments(@Body() data: CreateCustomerDto) {
+    return this.banksphereService.uploadCustomerDocuments(data)
   }
 
   @Get('/compliance/accounts')

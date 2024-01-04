@@ -40,6 +40,25 @@ export class AnchorCustomerClient implements CustomerClient {
     }
   }
 
+  public async uploadCustomerDocuments(payload: CreateCustomerData) {
+    try {
+      const res = await this.http.post('/api/v1/documents/upload-document/{customerId}/{documentId}', payload)
+      const attributes = res.data.data.attributes
+
+      return {
+        id: res.data.data.id,
+      }
+    } catch (err: any) {
+      this.logger.error('error creating customer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        payload: JSON.stringify(payload),
+        status: err.response.status
+      });
+
+      throw new ServiceUnavailableError('Unable to create customer');
+    }
+  }
+
   transformGetAnchorCustomerData(org: IOrganization) {
     console.log({ phone: this.formatPhoneNumber(org.phone), regDate: this.extractDate(org.regDate) })
     const data = {
