@@ -198,7 +198,7 @@ export class AnchorCustomerClient implements CustomerClient {
       data.attributes.officers = [...owners] as any
     }
   
-    // return transformedData;
+    return { data} ;
   }
 
   formatPhoneNumber(phoneNumber: string): string {
