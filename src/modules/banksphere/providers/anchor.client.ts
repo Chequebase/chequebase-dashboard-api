@@ -67,7 +67,7 @@ export class AnchorCustomerClient implements CustomerClient {
           firstName: org.owners[0].firstName,
           lastName: org.owners[0].lastName,
         },
-        bvn: org.bnNumber,
+        bvn: org.owners[0].bvn,
       },
       officers: [],
     };
