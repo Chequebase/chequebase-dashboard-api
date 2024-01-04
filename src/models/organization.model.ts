@@ -62,6 +62,7 @@ export interface IOrganization {
   regDate: string
   state: string
   owners: Shareholder[]
+  anchor?: { customerId?: string, verified?: boolean, documentVerified?: boolean }
   createdAt: Date;
   updatedAt: Date;
 }
@@ -116,6 +117,7 @@ const organizationSchma = new Schema<IOrganization>(
     rcNumber: String,
     cacItNumber: String,
     owners: [shareholderSchema],
+    anchor: Object,
     subscription: {
       _id: false,
       type: {
