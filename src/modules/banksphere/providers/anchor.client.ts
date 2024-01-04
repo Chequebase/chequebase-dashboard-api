@@ -41,6 +41,7 @@ export class AnchorCustomerClient implements CustomerClient {
   }
 
   transformGetAnchorCustomerData(org: IOrganization) {
+    console.log({ org })
     const transformedData: any = {
       customerId: org._id,
       customerType: 'BusinessCustomer',
