@@ -24,7 +24,6 @@ export class AnchorCustomerClient implements CustomerClient {
 
     try {
       const res = await this.http.post('/api/v1/customers', { data })
-      console.log({ data })
       const attributes = res.data.data.attributes
 
       return {

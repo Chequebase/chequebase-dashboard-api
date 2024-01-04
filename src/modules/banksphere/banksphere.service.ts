@@ -54,6 +54,8 @@ export class BanksphereService {
   async createCustomer(data: CreateCustomerDto) {
     const organization = await Organization.findById(data.organization)
     if (!organization) throw new NotFoundError('Organization not found')
+    const admin = await User.findById(organization.admin)
+    if (!admin) throw new NotFoundError('Admin not found')
       try {
         const token = ProviderRegistry.get(data.provider)
         if (!token) {
@@ -63,10 +65,10 @@ export class BanksphereService {
   
         const client = Container.get<CustomerClient>(token)
   
-        const result = await client.createCustomer({ organization, provider: data.provider })
+        const result = await client.createCustomer({ organization: { ...organization, email: admin.email }, provider: data.provider })
         return result
       } catch (err: any) {
-        this.logger.error('error initiating transfer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
+        this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
   
         return {
           status: 'failed',
