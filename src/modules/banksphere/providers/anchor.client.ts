@@ -42,8 +42,7 @@ export class AnchorCustomerClient implements CustomerClient {
 
   transformGetAnchorCustomerData(org: IOrganization) {
     console.log({ phone: this.formatPhoneNumber(org.phone), regDate: this.extractDate(org.regDate) })
-    return {
-      "data": {
+    const data = {
         "attributes": {
           "address": {
             "country": org.country,
@@ -56,7 +55,7 @@ export class AnchorCustomerClient implements CustomerClient {
             "businessName": org.businessName,
             "businessBvn": org.owners[0].bvn,
             "dateOfRegistration": this.extractDate(org.regDate),
-            "description": ""
+            "description": org.businessName
           },
           "contact": {
             "email": {
@@ -81,30 +80,9 @@ export class AnchorCustomerClient implements CustomerClient {
             "phoneNumber": this.formatPhoneNumber(org.phone)
           },
           "officers": [
-            {
-              "role": "OWNER",
-              "fullName": {
-                "firstName": org.owners[0].firstName,
-                "lastName": org.owners[0].lastName,
-              },
-              "nationality": org.owners[0].country,
-              "address": {
-                "country": org.owners[0].country,
-                "state": org.owners[0].state,
-                "addressLine_1": org.owners[0].address,
-                "city": org.owners[0].city,
-                "postalCode":org.owners[0].postalCode,
-              },
-              "dateOfBirth": this.extractDate(org.owners[0].dob),
-              "email": org.owners[0].email || '',
-              "phoneNumber": this.formatPhoneNumber(org.phone),
-              "bvn": org.owners[0].bvn,
-              "percentageOwned": org.owners[0].percentOwned,
-            }
           ]
         },
         "type": "BusinessCustomer"
-      }
     }
 
 
@@ -194,67 +172,31 @@ export class AnchorCustomerClient implements CustomerClient {
     //     }
     //   }
     // }
-
-    // const phone = new NigerianPhone(org.phone);
-    // console.log({ formatedOPhone: phone.formatted() })
-    // const transformedData: any = {
-    //   customerId: org._id,
-    //   customerType: 'BusinessCustomer',
-    //   businessName: org.businessName,
-    //   industry: org.businessIndustry,
-    //   registrationType: org.businessType,
-    //   dateOfRegistration: org.regDate,
-    //   country: org.country,
-    //   phoneNumber: phone.formatted(),
-    //   email: { generate: org.email },
-    //   address: {
-    //     main: {
-    //       addressLine_1: org.address,
-    //       country: org.country,
-    //       city: org.city,
-    //       postalCode: org.postalCode,
-    //       state: org.state,
-    //     }
-    //   },
-    //   contact: {
-    //     email: org.email,
-    //     phoneNumber: phone.formatted(),
-    //     fullName: {
-    //       firstName: org.owners[0].firstName,
-    //       lastName: org.owners[0].lastName,
-    //     },
-    //     bvn: org.owners[0].bvn,
-    //   },
-    //   officers: [],
-    // };
   
-    // if (org.owners && org.owners.length > 0) {
-    //   const owners = org.owners.map((owner: any) => ({
-    //     role: owner.title,
-    //     fullName: {
-    //       firstName: owner.firstName,
-    //       lastName: owner.lastName,
-    //     },
-    //     dateOfBirth: owner.dob,
-    //     email: owner.email,
-    //     phoneNumber: owner.phone,
-    //     nationality: owner.country,
-    //     address: {
-    //       addressLine_1: owner.address,
-    //       country: owner.country,
-    //       city: owner.city,
-    //       postalCode: owner.postalCode,
-    //       state: owner.state,
-    //     },
-    //     bvn: owner.bvn,
-    //     percentOwned: parseFloat(owner.percentOwned as any),
-    //     title: owner.title,
-    //     identificationType: owner.idType,
-    //     idDocumentNumber: owner.idNumber,
-    //   }));
+    if (org.owners && org.owners.length > 0) {
+      const owners = org.owners.map((owner: any) => ({
+        "role": (owner.title && owner.title[0]) || "OWNER",
+        "fullName": {
+          "firstName": owner.firstName,
+          "lastName": owner.lastName,
+        },
+        "nationality": owner.country,
+        "address": {
+          "country": owner.country,
+          "state": owner.state,
+          "addressLine_1": owner.address,
+          "city": owner.city,
+          "postalCode":owner.postalCode,
+        },
+        "dateOfBirth": this.extractDate(owner.dob),
+        "email": owner.email || org.email,
+        "phoneNumber": this.formatPhoneNumber(org.phone),
+        "bvn": owner.bvn,
+        "percentageOwned": owner.percentOwned,
+      }));
       
-    //   transformedData.officers = [...owners]
-    // }
+      data.attributes.officers = [...owners] as any
+    }
   
     // return transformedData;
   }

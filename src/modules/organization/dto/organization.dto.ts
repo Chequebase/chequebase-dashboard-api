@@ -67,7 +67,7 @@ export class OwnerDto {
   email: string
   @IsOptional()
   @IsArray()
-  title?: string[]
+  title: string[]
   @IsString()
   country: string
   @IsString()

@@ -14,7 +14,7 @@ export enum BillingMethod {
 
 export interface Shareholder {
   id: string
-  title: string
+  title: string[]
   firstName: string
   lastName: string
   address: string
@@ -67,7 +67,7 @@ export interface IOrganization {
 }
 
 const shareholderSchema = new Schema<Shareholder>({
-  title: String,
+  title: [String],
   firstName: String,
   lastName: String,
   address: String,
