@@ -5,6 +5,7 @@ import { CreateCustomerData, CustomerClient } from "./customer.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { IOrganization } from "@/models/organization.model";
+const NigerianPhone = require('validate_nigerian_phone');
 
 export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 
@@ -41,7 +42,8 @@ export class AnchorCustomerClient implements CustomerClient {
   }
 
   transformGetAnchorCustomerData(org: IOrganization) {
-    console.log({ org })
+    const phone = new NigerianPhone(org.phone);
+    console.log({ formatedOPhone: phone.formatted() })
     const transformedData: any = {
       customerId: org._id,
       customerType: 'BusinessCustomer',
@@ -50,7 +52,7 @@ export class AnchorCustomerClient implements CustomerClient {
       registrationType: org.businessType,
       dateOfRegistration: org.regDate,
       country: org.country,
-      phoneNumber: org.phone,
+      phoneNumber: phone.formatted(),
       email: { generate: org.email },
       address: {
         main: {
@@ -63,7 +65,7 @@ export class AnchorCustomerClient implements CustomerClient {
       },
       contact: {
         email: org.email,
-        phoneNumber: org.phone,
+        phoneNumber: phone.formatted(),
         fullName: {
           firstName: org.owners[0].firstName,
           lastName: org.owners[0].lastName,
