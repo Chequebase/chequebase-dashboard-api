@@ -52,7 +52,7 @@ export class AnchorCustomerClient implements CustomerClient {
             "industry": "Agriculture-AgriculturalCooperatives",
             "registrationType": "Private_Incorporated",
             "country": "NG",
-            "businessName": "Test Business",
+            "businessName": "Test Business 4",
             "businessBvn": "11111111111",
             "dateOfRegistration": "1994-06-25",
             "description": "Test"
