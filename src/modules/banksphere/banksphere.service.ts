@@ -52,9 +52,9 @@ export class BanksphereService {
   }
 
   async createCustomer(data: CreateCustomerDto) {
-    const organization = await Organization.findById(data.organization)
+    const organization = await Organization.findById(data.organization).lean()
     if (!organization) throw new NotFoundError('Organization not found')
-    const admin = await User.findById(organization.admin)
+    const admin = await User.findById(organization.admin).lean()
     if (!admin) throw new NotFoundError('Admin not found')
       try {
         const token = ProviderRegistry.get(data.provider)
