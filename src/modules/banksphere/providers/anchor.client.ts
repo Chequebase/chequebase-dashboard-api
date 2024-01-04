@@ -20,7 +20,7 @@ export class AnchorCustomerClient implements CustomerClient {
 
   public async createCustomer(payload: CreateCustomerData) {
     const data = this.transformGetAnchorCustomerData(payload.organization)
-    console.log({ data })
+    console.log({ data: data.data.attributes })
 
     try {
       const res = await this.http.post('/api/v1/customers', data)
