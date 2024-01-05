@@ -42,7 +42,7 @@ export class AnchorCustomerClient implements CustomerClient {
 
   public async uploadCustomerDocuments(payload: CreateCustomerData) {
     try {
-      const res = await this.http.post('/api/v1/documents/upload-document/{customerId}/{documentId}', payload)
+      const res = await this.http.post(`/api/v1/documents/upload-document/{customerId}/{documentId}`, payload)
       const attributes = res.data.data.attributes
 
       return {

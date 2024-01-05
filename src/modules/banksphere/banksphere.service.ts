@@ -94,7 +94,7 @@ export class BanksphereService {
   
         const client = Container.get<CustomerClient>(token)
   
-        const result = await client.createCustomer({ organization: { ...organization, email: admin.email }, provider: data.provider })
+        const result = await client.uploadCustomerDocuments({ organization: { ...organization, email: admin.email }, provider: data.provider })
 
         await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
         return result
