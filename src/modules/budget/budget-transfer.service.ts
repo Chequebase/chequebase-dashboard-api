@@ -24,6 +24,7 @@ import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
 import Logger from "../common/utils/logger"
+import { IProject } from "@/models/project.model"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -99,6 +100,7 @@ export class BudgetTransferService {
         }
       }, { new: true, session })
         .populate<{ wallet: IWallet }>('wallet')
+        .populate<{ project: IProject }>({ path: 'project', select: 'balance' })
 
       if (!budget) {
         throw new BadRequestError("Insufficient funds")
@@ -126,7 +128,8 @@ export class BudgetTransferService {
         provider: payload.provider,
         meta: {
           counterparty: payload.counterparty._id,
-          budgetBalanceAfter: budget.balance
+          budgetBalanceAfter: budget.balance,
+          projectBalanceAfter: budget.project?.balance
         }
       }], { session })
     }, transactionOpts)

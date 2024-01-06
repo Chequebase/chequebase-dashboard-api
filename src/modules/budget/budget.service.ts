@@ -63,9 +63,10 @@ export default class BudgetService {
       }], { session });
 
       if (budget.project) {
-        await Project.updateOne({ _id: budget.project }, {
+        const project = await Project.findOneAndUpdate({ _id: budget.project }, {
           $inc: { balance: budget.balance }
-        }, { session });
+        }, { session, new: true });
+        await entry.updateOne({ 'meta.projectBalanceAfter': project!.balance }).session(session)
       } else {
         await Wallet.updateOne({ _id: wallet._id }, {
           $set: { walletEntry: entry._id },
