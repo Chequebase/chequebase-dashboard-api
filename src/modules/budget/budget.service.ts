@@ -339,19 +339,19 @@ export default class BudgetService {
 
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
     query.status ??= BudgetStatus.Active
-    const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
-      .set('status', query.status)
-      .set('project', { $exists: false })
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new BadRequestError("User not found")
     }
 
+    const isOwner = user.role === Role.Owner
+    const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
+      .set('status', query.status)
+      .set('project', { $exists: !isOwner })
+    
     if (user.role !== Role.Owner) {
       filter.set('beneficiaries.user', new ObjectId(auth.userId))
-    }
-
-    if (user.role === Role.Owner) {
+    } else {
       if (query.createdByUser) filter.set('createdBy', new ObjectId(auth.userId))
       else filter.set('createdBy', { $ne: new ObjectId(auth.userId) })
     }
