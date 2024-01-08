@@ -5,7 +5,7 @@ export class InitiateSubscriptionDto {
   @IsString()
   plan: string
 
-  @IsIn([1, 12])
+  @IsIn([1, 3, 12])
   @IsOptional()
   months = 1
 
