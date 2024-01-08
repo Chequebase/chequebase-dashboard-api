@@ -39,7 +39,7 @@ export default class BudgetController {
   @Get('/project/:id')
   @Authorized()
   getProject(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
-    return this.projectService.getProject(auth.orgId, id)
+    return this.projectService.getProject(auth, id)
   }
 
   @Post('/project/:id/pause')

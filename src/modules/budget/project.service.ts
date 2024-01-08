@@ -319,25 +319,17 @@ export class ProjectService {
       lean: true
     })
 
-    if (user.role !== Role.Owner) {
-      projects.docs = projects.docs.map((project) => {
-        const budgets = project.budgets.filter((budget: IBudget) =>
-          budget.status === BudgetStatus.Active &&
-          budget.beneficiaries.some((b: any) => b.user.equals(user._id))
-        )
-
-        return Object.assign(project, { budgets })
-      })
-    }
-
     return projects
   }
 
-  async getProject(orgId: string, id: string) {
+  async getProject(auth: AuthUser, id: string) {
+    const user = await User.findById(auth.userId).lean()
+    if (!user) throw new NotFoundError('User not found')
+
     const [project] = await Project.aggregate()
       .match({
         _id: new ObjectId(id),
-        organization: new ObjectId(orgId),
+        organization: new ObjectId(auth.orgId),
         status: ProjectStatus.Active
       })
       .lookup({
@@ -395,8 +387,10 @@ export class ProjectService {
       throw new NotFoundError("Project not found")
     }
 
-    project.budgets = project.budgets
-      .filter((budget: IBudget) => budget.status === BudgetStatus.Active)
+    project.budgets = project.budgets.filter((budget: IBudget) =>
+      budget.status === BudgetStatus.Active &&
+      budget.beneficiaries.some((b: any) => b.user.equals(auth.userId))
+    )
 
     return project
   }
