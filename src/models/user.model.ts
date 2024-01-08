@@ -3,6 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
+import { IOrganization } from './organization.model';
 
 export enum KycStatus {
   NOT_STARTED = "not started",
@@ -30,7 +31,7 @@ export interface IUser {
   email: string;
   emailVerified: boolean;
   password: string;
-  organization: ObjectId
+  organization: ObjectId | IOrganization
   role: string
   rememberMe: number
   status: UserStatus

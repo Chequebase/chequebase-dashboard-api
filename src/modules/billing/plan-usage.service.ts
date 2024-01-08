@@ -113,4 +113,35 @@ export class PlanUsageService {
 
     return { feature, exhaustedFreeUnits, exhuastedMaxUnits }
   }
+
+  async getFeatureAvailability(orgId: string) {
+    const organization = await Organization.findById(orgId)
+      .populate({ path: 'subscription.object', populate: 'plan' })
+      .select('subscription')
+      .lean()
+
+    if (!organization) {
+      throw new NotFoundError("Organization not found")
+    }
+
+    let actions = { CREATE_BUDGET: false, CREATE_PROJECT: false, INVITE_USER: false }
+    const subscription = organization.subscription?.object as ISubscription
+    if (!subscription || subscription?.status === 'expired') {
+      return actions
+    }
+
+    await Promise.all([
+      this.checkActiveBudgetUsage(orgId)
+        .then(() => actions.CREATE_BUDGET = true)
+        .catch(() => actions.CREATE_BUDGET = false),
+      this.checkProjectUsage(orgId)
+        .then(() => actions.CREATE_PROJECT = true)
+        .catch(() => actions.CREATE_PROJECT = false),
+      this.checkUsersUsage(orgId)
+        .then(() => actions.INVITE_USER = true)
+        .catch(() => actions.INVITE_USER = false)
+    ])
+
+    return actions
+  }
 }

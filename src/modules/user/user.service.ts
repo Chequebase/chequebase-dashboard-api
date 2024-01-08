@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt, { compare } from 'bcryptjs';
 import EmailService from "@/modules/common/email.service";
 import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
-import Organization from "@/models/organization.model";
+import Organization, { IOrganization } from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
 import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
@@ -382,11 +382,18 @@ export class UserService {
       throw new BadRequestError("User not found")
     }
 
+    let subscription = (<IOrganization>user.organization).subscription
+    if (subscription) {
+      subscription = Object.assign(subscription, {
+        features: await this.planUsageService.getFeatureAvailability(user.organization._id.toString())
+      })
+    }
+
     let pinSet = false
     if (user.pin) {
       pinSet = true
     }
-    
+   
     return { ...user, pin: undefined, pinSet }
   }
 

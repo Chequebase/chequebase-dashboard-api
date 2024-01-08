@@ -349,7 +349,7 @@ export default class BudgetService {
       .set('status', query.status)
       .set('project', { $exists: !isOwner })
     
-    if (user.role !== Role.Owner) {
+    if (!isOwner) {
       filter.set('beneficiaries.user', new ObjectId(auth.userId))
     } else {
       if (query.createdByUser) filter.set('createdBy', new ObjectId(auth.userId))
