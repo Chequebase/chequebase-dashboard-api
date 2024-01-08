@@ -16,6 +16,13 @@ export default class BanksphereController {
     return this.banksphereService.createCustomer(data)
   }
 
+  @Post('/compliance/approve/:accountId')
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  approveCustomer(@Param('accountId') accountId: string) {
+    return this.banksphereService.approveAccount(accountId)
+  }
+
   @Post('/compliance/upload-documents')
   @UseBefore(publicApiGuard)
   @Authorized()

@@ -1,4 +1,4 @@
-import User, { KycStatus } from '@/models/user.model';
+import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
 // import { ObjectId } from 'mongodb'
 // import { S3Service } from '@/modules/common/aws/s3.service';
@@ -12,11 +12,14 @@ import ProviderRegistry from './provider-registry';
 import { ServiceUnavailableError } from '../common/utils/service-errors';
 import Logger from '../common/utils/logger';
 import { CustomerClient, CustomerClientName } from './providers/customer.client';
+import WalletService from '../wallet/wallet.service';
+import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 
 @Service()
 export class BanksphereService {
   logger = new Logger(BanksphereService.name)
   constructor (
+    private walletService: WalletService
     // private s3Service: S3Service,
     // private sqsClient: SqsClient
   ) { }
@@ -75,6 +78,28 @@ export class BanksphereService {
         return {
           status: 'failed',
           message: 'Create Customer Failure, could not create customer',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async approveAccount(accountId: string) {
+    const organization = await Organization.findById(accountId).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const admin = await User.findById(organization.admin).lean()
+    if (!admin) throw new NotFoundError('Admin not found')
+      try {
+        await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.APPROVED })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.APPROVED })
+        // TODO: hard coding base wallet for now
+        await this.walletService.createWallet({ baseWallet: "655e8555fbc87e717fba9a98", provider: VirtualAccountClientName.Anchor, organization: accountId })
+        return 'approved'
+      } catch (err: any) {
+        this.logger.error('error creating customer', { payload: JSON.stringify({ organization }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'Approve Account Failure, could not approve account',
           gatewayResponse: err.message
         }
       }
