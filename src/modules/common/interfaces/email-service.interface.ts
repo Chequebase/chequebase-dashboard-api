@@ -90,6 +90,11 @@ export interface BudgetExpiryNotifEmail {
   budgetSummaryLink: string
 }
 
+export interface KYCApprovedEmail {
+  businessName: string
+  loginLink: string
+}
+
 export interface BudgetExpiryReminder {
   employeeName: string
   budgetName: string

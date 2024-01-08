@@ -68,7 +68,7 @@ function transformGetAnchorCustomerData(org: IOrganization) {
         firstName: org.owners[0].firstName,
         lastName: org.owners[0].lastName,
       },
-      bvn: org.bnNumber,
+      bvn: org.owners[0].bvn,
     },
     officers: [],
   };

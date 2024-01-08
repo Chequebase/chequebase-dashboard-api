@@ -1,9 +1,11 @@
 import { cdb } from '@/modules/common/mongoose';
-import { Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import { ISubscription } from './subscription.model';
 import { IUser } from './user.model';
 import { ISubscriptionPlan } from './subscription-plan.model';
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum BillingMethod {
   Wallet = 'wallet',
@@ -12,7 +14,7 @@ export enum BillingMethod {
 
 export interface Shareholder {
   id: string
-  title: string
+  title: string[]
   firstName: string
   lastName: string
   address: string
@@ -60,12 +62,13 @@ export interface IOrganization {
   regDate: string
   state: string
   owners: Shareholder[]
+  anchor?: { customerId?: string, verified?: boolean, documentVerified?: boolean }
   createdAt: Date;
   updatedAt: Date;
 }
 
 const shareholderSchema = new Schema<Shareholder>({
-  title: String,
+  title: [String],
   firstName: String,
   lastName: String,
   address: String,
@@ -81,6 +84,10 @@ const shareholderSchema = new Schema<Shareholder>({
   percentOwned: Number,
   phone: String,
 })
+
+interface OrganizationModel extends
+  mongoose.PaginateModel<IOrganization>,
+  mongoose.AggregatePaginateModel<IOrganization> { }
 
 const organizationSchma = new Schema<IOrganization>(
   {
@@ -110,6 +117,7 @@ const organizationSchma = new Schema<IOrganization>(
     rcNumber: String,
     cacItNumber: String,
     owners: [shareholderSchema],
+    anchor: Object,
     subscription: {
       _id: false,
       type: {
@@ -133,6 +141,9 @@ const organizationSchma = new Schema<IOrganization>(
   { timestamps: true },
 );
 
-const Organization = cdb.model<IOrganization>('Organization', organizationSchma);
+organizationSchma.plugin(aggregatePaginate);
+organizationSchma.plugin(mongoosePaginate);
+
+const Organization = cdb.model<IOrganization, OrganizationModel>('Organization', organizationSchma);
 
 export default Organization

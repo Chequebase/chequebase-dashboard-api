@@ -19,6 +19,7 @@ import BillingController from "./modules/billing/plan.controller";
 import BudgetController from './modules/budget/budget.controller';
 import { OverviewController } from './modules/overview/overview.controller';
 import SettingsController from './modules/settings/settings.controller';
+import BanksphereController from './modules/banksphere/banksphere.controller';
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
@@ -49,7 +50,8 @@ const rcOptions: RoutingControllersOptions = {
     BudgetController,
     OverviewController,
     SettingsController,
-    WebhookController
+    WebhookController,
+    BanksphereController
   ],
   middlewares: [ExceptionFilter],
   interceptors: [],
