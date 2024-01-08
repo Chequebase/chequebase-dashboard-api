@@ -389,7 +389,7 @@ export class ProjectService {
 
     project.budgets = project.budgets.filter((budget: IBudget) =>
       budget.status === BudgetStatus.Active &&
-      budget.beneficiaries.some((b: any) => b.user.equals(auth.userId))
+      budget.beneficiaries.some((b: any) => b._id.equals(auth.userId))
     )
 
     return project
