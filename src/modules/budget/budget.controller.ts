@@ -27,7 +27,7 @@ export default class BudgetController {
   @Get('/project')
   @Authorized()
   getProjects(@CurrentUser() auth: AuthUser, @QueryParams() dto: GetProjectsDto) {
-    return this.projectService.getProjects(auth.orgId, dto)
+    return this.projectService.getProjects(auth, dto)
   }
 
   @Get('/project/beneficiary')

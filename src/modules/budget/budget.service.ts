@@ -347,7 +347,7 @@ export default class BudgetService {
     const isOwner = user.role === Role.Owner
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', query.status)
-      .set('project', { $exists: !isOwner })
+      .set('project', { $exists: false })
     
     if (!isOwner) {
       filter.set('beneficiaries.user', new ObjectId(auth.userId))

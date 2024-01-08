@@ -14,13 +14,15 @@ import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } fro
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
 import { UserService } from '../user/user.service'
+import User from "@/models/user.model"
+import { Role } from "../user/dto/user.dto"
 
 const logger = new Logger('project-service')
 
 @Service()
 export class ProjectService {
   constructor (private planUsageService: PlanUsageService) { }
-  
+
   static async initiateProjectClosure(data: InitiateProjectClosure) {
     const { projectId, userId, reason } = data
 
@@ -28,7 +30,7 @@ export class ProjectService {
       const project = await Project.findOne({ _id: projectId, status: ProjectStatus.Active })
         .populate<{ wallet: IWallet }>('wallet')
         .session(session)
-      
+
       if (!project) {
         throw new BadRequestError('Unable to close project')
       }
@@ -36,7 +38,7 @@ export class ProjectService {
       const wallet = project.wallet
       const budgets = await Budget.find({ project: project._id, status: BudgetStatus.Active })
         .session(session)
-      
+
       const budgetBalance = budgets.reduce((a, b) => a + b.balance, 0)
       const balance = numeral(budgetBalance).add(project.balance).value()
 
@@ -246,10 +248,13 @@ export class ProjectService {
     return project!
   }
 
-  async getProjects(orgId: string, query: GetProjectsDto) {
+  async getProjects(auth: AuthUser, query: GetProjectsDto) {
+    const user = await User.findById(auth.userId).lean()
+    if (!user) throw new NotFoundError('User not found')
+
     const agg = Project.aggregate()
       .match({
-        organization: new ObjectId(orgId),
+        organization: user.organization,
         status: query.status || ProjectStatus.Active
       })
       .sort({ createdAt: -1 })
@@ -259,15 +264,19 @@ export class ProjectService {
         foreignField: 'project',
         as: 'budgets'
       })
-      .lookup({
-        as: 'createdBy',
-        from: 'users',
-        let: { createdBy: '$createdBy' },
-        pipeline: [
-          { $match: { $expr: { $eq: ['$$createdBy', '$_id'] } } },
-          { $project: { firstName: 1, lastName: 1, role: 1, avatar: 1 } }
-        ]
-      })
+
+    if (user.role !== Role.Owner)
+      agg.match({ 'budgets.beneficiaries.user': user._id })
+
+    agg.lookup({
+      as: 'createdBy',
+      from: 'users',
+      let: { createdBy: '$createdBy' },
+      pipeline: [
+        { $match: { $expr: { $eq: ['$$createdBy', '$_id'] } } },
+        { $project: { firstName: 1, lastName: 1, role: 1, avatar: 1 } }
+      ]
+    })
       .lookup({
         from: 'users',
         as: 'beneficiaries',
@@ -303,12 +312,23 @@ export class ProjectService {
         unallocatedAmount: { $subtract: ['$amount', '$allocatedAmount'] }
       })
       .append({ $unset: ['budgets'] })
-    
+
     const projects = await Project.aggregatePaginate(agg, {
       page: query.page,
       limit: query.limit,
       lean: true
     })
+
+    if (user.role !== Role.Owner) {
+      projects.docs = projects.docs.map((project) => {
+        const budgets = project.budgets.filter((budget: IBudget) =>
+          budget.status === BudgetStatus.Active &&
+          budget.beneficiaries.some((b: any) => b.user.equals(user._id))
+        )
+
+        return Object.assign(project, { budgets })
+      })
+    }
 
     return projects
   }
@@ -370,7 +390,7 @@ export class ProjectService {
       .addFields({
         unallocatedAmount: { $subtract: ['$amount', '$allocatedAmount'] }
       })
-    
+
     if (!project) {
       throw new NotFoundError("Project not found")
     }
@@ -386,7 +406,7 @@ export class ProjectService {
     if (!valid) {
       throw new BadRequestError('Invalid pin')
     }
-    
+
     const project = await Project.findOne({ _id: id, organization: auth.orgId }).lean();
     if (!project) {
       throw new BadRequestError('Project not found');
@@ -400,12 +420,12 @@ export class ProjectService {
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOne({ _id: project.wallet }).session(session)
       if (!wallet) throw new BadRequestError('Wallet not found')
-      
+
       const payload = { session, wallet, project, auth, budgets: data.budgets }
       await this.createSubBudgets(payload)
     })
 
-    return { message: 'Sub budgets added successfully'}
+    return { message: 'Sub budgets added successfully' }
   }
 
   async closeProject(auth: AuthUser, id: string, data: CloseProjectBodyDto) {
@@ -445,16 +465,16 @@ export class ProjectService {
         as: 'budgets'
       })
       .match({ 'budgets.beneficiaries.user': userId })
-      
+
     projects = projects.map((project) => {
       const budgets = project.budgets.filter((budget: IBudget) =>
         budget.status === BudgetStatus.Active &&
         budget.beneficiaries.some((b: any) => b.user.equals(userId))
       )
-      
+
       return Object.assign(project, { budgets })
     })
-    
+
     return projects
   }
 }
