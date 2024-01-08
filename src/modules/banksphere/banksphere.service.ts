@@ -7,19 +7,21 @@ import { CreateCustomerDto, GetAccountsDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
 import { BadRequestError, NotFoundError } from 'routing-controllers';
 import Organization, { IOrganization } from '@/models/organization.model';
-import { escapeRegExp } from '../common/utils';
+import { escapeRegExp, getEnvOrThrow } from '../common/utils';
 import ProviderRegistry from './provider-registry';
 import { ServiceUnavailableError } from '../common/utils/service-errors';
 import Logger from '../common/utils/logger';
 import { CustomerClient, CustomerClientName } from './providers/customer.client';
 import WalletService from '../wallet/wallet.service';
 import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
+import EmailService from '../common/email.service';
 
 @Service()
 export class BanksphereService {
   logger = new Logger(BanksphereService.name)
   constructor (
-    private walletService: WalletService
+    private walletService: WalletService,
+    private emailService: EmailService,
     // private s3Service: S3Service,
     // private sqsClient: SqsClient
   ) { }
@@ -93,6 +95,10 @@ export class BanksphereService {
         await Organization.updateOne({ _id: organization._id }, { status: KycStatus.APPROVED })
         // TODO: hard coding base wallet for now
         await this.walletService.createWallet({ baseWallet: "655e8555fbc87e717fba9a98", provider: VirtualAccountClientName.Anchor, organization: accountId })
+        this.emailService.sendKYCApprovedEmail(admin.email, {
+          loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
+          businessName: organization.businessName
+        })
         return 'approved'
       } catch (err: any) {
         this.logger.error('error creating customer', { payload: JSON.stringify({ organization }), reason: err.message })

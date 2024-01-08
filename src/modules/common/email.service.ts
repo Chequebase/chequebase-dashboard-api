@@ -181,6 +181,15 @@ export default class EmailService {
     })
   }
 
+  sendKYCApprovedEmail(to: string, data: T.KYCApprovedEmail) {
+    return this.send({
+      to,
+      subject: 'KYC Verification Successful',
+      templateId: 'd-3696ba30c6844dbdaa7a02d7c5ecad13',
+      dynamicTemplateData: data
+    })
+  }
+
   sendBudgetExpiryReminderEmail(to: string, data: T.BudgetExpiryReminder) {
     return this.send({
       to,
