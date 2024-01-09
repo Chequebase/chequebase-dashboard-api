@@ -184,7 +184,8 @@ export class OrganizationsService {
         }
       })
 
-      await this.banksphereService.createCustomer({ organization: id, provider: VirtualAccountClientName.Anchor })
+      const result = await this.banksphereService.createCustomer({ organization: id, provider: VirtualAccountClientName.Anchor })
+      await this.banksphereService.kycValidation({ customerId: result.id, provider: VirtualAccountClientName.Anchor })
 
       return { ...organization.toObject(), status: KycStatus.COMPLETED };
     }

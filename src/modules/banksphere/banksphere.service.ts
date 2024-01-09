@@ -11,7 +11,7 @@ import { escapeRegExp, getEnvOrThrow } from '../common/utils';
 import ProviderRegistry from './provider-registry';
 import { ServiceUnavailableError } from '../common/utils/service-errors';
 import Logger from '../common/utils/logger';
-import { CustomerClient, CustomerClientName } from './providers/customer.client';
+import { CustomerClient, CustomerClientName, KycValidation } from './providers/customer.client';
 import WalletService from '../wallet/wallet.service';
 import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 import EmailService from '../common/email.service';
@@ -77,7 +77,7 @@ export class BanksphereService {
       } catch (err: any) {
         this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
   
-        return {
+        throw {
           status: 'failed',
           message: 'Create Customer Failure, could not create customer',
           gatewayResponse: err.message
@@ -135,6 +135,28 @@ export class BanksphereService {
         return {
           status: 'failed',
           message: 'Create Customer Failure, could not create customer',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async kycValidation(data: KycValidation) {
+      try {
+        const token = ProviderRegistry.get(data.provider)
+        if (!token) {
+          this.logger.error('provider not found', { provider: data.provider })
+          throw new ServiceUnavailableError('Provider is not unavailable')
+        }
+  
+        const client = Container.get<CustomerClient>(token)
+  
+        await client.kycValidationForBusiness({ customerId: data.customerId, provider: data.provider })
+      } catch (err: any) {
+        this.logger.error('error sending kyc validation', { payload: JSON.stringify({ data, provider:data.provider }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'KYC Validation Failure, could not validate customer kyc',
           gatewayResponse: err.message
         }
       }
