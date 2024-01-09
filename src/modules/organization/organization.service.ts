@@ -7,11 +7,14 @@ import { OwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organizati
 import { S3Service } from '@/modules/common/aws/s3.service';
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { organizationQueue } from '@/queues';
+import { BanksphereService } from '../banksphere/banksphere.service';
+import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 
 @Service()
 export class OrganizationsService {
   constructor (
     private s3Service: S3Service,
+    private readonly banksphereService: BanksphereService
     // private sqsClient: SqsClient
   ) { }
 
@@ -58,7 +61,8 @@ export class OrganizationsService {
 
     if (organization.admin) {
       await Promise.all([
-        organization.updateOne({ ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED }),
+        organization.updateOne({ ...kycDto, registrationDate: kycDto.regDate,
+          regDate: kycDto.regDate,status: KycStatus.COPMANY_INFO_SUBMITTED }),
         User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.COPMANY_INFO_SUBMITTED })
       ])
       return { ...organization.toObject(), ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED };
@@ -125,7 +129,6 @@ export class OrganizationsService {
   async updateBusinessDocumentation(
     id: string,
     files: any[],/*[utilityBill, businessNameCert],*/
-    data: { bnNumber?: string, regDate: string }
   ) {
     const organization = await Organization.findById(id)
     if (!organization) {
@@ -147,9 +150,6 @@ export class OrganizationsService {
       }))
       
       await organization.updateOne({
-        registrationDate: data.regDate,
-        bnNumber: data.bnNumber,
-        regDate: data.regDate,
         documents,
         status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED
       })
@@ -183,6 +183,8 @@ export class OrganizationsService {
           }
         }
       })
+
+      await this.banksphereService.createCustomer({ organization: id, provider: VirtualAccountClientName.Anchor })
 
       return { ...organization.toObject(), status: KycStatus.COMPLETED };
     }
