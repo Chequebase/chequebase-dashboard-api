@@ -390,12 +390,13 @@ export class ProjectService {
       throw new NotFoundError("Project not found")
     }
 
-    if (user.role !== Role.Owner) {
-      project.budgets = project.budgets.filter((budget: IBudget) =>
-        budget.status === BudgetStatus.Active &&
+    project.budgets = project.budgets.filter((budget: IBudget) =>
+      budget.status === BudgetStatus.Active &&
+      (
+        user.role === Role.Owner ||
         budget.beneficiaries.some((b: any) => b._id.equals(auth.userId))
       )
-    }
+    )
   
     return project
   }
