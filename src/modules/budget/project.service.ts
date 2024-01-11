@@ -266,7 +266,10 @@ export class ProjectService {
       })
 
     if (user.role !== Role.Owner)
-      agg.match({ 'budgets.beneficiaries.user': user._id })
+      agg.match({
+        'budgets.beneficiaries.user': user._id,
+        'budgets.status': BudgetStatus.Active
+      })
 
     agg.lookup({
       as: 'createdBy',
