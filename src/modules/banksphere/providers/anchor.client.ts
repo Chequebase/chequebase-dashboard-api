@@ -61,7 +61,7 @@ export class AnchorCustomerClient implements CustomerClient {
 
   public async kycValidationForBusiness(payload: KycValidation) {
     try {
-      const res = await this.http.post(`/api/v1/customers/${payload.customerId}/verification/business}`, payload)
+      const res = await this.http.post(`/api/v1/customers/${payload.customerId}/verification/business}`)
       const attributes = res.data.data.attributes
 
       return {
