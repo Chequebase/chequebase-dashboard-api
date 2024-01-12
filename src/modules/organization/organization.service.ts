@@ -7,14 +7,11 @@ import { OwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organizati
 import { S3Service } from '@/modules/common/aws/s3.service';
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { organizationQueue } from '@/queues';
-import { BanksphereService } from '../banksphere/banksphere.service';
-import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 
 @Service()
 export class OrganizationsService {
   constructor (
     private s3Service: S3Service,
-    private readonly banksphereService: BanksphereService
     // private sqsClient: SqsClient
   ) { }
 
@@ -183,9 +180,6 @@ export class OrganizationsService {
           }
         }
       })
-
-      const result = await this.banksphereService.createCustomer({ organization: id, provider: VirtualAccountClientName.Anchor })
-      await this.banksphereService.kycValidation({ customerId: result.id, provider: VirtualAccountClientName.Anchor })
 
       return { ...organization.toObject(), status: KycStatus.COMPLETED };
     }

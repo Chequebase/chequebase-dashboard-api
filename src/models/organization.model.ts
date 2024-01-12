@@ -57,6 +57,7 @@ export interface IOrganization {
   cacItNumber: string,
   numberOfEmployees: string
   documents: { [key: string]: string }
+  anchorCustomerId: string
   phone: string
   postalCode: string
   regDate: string
@@ -117,6 +118,7 @@ const organizationSchma = new Schema<IOrganization>(
     rcNumber: String,
     cacItNumber: String,
     owners: [shareholderSchema],
+    anchorCustomerId: String,
     anchor: Object,
     subscription: {
       _id: false,
