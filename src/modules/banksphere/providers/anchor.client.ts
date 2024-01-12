@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { getEnvOrThrow } from "@/modules/common/utils";
-import { CreateCustomerData, CustomerClient } from "./customer.client";
+import { CreateCustomerData, CustomerClient, KycValidation } from "./customer.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { IOrganization } from "@/models/organization.model";
@@ -56,6 +56,25 @@ export class AnchorCustomerClient implements CustomerClient {
       });
 
       throw new ServiceUnavailableError('Unable to create customer');
+    }
+  }
+
+  public async kycValidationForBusiness(payload: KycValidation) {
+    try {
+      const res = await this.http.post(`/api/v1/customers/${payload.customerId}/verification/business}`, payload)
+      const attributes = res.data.data.attributes
+
+      return {
+        id: res.data.data.id,
+      }
+    } catch (err: any) {
+      this.logger.error('error starting KYC validation for customer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        payload: JSON.stringify(payload),
+        status: err.response.status
+      });
+
+      throw new ServiceUnavailableError('Unable to start KYC validation');
     }
   }
 
