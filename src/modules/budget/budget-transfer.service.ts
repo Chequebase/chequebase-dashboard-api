@@ -314,7 +314,7 @@ export class BudgetTransferService {
     const defaultIcon = banks.find((b) => b.default)?.icon
 
     return anchorBanks.map((bank) => {
-      const icon = banks.find(b => b.nipCode === bank.nipCode)?.icon || defaultIcon
+      const icon = banks.find(b => b.nipCode === bank.attributes.nipCode)?.icon || defaultIcon
       return {
         ...bank,
         bank: Object.assign(bank.attributes, { icon }),
