@@ -52,7 +52,7 @@ export default class AnchorWebhookHandler {
     })
 
     const jobData: RequiredDocumentsJobData = {
-      customerId: data.relationships.customer.data.id,
+      customerId: body.data.relationships.customer.data.id,
       requiredDocuments
     }
 
