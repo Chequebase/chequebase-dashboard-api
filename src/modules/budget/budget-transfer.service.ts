@@ -25,6 +25,7 @@ import { ISubscriptionPlan } from "@/models/subscription-plan.model"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
 import Logger from "../common/utils/logger"
 import { IProject } from "@/models/project.model"
+import Bank from "@/models/bank.model"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -308,7 +309,17 @@ export class BudgetTransferService {
   }
 
   async getBanks() {
-    const banks: any[] = await this.anchorService.getBanks()
-    return banks.map((b) => ({ ...b, bank: b.attributes, attributes: undefined }))
+    const anchorBanks: any[] = await this.anchorService.getBanks()
+    const banks = await Bank.find().lean()
+    const defaultIcon = banks.find((b) => b.default)?.icon
+
+    return anchorBanks.map((bank) => {
+      const icon = banks.find(b => b.nipCode === bank.nipCode)?.icon || defaultIcon
+      return {
+        ...bank,
+        bank: Object.assign(bank.attributes, { icon }),
+        attributes: undefined
+      }
+    })
   }
 }

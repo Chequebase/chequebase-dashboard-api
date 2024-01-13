@@ -23,7 +23,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       type: 'VirtualNuban',
       attributes: {
         virtualAccountDetail: {
-          name: `Chequebase- ${payload.name}`,
+          name: payload.name,
           bvn: payload.identity.number,
           reference: payload.reference,
           email: payload.email,
