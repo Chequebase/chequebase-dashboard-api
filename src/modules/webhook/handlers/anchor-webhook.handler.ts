@@ -7,7 +7,7 @@ import { WalletOutflowData } from "@/queues/jobs/wallet/wallet-outflow.job";
 import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { UnauthorizedError } from 'routing-controllers';
-import { AwaitingDocumentsData } from '@/queues/jobs/organization/processRequiredDocuments';
+import { RequiredDocumentsJobData, KYCProviderData } from '@/queues/jobs/organization/processRequiredDocuments';
 
 @Service()
 export default class AnchorWebhookHandler {
@@ -42,7 +42,7 @@ export default class AnchorWebhookHandler {
   private async onKycStarted(body: any) {
     const data = body.included
 
-    const requiredDocuments: AwaitingDocumentsData[] = data.map((document: any) => {
+    const requiredDocuments: KYCProviderData[] = data.map((document: any) => {
       return {
         documentId: document.id,
         documentType: document.attributes.documentType,
@@ -51,7 +51,12 @@ export default class AnchorWebhookHandler {
       }
     })
 
-    await organizationQueue.add('processRequiredDocuments', requiredDocuments)
+    const jobData: RequiredDocumentsJobData = {
+      customerId: data.relationships.customer.data.id,
+      requiredDocuments
+    }
+
+    await organizationQueue.add('processRequiredDocuments', jobData)
 
     return { message: 'required documents queued' }
   }

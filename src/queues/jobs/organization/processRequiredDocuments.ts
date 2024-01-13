@@ -11,16 +11,22 @@ import { formatMoney, transactionOpts } from "@/modules/common/utils";
 import { IOrganization } from "@/models/organization.model";
 import { IUser } from "@/models/user.model";
 
-export interface AwaitingDocumentsData {
+export interface KYCProviderData {
     documentId: string
     documentType: string
 }
 
+export interface RequiredDocumentsJobData {
+    customerId: string
+    requiredDocuments: KYCProviderData[]
+}
+
 const logger = new Logger('process-required-documents.job')
 
-async function processRequiredDocuments(job: Job<AwaitingDocumentsData[]>) {
-    console.log({ job })
-    return job
+async function processRequiredDocuments(job: Job<RequiredDocumentsJobData>) {
+    const data = job.data
+    console.log({ data })
+    return data
 }
 
 export default processRequiredDocuments
