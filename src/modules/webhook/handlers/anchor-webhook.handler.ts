@@ -40,12 +40,14 @@ export default class AnchorWebhookHandler {
   }
 
   private async onKycStarted(body: any) {
-    const data = body.data.attributes.included
+    const data = body.included
 
     const requiredDocuments: AwaitingDocumentsData[] = data.map((document: any) => {
       return {
         documentId: document.id,
-        documentType: document.attributes.documentType
+        documentType: document.attributes.documentType,
+        submitted: document.attributes.submitted,
+        verified: document.attributes.verified
       }
     })
 

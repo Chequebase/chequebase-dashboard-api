@@ -20,9 +20,7 @@ const logger = new Logger('process-required-documents.job')
 
 async function processRequiredDocuments(job: Job<AwaitingDocumentsData[]>) {
     console.log({ job })
-    const data = job.data
-    console.log({ data })
-    return data
+    return job
 }
 
 export default processRequiredDocuments
