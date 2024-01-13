@@ -1,12 +1,13 @@
 import crypto from 'crypto'
 import { Inject, Service } from "typedi";
 import Logger from "@/modules/common/utils/logger";
-import { walletQueue } from "@/queues";
+import { organizationQueue, walletQueue } from "@/queues";
 import { WalletInflowData } from "@/queues/jobs/wallet/wallet-inflow.job";
 import { WalletOutflowData } from "@/queues/jobs/wallet/wallet-outflow.job";
 import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { UnauthorizedError } from 'routing-controllers';
+import { AwaitingDocumentsData } from '@/queues/jobs/organization/processRequiredDocuments';
 
 @Service()
 export default class AnchorWebhookHandler {
@@ -36,6 +37,21 @@ export default class AnchorWebhookHandler {
     await walletQueue.add('processWalletInflow', jobData)
 
     return { message: 'payment queued' }
+  }
+
+  private async onKycStarted(body: any) {
+    const data = body.data.attributes.included
+
+    const requiredDocuments: AwaitingDocumentsData[] = data.map((document: any) => {
+      return {
+        documentId: document.id,
+        documentType: document.attributes.documentType
+      }
+    })
+
+    await organizationQueue.add('processRequiredDocuments', requiredDocuments)
+
+    return { message: 'required documents queued' }
   }
 
   private createHmac(body: string) {
@@ -81,6 +97,8 @@ export default class AnchorWebhookHandler {
 
 
     switch (data.type as  typeof allowedWebooks[number]) {
+      case 'customer.identification.awaitingDocument':
+        return this.onKycStarted(body)
       case 'payment.settled':
         return this.onPaymentSettled(body)
       case 'nip.transfer.successful':
@@ -102,6 +120,7 @@ const allowedWebooks = [
   "nip.transfer.reversed",
   "payment.settled",
   "customer.created",
+  "customer.identification.awaitingDocument",
   // "account.closed",
   // "account.frozen",
   // "account.unfrozen",
