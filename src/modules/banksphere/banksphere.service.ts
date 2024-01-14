@@ -43,6 +43,7 @@ export class BanksphereService {
     }
 
     const accounts = await Organization.paginate(filter.object, {
+      sort: '-createdAt',
       page: Number(query.page),
       limit: query.limit,
       lean: true
