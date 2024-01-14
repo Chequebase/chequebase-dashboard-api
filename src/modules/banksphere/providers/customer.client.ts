@@ -11,7 +11,7 @@ export interface KycValidation {
 }
 
 export interface UploadCustomerDocuments {
-  fileData: Uint8Array
+  fileData: any
   documentId: string
   customerId: string
   provider: string

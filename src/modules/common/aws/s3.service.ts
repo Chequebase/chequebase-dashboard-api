@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand, ObjectCannedACL, CompleteMultipartUploadCommandOutput } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand, ObjectCannedACL, CompleteMultipartUploadCommandOutput, GetObjectCommandOutput } from '@aws-sdk/client-s3';
 import { getEnvOrThrow } from '../utils';
 import { Service } from 'typedi';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -25,7 +25,7 @@ export class S3Service {
     return await this.s3.send(command);
   }
 
-  async getObject(bucket: string, key: string): Promise<Uint8Array> {
+  async getObject(bucket: string, key: string): Promise<GetObjectCommandOutput> {
     const s3Params = {
       Bucket: bucket,
       Key: key,
@@ -34,7 +34,7 @@ export class S3Service {
     const command = new GetObjectCommand(s3Params);
     const response = await this.s3.send(command);
 
-    return response.Body instanceof Uint8Array ? response.Body : new Uint8Array();
+    return response
   }
 
   async uploadObject(bucket: string, key: string, data: Buffer) {
@@ -53,6 +53,8 @@ export class S3Service {
   
       if (!result.Location)
         throw new InternalServerError("Unable to resolve s3 location");
+
+      console.log({ result })
   
       return result.Location
     } catch (err: any) {
