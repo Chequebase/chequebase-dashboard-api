@@ -58,8 +58,6 @@ export class BanksphereService {
   async createCustomer(data: CreateCustomerDto) {
     const organization = await Organization.findById(data.organization).lean()
     if (!organization) throw new NotFoundError('Organization not found')
-    const admin = await User.findById(organization.admin).lean()
-    if (!admin) throw new NotFoundError('Admin not found')
       try {
         const token = ProviderRegistry.get(data.provider)
         if (!token) {
@@ -69,7 +67,7 @@ export class BanksphereService {
   
         const client = Container.get<CustomerClient>(token)
   
-        const result = await client.createCustomer({ organization: { ...organization, email: admin.email }, provider: data.provider })
+        const result = await client.createCustomer({ organization: { ...organization, email: organization.email }, provider: data.provider })
         await this.kycValidation({ customerId: result.id, provider: data.provider })
 
         await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, requiredDocuments: [] }, anchorCustomerId: result.id })
@@ -114,8 +112,6 @@ export class BanksphereService {
   async uploadCustomerDocuments(data: CreateCustomerDto) {
     const organization = await Organization.findById(data.organization).lean()
     if (!organization) throw new NotFoundError('Organization not found')
-    const admin = await User.findById(organization.admin).lean()
-    if (!admin) throw new NotFoundError('Admin not found')
       try {
         const token = ProviderRegistry.get(data.provider)
         if (!token) {
@@ -125,7 +121,7 @@ export class BanksphereService {
   
         const client = Container.get<CustomerClient>(token)
   
-        const result = await client.uploadCustomerDocuments({ organization: { ...organization, email: admin.email }, provider: data.provider })
+        const result = await client.uploadCustomerDocuments({ organization: { ...organization, email: organization.email }, provider: data.provider })
 
         await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
         return result
