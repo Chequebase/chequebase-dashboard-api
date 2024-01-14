@@ -31,7 +31,14 @@ async function processRequiredDocuments(job: Job<RequiredDocumentsJobData>) {
       }).lean()
     if (!organization) throw new NotFoundError('Organization not found')
 
-    await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: data.requiredDocuments }})
+    const updatedRequiredDocuments = data.requiredDocuments.map((documentData) => {
+        return {
+            ...documentData,
+            url: organization.documents[documentData.documentType],
+        };
+    });
+
+    await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocuments }})
     return data
 }
 
