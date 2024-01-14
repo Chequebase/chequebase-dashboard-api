@@ -142,8 +142,7 @@ export class OrganizationsService {
           file.buffer
         );
 
-        documents[file.fieldname] = key
-        documents['url'] = url
+        documents[file.fieldname] = url
       }))
       
       await organization.updateOne({
