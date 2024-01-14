@@ -199,6 +199,21 @@ export default class BudgetService {
         employeeName: user.firstName
       })
     }
+    // send beneficiaries emails
+    if (data.beneficiaries.length > 0) {
+      const beneficiaries = await Promise.all(data.beneficiaries.map((beneficiary: BeneficiaryDto) => {
+        return User.findById(beneficiary.user).lean()
+      }))
+      beneficiaries.forEach((beneficiary) => {
+        const iUser = data.beneficiaries.find((b: any) => b.user.equals(beneficiary!._id))
+        return beneficiary && this.emailService.sendBudgetBeneficiaryAdded(beneficiary?.email, {
+          employeeName: beneficiary.firstName,
+          budgetName: budget!.name,
+          budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+          amountAllocated: iUser?.allocation || 0
+        })
+      })
+    }
 
     return budget!
   }
@@ -213,6 +228,9 @@ export default class BudgetService {
       throw new BadRequestError('Budget cannot be updated')
     }
 
+    const existingBeneficiaries = budget.beneficiaries || [];
+    const newBeneficiaries = data.beneficiaries || [];
+
     await budget.set({
       expiry: data.expiry,
       threshold: data.threshold,
@@ -220,6 +238,36 @@ export default class BudgetService {
       priority: data.priority,
     }).save()
 
+
+    // send benficiary added and removed emails
+    const filteredAddedBeneficiaries = newBeneficiaries.filter(newBeneficiary => !existingBeneficiaries.some(existingBeneficiary => existingBeneficiary.user === new ObjectId(newBeneficiary.user)))
+    const filteredRemovedBeneficiaries = existingBeneficiaries.filter(existingBeneficiary => !newBeneficiaries.some(newBeneficiary => existingBeneficiary.user === new ObjectId(newBeneficiary.user)))
+
+    const addedBeneficiaries = await Promise.all(filteredAddedBeneficiaries.map((beneficiary: BeneficiaryDto) => {
+      return User.findById(beneficiary.user).lean()
+    }))
+    const removedBeneficiaries = await Promise.all(filteredRemovedBeneficiaries.map((beneficiary: {
+      user: ObjectId;
+      allocation: number
+    }) => {
+      return User.findById(beneficiary.user).lean()
+    }))
+    addedBeneficiaries.forEach((beneficiary) => {
+      const iUser = filteredAddedBeneficiaries.find((b: any) => b.user.equals(beneficiary!._id))
+      return beneficiary && this.emailService.sendBudgetBeneficiaryAdded(beneficiary?.email, {
+        employeeName: beneficiary.firstName,
+        budgetName: budget!.name,
+        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+        amountAllocated: iUser?.allocation || 0
+      })
+    })
+    removedBeneficiaries.forEach((beneficiary) => {
+      return beneficiary && this.emailService.sendBudgetBeneficiaryRemoved(beneficiary?.email, {
+        employeeName: beneficiary.firstName,
+        budgetName: budget!.name,
+        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`
+      })
+    })
     return budget
   }
 
