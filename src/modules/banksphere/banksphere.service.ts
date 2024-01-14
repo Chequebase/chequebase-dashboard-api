@@ -135,7 +135,7 @@ export class BanksphereService {
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
 
           const result = await client.uploadCustomerDocuments({
-            fileData: s3Object.Body,
+            fileData: s3Object,
             documentId: doc.documentId,
             customerId: organization.anchorCustomerId,
             provider: data.provider
