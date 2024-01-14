@@ -43,7 +43,7 @@ export class AnchorCustomerClient implements CustomerClient {
   public async uploadCustomerDocuments(payload: UploadCustomerDocuments) {
     try {
       this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
-      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, { fileData: payload.fileData.buffer })
+      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, { fileData: payload.fileData })
       const attributes = res.data.data.attributes
 
       return {
