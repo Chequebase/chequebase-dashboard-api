@@ -1,4 +1,4 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, UseBefore } from 'routing-controllers';
+import { Authorized, Body, Get, JsonController, Param, Post, QueryParams, UseBefore } from 'routing-controllers';
 import { BanksphereService } from './banksphere.service';
 import { Service } from 'typedi';
 import { CreateCustomerDto, GetAccountsDto } from './dto/banksphere.dto';

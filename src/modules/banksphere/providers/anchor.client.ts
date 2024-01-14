@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { getEnvOrThrow } from "@/modules/common/utils";
-import { CreateCustomerData, CustomerClient, KycValidation } from "./customer.client";
+import { CreateCustomerData, CustomerClient, KycValidation, UploadCustomerDocuments } from "./customer.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { IOrganization } from "@/models/organization.model";
@@ -40,9 +40,10 @@ export class AnchorCustomerClient implements CustomerClient {
     }
   }
 
-  public async uploadCustomerDocuments(payload: CreateCustomerData) {
+  public async uploadCustomerDocuments(payload: UploadCustomerDocuments) {
     try {
-      const res = await this.http.post(`/api/v1/documents/upload-document/{customerId}/{documentId}`, payload)
+      this.http.defaults.headers.common['Content-Type'] = 'application/octet-stream'
+      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, payload.fileData)
       const attributes = res.data.data.attributes
 
       return {

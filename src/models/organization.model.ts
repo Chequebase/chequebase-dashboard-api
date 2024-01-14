@@ -31,6 +31,20 @@ export interface Shareholder {
   phone: string
 }
 
+export interface RequiredDocuments {
+  documentId: string
+  documentType: string
+  submitted: boolean
+  verified: boolean
+  url: string
+}
+
+export interface Anchor {
+  requiredDocuments: RequiredDocuments[]
+  customerId: string
+  verified: boolean
+}
+
 export interface IOrganization {
   _id: ObjectId
   admin: ObjectId | IUser
@@ -63,7 +77,7 @@ export interface IOrganization {
   regDate: string
   state: string
   owners: Shareholder[]
-  anchor?: { customerId?: string, verified?: boolean, documentVerified?: boolean }
+  anchor?: Anchor
   createdAt: Date;
   updatedAt: Date;
 }
@@ -84,6 +98,20 @@ const shareholderSchema = new Schema<Shareholder>({
   idType: String,
   percentOwned: Number,
   phone: String,
+})
+
+const requiredDocumentsSchema = new Schema<RequiredDocuments>({
+  documentId: String,
+  documentType: String,
+  submitted: Boolean,
+  verified: Boolean,
+  url: String
+})
+
+const anchorSchema = new Schema<Anchor>({
+  requiredDocuments: [requiredDocumentsSchema],
+  customerId: String,
+  verified: Boolean
 })
 
 interface OrganizationModel extends
@@ -119,7 +147,7 @@ const organizationSchma = new Schema<IOrganization>(
     cacItNumber: String,
     owners: [shareholderSchema],
     anchorCustomerId: String,
-    anchor: Object,
+    anchor: anchorSchema,
     subscription: {
       _id: false,
       type: {

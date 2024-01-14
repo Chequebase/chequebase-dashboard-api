@@ -1,7 +1,7 @@
 import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
 // import { ObjectId } from 'mongodb'
-// import { S3Service } from '@/modules/common/aws/s3.service';
+import { S3Service } from '@/modules/common/aws/s3.service';
 import { CreateCustomerDto, GetAccountsDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
 import { NotFoundError } from 'routing-controllers';
@@ -10,10 +10,11 @@ import { escapeRegExp, getEnvOrThrow } from '../common/utils';
 import ProviderRegistry from './provider-registry';
 import { ServiceUnavailableError } from '../common/utils/service-errors';
 import Logger from '../common/utils/logger';
-import { CustomerClient, KycValidation } from './providers/customer.client';
+import { CustomerClient, KycValidation, UploadCustomerDocuments } from './providers/customer.client';
 import WalletService from '../wallet/wallet.service';
 import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 import EmailService from '../common/email.service';
+import url from 'url';
 
 @Service()
 export class BanksphereService {
@@ -21,7 +22,7 @@ export class BanksphereService {
   constructor (
     private walletService: WalletService,
     private emailService: EmailService,
-    // private s3Service: S3Service,
+    private s3Service: S3Service,
     // private sqsClient: SqsClient
   ) { }
 
@@ -68,7 +69,7 @@ export class BanksphereService {
   
         const client = Container.get<CustomerClient>(token)
   
-        const result = await client.createCustomer({ organization: { ...organization, email: organization.email }, provider: data.provider })
+        const result = await client.createCustomer({ organization, provider: data.provider })
         await this.kycValidation({ customerId: result.id, provider: data.provider })
 
         await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, requiredDocuments: [] }, anchorCustomerId: result.id })
@@ -122,16 +123,35 @@ export class BanksphereService {
   
         const client = Container.get<CustomerClient>(token)
   
-        const result = await client.uploadCustomerDocuments({ organization: { ...organization, email: organization.email }, provider: data.provider })
+        const documents = organization.anchor?.requiredDocuments
+        if (!documents) return {
+          status: 'failed',
+          message: 'No documents found',
+        }
 
-        await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
-        return result
+        for (const doc of documents) {
+          const parsedUrl = new URL(doc.url);
+          const pathComponents = parsedUrl.pathname.split('/');
+          const key = pathComponents.slice(3).join('/');
+          console.log({ key })
+          const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
+          console.log({ s3Object })
+          const result = await client.uploadCustomerDocuments({
+            fileData: s3Object,
+            documentId: doc.documentId,
+            customerId: organization.anchorCustomerId,
+            provider: data.provider
+          })
+          console.log({ result })
+        }
+        // await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
+        // return result
       } catch (err: any) {
         this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
   
         return {
           status: 'failed',
-          message: 'Create Customer Failure, could not create customer',
+          message: 'Documents Upload Failure, could not upload documents',
           gatewayResponse: err.message
         }
       }
