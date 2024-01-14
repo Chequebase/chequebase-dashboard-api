@@ -133,7 +133,7 @@ export class BanksphereService {
           const key = parsedUrl.pathname.slice(1);
           console.log({ key })
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
-          console.log({ s3Object })
+
           const result = await client.uploadCustomerDocuments({
             fileData: s3Object.Body,
             documentId: doc.documentId,
