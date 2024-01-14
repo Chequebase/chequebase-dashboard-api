@@ -42,7 +42,7 @@ export class AnchorCustomerClient implements CustomerClient {
 
   public async uploadCustomerDocuments(payload: UploadCustomerDocuments) {
     try {
-      this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
+      // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
       // const formData = new FormData()
       // formData.append('fileData', payload.fileData);
       const buffer = Buffer.from(payload.fileData, "utf8");
