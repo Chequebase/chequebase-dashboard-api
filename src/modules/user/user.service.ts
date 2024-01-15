@@ -118,8 +118,9 @@ export class UserService {
       otp
     })
 
+    const isOwner = user.role === Role.Owner
     this.emailService.sendOtpEmail(user.email, {
-      customerName: user.email,
+      customerName: isOwner ? organization.businessName : user.firstName,
       otp
     })
 
@@ -154,10 +155,11 @@ export class UserService {
       throw new UnauthorizedError('User Organization not found');
     }
 
+    const isOwner = user.role === Role.Owner
     if (user.otpExpiresAt && user.otpExpiresAt > new Date().getTime() && user.otp) {
       const otp = user.otp
       this.emailService.sendOtpEmail(user.email, {
-        customerName: user.email,
+        customerName: isOwner ? organization.businessName : user.firstName,
         otp
       })
 
@@ -169,7 +171,7 @@ export class UserService {
 
     await user.updateOne({ otp, otpExpiresAt })
     this.emailService.sendOtpEmail(user.email, {
-      customerName: user.email,
+      customerName: isOwner ? organization.businessName : user.firstName,
       otp
     })
 
