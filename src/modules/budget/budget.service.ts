@@ -243,7 +243,7 @@ export default class BudgetService {
     const filteredAddedBeneficiaries = newBeneficiaries.filter(newBeneficiary => !existingBeneficiaries.map(x => x.user).includes(new ObjectId(newBeneficiary.user)))
     const filteredRemovedBeneficiaries = existingBeneficiaries.filter(existingBeneficiary => !data.beneficiaries.map(x => new ObjectId(x.user)).includes(existingBeneficiary.user))
 
-    console.log({ filteredAddedBeneficiaries, filteredRemovedBeneficiaries })
+    console.log({ existingBeneficiaries, newBeneficiaries, filteredAddedBeneficiaries, filteredRemovedBeneficiaries })
 
     const addedBeneficiaries = await Promise.all(filteredAddedBeneficiaries.map((beneficiary: BeneficiaryDto) => {
       return User.findById(beneficiary.user).lean()
