@@ -5,6 +5,7 @@ import { CreateCustomerData, CustomerClient, KycValidation, UploadCustomerDocume
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { IOrganization } from "@/models/organization.model";
+import { Readable } from "stream";
 
 export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 
@@ -42,12 +43,10 @@ export class AnchorCustomerClient implements CustomerClient {
 
   public async uploadCustomerDocuments(payload: UploadCustomerDocuments) {
     try {
-      // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
-      // const formData = new FormData()
-      // formData.append('fileData', payload.fileData);
-      const data = payload.fileData.toString('utf-8');
-      console.log({ data })
-      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, data)
+      this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
+      const formData = new FormData()
+      formData.append('fileData', payload.fileData.transformToString());
+      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData)
       const attributes = res.data.data.attributes
 
       return {
