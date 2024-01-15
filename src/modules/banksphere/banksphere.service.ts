@@ -14,6 +14,7 @@ import { CustomerClient, KycValidation, UploadCustomerDocuments } from './provid
 import WalletService from '../wallet/wallet.service';
 import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 import EmailService from '../common/email.service';
+import { TextDecoderStream } from 'node:stream/web';
 
 @Service()
 export class BanksphereService {
@@ -133,6 +134,7 @@ export class BanksphereService {
           const key = parsedUrl.pathname.slice(1);
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
           console.log({ s3Object })
+          if (!s3Object) continue
           const result = await client.uploadCustomerDocuments({
             fileData: s3Object,
             documentId: doc.documentId,
