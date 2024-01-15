@@ -53,13 +53,14 @@ export class AnchorCustomerClient implements CustomerClient {
         id: res.data.data.id,
       }
     } catch (err: any) {
-      this.logger.error('error creating customer', {
+      this.logger.error('error uploading customer documents', {
+        error: err,
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
         status: err.response.status
       });
 
-      throw new ServiceUnavailableError('Unable to create customer');
+      throw new ServiceUnavailableError('Unable to upload customer documents');
     }
   }
 
