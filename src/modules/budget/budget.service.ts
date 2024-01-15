@@ -229,7 +229,7 @@ export default class BudgetService {
     }
 
     const existingBeneficiaries = budget.beneficiaries || [];
-    const newBeneficiaries = data.beneficiaries || [];
+    const beneficiariesFromPayload = data.beneficiaries || [];
 
     await budget.set({
       expiry: data.expiry,
@@ -240,10 +240,10 @@ export default class BudgetService {
 
 
     // send benficiary added and removed emails
-    const filteredAddedBeneficiaries = newBeneficiaries.filter(newBeneficiary => !existingBeneficiaries.map(x => x.user).includes(new ObjectId(newBeneficiary.user)))
-    const filteredRemovedBeneficiaries = existingBeneficiaries.filter(existingBeneficiary => !data.beneficiaries.map(x => new ObjectId(x.user)).includes(existingBeneficiary.user))
+    const filteredAddedBeneficiaries = beneficiariesFromPayload.filter(newBeneficiary => !existingBeneficiaries.map(x => x.user.toString()).includes(newBeneficiary.user))
+    const filteredRemovedBeneficiaries = existingBeneficiaries.filter(existingBeneficiary => !data.beneficiaries.map(x => x.user).includes(existingBeneficiary.user.toString()))
 
-    console.log({ existingBeneficiaries, newBeneficiaries, filteredAddedBeneficiaries, filteredRemovedBeneficiaries })
+    console.log({ existingBeneficiaries, beneficiariesFromPayload, filteredAddedBeneficiaries, filteredRemovedBeneficiaries })
 
     const addedBeneficiaries = await Promise.all(filteredAddedBeneficiaries.map((beneficiary: BeneficiaryDto) => {
       return User.findById(beneficiary.user).lean()
