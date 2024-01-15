@@ -57,7 +57,7 @@ export class AnchorCustomerClient implements CustomerClient {
         error: err,
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
-        status: err.response.status
+        // status: err.response.status
       });
 
       throw new ServiceUnavailableError('Unable to upload customer documents');

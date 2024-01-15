@@ -144,7 +144,7 @@ export class BanksphereService {
         // await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
         // return result
       } catch (err: any) {
-        this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
+        this.logger.error('error uploading customer documents', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
   
         return {
           status: 'failed',
