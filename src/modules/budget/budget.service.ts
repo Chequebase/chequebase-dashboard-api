@@ -240,8 +240,8 @@ export default class BudgetService {
 
 
     // send benficiary added and removed emails
-    const filteredAddedBeneficiaries = newBeneficiaries.filter(newBeneficiary => !existingBeneficiaries.some(existingBeneficiary => existingBeneficiary.user === new ObjectId(newBeneficiary.user)))
-    const filteredRemovedBeneficiaries = existingBeneficiaries.filter(existingBeneficiary => !data.beneficiaries.some(newBeneficiary => existingBeneficiary.user === new ObjectId(newBeneficiary.user)))
+    const filteredAddedBeneficiaries = newBeneficiaries.filter(newBeneficiary => !existingBeneficiaries.map(x => x.user).includes(new ObjectId(newBeneficiary.user)))
+    const filteredRemovedBeneficiaries = existingBeneficiaries.filter(existingBeneficiary => !data.beneficiaries.map(x => new ObjectId(x.user)).includes(existingBeneficiary.user))
 
     console.log({ filteredAddedBeneficiaries, filteredRemovedBeneficiaries })
 
