@@ -45,9 +45,9 @@ export class AnchorCustomerClient implements CustomerClient {
       // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
       // const formData = new FormData()
       // formData.append('fileData', payload.fileData);
-      const buffer = Buffer.from(payload.fileData, "utf8");
-      console.log({ buffer })
-      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, buffer)
+      const data = payload.fileData.toString('utf-8');
+      console.log({ data })
+      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, data)
       const attributes = res.data.data.attributes
 
       return {
