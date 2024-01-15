@@ -205,7 +205,7 @@ export default class BudgetService {
         return User.findById(beneficiary.user).lean()
       }))
       beneficiaries.forEach((beneficiary) => {
-        const iUser = data.beneficiaries.find((b: any) => b.user.equals(beneficiary!._id))
+        const iUser = data.beneficiaries.find((b: any) => b.user === beneficiary!._id)
         return beneficiary && this.emailService.sendBudgetBeneficiaryAdded(beneficiary?.email, {
           employeeName: beneficiary.firstName,
           budgetName: budget!.name,
@@ -253,7 +253,7 @@ export default class BudgetService {
       return User.findById(beneficiary.user).lean()
     }))
     addedBeneficiaries.forEach((beneficiary) => {
-      const iUser = filteredAddedBeneficiaries.find((b: any) => b.user.equals(beneficiary!._id))
+      const iUser = filteredAddedBeneficiaries.find((b: any) => b.user === beneficiary!._id)
       return beneficiary && this.emailService.sendBudgetBeneficiaryAdded(beneficiary?.email, {
         employeeName: beneficiary.firstName,
         budgetName: budget!.name,
