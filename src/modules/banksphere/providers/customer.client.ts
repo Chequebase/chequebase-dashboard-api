@@ -11,7 +11,7 @@ export interface KycValidation {
 }
 
 export interface UploadCustomerDocuments {
-  fileData: any
+  // fileData: any
   documentId: string
   customerId: string
   provider: string
@@ -23,6 +23,6 @@ export enum CustomerClientName {
 
 export abstract class CustomerClient {
   abstract createCustomer(payload: CreateCustomerData): Promise<{ id: string; }>;
-  abstract uploadCustomerDocuments(payload: UploadCustomerDocuments): Promise<{ id: string; }>;
+  abstract uploadCustomerDocuments(payload: UploadCustomerDocuments): WritableStream<any>;
   abstract kycValidationForBusiness(payload: KycValidation): Promise<{ id: string; }>;
 }

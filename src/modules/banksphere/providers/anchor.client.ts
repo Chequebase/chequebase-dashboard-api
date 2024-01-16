@@ -6,6 +6,7 @@ import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { IOrganization } from "@/models/organization.model";
 import FormData from 'form-data';
+import stream from "stream";
 
 export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 
@@ -41,22 +42,21 @@ export class AnchorCustomerClient implements CustomerClient {
     }
   }
 
-  public async uploadCustomerDocuments(payload: UploadCustomerDocuments) {
+  public uploadCustomerDocuments(payload: UploadCustomerDocuments) {
     try {
+      let passThrough = new stream.PassThrough();
+
       const formData = new FormData()
-      formData.append('fileData', Buffer.from(payload.fileData));
+      formData.append('fileData', passThrough);
       console.log({ headers: formData.getHeaders() })
       // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
-      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData, {
+      this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData, {
         headers: {
           ...formData.getHeaders(),
         }
-      })
-      const attributes = res.data.data.attributes
+      }).then(() => {}).catch(() => {})
 
-      return {
-        id: res.data.data.id,
-      }
+      return passThrough as unknown as WritableStream<any>
     } catch (err: any) {
       this.logger.error('error uploading customer documents', {
         error: err,

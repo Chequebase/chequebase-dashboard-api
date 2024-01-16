@@ -14,7 +14,6 @@ import { CustomerClient, KycValidation, UploadCustomerDocuments } from './provid
 import WalletService from '../wallet/wallet.service';
 import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 import EmailService from '../common/email.service';
-import { TextDecoderStream } from 'node:stream/web';
 
 @Service()
 export class BanksphereService {
@@ -135,13 +134,19 @@ export class BanksphereService {
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
           console.log({ s3Object })
           if (!s3Object) continue
-          const result = await client.uploadCustomerDocuments({
-            fileData: s3Object,
+          await s3Object.pipeTo(client.uploadCustomerDocuments({
+            // fileData: s3Object,
             documentId: doc.documentId,
             customerId: organization.anchorCustomerId,
             provider: data.provider
-          })
-          console.log({ result })
+          }))
+          // const result = await client.uploadCustomerDocuments({
+          //   fileData: s3Object,
+          //   documentId: doc.documentId,
+          //   customerId: organization.anchorCustomerId,
+          //   provider: data.provider
+          // })
+          console.log({ result: 'DONE' })
         }
         // await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
         // return result
