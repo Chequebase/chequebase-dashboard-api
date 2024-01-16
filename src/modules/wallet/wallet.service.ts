@@ -223,7 +223,8 @@ export default class WalletService {
         ]
       })
       .set('budget', query.budget)
-      .set('initiatedBy', user.role === Role.Owner ? undefined : user._id)
+      .set('project', query.project)
+      .set('initiatedBy', user.role === Role.Owner ? query.beneficiary : user._id)
       .set('createdAt', {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()

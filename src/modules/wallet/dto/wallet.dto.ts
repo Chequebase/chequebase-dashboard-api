@@ -20,20 +20,28 @@ export class CreateWalletDto {
 export class GetWalletEntriesDto {
   @IsString()
   @IsOptional()
-  search: string
+  search?: string
 
   @IsString()
   @IsEnum(WalletEntryType)
   @IsOptional()
-  type: WalletEntryType
+  type?: WalletEntryType
 
   @IsString()
   @IsOptional()
-  wallet: string
+  wallet?: string
 
   @IsString()
   @IsOptional()
-  budget: string
+  budget?: string
+
+  @IsString()
+  @IsOptional()
+  project?: string
+
+  @IsString()
+  @IsOptional()
+  beneficiary?: string
 
   @IsDateString()
   @IsOptional()
