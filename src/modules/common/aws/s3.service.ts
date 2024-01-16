@@ -25,7 +25,7 @@ export class S3Service {
     return await this.s3.send(command);
   }
 
-  async getObject(bucket: string, key: string): Promise<Uint8Array | undefined> {
+  async getObject(bucket: string, key: string): Promise<string | undefined> {
     const s3Params = {
       Bucket: bucket,
       Key: key,
@@ -34,7 +34,7 @@ export class S3Service {
     const command = new GetObjectCommand(s3Params);
     const response = await this.s3.send(command);
 
-    return response.Body?.transformToByteArray()
+    return response.Body?.transformToString()
   }
 
   async uploadObject(bucket: string, key: string, data: Buffer) {
