@@ -44,7 +44,7 @@ export class AnchorCustomerClient implements CustomerClient {
   public async uploadCustomerDocuments(payload: UploadCustomerDocuments) {
     try {
       const formData = new FormData()
-      formData.append('fileData', new Blob([payload.fileData]));
+      formData.append('fileData', new Blob(payload.fileData));
       console.log({ headers: formData.getHeaders() })
       // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
       const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData, {
