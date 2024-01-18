@@ -103,6 +103,10 @@ export class PauseBudgetBodyDto {
 }
 
 export class GetBudgetsDto {
+  @IsString()
+  @IsOptional()
+  beneficiary: string
+
   @IsInt()
   @Min(1)
   page = 1

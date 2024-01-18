@@ -286,11 +286,15 @@ export class ProjectService {
         foreignField: '_id',
         localField: 'budgets.beneficiaries.user',
         pipeline: [
-          { $project: { _id: 1, firstName: 1, lastName: 1, avatar: 1 } },
-          { $limit: 3 }
+          { $project: { _id: 1, firstName: 1, lastName: 1, avatar: 1 } }
         ]
       })
-      .unwind('$createdBy')
+
+    if (query.beneficiary) {
+      agg.match({ 'beneficiaries._id': new ObjectId(query.beneficiary) })
+    }
+
+    agg.unwind('$createdBy')
       .addFields({
         totalSpent: {
           $sum: {

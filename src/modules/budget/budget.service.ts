@@ -348,6 +348,10 @@ export default class BudgetService {
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', query.status)
       .set('project', { $exists: false })
+
+    if (query.beneficiary) {
+      filter.set('beneficiaries.user', new ObjectId(query.beneficiary))
+    }
     
     if (!isOwner) {
       filter.set('beneficiaries.user', new ObjectId(auth.userId))

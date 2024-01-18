@@ -79,6 +79,10 @@ export class GetProjectsDto {
   @IsEnum(ProjectStatus)
   @IsOptional()
   status: ProjectStatus
+
+  @IsString()
+  @IsOptional()
+  beneficiary: string
 }
 
 export interface CreateSubBudgets {
