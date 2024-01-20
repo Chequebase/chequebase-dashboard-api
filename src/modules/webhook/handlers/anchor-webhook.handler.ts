@@ -87,8 +87,11 @@ export default class AnchorWebhookHandler {
     }
 
     await walletQueue.add('processWalletOutflow', jobData)
-    console.log({ customer: body.included.find((x: any) => x.type === 'BusinessCustomer'), receipient: body.included.find((x: any) => x.type === 'CounterParty') })
-    // await this.onTransferEventNotification({ ...jobData, customerId: body.data.relationships.customer.data.id, data: { recipient: body.data.relationships.counterParty.data, customer: body.data.relationships.customer.data } })
+    const customer = body.included.find((x: any) => x.type === 'BusinessCustomer')
+    const receipient = body.included.find((x: any) => x.type === 'CounterParty')
+
+    console.log({ customer: customer.attrinutes.detail, testCustomer: customer.relationships.organization, bank: receipient.attributes.bank })
+    // await this.onTransferEventNotification({ ...jobData, customerId: body.data.relationships.customer.data.id, accountName: receipient.attributes.accountName, accountNumber: receipient.attributes.accountNumber, bankName: '' })
     return { message: 'transfer event queued' }
   }
 
@@ -108,7 +111,7 @@ export default class AnchorWebhookHandler {
   }
 
   private async onTransferEventNotification(notification: WalletOutflowDataNotification): Promise<void> {
-    const { amount, status, reference, customerId, data } = notification;
+    const { amount, status, reference, customerId } = notification;
     const correctAmount = +amount / 100;
     const message = `:warning: Merchant Wallet Outflow :warning: \n\n
       *Merchant*: ${customerId}
@@ -116,7 +119,7 @@ export default class AnchorWebhookHandler {
       *Amount*: ${correctAmount}
       *Status*: ${status}
     `;
-    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message, data);
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message);
   }
 
   processWebhook(body: any, headers: any) {

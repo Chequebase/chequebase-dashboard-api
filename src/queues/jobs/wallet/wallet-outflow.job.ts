@@ -30,7 +30,9 @@ export interface WalletOutflowData {
 
 export interface WalletOutflowDataNotification extends WalletOutflowData  {
   customerId: string
-  data?: any
+  accountNumber: string
+  accountName: string
+  bankName: string
 }
 
 const emailService = Container.get(EmailService)
