@@ -2,18 +2,19 @@ import crypto from 'crypto'
 import { Inject, Service } from "typedi";
 import Logger from "@/modules/common/utils/logger";
 import { organizationQueue, walletQueue } from "@/queues";
-import { WalletInflowData } from "@/queues/jobs/wallet/wallet-inflow.job";
-import { WalletOutflowData } from "@/queues/jobs/wallet/wallet-outflow.job";
+import { WalletInflowData, WalletInflowDataNotification } from "@/queues/jobs/wallet/wallet-inflow.job";
+import { WalletOutflowData, WalletOutflowDataNotification } from "@/queues/jobs/wallet/wallet-outflow.job";
 import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { UnauthorizedError } from 'routing-controllers';
 import { RequiredDocumentsJobData, KYCProviderData } from '@/queues/jobs/organization/processRequiredDocuments';
+import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common/slack/slackNotification.service';
 
 @Service()
 export default class AnchorWebhookHandler {
   private logger = new Logger(AnchorWebhookHandler.name)
 
-  constructor (@Inject(ANCHOR_TOKEN) private anchorTransferClient: AnchorTransferClient) { }
+  constructor (@Inject(ANCHOR_TOKEN) private anchorTransferClient: AnchorTransferClient, @Inject(ANCHOR_TOKEN) private slackNotificationService: SlackNotificationService) { }
 
   private async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
@@ -35,6 +36,8 @@ export default class AnchorWebhookHandler {
     }
 
     await walletQueue.add('processWalletInflow', jobData)
+
+    await this.onPaymentSettledNotification({ ...jobData, customerId: payment.virtualNuban.accountId, businessName: payment.virtualNuban.accountName })
 
     return { message: 'payment queued' }
   }
@@ -84,7 +87,36 @@ export default class AnchorWebhookHandler {
     }
 
     await walletQueue.add('processWalletOutflow', jobData)
+    await this.onTransferEventNotification({ ...jobData, customerId: body.data.relationships.customer.data.id, data: body.data.included })
     return { message: 'transfer event queued' }
+  }
+
+  private async onPaymentSettledNotification(notification: WalletInflowDataNotification): Promise<void> {
+    const { amount, sourceAccount: { accountName, accountNumber, bankName }, paymentMethod, reference, customerId, businessName } = notification;
+    const correctAmount = +amount / 100;
+    const message = `:warning: Merchant Wallet Inflow :warning: \n\n
+      *Merchant*: ${businessName} (${customerId})
+      *Reference*: ${reference}
+      *Amount*: ${correctAmount}
+      *Paymentmethod*: ${paymentMethod}
+      *SourceAccountNumber*: ${accountNumber}
+      *SourceAccountName*: ${accountName}
+      *SourceBank*: ${bankName}
+    `;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.inflow, message);
+  }
+
+  private async onTransferEventNotification(notification: WalletOutflowDataNotification): Promise<void> {
+    const { amount, status, reference, customerId, data } = notification;
+    const correctAmount = +amount / 100;
+    const message = `:warning: Merchant Wallet Outflow :warning: \n\n
+      *Merchant*: ${customerId}
+      *Reference*: ${reference}
+      *Amount*: ${correctAmount}
+      *Status*: ${status}
+      *Data*: ${data}
+    `;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message);
   }
 
   processWebhook(body: any, headers: any) {

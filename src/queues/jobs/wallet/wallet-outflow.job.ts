@@ -28,6 +28,11 @@ export interface WalletOutflowData {
   gatewayResponse: string
 }
 
+export interface WalletOutflowDataNotification extends WalletOutflowData  {
+  customerId: string
+  data: any
+}
+
 const emailService = Container.get(EmailService)
 const logger = new Logger('wallet-inflow.job')
 
