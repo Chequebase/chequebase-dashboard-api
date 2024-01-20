@@ -50,7 +50,6 @@ const rcOptions: RoutingControllersOptions = {
     BudgetController,
     OverviewController,
     SettingsController,
-    WebhookController,
     BanksphereController
   ],
   middlewares: [ExceptionFilter],

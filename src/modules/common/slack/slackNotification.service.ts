@@ -11,7 +11,7 @@ export const webhookMap = {
   inflow: 'https://hooks.slack.com/services/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'
 };
 
-Service()
+@Service()
 export class SlackNotificationService {
   public async sendMessage(hookName: AllowedSlackWebhooks, text: string, attachments?: any) {
     const headers = { 'Content-type': 'application/json' };
