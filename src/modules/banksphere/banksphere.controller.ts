@@ -43,4 +43,11 @@ export default class BanksphereController {
   getAccount(@Param('id') id: string) {
     return this.banksphereService.getAccount(id)
   }
+
+  @Get('/compliance/accounts/:id/users')
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  getAccountUsers(@Param('id') id: string, @QueryParams() dto: GetAccountsDto) {
+    return this.banksphereService.getAccountUsers(id, dto)
+  }
 }

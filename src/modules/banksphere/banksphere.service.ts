@@ -181,4 +181,29 @@ export class BanksphereService {
         }
       }
   }
+
+  async getAccountUsers(id: string, query: GetAccountsDto) {
+    const filter = new QueryFilter()
+    filter.set('organization', id)
+    if (query.status) {
+      filter.set('status', query.status)
+    }
+    if (query.search) {
+      const search = escapeRegExp(query.search)
+      filter.set('$or', [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ])
+    }
+
+    const users = await User.paginate(filter.object, {
+      select: 'firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone',
+      sort: '-createdAt',
+      page: Number(query.page),
+      limit: query.limit,
+      lean: true
+    })
+
+    return users
+  }
 }
