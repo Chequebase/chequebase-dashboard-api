@@ -114,9 +114,8 @@ export default class AnchorWebhookHandler {
       *Reference*: ${reference}
       *Amount*: ${correctAmount}
       *Status*: ${status}
-      *Data*: ${data || 'No Data To Display'}
     `;
-    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message);
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message, data);
   }
 
   processWebhook(body: any, headers: any) {
