@@ -2,7 +2,7 @@ import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
 // import { ObjectId } from 'mongodb'
 import { S3Service } from '@/modules/common/aws/s3.service';
-import { CreateCustomerDto, GetAccountsDto } from './dto/banksphere.dto';
+import { CreateCustomerDto, GetAccountUsersDto, GetAccountsDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
 import { NotFoundError } from 'routing-controllers';
 import Organization from '@/models/organization.model';
@@ -182,7 +182,7 @@ export class BanksphereService {
       }
   }
 
-  async getAccountUsers(id: string, query: GetAccountsDto) {
+  async getAccountUsers(id: string, query: GetAccountUsersDto) {
     const filter = new QueryFilter()
     filter.set('organization', id)
     if (query.status) {
