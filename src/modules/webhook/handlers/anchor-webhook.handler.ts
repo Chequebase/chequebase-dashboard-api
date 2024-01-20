@@ -107,13 +107,14 @@ export default class AnchorWebhookHandler {
   }
 
   private async onTransferEventNotification(notification: WalletOutflowDataNotification): Promise<void> {
-    const { amount, status, reference, customerId } = notification;
+    const { amount, status, reference, customerId, data } = notification;
     const correctAmount = +amount / 100;
     const message = `:warning: Merchant Wallet Outflow :warning: \n\n
       *Merchant*: ${customerId}
       *Reference*: ${reference}
       *Amount*: ${correctAmount}
       *Status*: ${status}
+      *Data*: ${data || 'No Data To Display'}
     `;
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message);
   }
