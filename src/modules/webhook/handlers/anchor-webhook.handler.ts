@@ -87,6 +87,7 @@ export default class AnchorWebhookHandler {
     }
 
     await walletQueue.add('processWalletOutflow', jobData)
+    console.log({ recipient: body.data.relationships.counterParty.data, customer: body.data.relationships.customer.data })
     await this.onTransferEventNotification({ ...jobData, customerId: body.data.relationships.customer.data.id, data: { recipient: body.data.relationships.counterParty.data, customer: body.data.relationships.customer.data } })
     return { message: 'transfer event queued' }
   }
