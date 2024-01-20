@@ -14,7 +14,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common
 export default class AnchorWebhookHandler {
   private logger = new Logger(AnchorWebhookHandler.name)
 
-  constructor (@Inject(ANCHOR_TOKEN) private anchorTransferClient: AnchorTransferClient, @Inject(ANCHOR_TOKEN) private slackNotificationService: SlackNotificationService) { }
+  constructor (@Inject(ANCHOR_TOKEN) private anchorTransferClient: AnchorTransferClient, private slackNotificationService: SlackNotificationService) { }
 
   private async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
