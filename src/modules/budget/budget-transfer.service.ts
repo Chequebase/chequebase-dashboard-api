@@ -258,8 +258,15 @@ export class BudgetTransferService {
     if (!organization) {
       throw new NotFoundError('Organization does not exist')
     }
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
     if (organization.status === KycStatus.NO_DEBIT) {
-      throw new NotFoundError('Organization has been placed on NO DEBIT, contact support')
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
     }
 
     const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)

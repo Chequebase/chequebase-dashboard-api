@@ -227,6 +227,25 @@ export class BanksphereService {
       }
   }
 
+  async postNoDebitOnUser(orgId: string, userId: string) {
+    const organization = await Organization.findById(orgId).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const user = await User.findById(userId).lean()
+    if (!user) throw new NotFoundError('Admin not found')
+      try {
+        await User.updateOne({ _id: user._id }, { KYBStatus: KycStatus.NO_DEBIT })
+        return { message: 'post no debit activated on user'}
+      } catch (err: any) {
+        this.logger.error('error setting post no debit', { payload: JSON.stringify({ user }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'error setting post no debit on User',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
   async blockAccount(id: string) {
     const organization = await Organization.findById(id).lean()
     if (!organization) throw new NotFoundError('Organization not found')
@@ -242,6 +261,25 @@ export class BanksphereService {
         return {
           status: 'failed',
           message: 'error blocking account',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async blockUser(id: string, userId: string) {
+    const organization = await Organization.findById(id).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const user = await User.findById(userId).lean()
+    if (!user) throw new NotFoundError('User not found')
+      try {
+        await User.updateOne({ _id: user._id }, { KYBStatus: KycStatus.BLOCKED, status: UserStatus.DISABLED })
+        return { message: 'user blocked'}
+      } catch (err: any) {
+        this.logger.error('error blocking user', { payload: JSON.stringify({ user }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'error blocking user',
           gatewayResponse: err.message
         }
       }

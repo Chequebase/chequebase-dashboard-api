@@ -44,24 +44,38 @@ export default class BanksphereController {
     return this.banksphereService.getAccount(id)
   }
 
-  @Get('/compliance/accounts/:id/users')
+  @Get('/accounts/:id/users')
   @UseBefore(publicApiGuard)
   @Authorized()
   getAccountUsers(@Param('id') id: string, @QueryParams() dto: GetAccountUsersDto) {
     return this.banksphereService.getAccountUsers(id, dto)
   }
 
-  @Post('/compliance/accounts/:id/no-debit')
+  @Post('/accounts/:id/no-debit')
   @UseBefore(publicApiGuard)
   @Authorized()
   postNoDebit(@Param('id') id: string) {
     return this.banksphereService.postNoDebit(id)
   }
 
-  @Post('/compliance/accounts/:id/block')
+  @Post('/accounts/:id/block')
   @UseBefore(publicApiGuard)
   @Authorized()
   blockAccount(@Param('id') id: string) {
-    return this.banksphereService.postNoDebit(id)
+    return this.banksphereService.blockAccount(id)
+  }
+
+  @Post('/accounts/:id/users/:userId/no-debit')
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  postNoDebitOnUser(@Param('id') id: string, @Param('userId') userId: string) {
+    return this.banksphereService.postNoDebitOnUser(id, userId)
+  }
+
+  @Post('/accounts/:id/users/:userId/block')
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  blockUser(@Param('id') id: string, @Param('userId') userId: string) {
+    return this.banksphereService.blockUser(id, userId)
   }
 }
