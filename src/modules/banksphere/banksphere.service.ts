@@ -132,7 +132,6 @@ export class BanksphereService {
           const parsedUrl = new URL(doc.url);
           const key = parsedUrl.pathname.slice(1);
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
-          console.log({ s3Object })
           if (!s3Object) continue
           await s3Object.pipeTo(client.uploadCustomerDocuments({
             // fileData: s3Object,

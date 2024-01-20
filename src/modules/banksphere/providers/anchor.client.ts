@@ -48,7 +48,6 @@ export class AnchorCustomerClient implements CustomerClient {
 
       const formData = new FormData()
       formData.append('fileData', passThrough);
-      console.log({ headers: formData.getHeaders() })
       // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
       this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData, {
         headers: {
@@ -89,7 +88,6 @@ export class AnchorCustomerClient implements CustomerClient {
   }
 
   transformGetAnchorCustomerData(org: IOrganization) {
-    console.log({ phone: this.formatPhoneNumber(org.phone), regDate: this.extractDate(org.regDate) })
     const data = {
         "attributes": {
           "address": {

@@ -15,7 +15,6 @@ export const webhookMap = {
 export class SlackNotificationService {
   public async sendMessage(hookName: AllowedSlackWebhooks, text: string, attachments?: any) {
     const headers = { 'Content-type': 'application/json' };
-    console.log({ text, hookName, hook: webhookMap[hookName] })
     return axios.post(webhookMap[hookName], { text, attachments }, { headers });
   }
 }
