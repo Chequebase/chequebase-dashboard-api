@@ -90,7 +90,7 @@ export default class AnchorWebhookHandler {
     const customer = body.included.find((x: any) => x.type === 'BusinessCustomer')
     const receipient = body.included.find((x: any) => x.type === 'CounterParty')
 
-    console.log({ customer: customer.attrinutes.detail, testCustomer: customer.relationships.organization, bank: receipient.attributes.bank })
+    console.log({ customer: customer.attributes.detail, testCustomer: customer.relationships.organization, bank: receipient.attributes.bank })
     // await this.onTransferEventNotification({ ...jobData, customerId: body.data.relationships.customer.data.id, accountName: receipient.attributes.accountName, accountNumber: receipient.attributes.accountNumber, bankName: '' })
     return { message: 'transfer event queued' }
   }
