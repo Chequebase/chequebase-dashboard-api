@@ -206,4 +206,24 @@ export class BanksphereService {
 
     return users
   }
+
+  async postNoDebit(id: string) {
+    const organization = await Organization.findById(id).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const admin = await User.findById(organization.admin).lean()
+    if (!admin) throw new NotFoundError('Admin not found')
+      try {
+        await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.NO_DEBIT })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.NO_DEBIT })
+        return { message: 'post no debit activated'}
+      } catch (err: any) {
+        this.logger.error('error setting post no debit', { payload: JSON.stringify({ organization }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'error setting post no debit',
+          gatewayResponse: err.message
+        }
+      }
+  }
 }

@@ -1,4 +1,4 @@
-import { Authorized, Body, Get, JsonController, Param, Post, QueryParams, UseBefore } from 'routing-controllers';
+import { Authorized, Body, Get, JsonController, Param, Post, Put, QueryParams, UseBefore } from 'routing-controllers';
 import { BanksphereService } from './banksphere.service';
 import { Service } from 'typedi';
 import { CreateCustomerDto, GetAccountUsersDto, GetAccountsDto } from './dto/banksphere.dto';
@@ -49,5 +49,12 @@ export default class BanksphereController {
   @Authorized()
   getAccountUsers(@Param('id') id: string, @QueryParams() dto: GetAccountUsersDto) {
     return this.banksphereService.getAccountUsers(id, dto)
+  }
+
+  @Post('/compliance/accounts/:id/no-debit')
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  postNoDebit(@Param('id') id: string) {
+    return this.banksphereService.postNoDebit(id)
   }
 }
