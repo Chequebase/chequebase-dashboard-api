@@ -226,4 +226,24 @@ export class BanksphereService {
         }
       }
   }
+
+  async blockAccount(id: string) {
+    const organization = await Organization.findById(id).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const admin = await User.findById(organization.admin).lean()
+    if (!admin) throw new NotFoundError('Admin not found')
+      try {
+        await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.BLOCKED })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.BLOCKED })
+        return { message: 'organization blocked'}
+      } catch (err: any) {
+        this.logger.error('error blocking account', { payload: JSON.stringify({ organization }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'error blocking account',
+          gatewayResponse: err.message
+        }
+      }
+  }
 }

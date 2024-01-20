@@ -57,4 +57,11 @@ export default class BanksphereController {
   postNoDebit(@Param('id') id: string) {
     return this.banksphereService.postNoDebit(id)
   }
+
+  @Post('/compliance/accounts/:id/block')
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  blockAccount(@Param('id') id: string) {
+    return this.banksphereService.postNoDebit(id)
+  }
 }

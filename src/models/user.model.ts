@@ -13,6 +13,7 @@ export enum KycStatus {
   BUSINESS_DOCUMENTATION_SUBMITTED = "businessDocumentationSubmitted",
   COMPLETED = "completed",
   NO_DEBIT = "noDebit",
+  BLOCKED = "blocked",
   APPROVED = "approved",
   REJECTED = 'rejected'
 }
