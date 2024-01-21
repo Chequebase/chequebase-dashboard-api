@@ -1,8 +1,9 @@
-import { Authorized, Body, Get, JsonController, Param, Post, Put, QueryParams, UseBefore } from 'routing-controllers';
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Post, Put, QueryParams, UseBefore } from 'routing-controllers';
 import { BanksphereService } from './banksphere.service';
 import { Service } from 'typedi';
-import { CreateCustomerDto, GetAccountUsersDto, GetAccountsDto } from './dto/banksphere.dto';
+import { AddTeamMemberDto, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
 import publicApiGuard from '../common/guards/public-api.guard';
+import { AuthUser } from '../common/interfaces/auth-user';
 
 @Service()
 @JsonController('/admin', { transformResponse: false })
@@ -77,5 +78,40 @@ export default class BanksphereController {
   @Authorized()
   blockUser(@Param('id') id: string, @Param('userId') userId: string) {
     return this.banksphereService.blockUser(id, userId)
+  }
+
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  @Post('/settings/team/invite')
+  sendInvite(@Body() body: CreateTeamMemeberDto) {
+    return this.banksphereService.sendInvite(body);
+  }
+
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  @Post('/settings/team/accept-invite')
+  acceptInvite(@Body() addTeamMemberDto: AddTeamMemberDto) {
+    return this.banksphereService.acceptInvite(addTeamMemberDto);
+  }
+
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  @Get('/settings/team')
+  getMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: GetTeamMembersQueryDto) {
+    return this.banksphereService.getTeamMembers(auth, query);
+  }
+
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  @Get('/settings/team/:id')
+  getMember(@Param('id') id: string) {
+    return this.banksphereService.getTeamMember(id);
+  }
+
+  @UseBefore(publicApiGuard)
+  @Authorized()
+  @Delete('/settings/team/:id')
+  deleteTeamMember(@Param('id') id: string) {
+    return this.banksphereService.deleteTeamMember(id);
   }
 }

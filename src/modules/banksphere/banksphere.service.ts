@@ -2,9 +2,9 @@ import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
 // import { ObjectId } from 'mongodb'
 import { S3Service } from '@/modules/common/aws/s3.service';
-import { CreateCustomerDto, GetAccountUsersDto, GetAccountsDto } from './dto/banksphere.dto';
+import { AddTeamMemberDto, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
-import { NotFoundError } from 'routing-controllers';
+import { BadRequestError, NotFoundError } from 'routing-controllers';
 import Organization from '@/models/organization.model';
 import { escapeRegExp, getEnvOrThrow } from '../common/utils';
 import ProviderRegistry from './provider-registry';
@@ -14,6 +14,11 @@ import { CustomerClient, KycValidation, UploadCustomerDocuments } from './provid
 import WalletService from '../wallet/wallet.service';
 import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 import EmailService from '../common/email.service';
+import { createId } from '@paralleldrive/cuid2';
+import dayjs from 'dayjs';
+import bcrypt, { compare } from 'bcryptjs';
+import jwt from 'jsonwebtoken'
+import { AuthUser } from '../common/interfaces/auth-user';
 
 @Service()
 export class BanksphereService {
@@ -283,5 +288,121 @@ export class BanksphereService {
           gatewayResponse: err.message
         }
       }
+  }
+
+  async sendInvite(data: CreateTeamMemeberDto) {
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    const userExists = await User.findOne({ email: { $regex } })
+    if (userExists) {
+      throw new BadRequestError('Account with same email already exists');
+    }
+
+    const code = createId()
+    await User.create({
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      inviteCode: code,
+      emailVerified: false,
+      organization: 'Chequebase',
+      role: data.role,
+      inviteSentAt: Math.round(new Date().getTime() / 1000),
+      status: UserStatus.INVITED,
+      KYBStatus: KycStatus.NOT_STARTED
+    })
+
+    this.emailService.sendEmployeeInviteEmail(data.email, {
+      inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${code}&companyName=Chequebase`,
+      companyName: 'Chequebase'
+    })
+
+    return { message: 'Invite sent successfully' };
+  }
+
+  async acceptInvite(data: AddTeamMemberDto) {
+    const { code, password } = data
+    const user = await User.findOne({ inviteCode: code, status: { $ne: UserStatus.DELETED } })
+    if (!user) {
+      throw new NotFoundError('Invalid or expired invite link');
+    }
+    const now = Math.round(new Date().getTime() / 1000);
+    const yesterday = now - (24 * 3600);
+    if (user.inviteSentAt && dayjs(user.inviteSentAt).isBefore(yesterday)) {
+      throw new NotFoundError('Invalid or expired invite link');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    await user.set({
+      emailVerified: true,
+      inviteCode: null,
+      password: hashedPassword,
+      status: UserStatus.ACTIVE,
+      KYBStatus: KycStatus.APPROVED
+    }).save()
+
+    const tokens = await this.getTokens(user.id, user.email);
+    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
+    return { tokens, userId: user.id }
+  }
+
+  async getTokens(userId: string, email: string) {
+    const accessSecret = getEnvOrThrow('ACCESS_TOKEN_SECRET')
+    const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
+    const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
+    const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
+    const payload = { sub: userId, email, userId }
+    
+    return {
+      access_token: jwt.sign(payload, accessSecret, { expiresIn: accessExpiresIn }),
+      refresh_token: jwt.sign(payload, refreshSecret, { expiresIn: refreshExpiresIn })
+    }
+  }
+
+  async updateHashRefreshToken(userId: string, refreshToken: string) {
+    const hashRefreshToken = await bcrypt.hash(refreshToken, 12);
+    await User.updateOne({ _id: userId }, {
+      hashRt: hashRefreshToken
+    })
+  }
+
+  async getTeamMembers(auth: AuthUser, query: GetTeamMembersQueryDto) {
+    const users = await User.paginate({
+      organization: 'Chequebase',
+      _id: { $ne: auth.userId },
+      status: query.status
+    }, {
+      page: Number(query.page),
+      limit: query.limit,
+      lean: true,
+      select: 'firstName lastName email emailVerified role KYBStatus status avatar phone'
+    })
+    
+    return users
+  }
+
+  async getTeamMember(id: string) {
+    const user = await User.findOne({ _id: id, organization: 'Chequebase', status: { $ne: UserStatus.DELETED } })
+      .select('firstName lastName email emailVerified role KYBStatus status avatar phone')
+      .lean()
+    
+    if (!user) {
+      throw new NotFoundError(`Team memeber with ID ${id} not found`);
+    }
+
+    return user;
+  }
+
+  async deleteTeamMember(id: string) {
+    const employee = await this.getTeamMember(id);
+    if (!employee) {
+      throw new NotFoundError('User not found');
+    }
+
+    await User.deleteOne({ _id: id, organization: 'Chequebase' })
+
+    return { message: 'Team Member deleted' }
   }
 }
