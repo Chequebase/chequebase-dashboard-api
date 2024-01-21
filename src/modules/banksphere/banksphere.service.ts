@@ -37,8 +37,8 @@ export class BanksphereService {
     if (query.search) {
       const search = escapeRegExp(query.search)
       filter.set('$or', [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { businessName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
       ])
     }
 
@@ -191,8 +191,8 @@ export class BanksphereService {
     if (query.search) {
       const search = escapeRegExp(query.search)
       filter.set('$or', [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { firstName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
       ])
     }
 
