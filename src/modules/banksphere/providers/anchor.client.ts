@@ -7,6 +7,7 @@ import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { IOrganization } from "@/models/organization.model";
 import FormData from 'form-data';
 import stream from "stream";
+import fs from 'fs';
 
 export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 
@@ -50,8 +51,17 @@ export class AnchorCustomerClient implements CustomerClient {
         })
         return res.data
       }
+      if (!payload.filePath) {
+        this.logger.error('File path not found', {
+          payload: JSON.stringify(payload),
+          // status: err.response.status
+        });
+  
+        throw new ServiceUnavailableError('File path not found');
+      }
+      const file = fs.createReadStream(payload.filePath);
       const formData = new FormData()
-      formData.append('fileData', payload.fileData);
+      formData.append('fileData', file, payload.documentId);
       console.log({ formData })
       // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
       const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData, {

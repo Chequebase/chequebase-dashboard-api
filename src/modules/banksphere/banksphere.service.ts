@@ -19,7 +19,11 @@ import dayjs from 'dayjs';
 import bcrypt, { compare } from 'bcryptjs';
 import jwt from 'jsonwebtoken'
 import { AuthUser } from '../common/interfaces/auth-user';
+import { Duplex } from 'stream';
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 
 @Service()
 export class BanksphereService {
@@ -117,6 +121,7 @@ export class BanksphereService {
   }
 
   async uploadCustomerDocuments(data: CreateCustomerDto) {
+    const documentsFolder = 'documents';
     const organization = await Organization.findById(data.organization).lean()
     if (!organization) throw new NotFoundError('Organization not found')
       try {
@@ -141,6 +146,7 @@ export class BanksphereService {
           };
       });
 
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), documentsFolder));
         for (const doc of documents) {
           if (doc.submitted === true) continue
           if (doc.documentKind === 'text') {
@@ -159,15 +165,24 @@ export class BanksphereService {
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
           if (!s3Object) continue
 
-          const blob = new Blob([s3Object]);
-          const fileStream = blob.stream();
+          // const blob = new Blob([s3Object]);
+          // const fileStream = blob.stream();
+
+          const writeStream = fs.createWriteStream(`${tempDir}/${doc.documentId}`)
+
+          const fileStream = new Duplex();
+          fileStream.push(s3Object);
+          fileStream.push(null);
+          fileStream.pipe(writeStream);
+
           const result = await client.uploadCustomerDocuments({
-            fileData: fileStream,
+            filePath: `${tempDir}/${doc.documentId}`,
             documentId: doc.documentId,
             customerId: organization.anchorCustomerId,
             provider: data.provider
           })
           console.log({ result })
+          await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus(doc) } })
         }
         // await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
         // return result
