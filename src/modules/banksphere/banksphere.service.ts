@@ -142,6 +142,7 @@ export class BanksphereService {
       });
 
         for (const doc of documents) {
+          if (doc.submitted === true) continue
           if (doc.documentKind === 'text') {
             const result = await client.uploadCustomerDocuments({
               textData: doc.textValue,
