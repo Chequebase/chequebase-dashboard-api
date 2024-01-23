@@ -165,9 +165,6 @@ export class BanksphereService {
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
           if (!s3Object) continue
 
-          // const blob = new Blob([s3Object]);
-          // const fileStream = blob.stream();
-
           const writeStream = fs.createWriteStream(`${tempDir}/${doc.documentId}`)
 
           const fileStream = new Duplex();
@@ -183,6 +180,9 @@ export class BanksphereService {
           })
           console.log({ result })
           await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus(doc) } })
+        }
+        if (tempDir) {
+          fs.rmSync(tempDir, { recursive: true });
         }
         // await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
         // return result
