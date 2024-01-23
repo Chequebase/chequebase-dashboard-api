@@ -139,14 +139,8 @@ export class BanksphereService {
           message: 'No documents found',
         }
 
-        const updatedRequiredDocumentStatus = (doc: RequiredDocuments) => documents.map((documentData) => {
-          return {
-              ...documentData,
-              submitted: doc.documentId === documentData.documentId
-          };
-      });
-
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), documentsFolder));
+      const submittedDocs: { [x: string]: boolean } = {}
         for (const doc of documents) {
           if (doc.submitted === true) continue
           if (doc.documentKind === 'text') {
@@ -157,7 +151,6 @@ export class BanksphereService {
               provider: data.provider
             })
             console.log({ result })
-            await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus(doc) } })
             continue
           }
           const parsedUrl = new URL(doc.url);
@@ -179,8 +172,16 @@ export class BanksphereService {
             provider: data.provider
           })
           console.log({ result })
-          await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus(doc) } })
+          submittedDocs[doc.documentId] = true
         }
+
+        const updatedRequiredDocumentStatus = documents.map((documentData) => {
+          return {
+              ...documentData,
+              submitted: submittedDocs[documentData.documentId] || false
+          };
+      });
+        await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus } })
         if (tempDir) {
           fs.rmSync(tempDir, { recursive: true });
         }
