@@ -143,7 +143,6 @@ export class BanksphereService {
 
         for (const doc of documents) {
           if (doc.documentKind === 'text') {
-            console.log('PROCESSING', { doc })
             const result = await client.uploadCustomerDocuments({
               textData: doc.textValue,
               documentId: doc.documentId,
