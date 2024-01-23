@@ -142,15 +142,16 @@ export class BanksphereService {
       });
 
         for (const doc of documents) {
-          console.log( { doc })
           if (doc.documentKind === 'text') {
-            await client.uploadCustomerDocuments({
+            console.log('PROCESSING', { doc })
+            const result = await client.uploadCustomerDocuments({
               textData: doc.textValue,
               documentId: doc.documentId,
               customerId: organization.anchorCustomerId,
               provider: data.provider
             })
-            await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus } })
+            console.log({ result })
+            await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus(doc) } })
             continue
           }
           const parsedUrl = new URL(doc.url);
