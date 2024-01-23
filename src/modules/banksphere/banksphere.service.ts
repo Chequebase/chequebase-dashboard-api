@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import bcrypt, { compare } from 'bcryptjs';
 import jwt from 'jsonwebtoken'
 import { AuthUser } from '../common/interfaces/auth-user';
+import fs from 'fs';
 
 @Service()
 export class BanksphereService {
@@ -138,19 +139,16 @@ export class BanksphereService {
           const key = parsedUrl.pathname.slice(1);
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
           if (!s3Object) continue
-          await s3Object.pipeTo(client.uploadCustomerDocuments({
-            // fileData: s3Object,
+
+          const blob = new Blob([s3Object]);
+          const fileStream = blob.stream();
+          const result = await client.uploadCustomerDocuments({
+            fileData: fileStream,
             documentId: doc.documentId,
             customerId: organization.anchorCustomerId,
             provider: data.provider
-          }))
-          // const result = await client.uploadCustomerDocuments({
-          //   fileData: s3Object,
-          //   documentId: doc.documentId,
-          //   customerId: organization.anchorCustomerId,
-          //   provider: data.provider
-          // })
-          console.log({ result: 'DONE' })
+          })
+          console.log({ result })
         }
         // await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
         // return result
