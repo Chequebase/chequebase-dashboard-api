@@ -34,6 +34,8 @@ export interface Shareholder {
 export interface RequiredDocuments {
   documentId: string
   documentType: string
+  documentKind: string
+  textValue: string
   submitted: boolean
   verified: boolean
   url: string
@@ -103,6 +105,8 @@ const shareholderSchema = new Schema<Shareholder>({
 const requiredDocumentsSchema = new Schema<RequiredDocuments>({
   documentId: String,
   documentType: String,
+  documentKind: String,
+  textValue: String,
   submitted: Boolean,
   verified: Boolean,
   url: String

@@ -11,7 +11,8 @@ export interface KycValidation {
 }
 
 export interface UploadCustomerDocuments {
-  fileData: ReadableStream
+  fileData?: ReadableStream
+  textData?: string
   documentId: string
   customerId: string
   provider: string

@@ -5,7 +5,7 @@ import { S3Service } from '@/modules/common/aws/s3.service';
 import { AddTeamMemberDto, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
 import { BadRequestError, NotFoundError } from 'routing-controllers';
-import Organization from '@/models/organization.model';
+import Organization, { RequiredDocuments } from '@/models/organization.model';
 import { escapeRegExp, getEnvOrThrow } from '../common/utils';
 import ProviderRegistry from './provider-registry';
 import { ServiceUnavailableError } from '../common/utils/service-errors';
@@ -134,8 +134,25 @@ export class BanksphereService {
           message: 'No documents found',
         }
 
+        const updatedRequiredDocumentStatus = (doc: RequiredDocuments) => documents.map((documentData) => {
+          return {
+              ...documentData,
+              submitted: doc.documentId === documentData.documentId
+          };
+      });
+
         for (const doc of documents) {
           console.log( { doc })
+          if (doc.documentKind === 'text') {
+            await client.uploadCustomerDocuments({
+              textData: doc.textValue,
+              documentId: doc.documentId,
+              customerId: organization.anchorCustomerId,
+              provider: data.provider
+            })
+            await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus } })
+            continue
+          }
           const parsedUrl = new URL(doc.url);
           const key = parsedUrl.pathname.slice(1);
           const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)

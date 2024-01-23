@@ -45,12 +45,13 @@ export class AnchorCustomerClient implements CustomerClient {
   public async uploadCustomerDocuments(payload: UploadCustomerDocuments) {
     try {
       // let passThrough = new stream.PassThrough();
+      const url = payload.textData ? `/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}?textData=${payload.textData}` : `/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`
 
       const formData = new FormData()
       formData.append('fileData', payload.fileData);
       console.log({ formData })
       // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
-      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData, {
+      const res = await this.http.post(url, formData, {
         headers: {
           ...formData.getHeaders(),
         }
