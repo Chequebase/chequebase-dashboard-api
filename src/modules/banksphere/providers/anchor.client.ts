@@ -60,6 +60,7 @@ export class AnchorCustomerClient implements CustomerClient {
         throw new ServiceUnavailableError('File path not found');
       }
       const file = fs.createReadStream(payload.filePath);
+      console.log({ file })
       const formData = new FormData()
       formData.append('fileData', file, payload.documentId);
       console.log({ formData })
