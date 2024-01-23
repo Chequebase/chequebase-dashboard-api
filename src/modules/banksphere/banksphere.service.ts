@@ -150,7 +150,6 @@ export class BanksphereService {
               customerId: organization.anchorCustomerId,
               provider: data.provider
             })
-            console.log({ result })
             continue
           }
           const parsedUrl = new URL(doc.url);
@@ -171,7 +170,6 @@ export class BanksphereService {
             customerId: organization.anchorCustomerId,
             provider: data.provider
           })
-          console.log({ result })
           submittedDocs[doc.documentId] = true
         }
 

@@ -23,7 +23,6 @@ export class AnchorCustomerClient implements CustomerClient {
 
   public async createCustomer(payload: CreateCustomerData) {
     const data = this.transformGetAnchorCustomerData(payload.organization)
-    console.log({ data: data.data.attributes })
 
     try {
       const res = await this.http.post('/api/v1/customers', data)
@@ -60,10 +59,8 @@ export class AnchorCustomerClient implements CustomerClient {
         throw new ServiceUnavailableError('File path not found');
       }
       const file = fs.createReadStream(payload.filePath);
-      console.log({ file })
       const formData = new FormData()
       formData.append('fileData', file, payload.documentId);
-      console.log({ formData })
       // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
       const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData, {
         headers: {
