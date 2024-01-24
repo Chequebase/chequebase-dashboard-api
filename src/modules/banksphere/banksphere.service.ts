@@ -105,7 +105,7 @@ export class BanksphereService {
         // TODO: hard coding base wallet for now
         await this.walletService.createWallet({ baseWallet: "655e8555fbc87e717fba9a98", provider: VirtualAccountClientName.Anchor, organization: accountId })
         this.emailService.sendKYCApprovedEmail(admin.email, {
-          loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
+          loginLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/signin`,
           businessName: organization.businessName
         })
         return 'approved'
@@ -343,7 +343,7 @@ export class BanksphereService {
     })
 
     this.emailService.sendEmployeeInviteEmail(data.email, {
-      inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${code}&companyName=Chequebase`,
+      inviteLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/invite?code=${code}&companyName=Chequebase`,
       companyName: 'Chequebase'
     })
 
