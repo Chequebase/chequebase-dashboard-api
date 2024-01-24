@@ -335,7 +335,7 @@ export class BanksphereService {
       lastName: data.lastName,
       inviteCode: code,
       emailVerified: false,
-      organization: 'Chequebase',
+      organization: '65b0ca64623b8a2f39d5f93c',
       role: data.role,
       inviteSentAt: Math.round(new Date().getTime() / 1000),
       status: UserStatus.INVITED,
