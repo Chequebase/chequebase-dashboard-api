@@ -88,7 +88,7 @@ export default class BanksphereController {
   }
 
   @UseBefore(publicApiGuard)
-  @Authorized()
+  // @Authorized()
   @Post('/settings/team/accept-invite')
   acceptInvite(@Body() addTeamMemberDto: AddTeamMemberDto) {
     return this.banksphereService.acceptInvite(addTeamMemberDto);
