@@ -401,7 +401,7 @@ export class BanksphereService {
 
   async getTeamMembers(auth: AuthUser, query: GetTeamMembersQueryDto) {
     const users = await User.paginate({
-      organization: 'Chequebase',
+      organization: '65b0ca64623b8a2f39d5f93c',
       _id: { $ne: auth.userId },
       status: query.status
     }, {
@@ -415,7 +415,7 @@ export class BanksphereService {
   }
 
   async getTeamMember(id: string) {
-    const user = await User.findOne({ _id: id, organization: 'Chequebase', status: { $ne: UserStatus.DELETED } })
+    const user = await User.findOne({ _id: id, organization: '65b0ca64623b8a2f39d5f93c', status: { $ne: UserStatus.DELETED } })
       .select('firstName lastName email emailVerified role KYBStatus status avatar phone')
       .lean()
     
@@ -432,7 +432,7 @@ export class BanksphereService {
       throw new NotFoundError('User not found');
     }
 
-    await User.deleteOne({ _id: id, organization: 'Chequebase' })
+    await User.deleteOne({ _id: id, organization: '65b0ca64623b8a2f39d5f93c' })
 
     return { message: 'Team Member deleted' }
   }
