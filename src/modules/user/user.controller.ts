@@ -26,8 +26,8 @@ export default class UserController {
   }
 
   @Post('/login')
-  login(@Body() loginDto: LoginDto) {
-    return this.userService.login(loginDto);
+  login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    return this.userService.login(loginDto, req);
   }
 
   @Post('/resend-otp')
@@ -76,8 +76,8 @@ export default class UserController {
 
   @Post('/logout')
   @Authorized()
-  logout(@CurrentUser() auth: AuthUser) {
-    return this.userService.logout(auth.userId);
+  logout(@CurrentUser() auth: AuthUser, @Req() req: Request) {
+    return this.userService.logout(auth.userId, req);
   }
 
   @Get('/profile')

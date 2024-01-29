@@ -15,6 +15,7 @@ import { PlanUsageService } from "../billing/plan-usage.service";
 import WalletService from "../wallet/wallet.service";
 import { WalletEntryScope } from "@/models/wallet-entry.model";
 import { S3Service } from "../common/aws/s3.service";
+import { Request } from "express";
 
 const logger = new Logger('user-service')
 
@@ -79,7 +80,7 @@ export class UserService {
     return { message: "User created, check your email for verification link" };
   }
 
-  async login(data: LoginDto) {
+  async login(data: LoginDto, req: Request) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i")
     const user = await User.findOne({
       email: { $regex },
@@ -117,6 +118,8 @@ export class UserService {
       otpExpiresAt,
       otp
     })
+
+    req.session.id = user.id
 
     const isOwner = user.role === Role.Owner
     this.emailService.sendOtpEmail(user.email, {
@@ -365,10 +368,12 @@ export class UserService {
     })
   }
 
-  async logout(userId: string) {
+  async logout(userId: string, req: Request) {
     await User.updateOne({ _id: userId }, {
       hashRt: ''
     })
+    req.session.destroy((err) => {
+    });
     return { message: 'logout out' }
   }
 
