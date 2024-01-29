@@ -68,7 +68,7 @@ export default class AnchorWebhookHandler {
     const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
     const jobData: { customerId: string, businessName: string } = {
       customerId: body.data.relationships.customer.data.id,
-      businessName: businessCustomer.detail.businessName,
+      businessName: businessCustomer.attributes.detail.businessName,
     }
 
     await organizationQueue.add('processKycApproved', jobData)
