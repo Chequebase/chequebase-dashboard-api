@@ -139,9 +139,7 @@ export default class AnchorWebhookHandler {
 
   private async onKycApprovedNotification(notification: { customerId: string, businessName: string }) {
     const { customerId, businessName } = notification;
-    const message = `Merchant KYC Approved \n\n
-      *Merchant*: ${businessName} (${customerId})
-    `;
+    const message = `${businessName} has been approved on Anchor -- customerId: ${customerId}`;
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.compliance, message);
   }
 
