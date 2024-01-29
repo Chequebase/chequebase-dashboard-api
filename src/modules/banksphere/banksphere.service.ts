@@ -1,20 +1,29 @@
 import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
 // import { ObjectId } from 'mongodb'
-// import { S3Service } from '@/modules/common/aws/s3.service';
-import { AuthUser } from '../common/interfaces/auth-user';
-import { CreateCustomerDto, GetAccountsDto } from './dto/banksphere.dto';
+import { S3Service } from '@/modules/common/aws/s3.service';
+import { AddTeamMemberDto, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
 import { BadRequestError, NotFoundError } from 'routing-controllers';
-import Organization, { IOrganization } from '@/models/organization.model';
+import Organization, { RequiredDocuments } from '@/models/organization.model';
 import { escapeRegExp, getEnvOrThrow } from '../common/utils';
 import ProviderRegistry from './provider-registry';
 import { ServiceUnavailableError } from '../common/utils/service-errors';
 import Logger from '../common/utils/logger';
-import { CustomerClient, CustomerClientName } from './providers/customer.client';
+import { CustomerClient, KycValidation, UploadCustomerDocuments } from './providers/customer.client';
 import WalletService from '../wallet/wallet.service';
 import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 import EmailService from '../common/email.service';
+import { createId } from '@paralleldrive/cuid2';
+import dayjs from 'dayjs';
+import bcrypt, { compare } from 'bcryptjs';
+import jwt from 'jsonwebtoken'
+import { AuthUser } from '../common/interfaces/auth-user';
+import { Duplex } from 'stream';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 
 @Service()
 export class BanksphereService {
@@ -22,7 +31,7 @@ export class BanksphereService {
   constructor (
     private walletService: WalletService,
     private emailService: EmailService,
-    // private s3Service: S3Service,
+    private s3Service: S3Service,
     // private sqsClient: SqsClient
   ) { }
 
@@ -38,12 +47,13 @@ export class BanksphereService {
     if (query.search) {
       const search = escapeRegExp(query.search)
       filter.set('$or', [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { businessName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
       ])
     }
 
     const accounts = await Organization.paginate(filter.object, {
+      sort: '-createdAt',
       page: Number(query.page),
       limit: query.limit,
       lean: true
@@ -59,8 +69,6 @@ export class BanksphereService {
   async createCustomer(data: CreateCustomerDto) {
     const organization = await Organization.findById(data.organization).lean()
     if (!organization) throw new NotFoundError('Organization not found')
-    const admin = await User.findById(organization.admin).lean()
-    if (!admin) throw new NotFoundError('Admin not found')
       try {
         const token = ProviderRegistry.get(data.provider)
         if (!token) {
@@ -70,14 +78,15 @@ export class BanksphereService {
   
         const client = Container.get<CustomerClient>(token)
   
-        const result = await client.createCustomer({ organization: { ...organization, email: admin.email }, provider: data.provider })
+        const result = await client.createCustomer({ organization, provider: data.provider })
+        await this.kycValidation({ customerId: result.id, provider: data.provider })
 
-        await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
+        await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, requiredDocuments: [] }, anchorCustomerId: result.id })
         return result
       } catch (err: any) {
         this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
   
-        return {
+        throw {
           status: 'failed',
           message: 'Create Customer Failure, could not create customer',
           gatewayResponse: err.message
@@ -96,7 +105,7 @@ export class BanksphereService {
         // TODO: hard coding base wallet for now
         await this.walletService.createWallet({ baseWallet: "655e8555fbc87e717fba9a98", provider: VirtualAccountClientName.Anchor, organization: accountId })
         this.emailService.sendKYCApprovedEmail(admin.email, {
-          loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
+          loginLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/signin`,
           businessName: organization.businessName
         })
         return 'approved'
@@ -112,10 +121,9 @@ export class BanksphereService {
   }
 
   async uploadCustomerDocuments(data: CreateCustomerDto) {
+    const documentsFolder = 'documents';
     const organization = await Organization.findById(data.organization).lean()
     if (!organization) throw new NotFoundError('Organization not found')
-    const admin = await User.findById(organization.admin).lean()
-    if (!admin) throw new NotFoundError('Admin not found')
       try {
         const token = ProviderRegistry.get(data.provider)
         if (!token) {
@@ -125,18 +133,307 @@ export class BanksphereService {
   
         const client = Container.get<CustomerClient>(token)
   
-        const result = await client.uploadCustomerDocuments({ organization: { ...organization, email: admin.email }, provider: data.provider })
+        const documents = organization.anchor?.requiredDocuments
+        if (!documents) return {
+          status: 'failed',
+          message: 'No documents found',
+        }
 
-        await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
-        return result
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), documentsFolder));
+      const submittedDocs: { [x: string]: boolean } = {}
+        for (const doc of documents) {
+          if (doc.submitted === true) continue
+          if (doc.documentKind === 'text') {
+            const result = await client.uploadCustomerDocuments({
+              textData: doc.textValue,
+              documentId: doc.documentId,
+              customerId: organization.anchorCustomerId,
+              provider: data.provider
+            })
+            continue
+          }
+          const parsedUrl = new URL(doc.url);
+          const key = parsedUrl.pathname.slice(1);
+          const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
+          if (!s3Object) continue
+
+          const writeStream = fs.createWriteStream(`${tempDir}/${doc.documentId}`)
+
+          const fileStream = new Duplex();
+          fileStream.push(s3Object);
+          fileStream.push(null);
+          fileStream.pipe(writeStream);
+
+          const result = await client.uploadCustomerDocuments({
+            filePath: `${tempDir}/${doc.documentId}`,
+            documentId: doc.documentId,
+            customerId: organization.anchorCustomerId,
+            provider: data.provider
+          })
+          submittedDocs[doc.documentId] = true
+        }
+
+        const updatedRequiredDocumentStatus = documents.map((documentData) => {
+          return {
+              ...documentData,
+              submitted: submittedDocs[documentData.documentId] || false
+          };
+      });
+        await Organization.updateOne({ _id: organization._id }, { anchor: { ...organization.anchor, requiredDocuments: updatedRequiredDocumentStatus } })
+        if (tempDir) {
+          fs.rmSync(tempDir, { recursive: true });
+        }
+        // await Organization.updateOne({ _id: organization._id }, { anchor: { customerId: result.id, verified: false, documentVerified: false } })
+        // return result
       } catch (err: any) {
-        this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
+        this.logger.error('error uploading customer documents', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
   
         return {
           status: 'failed',
-          message: 'Create Customer Failure, could not create customer',
+          message: 'Documents Upload Failure, could not upload documents',
           gatewayResponse: err.message
         }
       }
+  }
+
+  async kycValidation(data: KycValidation) {
+      try {
+        const token = ProviderRegistry.get(data.provider)
+        if (!token) {
+          this.logger.error('provider not found', { provider: data.provider })
+          throw new ServiceUnavailableError('Provider is not unavailable')
+        }
+  
+        const client = Container.get<CustomerClient>(token)
+  
+        await client.kycValidationForBusiness({ customerId: data.customerId, provider: data.provider })
+      } catch (err: any) {
+        this.logger.error('error sending kyc validation', { payload: JSON.stringify({ data, provider:data.provider }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'KYC Validation Failure, could not validate customer kyc',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async getAccountUsers(id: string, query: GetAccountUsersDto) {
+    const filter = new QueryFilter()
+    filter.set('organization', id)
+    if (query.status) {
+      filter.set('status', query.status)
+    }
+    if (query.search) {
+      const search = escapeRegExp(query.search)
+      filter.set('$or', [
+        { firstName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ])
+    }
+
+    const users = await User.paginate(filter.object, {
+      select: 'firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone',
+      sort: '-createdAt',
+      page: Number(query.page),
+      limit: query.limit,
+      lean: true
+    })
+
+    return users
+  }
+
+  async postNoDebit(id: string) {
+    const organization = await Organization.findById(id).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const admin = await User.findById(organization.admin).lean()
+    if (!admin) throw new NotFoundError('Admin not found')
+      try {
+        await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.NO_DEBIT })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.NO_DEBIT })
+        return { message: 'post no debit activated'}
+      } catch (err: any) {
+        this.logger.error('error setting post no debit', { payload: JSON.stringify({ organization }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'error setting post no debit',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async postNoDebitOnUser(orgId: string, userId: string) {
+    const organization = await Organization.findById(orgId).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const user = await User.findById(userId).lean()
+    if (!user) throw new NotFoundError('Admin not found')
+      try {
+        await User.updateOne({ _id: user._id }, { KYBStatus: KycStatus.NO_DEBIT })
+        return { message: 'post no debit activated on user'}
+      } catch (err: any) {
+        this.logger.error('error setting post no debit', { payload: JSON.stringify({ user }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'error setting post no debit on User',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async blockAccount(id: string) {
+    const organization = await Organization.findById(id).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const admin = await User.findById(organization.admin).lean()
+    if (!admin) throw new NotFoundError('Admin not found')
+      try {
+        await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.BLOCKED })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.BLOCKED })
+        return { message: 'organization blocked'}
+      } catch (err: any) {
+        this.logger.error('error blocking account', { payload: JSON.stringify({ organization }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'error blocking account',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async blockUser(id: string, userId: string) {
+    const organization = await Organization.findById(id).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const user = await User.findById(userId).lean()
+    if (!user) throw new NotFoundError('User not found')
+      try {
+        await User.updateOne({ _id: user._id }, { KYBStatus: KycStatus.BLOCKED, status: UserStatus.DISABLED })
+        return { message: 'user blocked'}
+      } catch (err: any) {
+        this.logger.error('error blocking user', { payload: JSON.stringify({ user }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'error blocking user',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async sendInvite(data: CreateTeamMemeberDto) {
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    const userExists = await User.findOne({ email: { $regex } })
+    if (userExists) {
+      throw new BadRequestError('Account with same email already exists');
+    }
+
+    const code = createId()
+    await User.create({
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      inviteCode: code,
+      emailVerified: false,
+      organization: '65b0ca64623b8a2f39d5f93c',
+      role: data.role,
+      inviteSentAt: Math.round(new Date().getTime() / 1000),
+      status: UserStatus.INVITED,
+      KYBStatus: KycStatus.NOT_STARTED
+    })
+
+    this.emailService.sendEmployeeInviteEmail(data.email, {
+      inviteLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/invite?code=${code}&companyName=Chequebase`,
+      companyName: 'Chequebase'
+    })
+
+    return { message: 'Invite sent successfully' };
+  }
+
+  async acceptInvite(data: AddTeamMemberDto) {
+    const { code, password } = data
+    const user = await User.findOne({ inviteCode: code, status: { $ne: UserStatus.DELETED } })
+    if (!user) {
+      throw new NotFoundError('Invalid or expired invite link');
+    }
+    const now = Math.round(new Date().getTime() / 1000);
+    const yesterday = now - (24 * 3600);
+    if (user.inviteSentAt && dayjs(user.inviteSentAt).isBefore(yesterday)) {
+      throw new NotFoundError('Invalid or expired invite link');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    await user.set({
+      emailVerified: true,
+      inviteCode: null,
+      password: hashedPassword,
+      status: UserStatus.ACTIVE,
+      KYBStatus: KycStatus.APPROVED
+    }).save()
+
+    const tokens = await this.getTokens(user.id, user.email);
+    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
+    return { tokens, userId: user.id }
+  }
+
+  async getTokens(userId: string, email: string) {
+    const accessSecret = getEnvOrThrow('ACCESS_TOKEN_SECRET')
+    const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
+    const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
+    const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
+    const payload = { sub: userId, email, userId }
+    
+    return {
+      access_token: jwt.sign(payload, accessSecret, { expiresIn: accessExpiresIn }),
+      refresh_token: jwt.sign(payload, refreshSecret, { expiresIn: refreshExpiresIn })
+    }
+  }
+
+  async updateHashRefreshToken(userId: string, refreshToken: string) {
+    const hashRefreshToken = await bcrypt.hash(refreshToken, 12);
+    await User.updateOne({ _id: userId }, {
+      hashRt: hashRefreshToken
+    })
+  }
+
+  async getTeamMembers(auth: AuthUser, query: GetTeamMembersQueryDto) {
+    const users = await User.paginate({
+      organization: '65b0ca64623b8a2f39d5f93c',
+      _id: { $ne: auth.userId },
+      status: query.status
+    }, {
+      page: Number(query.page),
+      limit: query.limit,
+      lean: true,
+      select: 'firstName lastName email emailVerified role KYBStatus status avatar phone'
+    })
+    
+    return users
+  }
+
+  async getTeamMember(id: string) {
+    const user = await User.findOne({ _id: id, organization: '65b0ca64623b8a2f39d5f93c', status: { $ne: UserStatus.DELETED } })
+      .select('firstName lastName email emailVerified role KYBStatus status avatar phone')
+      .lean()
+    
+    if (!user) {
+      throw new NotFoundError(`Team memeber with ID ${id} not found`);
+    }
+
+    return user;
+  }
+
+  async deleteTeamMember(id: string) {
+    const employee = await this.getTeamMember(id);
+    if (!employee) {
+      throw new NotFoundError('User not found');
+    }
+
+    await User.deleteOne({ _id: id, organization: '65b0ca64623b8a2f39d5f93c' })
+
+    return { message: 'Team Member deleted' }
   }
 }

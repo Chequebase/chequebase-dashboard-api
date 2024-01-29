@@ -1,10 +1,13 @@
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { getEnvOrThrow } from "@/modules/common/utils";
-import { CreateCustomerData, CustomerClient } from "./customer.client";
+import { CreateCustomerData, CustomerClient, KycValidation, UploadCustomerDocuments } from "./customer.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { IOrganization } from "@/models/organization.model";
+import FormData from 'form-data';
+import stream from "stream";
+import fs from 'fs';
 
 export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 
@@ -20,7 +23,6 @@ export class AnchorCustomerClient implements CustomerClient {
 
   public async createCustomer(payload: CreateCustomerData) {
     const data = this.transformGetAnchorCustomerData(payload.organization)
-    console.log({ data: data.data.attributes })
 
     try {
       const res = await this.http.post('/api/v1/customers', data)
@@ -40,27 +42,65 @@ export class AnchorCustomerClient implements CustomerClient {
     }
   }
 
-  public async uploadCustomerDocuments(payload: CreateCustomerData) {
+  public async uploadCustomerDocuments(payload: UploadCustomerDocuments) {
     try {
-      const res = await this.http.post(`/api/v1/documents/upload-document/{customerId}/{documentId}`, payload)
+      if (payload.textData) {
+        this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
+        const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}?textData=${payload.textData}`, {}, {
+        })
+        return res.data
+      }
+      if (!payload.filePath) {
+        this.logger.error('File path not found', {
+          payload: JSON.stringify(payload),
+          // status: err.response.status
+        });
+  
+        throw new ServiceUnavailableError('File path not found');
+      }
+      const file = fs.createReadStream(payload.filePath);
+      const formData = new FormData()
+      formData.append('fileData', file, payload.documentId);
+      // this.http.defaults.headers.common['Content-Type'] = 'multipart/form-data'
+      const res = await this.http.post(`/api/v1/documents/upload-document/${payload.customerId}/${payload.documentId}`, formData, {
+        headers: {
+          ...formData.getHeaders(),
+        }
+      })
+
+      return res.data
+    } catch (err: any) {
+      this.logger.error('error uploading customer documents', {
+        error: err,
+        reason: JSON.stringify(err.response?.data || err?.message),
+        payload: JSON.stringify(payload),
+        // status: err.response.status
+      });
+
+      throw new ServiceUnavailableError('Unable to upload customer documents');
+    }
+  }
+
+  public async kycValidationForBusiness(payload: KycValidation) {
+    try {
+      const res = await this.http.post(`/api/v1/customers/${payload.customerId}/verification/business`)
       const attributes = res.data.data.attributes
 
       return {
         id: res.data.data.id,
       }
     } catch (err: any) {
-      this.logger.error('error creating customer', {
+      this.logger.error('error starting KYC validation for customer', {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
         status: err.response.status
       });
 
-      throw new ServiceUnavailableError('Unable to create customer');
+      throw new ServiceUnavailableError('Unable to start KYC validation');
     }
   }
 
   transformGetAnchorCustomerData(org: IOrganization) {
-    console.log({ phone: this.formatPhoneNumber(org.phone), regDate: this.extractDate(org.regDate) })
     const data = {
         "attributes": {
           "address": {

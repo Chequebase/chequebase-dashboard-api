@@ -1,7 +1,6 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
 import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue } from '.';
-import processOrganizationEventHandler from './jobs/organization';
 import processWalletInflow from './jobs/wallet/wallet-inflow.job';
 import processWalletOutflow from './jobs/wallet/wallet-outflow.job';
 import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance.job';
@@ -14,6 +13,7 @@ import sendSubscriptionReminderEmail from './jobs/subscription/send-subscription
 import { closeExpiredBudget, fetchExpiredBudgets } from './jobs/budget/close-expired-budget.job';
 import { closeExpiredProject, fetchExpiredProjects } from './jobs/budget/close-expired-project.job';
 import sendAccountStatement from './jobs/wallet/account-statement.job';
+import processRequiredDocuments from './jobs/organization/processRequiredDocuments';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -22,7 +22,7 @@ setupEventLogger([walletQueue, subscriptionQueue])
 
 function setupQueues() {
   try {
-    organizationQueue.process(processOrganizationEventHandler)
+    organizationQueue.process('processRequiredDocuments', processRequiredDocuments)
 
     walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 5, processWalletInflow)

@@ -2,7 +2,7 @@ import { Action, UnauthorizedError } from 'routing-controllers'
 import jwt from "jsonwebtoken";
 import { getEnvOrThrow } from '../utils';
 import Logger from '../utils/logger';
-import User, { UserStatus } from '@/models/user.model';
+import User, { KycStatus, UserStatus } from '@/models/user.model';
 import { IOrganization } from '@/models/organization.model';
 import { AuthUser } from '../interfaces/auth-user';
 
@@ -42,6 +42,9 @@ export const RBAC = async (requestAction: Action, action: string[] = []) => {
   const user = await User.findById(id).populate<{ organization: IOrganization }>('organization')
   if (!user || user.status === UserStatus.DELETED || user.status === UserStatus.DISABLED) {
     throw new UnauthorizedError('Unauthorized')
+  }
+  if (user?.organization.status === KycStatus.BLOCKED) {
+    throw new UnauthorizedError('Can Not Log In At This Time')
   }
 
   return action.some((role) => action.includes(role)) || (user.id === user.organization.admin);

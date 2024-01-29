@@ -1,11 +1,5 @@
 import { IsString, MinLength, IsOptional, IsEmail, IsNumber, IsArray } from "class-validator";
 
-export class UpdateBusinessDocumentationDto {
-  @IsString()
-  @IsOptional()
-  regDate: string;
-}
-
 export class UpdateCompanyInfoDto {
   @IsString()
   @MinLength(3)
@@ -51,6 +45,10 @@ export class UpdateCompanyInfoDto {
   @IsOptional()
   @IsString()
   cacItNumber: string
+
+  @IsString()
+  @IsOptional()
+  regDate: string;
 }
 
 export class OwnerDto {

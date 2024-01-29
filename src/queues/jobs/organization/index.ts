@@ -1,6 +1,6 @@
 import { AnchorService } from "@/modules/common/anchor.service";
 import Logger from "@/modules/common/utils/logger";
-import { IOrganization } from "@/models/organization.model";
+import Organization, { IOrganization } from "@/models/organization.model";
 import { Job } from "bull";
 import Container from "typedi";
 
@@ -11,13 +11,26 @@ async function processOrganizationEventHandler(job: Job) {
   const event = job.data;
 
   try {
-    switch (event.eventType) {
-      case 'customer.created': {
-        await createCustomerOnAnchor(event.data);
+    console.log({ event })
+    switch (event.type) {
+      // case 'customer.created': {
+      //   await createCustomerOnAnchor(event.data);
+      //   break;
+      // }
+      // case 'customer.updated': {
+      //   await updateCustomerOnAnchor(event.data);
+      //   break;
+      // }
+      case 'customer.identification.awaitingDocument': {
+        await saveRequiredDocuments(event);
         break;
       }
-      case 'customer.updated': {
-        await updateCustomerOnAnchor(event.data);
+      case 'document.approved': {
+        await saveRequiredDocuments(event.data);
+        break;
+      }
+      case 'document.rejected': {
+        await saveRequiredDocuments(event.data);
         break;
       }
       default: {
@@ -106,6 +119,11 @@ function transformGetAnchorCustomerData(org: IOrganization) {
 
 async function updateCustomerOnAnchor(event: any) {
   console.log('Processing Customer Created Event', { event })
+  return event
+}
+
+async function saveRequiredDocuments(event: any) {
+  console.log('Processing customer.identification.awaitingDocument Event', { event })
   return event
 }
 

@@ -44,6 +44,19 @@ export interface BudgetRequestEmail {
   budgetLink: string
 }
 
+export interface BudgetBeneficiaryAdded {
+  employeeName: string
+  budgetName: string
+  amountAllocated: number
+  budgetLink: string
+}
+
+export interface BudgetBeneficiaryRemoved {
+  employeeName: string
+  budgetName: string
+  budgetLink: string
+}
+
 export interface BudgetPausedEmail {
   employeeName: string
   budgetName: string

@@ -58,7 +58,8 @@ export class OrganizationsService {
 
     if (organization.admin) {
       await Promise.all([
-        organization.updateOne({ ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED }),
+        organization.updateOne({ ...kycDto, registrationDate: kycDto.regDate,
+          regDate: kycDto.regDate,status: KycStatus.COPMANY_INFO_SUBMITTED }),
         User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.COPMANY_INFO_SUBMITTED })
       ])
       return { ...organization.toObject(), ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED };
@@ -125,7 +126,6 @@ export class OrganizationsService {
   async updateBusinessDocumentation(
     id: string,
     files: any[],/*[utilityBill, businessNameCert],*/
-    data: { bnNumber?: string, regDate: string }
   ) {
     const organization = await Organization.findById(id)
     if (!organization) {
@@ -142,14 +142,10 @@ export class OrganizationsService {
           file.buffer
         );
 
-        documents[file.fieldname] = key
-        documents['url'] = url
+        documents[file.fieldname] = url
       }))
       
       await organization.updateOne({
-        registrationDate: data.regDate,
-        bnNumber: data.bnNumber,
-        regDate: data.regDate,
         documents,
         status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED
       })

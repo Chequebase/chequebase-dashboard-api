@@ -1,6 +1,6 @@
 import { City, State } from 'country-state-city';
 import { Post, Authorized, Body, Get, Param, Patch, UseBefore, Req, JsonController, CurrentUser } from 'routing-controllers';
-import { OwnerDto, UpdateBusinessDocumentationDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
+import { OwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { OrganizationsService } from './organization.service';
 import { Role } from '../user/dto/user.dto';
 import { Countries } from '@/modules/common/utils/countries';
@@ -38,11 +38,10 @@ export default class OrganizationsController {
   @UseBefore(multer().any())
   updatebusinessDocumentation(
     @CurrentUser() auth: AuthUser,
-    @Body() data: UpdateBusinessDocumentationDto,
     @Req() req: Request
   ) {
     const files = req.files as any[] || []
-    return this.organizationsService.updateBusinessDocumentation(auth.orgId, files, data)
+    return this.organizationsService.updateBusinessDocumentation(auth.orgId, files)
   }
 
   @Authorized(Role.Owner)

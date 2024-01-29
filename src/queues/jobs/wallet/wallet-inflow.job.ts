@@ -34,6 +34,11 @@ export interface WalletInflowData {
   }
 }
 
+export interface WalletInflowDataNotification extends WalletInflowData {
+  businessName: string
+  customerId: string
+}
+
 const logger = new Logger('wallet-inflow.job')
 const emailService = Container.get(EmailService)
 

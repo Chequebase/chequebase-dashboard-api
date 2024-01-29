@@ -16,7 +16,7 @@ import { TransferClientName } from "../transfer/providers/transfer.client"
 import { AnchorService } from "../common/anchor.service"
 import { CreateTransferRecord } from "./interfaces/budget-transfer.interface"
 import { UserService } from "../user/user.service"
-import User from "@/models/user.model"
+import User, { KycStatus } from "@/models/user.model"
 import { Role } from "../user/dto/user.dto"
 import { transactionOpts } from "../common/utils"
 import Organization from "@/models/organization.model"
@@ -252,6 +252,21 @@ export class BudgetTransferService {
       .populate('project')
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
+    }
+
+    const organization = await Organization.findById(auth.orgId).lean()
+    if (!organization) {
+      throw new NotFoundError('Organization does not exist')
+    }
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+    if (organization.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
     }
 
     const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)

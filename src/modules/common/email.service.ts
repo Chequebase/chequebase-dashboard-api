@@ -109,6 +109,24 @@ export default class EmailService {
     })
   }
 
+  sendBudgetBeneficiaryAdded(to: string, data: T.BudgetBeneficiaryAdded) {
+    return this.send({
+      to,
+      subject: 'Added Beneficiary to Budget',
+      templateId: 'd-bdf678dd7ca04387a4fbd311d0d2cd42',
+      dynamicTemplateData: data
+    })
+  }
+
+  sendBudgetBeneficiaryRemoved(to: string, data: T.BudgetBeneficiaryRemoved) {
+    return this.send({
+      to,
+      subject: 'Removed Beneficiary from Budget',
+      templateId: 'd-a83a0aaaf031441a85134702bb26250d',
+      dynamicTemplateData: data
+    })
+  }
+
   sendTransferSuccessEmail(to: string, data: T.TransferSuccessEmail) {
     return this.send({
       to,

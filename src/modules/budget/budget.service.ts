@@ -200,6 +200,26 @@ export default class BudgetService {
       })
     }
 
+    // send beneficiaries emails
+    try {
+      if (data.beneficiaries.length > 0) {
+        const beneficiaries = await Promise.all(data.beneficiaries.map((beneficiary: BeneficiaryDto) => {
+          return User.findById(beneficiary.user).lean()
+        }))
+        beneficiaries.forEach((beneficiary) => {
+          const iUser = data.beneficiaries.find(b => b.user === beneficiary!._id.toString())
+          return beneficiary && this.emailService.sendBudgetBeneficiaryAdded(beneficiary?.email, {
+            employeeName: beneficiary.firstName,
+            budgetName: budget!.name,
+            budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+            amountAllocated: iUser?.allocation || 0
+          })
+        })
+      }
+    } catch (error) {
+      logger.error('Unable to send beneficiary email', { error })
+    }
+
     return budget!
   }
 
@@ -213,6 +233,9 @@ export default class BudgetService {
       throw new BadRequestError('Budget cannot be updated')
     }
 
+    const existingBeneficiaries = budget.beneficiaries || [];
+    const beneficiariesFromPayload = data.beneficiaries || [];
+
     await budget.set({
       expiry: data.expiry,
       threshold: data.threshold,
@@ -220,6 +243,40 @@ export default class BudgetService {
       priority: data.priority,
     }).save()
 
+
+    try {
+      // send benficiary added and removed emails
+      const filteredAddedBeneficiaries = beneficiariesFromPayload.filter(newBeneficiary => !existingBeneficiaries.map(x => x.user.toString()).includes(newBeneficiary.user))
+      const filteredRemovedBeneficiaries = existingBeneficiaries.filter(existingBeneficiary => !data.beneficiaries.map(x => x.user).includes(existingBeneficiary.user.toString()))
+
+      const addedBeneficiaries = await Promise.all(filteredAddedBeneficiaries.map((beneficiary: BeneficiaryDto) => {
+        return User.findById(beneficiary.user).lean()
+      }))
+      const removedBeneficiaries = await Promise.all(filteredRemovedBeneficiaries.map((beneficiary: {
+        user: ObjectId;
+        allocation: number
+      }) => {
+        return User.findById(beneficiary.user).lean()
+      }))
+      addedBeneficiaries.forEach((beneficiary) => {
+        const iUser = filteredAddedBeneficiaries.find(b => b.user === beneficiary!._id.toString())
+        return beneficiary && this.emailService.sendBudgetBeneficiaryAdded(beneficiary?.email, {
+          employeeName: beneficiary.firstName,
+          budgetName: budget!.name,
+          budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+          amountAllocated: iUser?.allocation || 0
+        })
+      })
+      removedBeneficiaries.forEach((beneficiary) => {
+        return beneficiary && this.emailService.sendBudgetBeneficiaryRemoved(beneficiary?.email, {
+          employeeName: beneficiary.firstName,
+          budgetName: budget!.name,
+          budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`
+        })
+      })
+    } catch (error) {
+      logger.error('Unable to send beneficiary emails', { error })
+    }
     return budget
   }
 
