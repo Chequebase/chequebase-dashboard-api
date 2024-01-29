@@ -14,6 +14,7 @@ import { closeExpiredBudget, fetchExpiredBudgets } from './jobs/budget/close-exp
 import { closeExpiredProject, fetchExpiredProjects } from './jobs/budget/close-expired-project.job';
 import sendAccountStatement from './jobs/wallet/account-statement.job';
 import processRequiredDocuments from './jobs/organization/processRequiredDocuments';
+import processKycApproved from './jobs/organization/processKycApproved';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -23,6 +24,7 @@ setupEventLogger([walletQueue, subscriptionQueue])
 function setupQueues() {
   try {
     organizationQueue.process('processRequiredDocuments', processRequiredDocuments)
+    organizationQueue.process('processKycApproved', processKycApproved)
 
     walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 5, processWalletInflow)
