@@ -118,12 +118,8 @@ export class UserService {
       otpExpiresAt,
       otp
     })
-
-    console.log({ session: req.session })
     req.session.user = user.id
     req.session.save()
-
-    console.log({ session: req.session })
 
     const isOwner = user.role === Role.Owner
     this.emailService.sendOtpEmail(user.email, {
