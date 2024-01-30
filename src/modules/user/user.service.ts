@@ -80,7 +80,7 @@ export class UserService {
     return { message: "User created, check your email for verification link" };
   }
 
-  async login(data: LoginDto, req: any) {
+  async login(data: LoginDto, req: Request) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i")
     const user = await User.findOne({
       email: { $regex },
@@ -119,7 +119,7 @@ export class UserService {
       otp
     })
 
-    req.session.userId = user.id
+    console.log({ session: req.session })
 
     const isOwner = user.role === Role.Owner
     this.emailService.sendOtpEmail(user.email, {
