@@ -114,12 +114,11 @@ export class UserService {
     const otpExpiresAt = this.getOtpExpirationDate(10)
 
     await user.updateOne({
+      hashRt: '',
       rememberMe: data.rememberMe,
       otpExpiresAt,
       otp
     })
-    req.session.user = user.id
-    req.session.save()
 
     const isOwner = user.role === Role.Owner
     this.emailService.sendOtpEmail(user.email, {
