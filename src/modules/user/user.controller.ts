@@ -26,8 +26,8 @@ export default class UserController {
   }
 
   @Post('/login')
-  login(@Body() loginDto: LoginDto, @Req() req: Request) {
-    return this.userService.login(loginDto, req);
+  login(@Body() loginDto: LoginDto) {
+    return this.userService.login(loginDto);
   }
 
   @Post('/resend-otp')

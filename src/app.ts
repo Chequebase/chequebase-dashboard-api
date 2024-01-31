@@ -20,17 +20,10 @@ import BudgetController from './modules/budget/budget.controller';
 import { OverviewController } from './modules/overview/overview.controller';
 import SettingsController from './modules/settings/settings.controller';
 import BanksphereController from './modules/banksphere/banksphere.controller';
-import session from 'express-session';
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
 const app = express();
-app.use(session({
-  secret: 'asxnrufhgki7s35x9',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 60000 }
-}))
 app.use(hpp());
 app.set("trust proxy", true);
 app.use(helmet());

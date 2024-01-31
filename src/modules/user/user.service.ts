@@ -80,7 +80,7 @@ export class UserService {
     return { message: "User created, check your email for verification link" };
   }
 
-  async login(data: LoginDto, req: any) {
+  async login(data: LoginDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i")
     const user = await User.findOne({
       email: { $regex },
@@ -371,8 +371,6 @@ export class UserService {
     await User.updateOne({ _id: userId }, {
       hashRt: ''
     })
-    req.session.destroy((err) => {
-    });
     return { message: 'logout out' }
   }
 

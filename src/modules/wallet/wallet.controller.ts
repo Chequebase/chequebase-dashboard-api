@@ -21,8 +21,7 @@ export default class WalletController {
 
   @Get('/')
   @Authorized()
-  getWallets(@CurrentUser() auth: AuthUser, @Req() req: Request) {
-    console.log({ session: req.session })
+  getWallets(@CurrentUser() auth: AuthUser) {
     return this.walletService.getWallets(auth.orgId)
   }
 
