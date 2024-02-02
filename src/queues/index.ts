@@ -1,7 +1,16 @@
-import Queue from 'bull';
+import Queue, { QueueOptions } from 'bull';
 
 const REDIS_HOST = process.env.REDIS_HOST || 'redis://0.0.0.0';
 
-export const organizationQueue = new Queue('cqb_organization', REDIS_HOST);
-export const paymentInflowQueue = new Queue('cqb_paymentInflow', REDIS_HOST);
-export const paymentOutflowQueue = new Queue('cqb_paymentOutflow', REDIS_HOST);
+const queueOpts: QueueOptions = {
+  defaultJobOptions: {
+    removeOnComplete: {
+      age: 86_400 // 24 hours,
+    },
+  }
+}
+
+export const organizationQueue = new Queue('cqb_organization', REDIS_HOST, queueOpts);
+export const walletQueue = new Queue('cqb_wallet', REDIS_HOST, queueOpts);
+export const budgetQueue = new Queue('cqb_budget', REDIS_HOST, queueOpts)
+export const subscriptionQueue = new Queue('cqb_subscription', REDIS_HOST, queueOpts)

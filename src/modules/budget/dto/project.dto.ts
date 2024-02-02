@@ -1,0 +1,127 @@
+import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from "class-validator"
+import { Type } from "class-transformer"
+import { ObjectId } from 'mongodb'
+import { ClientSession } from "mongoose"
+import { BudgetPriority } from "@/models/budget.model"
+import { IProject, ProjectCurrency, ProjectStatus } from "@/models/project.model"
+import { IWallet } from "@/models/wallet.model"
+import { BeneficiaryDto } from "./budget.dto"
+
+import { AuthUser } from "@/modules/common/interfaces/auth-user"
+
+export class ProjectSubBudget {
+  @IsString()
+  name: string
+
+  @IsString()
+  @IsOptional()
+  description: string
+
+  @IsInt()
+  amount: number
+
+  @IsInt()
+  @IsOptional()
+  threshold?: number
+
+  @IsDateString()
+  @IsOptional()
+  expiry?: Date
+
+  @IsEnum(BudgetPriority)
+  @IsOptional()
+  priority = BudgetPriority.Medium
+
+  @Type(() => BeneficiaryDto)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  beneficiaries: BeneficiaryDto[]
+}
+
+export class CreateProjectDto {
+  @IsString()
+  pin: string
+
+  @IsString()
+  name: string
+
+  @IsInt()
+  amount: number
+
+  @IsInt()
+  @IsOptional()
+  threshold?: number
+
+  @IsDateString()
+  @IsOptional()
+  expiry?: Date
+
+  @IsString()
+  @IsEnum(ProjectCurrency)
+  currency: ProjectCurrency
+
+  @Type(() => ProjectSubBudget)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @IsOptional()
+  budgets: ProjectSubBudget[]
+}
+
+export class GetProjectsDto {
+  @IsInt()
+  @Min(1)
+  page = 1
+
+  @IsInt()
+  limit = 10
+
+  @IsEnum(ProjectStatus)
+  @IsOptional()
+  status: ProjectStatus
+
+  @IsString()
+  @IsOptional()
+  beneficiary: string
+}
+
+export interface CreateSubBudgets {
+  auth: AuthUser
+  project: IProject
+  wallet: IWallet
+  budgets: ProjectSubBudget[]
+  session: ClientSession
+}
+
+export class PauseProjectDto {
+  @IsString()
+  pin: string
+
+  @IsBoolean()
+  @IsOptional()
+  pause = true
+}
+
+export class CloseProjectBodyDto {
+  @IsString()
+  reason: string
+
+  @IsString()
+  pin: string
+}
+
+export class AddSubBudgets {
+  @IsString()
+  pin: string
+
+  @Type(() => ProjectSubBudget)
+  @ValidateNested({ each: true })
+  @IsArray()
+  budgets: ProjectSubBudget[]
+}
+
+export class InitiateProjectClosure {
+  projectId: string | ObjectId
+  userId?: string
+  reason: string
+}

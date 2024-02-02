@@ -1,7 +1,10 @@
-import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty } from 'class-validator';
+import { UserStatus } from '@/models/user.model';
+import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum, IsInt, Min } from 'class-validator';
 
 export enum Role {
-  Owner = 'owner'
+  Owner = 'owner',
+  Cfo = 'cfo',
+  Employee = 'employee'
 }
 
 export class RegisterDto {
@@ -12,8 +15,18 @@ export class RegisterDto {
   businessName: string
 
   @IsString()
+  firstName: string
+
+  @IsString()
+  lastName: string
+
+  @IsString()
   @MinLength(6)
   password: string;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 }
 
 export class LoginDto {
@@ -72,4 +85,86 @@ export class OtpDto {
 
   @IsString()
   otp: string
+}
+
+export class CreateEmployeeDto {
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @IsOptional()
+  phone: string;
+
+  @IsString()
+  @IsEnum(Role)
+  role: Role;
+}
+
+export class AddEmployeeDto {
+  @IsString()
+  @IsNotEmpty()
+  code: string
+
+  @IsString()
+  @IsNotEmpty()
+  firstName: string
+
+  @IsString()
+  @IsNotEmpty()
+  lastName: string
+
+  @IsString()
+  @IsNotEmpty()
+  phone: string
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  password: string
+}
+
+export class UpdateEmployeeDto {
+  @IsString()
+  @IsOptional()
+  firstName: string;
+
+  @IsString()
+  @IsOptional()
+  lastName: string;
+
+  @IsString()
+  @IsOptional()
+  email: string;
+
+  @IsString()
+  @IsOptional()
+  phone: string;
+
+  @IsString()
+  @IsEnum(Role)
+  @IsOptional()
+  role: Role;
+}
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  phone: string;
+}
+
+export class GetMembersQueryDto {
+  @IsInt()
+  @Min(1)
+  page: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  limit = 10
+
+  @IsOptional()
+  @IsString()
+  status: string;
 }

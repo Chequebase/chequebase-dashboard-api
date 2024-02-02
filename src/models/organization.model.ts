@@ -1,9 +1,20 @@
-import { cdb } from '@/common/mongoose';
-import { ObjectId, Schema } from 'mongoose';
+import { cdb } from '@/modules/common/mongoose';
+import mongoose, { Schema } from 'mongoose';
+import { ObjectId } from 'mongodb'
+import { ISubscription } from './subscription.model';
+import { IUser } from './user.model';
+import { ISubscriptionPlan } from './subscription-plan.model';
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
+
+export enum BillingMethod {
+  Wallet = 'wallet',
+  Paystack = 'paystack'
+}
 
 export interface Shareholder {
   id: string
-  title: string
+  title: string[]
   firstName: string
   lastName: string
   address: string
@@ -20,9 +31,32 @@ export interface Shareholder {
   phone: string
 }
 
+export interface RequiredDocuments {
+  documentId: string
+  documentType: string
+  documentKind: string
+  textValue: string
+  submitted: boolean
+  verified: boolean
+  url: string
+}
+
+export interface Anchor {
+  requiredDocuments: RequiredDocuments[]
+  customerId: string
+  verified: boolean
+}
+
 export interface IOrganization {
   _id: ObjectId
-  admin: ObjectId
+  admin: ObjectId | IUser
+  subscription: {
+    billingMethod: BillingMethod,
+    months: number // 1|12
+    gracePeriod: number
+    nextPlan: ObjectId | ISubscriptionPlan
+    object: ObjectId | ISubscription
+  }
   averageMonthlyExpenses: string
   bnNumber: string
   businessIndustry: string
@@ -33,20 +67,25 @@ export interface IOrganization {
   address: string
   email: string,
   status: string
+  tin: string,
+  businessNumber: string,
+  rcNumber: string,
+  cacItNumber: string,
   numberOfEmployees: string
-  documents: {[key: string]: string}
+  documents: { [key: string]: string }
+  anchorCustomerId: string
   phone: string
   postalCode: string
   regDate: string
   state: string
-  directors: Shareholder[]
   owners: Shareholder[]
+  anchor?: Anchor
   createdAt: Date;
   updatedAt: Date;
 }
 
 const shareholderSchema = new Schema<Shareholder>({
-  title: String,
+  title: [String],
   firstName: String,
   lastName: String,
   address: String,
@@ -63,9 +102,33 @@ const shareholderSchema = new Schema<Shareholder>({
   phone: String,
 })
 
+const requiredDocumentsSchema = new Schema<RequiredDocuments>({
+  documentId: String,
+  documentType: String,
+  documentKind: String,
+  textValue: String,
+  submitted: Boolean,
+  verified: Boolean,
+  url: String
+})
+
+const anchorSchema = new Schema<Anchor>({
+  requiredDocuments: [requiredDocumentsSchema],
+  customerId: String,
+  verified: Boolean
+})
+
+interface OrganizationModel extends
+  mongoose.PaginateModel<IOrganization>,
+  mongoose.AggregatePaginateModel<IOrganization> { }
+
 const organizationSchma = new Schema<IOrganization>(
   {
-    admin: { type: Schema.Types.ObjectId, required: true },
+    admin: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
     averageMonthlyExpenses: String,
     bnNumber: String,
     businessIndustry: String,
@@ -82,12 +145,39 @@ const organizationSchma = new Schema<IOrganization>(
     postalCode: String,
     regDate: String,
     state: String,
-    directors: [shareholderSchema],
+    tin: String,
+    businessNumber: String,
+    rcNumber: String,
+    cacItNumber: String,
     owners: [shareholderSchema],
+    anchorCustomerId: String,
+    anchor: anchorSchema,
+    subscription: {
+      _id: false,
+      type: {
+        billingMethod: {
+          type: String,
+          enum: Object.values(BillingMethod),
+        },
+        months: { type: Number, default: 1 }, // 1|12
+        gracePeriod: { type: Number, default: 3 },
+        nextPlan: {
+          type: Schema.Types.ObjectId,
+          ref: 'SubscriptionPlan'
+        },
+        object: {
+          type: Schema.Types.ObjectId,
+          ref: 'Subscription'
+        }
+      }
+    },
   },
   { timestamps: true },
 );
 
-const Organization = cdb.model<IOrganization>('Organization', organizationSchma);
+organizationSchma.plugin(aggregatePaginate);
+organizationSchma.plugin(mongoosePaginate);
+
+const Organization = cdb.model<IOrganization, OrganizationModel>('Organization', organizationSchma);
 
 export default Organization

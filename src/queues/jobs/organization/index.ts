@@ -1,6 +1,6 @@
-import { AnchorService } from "@/common/anchor.service";
-import Logger from "@/common/utils/logger";
-import { IOrganization } from "@/models/organization.model";
+import { AnchorService } from "@/modules/common/anchor.service";
+import Logger from "@/modules/common/utils/logger";
+import Organization, { IOrganization } from "@/models/organization.model";
 import { Job } from "bull";
 import Container from "typedi";
 
@@ -11,13 +11,26 @@ async function processOrganizationEventHandler(job: Job) {
   const event = job.data;
 
   try {
-    switch (event.eventType) {
-      case 'customer.created': {
-        await createCustomerOnAnchor(event.data);
+    console.log({ event })
+    switch (event.type) {
+      // case 'customer.created': {
+      //   await createCustomerOnAnchor(event.data);
+      //   break;
+      // }
+      // case 'customer.updated': {
+      //   await updateCustomerOnAnchor(event.data);
+      //   break;
+      // }
+      case 'customer.identification.awaitingDocument': {
+        await saveRequiredDocuments(event);
         break;
       }
-      case 'customer.updated': {
-        await updateCustomerOnAnchor(event.data);
+      case 'document.approved': {
+        await saveRequiredDocuments(event.data);
+        break;
+      }
+      case 'document.rejected': {
+        await saveRequiredDocuments(event.data);
         break;
       }
       default: {
@@ -68,37 +81,12 @@ function transformGetAnchorCustomerData(org: IOrganization) {
         firstName: org.owners[0].firstName,
         lastName: org.owners[0].lastName,
       },
-      bvn: org.bnNumber,
+      bvn: org.owners[0].bvn,
     },
     officers: [],
   };
 
-  // Transform directors and add to officers array
-  if ((org.directors && org.directors.length > 0) || (org.owners && org.owners.length > 0)) {
-    const directors = org.directors.map((director) => ({
-      role: director.title,
-      fullName: {
-        firstName: director.firstName,
-        lastName: director.lastName,
-      },
-      dateOfBirth: director.dob,
-      email: director.email,
-      phoneNumber: director.phone,
-      nationality: director.country,
-      address: {
-        addressLine_1: director.address,
-        country: director.country,
-        city: director.city,
-        postalCode: director.postalCode,
-        state: director.state,
-      },
-      bvn: director.bvn,
-      percentOwned: parseFloat(director.percentOwned as any),
-      title: director.title,
-      identificationType: director.idType,
-      idDocumentNumber: director.idNumber,
-    }));
-
+  if (org.owners && org.owners.length > 0) {
     const owners = org.owners.map((owner) => ({
       role: owner.title,
       fullName: {
@@ -123,7 +111,7 @@ function transformGetAnchorCustomerData(org: IOrganization) {
       idDocumentNumber: owner.idNumber,
     }));
     
-    transformedData.officers = [...owners, ...directors]
+    transformedData.officers = [...owners]
   }
 
   return transformedData;
@@ -131,6 +119,11 @@ function transformGetAnchorCustomerData(org: IOrganization) {
 
 async function updateCustomerOnAnchor(event: any) {
   console.log('Processing Customer Created Event', { event })
+  return event
+}
+
+async function saveRequiredDocuments(event: any) {
+  console.log('Processing customer.identification.awaitingDocument Event', { event })
   return event
 }
 

@@ -4,8 +4,8 @@ import { ForbiddenError, NotFoundError } from 'routing-controllers';
 import { v4 as uuid } from 'uuid'
 import { Service } from 'typedi';
 import { OwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
-import { S3Service } from '@/common/aws/s3.service';
-import { getEnvOrThrow } from '@/common/utils';
+import { S3Service } from '@/modules/common/aws/s3.service';
+import { getEnvOrThrow } from '@/modules/common/utils';
 import { organizationQueue } from '@/queues';
 
 @Service()
@@ -56,9 +56,10 @@ export class OrganizationsService {
       throw new NotFoundError(`Organization with id ${id} not found`)
     }
 
-    if (!organization.admin) {
+    if (organization.admin) {
       await Promise.all([
-        organization.updateOne({ ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED }),
+        organization.updateOne({ ...kycDto, registrationDate: kycDto.regDate,
+          regDate: kycDto.regDate,status: KycStatus.COPMANY_INFO_SUBMITTED }),
         User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.COPMANY_INFO_SUBMITTED })
       ])
       return { ...organization.toObject(), ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED };
@@ -75,28 +76,20 @@ export class OrganizationsService {
 
     if (organization.admin) {
       const owners: any[] = organization?.owners || []
-      const directors: any[] = organization?.directors || []
-      const ownerIdOrDirectorId = kycDto?.id || uuid()
-      const existingOwnerIndex = owners.findIndex((x) => x.id === ownerIdOrDirectorId);
-      const existingDirectorIndex = directors.findIndex((x) => x.id === ownerIdOrDirectorId);
-
-      if (kycDto?.percentOwned) {
-        if (existingOwnerIndex !== -1) {
-          owners[existingOwnerIndex] = { ...kycDto, id: ownerIdOrDirectorId };
-        } else {
-          owners.push({ ...kycDto, id: ownerIdOrDirectorId });
-        }
+      const ownerId = kycDto?.id || uuid()
+      const existingOwnerIndex = owners.findIndex((x) => x.id === ownerId);
+      const modifiedTitles = kycDto.title.map((t: string) => {
+        if (t === 'Shareholder') return 'DIRECTOR'
+        return t.toUpperCase()
+      })
+      if (existingOwnerIndex !== -1) {
+        owners[existingOwnerIndex] = { ...kycDto, id: ownerId, title: modifiedTitles };
       } else {
-        if (existingDirectorIndex !== -1) {
-          directors[existingDirectorIndex] = { ...kycDto, id: ownerIdOrDirectorId };
-        } else {
-          directors.push({ ...kycDto, id: ownerIdOrDirectorId });
-        }
+        owners.push({ ...kycDto, id: ownerId, title: modifiedTitles });
       }
 
       await organization.updateOne({
         owners,
-        directors,
         status: KycStatus.OWNER_INFO_SUBMITTED
       })
 
@@ -116,18 +109,13 @@ export class OrganizationsService {
 
     if (organization.admin) {
       const owners = organization?.owners || []
-      const directors = organization?.directors || []
       const existingOwnerIndex = owners.findIndex((x) => x.id === ownerIdOrDirector.id);
-      const existingDirectorIndex = directors.findIndex((x) => x.id === ownerIdOrDirector.id);
 
       if (existingOwnerIndex !== -1) {
         delete owners[existingOwnerIndex]
       }
-      if (existingDirectorIndex !== -1) {
-        delete directors[existingDirectorIndex]
-      }
 
-      await organization.updateOne({ owners, directors })
+      await organization.updateOne({ owners })
 
       return organization;
     }
@@ -138,7 +126,6 @@ export class OrganizationsService {
   async updateBusinessDocumentation(
     id: string,
     files: any[],/*[utilityBill, businessNameCert],*/
-    data: { bnNumber?: string, regDate: string }
   ) {
     const organization = await Organization.findById(id)
     if (!organization) {
@@ -149,19 +136,16 @@ export class OrganizationsService {
     if (organization.admin) {
       await Promise.all(files.map(async (file) => {
         const key = `documents/${organization.id}/${file.fieldname}`;
-        await this.s3Service.putObject(
+        const url = await this.s3Service.uploadObject(
           getEnvOrThrow('KYB_BUCKET_NAME'),
           key,
           file.buffer
         );
 
-        documents[file.fieldname] = key
+        documents[file.fieldname] = url
       }))
       
       await organization.updateOne({
-        registrationDate: data.regDate,
-        bnNumber: data.bnNumber,
-        regDate: data.regDate,
         documents,
         status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED
       })
@@ -182,7 +166,7 @@ export class OrganizationsService {
       throw new NotFoundError(`Organization with id ${id} not found`)
     }
 
-    if (organization.status === KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED) {
+    if ([KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED, KycStatus.COPMANY_INFO_SUBMITTED, KycStatus.OWNER_INFO_SUBMITTED].includes(organization.status as any)) {
       await organization.updateOne({ status: KycStatus.COMPLETED })
       await User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.COMPLETED })
 

@@ -1,12 +1,4 @@
-import { IsString, MinLength, IsOptional, IsEmail, IsNumber } from "class-validator";
-
-export class UpdateBusinessDocumentationDto {
-  @IsString()
-  bnNumber: string;
-
-  @IsString()
-  regDate: string;
-}
+import { IsString, MinLength, IsOptional, IsEmail, IsNumber, IsArray } from "class-validator";
 
 export class UpdateCompanyInfoDto {
   @IsString()
@@ -36,16 +28,30 @@ export class UpdateCompanyInfoDto {
   readonly state: string;
 
   @IsString()
-  readonly numberOfEmployees: string;
-
-  @IsString()
-  readonly averageMonthlyExpenses: string;
-
-  @IsString()
   postalCode: string
+
+  @IsOptional()
+  @IsString()
+  tin: string
+
+  @IsOptional()
+  @IsString()
+  businessNumber: string
+
+  @IsOptional()
+  @IsString()
+  rcNumber: string
+
+  @IsOptional()
+  @IsString()
+  cacItNumber: string
+
+  @IsString()
+  @IsOptional()
+  regDate: string;
 }
 
-export class DirectorDto {
+export class OwnerDto {
   @IsString()
   firstName: string
   @IsString()
@@ -54,12 +60,12 @@ export class DirectorDto {
   phone: string
   @IsString()
   dob: string
-  @IsEmail()
+  @IsOptional()
   @IsString()
   email: string
   @IsOptional()
-  @IsString()
-  title?: string
+  @IsArray()
+  title: string[]
   @IsString()
   country: string
   @IsString()
@@ -79,9 +85,6 @@ export class DirectorDto {
   @IsString()
   @IsOptional()
   id?: string
-}
-
-export class OwnerDto extends DirectorDto {
   @IsNumber()
   @IsOptional()
   percentOwned?: number

@@ -1,5 +1,8 @@
-import { cdb } from '@/common/mongoose';
-import { ObjectId, Schema, model } from 'mongoose';
+import { cdb } from '@/modules/common/mongoose';
+import mongoose, { Schema } from 'mongoose';
+import { ObjectId } from 'mongodb'
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum WalletEntryType {
   Credit = 'credit',
@@ -13,34 +16,71 @@ export enum WalletEntryStatus {
 }
 
 export enum WalletEntryScope {
-  WalletFunding = 'wallet_funding'
+  PlanSubscription = 'plan_subscription',
+  WalletFunding = 'wallet_funding',
+  BudgetTransfer = 'budget_transfer',
+  BudgetFunding = 'budget_funding',
+  BudgetClosure = 'budget_closure',
+  ProjectFunding = 'project_funding',
+  ProjectClosure = 'project_closure',
 }
+
+interface WalletEntryModel extends
+  mongoose.PaginateModel<IWalletEntry>,
+  mongoose.AggregatePaginateModel<IWalletEntry> { }
 
 export interface IWalletEntry {
   _id: ObjectId
   organization: ObjectId
+  budget?: ObjectId
+  project?: ObjectId
   wallet: ObjectId
+  initiatedBy: ObjectId
   currency: string
   type: WalletEntryType
-  balanceBefore: Number
-  balanceAfter: Number
+  balanceBefore: number
+  balanceAfter: number
+  ledgerBalanceBefore: number
+  ledgerBalanceAfter: number
+  amount: number
+  fee: number
   scope: WalletEntryScope
   gatewayResponse: string
   paymentMethod: string
   provider: string
+  // id/ref used for requerying from provider eg verify transfer
+  providerRef: string
   narration: string
   reference: string
   status: WalletEntryStatus
+  meta: { [key: string]: any }
   createdAt: Date;
   updatedAt: Date;
 }
 
 const walletEntrySchema = new Schema<IWalletEntry>(
   {
+    type: {
+      type: String,
+      required: true,
+      enum: Object.values(WalletEntryType)
+    },
     organization: {
       type: Schema.Types.ObjectId,
       required: true,
       ref: 'Organization'
+    },
+    initiatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    budget: {
+      type: Schema.Types.ObjectId,
+      ref: 'Budget'
+    },
+    project: {
+      type: Schema.Types.ObjectId,
+      ref: 'Project'
     },
     wallet: {
       type: Schema.Types.ObjectId,
@@ -52,23 +92,32 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       enum: Object.values(WalletEntryStatus),
       required: true
     },
+    amount: { type: Number, required: true },
     currency: { type: String, required: true },
     balanceAfter: { type: Number, required: true },
     balanceBefore: { type: Number, required: true },
+    ledgerBalanceBefore: { type: Number, required: true },
+    ledgerBalanceAfter: { type: Number, required: true },
     scope: {
       type: String,
       enum: Object.values(WalletEntryScope),
       required: true
     },
+    fee: { type: Number, default: 0 },
     gatewayResponse: String,
     paymentMethod: String,
-    provider: { type: String, required: true },
+    provider: { type: String, required: true, default: 'wallet' },
+    providerRef: { type: String },
     narration: String,
-    reference: { type: String, required: true }
+    reference: { type: String, required: true },
+    meta: Object
   },
   { timestamps: true },
 );
 
-const WalletEntry = cdb.model<IWalletEntry>('WalletEntry', walletEntrySchema);
+walletEntrySchema.plugin(aggregatePaginate);
+walletEntrySchema.plugin(mongoosePaginate);
+
+const WalletEntry = cdb.model<IWalletEntry, WalletEntryModel>('WalletEntry', walletEntrySchema);
 
 export default WalletEntry 
