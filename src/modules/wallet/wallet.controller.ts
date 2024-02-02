@@ -1,10 +1,10 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, Res, UseBefore } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, Req, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import WalletService from "./wallet.service";
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
-import { Response } from "express";
+import { Request, Response } from "express";
 import publicApiGuard from "../common/guards/public-api.guard";
 import { Role } from "../user/dto/user.dto";
 

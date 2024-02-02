@@ -15,6 +15,7 @@ import { PlanUsageService } from "../billing/plan-usage.service";
 import WalletService from "../wallet/wallet.service";
 import { WalletEntryScope } from "@/models/wallet-entry.model";
 import { S3Service } from "../common/aws/s3.service";
+import { Request } from "express";
 
 const logger = new Logger('user-service')
 
@@ -113,6 +114,7 @@ export class UserService {
     const otpExpiresAt = this.getOtpExpirationDate(10)
 
     await user.updateOne({
+      hashRt: '',
       rememberMe: data.rememberMe,
       otpExpiresAt,
       otp
@@ -365,7 +367,7 @@ export class UserService {
     })
   }
 
-  async logout(userId: string) {
+  async logout(userId: string, req: Request) {
     await User.updateOne({ _id: userId }, {
       hashRt: ''
     })

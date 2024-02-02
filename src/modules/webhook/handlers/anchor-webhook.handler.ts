@@ -64,6 +64,20 @@ export default class AnchorWebhookHandler {
     return { message: 'required documents queued' }
   }
 
+  private async onKycApproved(body: any) {
+    const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
+    const jobData: { customerId: string, businessName: string } = {
+      customerId: body.data.relationships.customer.data.id,
+      businessName: businessCustomer.attributes.detail.businessName,
+    }
+
+    await organizationQueue.add('processKycApproved', jobData)
+
+    await this.onKycApprovedNotification(jobData)
+
+    return { message: 'kyc approved queued' }
+  }
+
   private createHmac(body: string) {
     const secret = getEnvOrThrow('ANCHOR_WEBHOOK_SECRET')
     const hash = crypto.createHmac('sha1', secret)
@@ -123,6 +137,12 @@ export default class AnchorWebhookHandler {
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message);
   }
 
+  private async onKycApprovedNotification(notification: { customerId: string, businessName: string }) {
+    const { customerId, businessName } = notification;
+    const message = `${businessName} has been approved on Anchor -- customerId: ${customerId}`;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.compliance, message);
+  }
+
   processWebhook(body: any, headers: any) {
     const expectedHmac = headers['x-anchor-signature']
     const calcuatedHmac = this.createHmac(body)
@@ -142,6 +162,8 @@ export default class AnchorWebhookHandler {
     switch (data.type as  typeof allowedWebooks[number]) {
       case 'customer.identification.awaitingDocument':
         return this.onKycStarted(body)
+      case 'customer.identification.approved':
+        return this.onKycApproved(body)
       case 'payment.settled':
         return this.onPaymentSettled(body)
       case 'nip.transfer.successful':
@@ -164,6 +186,7 @@ const allowedWebooks = [
   "payment.settled",
   "customer.created",
   "customer.identification.awaitingDocument",
+  "customer.identification.approved",
   // "account.closed",
   // "account.frozen",
   // "account.unfrozen",
