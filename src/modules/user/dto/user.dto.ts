@@ -7,6 +7,11 @@ export enum Role {
   Employee = 'employee'
 }
 
+export class PreRegisterDto {
+  @IsEmail()
+  email: string;
+}
+
 export class RegisterDto {
   @IsEmail()
   email: string;
