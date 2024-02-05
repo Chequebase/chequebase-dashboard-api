@@ -50,13 +50,11 @@ export class UserService {
     if (userExists) {
       throw new BadRequestError('Already joined waitlist');
     }
-    const user = await PreRegisterUser.create({
+    await PreRegisterUser.create({
       email: data.email,
     });
 
-    // this.emailService.sendVerifyEmail(data.email, {
-    //   verificationLink: link
-    // })
+    this.emailService.sendPreRegisterEmail(data.email, {})
 
     return { message: "Wailtlist joined, check your email for more details" };
   }
