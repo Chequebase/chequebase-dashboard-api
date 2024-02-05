@@ -64,6 +64,15 @@ export default class EmailService {
     })
   }
 
+  sendPreRegisterEmail(to: string, data: any) {
+    return this.send({
+      to,
+      subject: 'Join Waitlist',
+      templateId: 'd-b72ed79f2bf74bc8a577de4eea115396',
+      dynamicTemplateData: data
+    })
+  }
+
   sendEmailVerified(to: string, data: any) {
     return this.send({
       to,
