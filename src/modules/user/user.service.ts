@@ -7,7 +7,7 @@ import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization, { IOrganization } from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
+import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
@@ -16,6 +16,7 @@ import WalletService from "../wallet/wallet.service";
 import { WalletEntryScope } from "@/models/wallet-entry.model";
 import { S3Service } from "../common/aws/s3.service";
 import { Request } from "express";
+import PreRegisterUser from "@/models/pre-register.model";
 
 const logger = new Logger('user-service')
 
@@ -41,6 +42,23 @@ export class UserService {
     }
     
     return bcrypt.compare(pin, user.pin)
+  }
+
+  async preRegister(data: PreRegisterDto) {
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    const userExists = await User.findOne({ email: { $regex } })
+    if (userExists) {
+      throw new BadRequestError('Already joined waitlist');
+    }
+    const user = await PreRegisterUser.create({
+      email: data.email,
+    });
+
+    // this.emailService.sendVerifyEmail(data.email, {
+    //   verificationLink: link
+    // })
+
+    return { message: "Wailtlist joined, check your email for more details" };
   }
 
   async register(data: RegisterDto) {

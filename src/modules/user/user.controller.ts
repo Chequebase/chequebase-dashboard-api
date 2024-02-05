@@ -1,5 +1,5 @@
 import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from 'routing-controllers';
-import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto } from './dto/user.dto';
+import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto, PreRegisterDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
 import { Service } from 'typedi';
@@ -19,6 +19,15 @@ import { Request } from 'express';
 @JsonController('/auth', { transformResponse: false })
 export default class UserController {
   constructor (private userService: UserService) { }
+
+  @Post('/pre-register')
+  preRegister(@Body() data: PreRegisterDto) {
+    if (!data.email) {
+      throw new BadRequestError('Missing email');
+    }
+
+    return this.userService.preRegister(data);
+  }
 
   @Post('/register')
   register(@Body() registerDto: RegisterDto) {
