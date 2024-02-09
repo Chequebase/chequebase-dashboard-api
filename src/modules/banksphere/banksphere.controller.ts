@@ -1,14 +1,38 @@
-import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Post, Put, QueryParams, UseBefore } from 'routing-controllers';
+import { Authorized, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Post, Put, QueryParams, UseBefore } from 'routing-controllers';
 import { BanksphereService } from './banksphere.service';
 import { Service } from 'typedi';
-import { AddTeamMemberDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
+import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
 import publicApiGuard from '../common/guards/public-api.guard';
 import { AuthUser } from '../common/interfaces/auth-user';
+import { verifyToken } from '@/modules/common/middlewares/rbac.middleware';
+import { getEnvOrThrow } from '../common/utils';
 
 @Service()
 @JsonController('/admin', { transformResponse: false })
 export default class BanksphereController {
   constructor (private readonly banksphereService: BanksphereService) { }
+
+  @Post('/login')
+  login(@Body() loginDto: BankSphereLoginDto) {
+    return this.banksphereService.login(loginDto);
+  }
+
+  @Post('/resend-otp')
+  sendOtp(@Body() otpDto: BankSphereResendOtpDto) {
+    return this.banksphereService.resendOtp(otpDto);
+  }
+
+  @Post('/verify-otp')
+  verifyOtp(@Body() verifyOtpDto: BankSphereOtpDto) {
+    return this.banksphereService.verifyOtp(verifyOtpDto);
+  }
+
+  @Post('/refresh')
+  async refreshToken(@HeaderParam('Authorization') authHeader: string) {
+    const refreshToken = authHeader?.split("Bearer ")?.pop()!
+    const auth = verifyToken(refreshToken, getEnvOrThrow('REFRESH_TOKEN_SECRET')) as AuthUser
+    return this.banksphereService.refreshToken(auth.userId, refreshToken!);
+  }
 
   @Post('/compliance/submit-requirements')
   @UseBefore(publicApiGuard)

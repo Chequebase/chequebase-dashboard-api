@@ -5,6 +5,28 @@ import { IsString, IsOptional, IsInt, Min, IsEnum, IsBoolean, IsEmail, IsNotEmpt
 export enum BanksphereRole {
   Admin = 'admin',
 }
+
+export class BankSphereLoginDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+}
+
+export class BankSphereResendOtpDto {
+  @IsEmail()
+  email: string
+}
+
+export class BankSphereOtpDto {
+  @IsEmail()
+  email: string
+
+  @IsString()
+  otp: string
+}
 export class GetAccountsDto {
   @IsInt()
   @Min(1)
