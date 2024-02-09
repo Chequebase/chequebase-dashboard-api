@@ -2,9 +2,9 @@ import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
 // import { ObjectId } from 'mongodb'
 import { S3Service } from '@/modules/common/aws/s3.service';
-import { AddTeamMemberDto, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
+import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
-import { BadRequestError, NotFoundError } from 'routing-controllers';
+import { BadRequestError, NotFoundError, UnauthorizedError } from 'routing-controllers';
 import Organization, { RequiredDocuments } from '@/models/organization.model';
 import { escapeRegExp, getEnvOrThrow } from '../common/utils';
 import ProviderRegistry from './provider-registry';
@@ -34,6 +34,127 @@ export class BanksphereService {
     private s3Service: S3Service,
     // private sqsClient: SqsClient
   ) { }
+
+  async login(data: BankSphereLoginDto) {
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i")
+    const user = await User.findOne({
+      email: { $regex },
+      status: { $nin: [UserStatus.DELETED, UserStatus.DISABLED] },
+      role: BanksphereRole.Admin
+    }).select('+password')
+    if (!user) {
+      throw new UnauthorizedError('Wrong login credentials!')
+    }
+    if (!await compare(data.password, user.password)) {
+      throw new UnauthorizedError('Wrong login credentials!')
+    }
+
+    // const returnRememberMe = data.rememberMe ? true : user?.rememberMe
+    // if (user?.rememberMe) {
+    //   //password match
+    //   const tokens = await this.getTokens(user.id, user.email, organization.id);
+    //   await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    //   await user.updateOne({
+    //     rememberMe: data.rememberMe,
+    //   })
+    //   return { tokens, userId: user.id, rememberMe: true }
+    // }
+
+    // const expirationDate = this.getRememberMeExpirationDate(data)
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiresAt = this.getOtpExpirationDate(10)
+
+    await user.updateOne({
+      hashRt: '',
+      otpExpiresAt,
+      otp
+    })
+
+    this.emailService.sendOtpEmail(user.email, {
+      customerName: user.firstName,
+      otp
+    })
+
+    return { userId: user.id }
+  }
+
+  getOtpExpirationDate(minutes: number) {
+    const optExpriresAt = new Date();
+    optExpriresAt.setUTCMinutes(optExpriresAt.getUTCMinutes() + minutes);
+    return optExpriresAt.getTime();
+  }
+
+  async resendOtp(data: BankSphereResendOtpDto) {
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    const user = await User.findOne({ email: { $regex },
+      status: { $nin: [UserStatus.DELETED, UserStatus.DISABLED] },
+      role: BanksphereRole.Admin
+    })
+    if (!user) {
+      throw new UnauthorizedError('No user found')
+    }
+
+    if (user.otpExpiresAt && user.otpExpiresAt > new Date().getTime() && user.otp) {
+      const otp = user.otp
+      this.emailService.sendOtpEmail(user.email, {
+        customerName: user.firstName,
+        otp
+      })
+
+      return { message: 'OTP sent!' };
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiresAt = this.getOtpExpirationDate(10)
+
+    await user.updateOne({ otp, otpExpiresAt })
+    this.emailService.sendOtpEmail(user.email, {
+      customerName: user.firstName,
+      otp
+    })
+
+    return { message: 'OTP sent!' };
+  }
+
+  async verifyOtp(data: BankSphereOtpDto) {
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    const user = await User.findOne({ email: { $regex } })
+    if (!user) {
+      throw new UnauthorizedError('No user found')
+    }
+
+    // modify this to check for 10mins validity
+    let checkOTP = (userHash: string, hash: string) => Number(userHash) === Number(hash);
+    const otpExpiresAtTimestamp = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
+    const isValid = checkOTP(user.otp, data.otp) && otpExpiresAtTimestamp > new Date().getTime();
+
+    if (!isValid) {
+      throw new UnauthorizedError(`Invalid Otp`);
+    }
+
+    const tokens = await this.getTokens({ userId: user.id, email: user.email, role: user.role });
+    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    return { tokens, userId: user.id }
+  }
+
+  async refreshToken(userId: string, rt: string) {
+    const user = await User.findById(userId)
+    if (!user) {
+      throw new UnauthorizedError('Wrong token!');
+    }
+
+    const isRefreshTokenMatch = await compare(rt, user.hashRt);
+    if (!isRefreshTokenMatch) {
+      throw new UnauthorizedError('Wrong token!');
+    }
+
+    const tokens = await this.getTokens({ userId: user.id, email: user.email, role: user.role });
+    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    return tokens;
+  }
+
 
   async getAccounts(query: GetAccountsDto) {
     const filter = new QueryFilter()
@@ -372,19 +493,19 @@ export class BanksphereService {
       KYBStatus: KycStatus.APPROVED
     }).save()
 
-    const tokens = await this.getTokens(user.id, user.email);
+    const tokens = await this.getTokens({ userId: user.id, email: user.email, role: user.role });
     await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
     return { tokens, userId: user.id }
   }
 
-  async getTokens(userId: string, email: string) {
+  async getTokens(user: { userId: string, email: string, role: string }) {
     const accessSecret = getEnvOrThrow('ACCESS_TOKEN_SECRET')
     const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
     const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
     const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
-    const payload = { sub: userId, email, userId }
+    const payload = { sub: user.userId, email: user.email, userId: user.userId, role: user.role }
     
     return {
       access_token: jwt.sign(payload, accessSecret, { expiresIn: accessExpiresIn }),
