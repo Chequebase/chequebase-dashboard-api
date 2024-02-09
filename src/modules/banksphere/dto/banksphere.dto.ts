@@ -3,9 +3,7 @@ import { Role } from "@/modules/user/dto/user.dto";
 import { IsString, IsOptional, IsInt, Min, IsEnum, IsBoolean, IsEmail, IsNotEmpty, MinLength } from "class-validator";
 
 export enum BanksphereRole {
-  Owner = 'owner',
-  Cfo = 'cfo',
-  Employee = 'employee'
+  Admin = 'admin',
 }
 export class GetAccountsDto {
   @IsInt()
