@@ -43,9 +43,11 @@ export class BanksphereService {
       role: BanksphereRole.Admin
     }).select('+password')
     if (!user) {
+      console.log({ user })
       throw new UnauthorizedError('Wrong login credentials!')
     }
     if (!await compare(data.password, user.password)) {
+      console.log({ data })
       throw new UnauthorizedError('Wrong login credentials!')
     }
 

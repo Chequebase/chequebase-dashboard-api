@@ -217,7 +217,7 @@ export class UserService {
       throw new UnauthorizedError(`Invalid Otp`);
     }
 
-    const tokens = await this.getTokens(user.id, user.email, organization.id);
+    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
     await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     return { tokens, userId: user.id }
@@ -239,7 +239,7 @@ export class UserService {
       throw new UnauthorizedError('Wrong token!');
     }
 
-    const tokens = await this.getTokens(user.id, user.email, organization.id);
+    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
     await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     return tokens;
@@ -418,12 +418,12 @@ export class UserService {
     return { ...user, pin: undefined, pinSet }
   }
 
-  async getTokens(userId: string, email: string, orgId: string) {
+  async getTokens(user: { userId: string, email: string, orgId: string, role: string }) {
     const accessSecret = getEnvOrThrow('ACCESS_TOKEN_SECRET')
     const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
     const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
     const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
-    const payload: AuthUser = { sub: userId, email, userId, orgId }
+    const payload: AuthUser = { sub: user.userId, email: user.email, userId: user.userId, orgId: user.orgId, role: user.role }
     
     return {
       access_token: jwt.sign(payload, accessSecret, { expiresIn: accessExpiresIn }),
@@ -513,7 +513,7 @@ export class UserService {
       KYBStatus: KycStatus.APPROVED
     }).save()
 
-    const tokens = await this.getTokens(user.id, user.email, user.organization.toString());
+    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: user.organization.toString(), role: user.role });
     await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
