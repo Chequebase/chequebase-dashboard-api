@@ -44,6 +44,7 @@ export default class AnchorWebhookHandler {
 
   private async onKycStarted(body: any) {
     const data = body.included
+    console.log({ data, body })
 
     const requiredDocuments: KYCProviderData[] = data.map((document: any) => {
       return {
@@ -152,8 +153,8 @@ export default class AnchorWebhookHandler {
     }
 
     body = JSON.parse(body)
-    let { data } = body;
-    data = data || body
+    const { data } = body;
+    console.log({ data, body })
     if (!allowedWebooks.includes(data.type)) {
       this.logger.log('event type not allowed', { event: data.type })
       return { message: 'webhook_logged' }
