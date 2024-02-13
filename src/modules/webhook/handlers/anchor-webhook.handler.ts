@@ -231,9 +231,9 @@ export default class AnchorWebhookHandler {
       case 'customer.identification.rejected':
         return this.onKycRejected(body)
       case 'document.approved':
-          return this.onDocumentApproved(body)
+        return this.onDocumentApproved(body)
       case 'document.rejected':
-          return this.onDocumentRejected(body)
+        return this.onDocumentRejected(body)
       case 'payment.settled':
         return this.onPaymentSettled(body)
       case 'nip.transfer.successful':
