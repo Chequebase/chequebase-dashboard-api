@@ -17,6 +17,7 @@ import { WalletEntryScope } from "@/models/wallet-entry.model";
 import { S3Service } from "../common/aws/s3.service";
 import { Request } from "express";
 import PreRegisterUser from "@/models/pre-register.model";
+import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 
 const logger = new Logger('user-service')
 
@@ -25,7 +26,8 @@ export class UserService {
   constructor (
     private s3Service: S3Service,
     private emailService: EmailService,
-    private planUsageService: PlanUsageService
+    private planUsageService: PlanUsageService,
+    private slackNotificationService: SlackNotificationService
   ) { }
 
   static async verifyTransactionPin(id: string, pin: string) {
@@ -53,6 +55,9 @@ export class UserService {
     await PreRegisterUser.create({
       email: data.email,
     });
+
+    const message = `${data.email} just signed up on waitlist`;
+    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
 
     this.emailService.sendPreRegisterEmail(data.email, {})
 
