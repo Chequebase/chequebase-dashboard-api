@@ -10,7 +10,7 @@ import { escapeRegExp, getEnvOrThrow } from '../common/utils';
 import ProviderRegistry from './provider-registry';
 import { ServiceUnavailableError } from '../common/utils/service-errors';
 import Logger from '../common/utils/logger';
-import { CustomerClient, KycValidation, UploadCustomerDocuments } from './providers/customer.client';
+import { BaseWalletType, CustomerClient, CustomerClientName, KycValidation, UploadCustomerDocuments } from './providers/customer.client';
 import WalletService from '../wallet/wallet.service';
 import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 import EmailService from '../common/email.service';
@@ -217,6 +217,32 @@ export class BanksphereService {
       }
   }
 
+  async updateCustomer(data: CreateCustomerDto) {
+    const organization = await Organization.findById(data.organization).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+      try {
+        const provider = data.provider || CustomerClientName.Anchor
+        const token = ProviderRegistry.get(data.provider || CustomerClientName.Anchor)
+        if (!token) {
+          this.logger.error('provider not found', { provider: data.provider })
+          throw new ServiceUnavailableError('Provider is not unavailable')
+        }
+  
+        const client = Container.get<CustomerClient>(token)
+
+        const result = await client.updateCustomer({ organization, provider })
+        return result
+      } catch (err: any) {
+        this.logger.error('error updating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
+  
+        throw {
+          status: 'failed',
+          message: 'Update Customer Failure, could not update customer',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
   async approveAccount(accountId: string) {
     const organization = await Organization.findById(accountId).lean()
     if (!organization) throw new NotFoundError('Organization not found')
@@ -226,7 +252,8 @@ export class BanksphereService {
         await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.APPROVED })
         await Organization.updateOne({ _id: organization._id }, { status: KycStatus.APPROVED })
         // TODO: hard coding base wallet for now
-        await this.walletService.createWallet({ baseWallet: "655e8555fbc87e717fba9a98", provider: VirtualAccountClientName.Anchor, organization: accountId })
+        // TODO: check if anchor is verified first
+        await this.walletService.createWallet({ baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.Anchor, organization: accountId })
         this.emailService.sendKYCApprovedEmail(admin.email, {
           loginLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/signin`,
           businessName: organization.businessName
@@ -238,6 +265,31 @@ export class BanksphereService {
         return {
           status: 'failed',
           message: 'Approve Account Failure, could not approve account',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
+  async rejectAccount(accountId: string, reason: string) {
+    const organization = await Organization.findById(accountId).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+    const admin = await User.findById(organization.admin).lean()
+    if (!admin) throw new NotFoundError('Admin not found')
+      try {
+        await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.REJECTED })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.REJECTED, kycRejectReason: reason })
+        this.emailService.sendKYCRejectedEmail(admin.email, {
+          loginLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/signin`,
+          businessName: organization.businessName,
+          reason 
+        })
+        return 'rejected'
+      } catch (err: any) {
+        this.logger.error('error rejecting customer', { payload: JSON.stringify({ organization }), reason: err.message })
+  
+        return {
+          status: 'failed',
+          message: 'Reject Account Failure, could not reject account',
           gatewayResponse: err.message
         }
       }

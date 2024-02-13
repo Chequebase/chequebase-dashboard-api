@@ -1,7 +1,7 @@
 import { Authorized, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Post, Put, QueryParams, UseBefore } from 'routing-controllers';
 import { BanksphereService } from './banksphere.service';
 import { Service } from 'typedi';
-import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
+import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto, RejectKYCDto } from './dto/banksphere.dto';
 import publicApiGuard from '../common/guards/public-api.guard';
 import { AuthUser } from '../common/interfaces/auth-user';
 import { verifyToken } from '@/modules/common/middlewares/rbac.middleware';
@@ -41,11 +41,25 @@ export default class BanksphereController {
     return this.banksphereService.createCustomer(data)
   }
 
+  @Put('/compliance/update-requirements')
+  @UseBefore(publicApiGuard)
+  @Authorized(BanksphereRole.Admin)
+  updateCustomer(@Body() data: CreateCustomerDto) {
+    return this.banksphereService.updateCustomer(data)
+  }
+
   @Post('/compliance/approve/:accountId')
   @UseBefore(publicApiGuard)
   @Authorized(BanksphereRole.Admin)
   approveCustomer(@Param('accountId') accountId: string) {
     return this.banksphereService.approveAccount(accountId)
+  }
+
+  @Post('/compliance/reject/:accountId')
+  @UseBefore(publicApiGuard)
+  @Authorized(BanksphereRole.Admin)
+  rejectCustomer(@Param('accountId') accountId: string, @Body() data:RejectKYCDto ) {
+    return this.banksphereService.rejectAccount(accountId, data.reason)
   }
 
   @Post('/compliance/upload-documents')
