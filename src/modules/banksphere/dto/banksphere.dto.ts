@@ -94,6 +94,12 @@ export class CreateCustomerDto {
 
 }
 
+export class RejectKYCDto {
+  @IsString()
+  reason: string
+
+}
+
 export class CreateTeamMemeberDto {
   @IsString()
   @IsNotEmpty()

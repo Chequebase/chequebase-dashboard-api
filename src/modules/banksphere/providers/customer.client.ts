@@ -22,8 +22,13 @@ export enum CustomerClientName {
   Anchor = 'anchor'
 }
 
+export enum BaseWalletType {
+  NGN = '655e8555fbc87e717fba9a98',
+}
+
 export abstract class CustomerClient {
   abstract createCustomer(payload: CreateCustomerData): Promise<{ id: string; }>;
+  abstract updateCustomer(payload: Partial<CreateCustomerData>): Promise<{ id: string; }>;
   abstract uploadCustomerDocuments(payload: UploadCustomerDocuments): Promise<any>;
   abstract kycValidationForBusiness(payload: KycValidation): Promise<{ id: string; }>;
 }

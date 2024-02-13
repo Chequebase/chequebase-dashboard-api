@@ -65,12 +65,12 @@ export interface IOrganization {
   city: string
   country: string
   address: string
-  email: string,
+  email: string
   status: string
-  tin: string,
-  businessNumber: string,
-  rcNumber: string,
-  cacItNumber: string,
+  tin: string
+  businessNumber: string
+  rcNumber: string
+  cacItNumber: string
   numberOfEmployees: string
   documents: { [key: string]: string }
   anchorCustomerId: string
@@ -80,8 +80,9 @@ export interface IOrganization {
   state: string
   owners: Shareholder[]
   anchor?: Anchor
-  createdAt: Date;
-  updatedAt: Date;
+  kycRejectReason?: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 const shareholderSchema = new Schema<Shareholder>({
@@ -151,6 +152,7 @@ const organizationSchma = new Schema<IOrganization>(
     cacItNumber: String,
     owners: [shareholderSchema],
     anchorCustomerId: String,
+    kycRejectReason: String,
     anchor: anchorSchema,
     subscription: {
       _id: false,

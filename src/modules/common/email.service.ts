@@ -217,6 +217,15 @@ export default class EmailService {
     })
   }
 
+  sendKYCRejectedEmail(to: string, data: T.KYCRejectedEmail) {
+    return this.send({
+      to,
+      subject: 'KYC Verification Rejected',
+      templateId: 'd-18013f6c8a7b40e3a75aa4e86177485d',
+      dynamicTemplateData: data
+    })
+  }
+
   sendBudgetExpiryReminderEmail(to: string, data: T.BudgetExpiryReminder) {
     return this.send({
       to,

@@ -108,6 +108,12 @@ export interface KYCApprovedEmail {
   loginLink: string
 }
 
+export interface KYCRejectedEmail {
+  businessName: string
+  loginLink: string
+  reason: string
+}
+
 export interface BudgetExpiryReminder {
   employeeName: string
   budgetName: string
