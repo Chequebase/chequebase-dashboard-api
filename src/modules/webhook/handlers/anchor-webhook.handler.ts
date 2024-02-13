@@ -154,7 +154,6 @@ export default class AnchorWebhookHandler {
 
     body = JSON.parse(body)
     const { data } = body;
-    console.log({ data, body })
     if (!allowedWebooks.includes(data.type)) {
       this.logger.log('event type not allowed', { event: data.type })
       return { message: 'webhook_logged' }
