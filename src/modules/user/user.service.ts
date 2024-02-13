@@ -48,7 +48,7 @@ export class UserService {
 
   async preRegister(data: PreRegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
-    const userExists = await User.findOne({ email: { $regex } })
+    const userExists = await PreRegisterUser.findOne({ email: { $regex } })
     if (userExists) {
       throw new BadRequestError('Already joined waitlist');
     }
