@@ -79,6 +79,51 @@ export default class AnchorWebhookHandler {
     return { message: 'kyc approved queued' }
   }
 
+  private async onKycRejected(body: any) {
+    console.log({ type: 'onKycRejected', documentData: JSON.stringify(body) })
+    const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
+    const jobData: { customerId: string, businessName: string } = {
+      customerId: body.data.relationships.customer.data.id,
+      businessName: businessCustomer.attributes.detail.businessName,
+    }
+
+    await organizationQueue.add('processKycRejected', jobData)
+
+    await this.onKycRejectedNotification(jobData)
+
+    return { message: 'kyc rejected queued' }
+  }
+
+  private async onDocumentApproved(body: any) {
+    console.log({ type: 'documentApproved', documentData: JSON.stringify(body) })
+    // const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
+    // const jobData: { customerId: string, businessName: string } = {
+    //   customerId: body.data.relationships.customer.data.id,
+    //   businessName: businessCustomer.attributes.detail.businessName,
+    // }
+
+    // await organizationQueue.add('processDocumentApproved', jobData)
+
+    // await this.onEDocumentApprovedNotification(jobData)
+
+    return { message: 'document approved queued' }
+  }
+
+  private async onDocumentRejected(body: any) {
+    console.log({ type: 'documentRejected', documentData: JSON.stringify(body) })
+    // const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
+    // const jobData: { customerId: string, businessName: string } = {
+    //   customerId: body.data.relationships.customer.data.id,
+    //   businessName: businessCustomer.attributes.detail.businessName,
+    // }
+
+    // await organizationQueue.add('processDocumentRejected', jobData)
+
+    // await this.onEDocumentApprovedNotification(jobData)
+
+    return { message: 'document rejected queued' }
+  }
+
   private createHmac(body: string) {
     const secret = getEnvOrThrow('ANCHOR_WEBHOOK_SECRET')
     const hash = crypto.createHmac('sha1', secret)
@@ -140,7 +185,25 @@ export default class AnchorWebhookHandler {
 
   private async onKycApprovedNotification(notification: { customerId: string, businessName: string }) {
     const { customerId, businessName } = notification;
-    const message = `${businessName} has been approved on Anchor -- customerId: ${customerId}`;
+    const message = `${businessName} has been Approved on Anchor -- customerId: ${customerId}`;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.compliance, message);
+  }
+
+  private async onKycRejectedNotification(notification: { customerId: string, businessName: string }) {
+    const { customerId, businessName } = notification;
+    const message = `${businessName} has been Rejected on Anchor -- customerId: ${customerId}`;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.compliance, message);
+  }
+
+    private async onEDocumentApprovedNotification(notification: { customerId: string, businessName: string, documentDetails: { documentId: string, documentType: string } }) {
+    const { customerId, businessName, documentDetails } = notification;
+    const message = `${documentDetails.documentType} has been Approved on Anchor for ${businessName} with customerId: ${customerId}`;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.compliance, message);
+  }
+
+  private async onDocumentRejectedNotification(notification: { customerId: string, businessName: string, documentDetails: { documentId: string, documentType: string } }) {
+    const { customerId, businessName, documentDetails } = notification;
+    const message = `${documentDetails.documentType} has been Rejected on Anchor for ${businessName} with customerId: ${customerId}`;
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.compliance, message);
   }
 
@@ -165,6 +228,12 @@ export default class AnchorWebhookHandler {
         return this.onKycStarted(body)
       case 'customer.identification.approved':
         return this.onKycApproved(body)
+      case 'customer.identification.rejected':
+        return this.onKycRejected(body)
+      case 'document.approved':
+        return this.onDocumentApproved(body)
+      case 'document.rejected':
+        return this.onDocumentRejected(body)
       case 'payment.settled':
         return this.onPaymentSettled(body)
       case 'nip.transfer.successful':
@@ -188,6 +257,9 @@ const allowedWebooks = [
   "customer.created",
   "customer.identification.awaitingDocument",
   "customer.identification.approved",
+  "customer.identification.rejected",
+  "document.approved",
+  "document.rejected",
   // "account.closed",
   // "account.frozen",
   // "account.unfrozen",

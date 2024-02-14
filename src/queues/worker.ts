@@ -15,6 +15,7 @@ import { closeExpiredProject, fetchExpiredProjects } from './jobs/budget/close-e
 import sendAccountStatement from './jobs/wallet/account-statement.job';
 import processRequiredDocuments from './jobs/organization/processRequiredDocuments';
 import processKycApproved from './jobs/organization/processKycApproved';
+import processKycRejected from './jobs/organization/processKycRejected';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -25,6 +26,7 @@ function setupQueues() {
   try {
     organizationQueue.process('processRequiredDocuments', processRequiredDocuments)
     organizationQueue.process('processKycApproved', processKycApproved)
+    organizationQueue.process('processKycRejected', processKycRejected)
 
     walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 5, processWalletInflow)
