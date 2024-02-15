@@ -25,7 +25,7 @@ export default class AnchorWebhookHandler {
       currency: payment.currency,
       gatewayResponse: JSON.stringify(body),
       narration: payment.narration,
-      reference: payment.paymentReference,
+      reference: payment.paymentId,
       providerRef: payment.paymentId,
       paymentMethod: payment.type,
       sourceAccount: {
