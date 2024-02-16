@@ -59,7 +59,7 @@ export default class BanksphereController {
   @UseBefore(publicApiGuard)
   @Authorized(BanksphereRole.Admin)
   rejectCustomer(@Param('accountId') accountId: string, @Body() data:RejectKYCDto ) {
-    return this.banksphereService.rejectAccount(accountId, data.reason)
+    return this.banksphereService.rejectAccount(accountId, data)
   }
 
   @Post('/compliance/upload-documents')
