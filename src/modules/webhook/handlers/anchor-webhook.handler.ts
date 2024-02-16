@@ -195,7 +195,7 @@ export default class AnchorWebhookHandler {
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.compliance, message);
   }
 
-    private async onEDocumentApprovedNotification(notification: { customerId: string, businessName: string, documentDetails: { documentId: string, documentType: string } }) {
+    private async onDocumentApprovedNotification(notification: { customerId: string, businessName: string, documentDetails: { documentId: string, documentType: string } }) {
     const { customerId, businessName, documentDetails } = notification;
     const message = `${documentDetails.documentType} has been Approved on Anchor for ${businessName} with customerId: ${customerId}`;
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.compliance, message);

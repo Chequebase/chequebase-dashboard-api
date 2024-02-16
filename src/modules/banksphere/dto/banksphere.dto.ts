@@ -98,6 +98,9 @@ export class RejectKYCDto {
   @IsString()
   reason: string
 
+  @IsString()
+  @IsOptional()
+  documentType: string
 }
 
 export class CreateTeamMemeberDto {

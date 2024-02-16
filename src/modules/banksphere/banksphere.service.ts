@@ -2,7 +2,7 @@ import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
 // import { ObjectId } from 'mongodb'
 import { S3Service } from '@/modules/common/aws/s3.service';
-import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto } from './dto/banksphere.dto';
+import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto, RejectKYCDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
 import { BadRequestError, NotFoundError, UnauthorizedError } from 'routing-controllers';
 import Organization, { RequiredDocuments } from '@/models/organization.model';
@@ -270,18 +270,19 @@ export class BanksphereService {
       }
   }
 
-  async rejectAccount(accountId: string, reason: string) {
+  async rejectAccount(accountId: string, data: RejectKYCDto) {
     const organization = await Organization.findById(accountId).lean()
     if (!organization) throw new NotFoundError('Organization not found')
     const admin = await User.findById(organization.admin).lean()
     if (!admin) throw new NotFoundError('Admin not found')
       try {
         await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.REJECTED })
-        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.REJECTED, kycRejectReason: reason })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.REJECTED, kycRejectReason: `${data.documentType}-${data.reason}` })
         this.emailService.sendKYCRejectedEmail(admin.email, {
           loginLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/signin`,
           businessName: organization.businessName,
-          reason 
+          reason: data.reason,
+          // documentType: data.documentType
         })
         return 'rejected'
       } catch (err: any) {
