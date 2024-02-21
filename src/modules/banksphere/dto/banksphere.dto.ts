@@ -6,6 +6,12 @@ export enum BanksphereRole {
   Admin = 'admin',
 }
 
+export enum KycLevel {
+  COPMANY_INFO = "companyInfo",
+  OWNER_INFO = "ownerInfo",
+  BUSINESS_DOCUMENTATION = "businessDocumentation",
+}
+
 export class BankSphereLoginDto {
   @IsEmail()
   email: string;
@@ -97,6 +103,13 @@ export class CreateCustomerDto {
 export class RejectKYCDto {
   @IsString()
   reason: string
+
+  @IsString()
+  kycLevel: KycLevel
+
+  @IsString()
+  @IsOptional()
+  description: string
 
   @IsString()
   @IsOptional()

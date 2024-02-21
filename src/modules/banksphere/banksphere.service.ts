@@ -277,7 +277,7 @@ export class BanksphereService {
     if (!admin) throw new NotFoundError('Admin not found')
       try {
         await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.REJECTED })
-        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.REJECTED, kycRejectReason: `${data.documentType}-${data.reason}` })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.REJECTED, kycRejectReason: `${data.documentType || ''}-${data.reason}`, kycRejectionLevel: data.kycLevel, kycRejectionDescription: data.description })
         this.emailService.sendKYCRejectedEmail(admin.email, {
           loginLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/signin`,
           businessName: organization.businessName,
