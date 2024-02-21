@@ -80,6 +80,8 @@ export interface IOrganization {
   state: string
   owners: Shareholder[]
   anchor?: Anchor
+  kycRejectionLevel: string
+  kycRejectionDescription: string
   kycRejectReason?: string
   createdAt: Date
   updatedAt: Date
@@ -154,6 +156,8 @@ const organizationSchma = new Schema<IOrganization>(
     anchorCustomerId: String,
     kycRejectReason: String,
     anchor: anchorSchema,
+    kycRejectionLevel: String,
+    kycRejectionDescription: String,
     subscription: {
       _id: false,
       type: {
