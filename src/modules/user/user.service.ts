@@ -410,6 +410,10 @@ export class UserService {
         path: 'organization', select: 'subscription',
         populate: 'subscription.object'
       })
+      .populate({
+        path: 'roleRef', select: 'type name permissions',
+        populate: { path: 'permissions', select: 'name actions' }
+      })
       .lean()
     
     if (!user) {
