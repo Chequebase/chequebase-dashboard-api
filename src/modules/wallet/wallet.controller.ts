@@ -6,7 +6,7 @@ import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Request, Response } from "express";
 import publicApiGuard from "../common/guards/public-api.guard";
-import { Role } from "../user/dto/user.dto";
+import { ERole } from "../user/dto/user.dto";
 
 @Service()
 @JsonController('/wallet', { transformResponse: false })
@@ -32,7 +32,7 @@ export default class WalletController {
   }
 
   @Get('/statement/csv')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   async getWalletStatement(
     @Res() res: Response,
     @CurrentUser() auth: AuthUser,
@@ -51,25 +51,25 @@ export default class WalletController {
   }
 
   @Get('/statement')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   async getAccountStatement(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletStatementDto) {
     return this.walletService.sendWalletStatement(auth.orgId, query)
   }
 
   @Get('/balances')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   getBalances(@CurrentUser() auth: AuthUser) {
     return this.walletService.getBalances(auth.orgId)
   }
 
   @Get('/:id')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   getWallet(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWallet(auth.orgId, id)
   }
   
   @Get('/history/:id')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   getWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWalletEntry(auth.orgId, id)
   }

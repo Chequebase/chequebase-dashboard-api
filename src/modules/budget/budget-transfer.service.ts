@@ -17,7 +17,7 @@ import { AnchorService } from "../common/anchor.service"
 import { CreateTransferRecord } from "./interfaces/budget-transfer.interface"
 import { UserService } from "../user/user.service"
 import User, { KycStatus } from "@/models/user.model"
-import { Role } from "../user/dto/user.dto"
+import { ERole } from "../user/dto/user.dto"
 import { transactionOpts } from "../common/utils"
 import Organization from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
@@ -185,7 +185,7 @@ export class BudgetTransferService {
       throw new BadRequestError('User not found')
     }
 
-    if (user.role === Role.Owner) {
+    if (user.role === ERole.Owner) {
       return true
     }
 

@@ -1,6 +1,6 @@
 import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
-// import { ObjectId } from 'mongodb'
+import { ObjectId } from 'mongodb'
 import { S3Service } from '@/modules/common/aws/s3.service';
 import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto, RejectKYCDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
@@ -555,7 +555,7 @@ export class BanksphereService {
     return { tokens, userId: user.id }
   }
 
-  async getTokens(user: { userId: string, email: string, role: string }) {
+  async getTokens(user: { userId: string, email: string, role: any }) {
     const accessSecret = getEnvOrThrow('ACCESS_TOKEN_SECRET')
     const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
     const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')

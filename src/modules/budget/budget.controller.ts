@@ -3,7 +3,7 @@ import { Service } from "typedi";
 import BudgetService from "./budget.service";
 import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
-import { Role } from "../user/dto/user.dto";
+import { ERole } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
 import { GetTransferFee, InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
 import { ProjectService } from "./project.service";
@@ -43,7 +43,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/pause')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   pauseProject(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -53,7 +53,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/sub-budget')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   addSubBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -63,7 +63,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/close')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   closeProject(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -121,7 +121,7 @@ export default class BudgetController {
   }
 
   @Put('/:id')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
     return this.budgetService.editBudget(auth, id, dto)
   }
@@ -139,7 +139,7 @@ export default class BudgetController {
   }
 
   @Post('/:id/approve')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   approveBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -149,7 +149,7 @@ export default class BudgetController {
   }
 
   @Post('/:id/pause')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   pauseBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -159,7 +159,7 @@ export default class BudgetController {
   }
 
   @Post('/:id/close')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   closeBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,

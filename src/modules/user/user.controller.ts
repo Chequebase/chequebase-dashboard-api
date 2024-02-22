@@ -1,5 +1,5 @@
 import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from 'routing-controllers';
-import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, Role, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto, PreRegisterDto } from './dto/user.dto';
+import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, ERole, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto, PreRegisterDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
 import { Service } from 'typedi';
@@ -104,7 +104,7 @@ export default class UserController {
     return this.userService.updateProfile(auth.userId, updateProfileDto, auth.orgId);
   }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Post('/profile/avatar')
   @UseBefore(multer({ limits: { fileSize: 52_428_800 } }).single('avatar'))
   uploadAvatar(
@@ -115,7 +115,7 @@ export default class UserController {
     return this.userService.uploadAvatar(auth, file)
   }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Post('/members/invite')
   sendInvite(@CurrentUser() auth: AuthUser, @Body() body: CreateEmployeeDto) {
     return this.userService.sendInvite(body, auth);
@@ -127,25 +127,25 @@ export default class UserController {
     return this.userService.acceptInvite(addEmployeeDto);
   }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Get('/members')
   getMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: GetMembersQueryDto) {
     return this.userService.getMembers(auth, query);
   }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Get('/members/all')
   getUnpaginatedMembers(@CurrentUser() auth: AuthUser) {
     return this.userService.getUnpaginatedMembers(auth);
   }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Get('/members/:id')
   getMember(@Param('id') id: string, @CurrentUser() auth: AuthUser) {
     return this.userService.getMember(id, auth.orgId);
   }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Put('/members/:id')
   updateEmployee(
     @CurrentUser() auth: AuthUser,
@@ -155,13 +155,13 @@ export default class UserController {
     return this.userService.updateMember(id, updateEmployeeDto, auth.orgId);
   }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Patch('/members/:id/delete-invite')
   deleteInvite(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.userService.deleteInvite(id, auth.orgId);
   }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Get('/members/:id/resend-invite')
   resendInvite(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.userService.resendInvite(id, auth.orgId);
@@ -173,7 +173,7 @@ export default class UserController {
   //   return this.userService.unBlock(id, organizationId);
   // }
 
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   @Delete('/members/:id')
   deleteMember(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.userService.deleteMember(id, auth.orgId);

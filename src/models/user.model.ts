@@ -4,6 +4,8 @@ import { ObjectId } from 'mongodb'
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
 import { IOrganization } from './organization.model';
+import { IDepartment } from './department.model';
+import { IRole } from './role.model';
 
 export enum KycStatus {
   NOT_STARTED = "not started",
@@ -34,6 +36,8 @@ export interface IUser {
   emailVerified: boolean;
   password: string;
   organization: ObjectId | IOrganization
+  departments: ObjectId[] | IDepartment[]
+  roleRef: any
   role: string
   rememberMe: number
   status: UserStatus
@@ -70,9 +74,17 @@ const userSchema = new Schema<IUser>(
       type: Schema.Types.ObjectId,
       ref: 'Organization'
     },
+    departments: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Department'
+    }],
     rememberMe: Number,
     pin: { type: String, select: false },
     role: String,
+    roleRef: {
+      type: Schema.Types.ObjectId,
+      ref: 'Role'
+    },
     KYBStatus: String,
     hashRt: String,
     otpExpiresAt: Number,
