@@ -7,7 +7,7 @@ import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization, { IOrganization } from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
+import { LoginDto, ERole, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
@@ -18,6 +18,8 @@ import { S3Service } from "../common/aws/s3.service";
 import { Request } from "express";
 import PreRegisterUser from "@/models/pre-register.model";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
+import Role, { RoleType } from "@/models/role.model";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
 
 const logger = new Logger('user-service')
 
@@ -71,12 +73,18 @@ export class UserService {
       throw new BadRequestError('Account with same email already exists');
     }
 
+    const adminRole = await Role.findOne({ name: 'admin', type: RoleType.Default })
+    if (!adminRole) {
+      logger.error('role not found', { name: 'admin', type: 'default' })
+      throw new ServiceUnavailableError('Unable to complete registration at this time')
+    }
+
     const emailVerifyCode = this.generateRandomString(8);
     const user = await User.create({
       email: data.email,
       password: await bcrypt.hash(data.password, 12),
       emailVerifyCode,
-      role: Role.Owner,
+      role: ERole.Owner,
       hashRt: '',
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
@@ -141,7 +149,7 @@ export class UserService {
       otp
     })
 
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     this.emailService.sendOtpEmail(user.email, {
       customerName: isOwner ? organization.businessName : user.firstName,
       otp
@@ -178,7 +186,7 @@ export class UserService {
       throw new UnauthorizedError('User Organization not found');
     }
 
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     if (user.otpExpiresAt && user.otpExpiresAt > new Date().getTime() && user.otp) {
       const otp = user.otp
       this.emailService.sendOtpEmail(user.email, {
@@ -428,7 +436,7 @@ export class UserService {
     const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
     const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
     const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
-    const payload: AuthUser = { sub: user.userId, email: user.email, userId: user.userId, orgId: user.orgId, role: user.role }
+    const payload = { sub: user.userId, email: user.email, userId: user.userId, orgId: user.orgId, role: user.role }
     
     return {
       access_token: jwt.sign(payload, accessSecret, { expiresIn: accessExpiresIn }),

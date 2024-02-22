@@ -10,7 +10,7 @@ import { GetCashflowTrendDto, GetOverviewSummaryDto } from './dto/overview.dto';
 import { AuthUser } from '../common/interfaces/auth-user';
 import User, { IUser } from '@/models/user.model';
 import { BadRequestError } from 'routing-controllers';
-import { Role } from '../user/dto/user.dto';
+import { ERole } from '../user/dto/user.dto';
 import Project, { ProjectStatus } from '@/models/project.model';
 
 dayjs.extend(isBetween)
@@ -18,7 +18,7 @@ dayjs.extend(isBetween)
 @Service()
 export class OverviewService {
   private async getWalletBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
-    if (user.role !== Role.Owner) {
+    if (user.role !== ERole.Owner) {
       return { value: null, percentageDiff: null }
     }
 
@@ -62,7 +62,7 @@ export class OverviewService {
   }
 
   private async getBudgetBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
     const filter: any = {
       organization: user.organization,
@@ -149,7 +149,7 @@ export class OverviewService {
       },
     }
 
-    if (user.role !== Role.Owner) {
+    if (user.role !== ERole.Owner) {
       filter.initiatedBy = user._id
       filter.scope.$in = [WalletEntryScope.BudgetTransfer]
     }
@@ -192,7 +192,7 @@ export class OverviewService {
     if (!user) throw new BadRequestError('User not found')
 
     const userId = new ObjectId(auth.userId)
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     const ownerExpenseScopes = [WalletEntryScope.PlanSubscription, WalletEntryScope.BudgetTransfer]
     const ownerIncomeScopes = [WalletEntryScope.WalletFunding]
     const employeeExpenseScopes = [WalletEntryScope.BudgetTransfer]

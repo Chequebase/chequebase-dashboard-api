@@ -3,6 +3,7 @@ import Logger from "@/modules/common/utils/logger";
 import RolePermission from '@/models/role-permission.model';
 import { ObjectId } from 'mongodb'
 import Role, { RoleType } from '@/models/role.model';
+import { cdb } from '@/modules/common/mongoose';
 
 const logger = new Logger('0-create-default-roles')
 async function run() {
@@ -131,9 +132,9 @@ async function run() {
 
   const roles = [
     {
-      name: 'Admin/Business Owner',
+      name: 'owner',
       type: RoleType.Default,
-      description: '',
+      description: 'Admin/Business Owner',
       permissions: [
         '6102c9c3ad5de9994db31801',
         '6102c9c3ad5de9994db31802',
@@ -158,9 +159,9 @@ async function run() {
       ]
     },
     {
-      name: 'Manager',
+      name: 'manager',
       type: RoleType.Default,
-      description: '',
+      description: 'Manager',
       permissions: [
         '6102c9c3ad5de9994db31801',
         '6102c9c3ad5de9994db31802',
@@ -183,9 +184,9 @@ async function run() {
       ]
     },
     {
-      name: 'Employee',
+      name: 'employee',
       type: RoleType.Default,
-      description: '',
+      description: 'Employee',
       permissions: [
         '6102c9c3ad5de9994db31801',
         '6102c9c3ad5de9994db31802',
@@ -207,7 +208,8 @@ async function run() {
     },
   ]
 
-  await RolePermission.create(permissions)
+  await cdb.asPromise()
+  await RolePermission.insertMany(permissions)
   await Role.create(roles)
 }
 

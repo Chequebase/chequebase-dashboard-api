@@ -4,6 +4,7 @@ import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
 import { IOrganization } from "./organization.model";
 import { IPermission } from "./permission.model";
+import RolePermission from "./role-permission.model";
 
 export enum RoleType {
   Custom = "custom",
@@ -29,7 +30,7 @@ const RoleSchema = new Schema<IRole>(
     permissions: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Permission",
+        ref: RolePermission,
       },
     ],
     type: {
