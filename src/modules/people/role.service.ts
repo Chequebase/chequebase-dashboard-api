@@ -3,6 +3,7 @@ import { Service } from "typedi";
 import { CreateRoleDto } from "./dto/role.dto";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import User from "@/models/user.model";
+import RolePermission from "@/models/role-permission.model";
 
 @Service()
 export class RoleService {
@@ -13,7 +14,7 @@ export class RoleService {
         { type: RoleType.Default },
       ]
     })
-      .populate('permissions')
+      .populate({ path: 'permissions', select: 'name actions' })
       .lean()
   }
 
@@ -47,14 +48,14 @@ export class RoleService {
 
     const role = await Role.findOneAndDelete({ _id: roleId, organization: orgId })
     if (!role) {
-      throw new NotFoundError("Role not found")
+      throw new NotFoundError("Cannot delete role")
     }
 
     return { message: 'Role deleted successfully' }
   }
 
   async getPermissions() {
-    return Role.find()
+    return RolePermission.find()
   }
 
   async editRole(orgId: string, roleId: string, payload: CreateRoleDto) {
@@ -75,6 +76,10 @@ export class RoleService {
       permissions: payload.permissions,
     }, { new: true })
       .lean();
+
+    if (!role) {
+      throw new BadRequestError('Role does not exist');
+    }
 
     return role;
   }
