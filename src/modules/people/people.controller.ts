@@ -1,10 +1,65 @@
-import { JsonController } from 'routing-controllers';
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Post, Put } from 'routing-controllers';
 import { Service } from 'typedi';
 import { PeopleService } from './people.service';
+import { AuthUser } from '../common/interfaces/auth-user';
+import { EPermission } from '@/models/role-permission.model';
+import { RoleService } from './role.service';
+import { CreateRoleDto } from './dto/role.dto';
+import { CreateDepartmentDto } from './dto/people.dto';
 
 @Service()
 @JsonController('/people', { transformResponse: false })
 export default class PeopleController {
-  constructor (private readonly peopleService: PeopleService) { }
+  constructor (
+    private peopleService: PeopleService,
+    private roleService: RoleService
+  ) { }
 
+  @Post('/departments')
+  @Authorized(EPermission.PeopleCreate)
+  createDepartment(@CurrentUser() auth: AuthUser, @Body() body: CreateDepartmentDto) {
+    return this.peopleService.createDepartment(auth.orgId, body);
+  }
+
+  @Put('/departments/:id')
+  @Authorized(EPermission.PeopleCreate)
+  editDepartment(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() body: CreateDepartmentDto) {
+    return this.peopleService.editDepartment(auth.orgId, id, body);
+  }
+
+  @Delete('/departments/:id')
+  @Authorized(EPermission.PeopleCreate)
+  deleteDepartment(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.peopleService.deleteDepartment(auth.orgId, id);
+  }
+
+  @Get('/permissions')
+  @Authorized(EPermission.PeopleRead)
+  getPermissions() {
+    return this.roleService.getPermissions();
+  }
+
+  @Post('/roles')
+  @Authorized(EPermission.PeopleCreate)
+  createRole(@CurrentUser() auth: AuthUser, @Body() body: CreateRoleDto) {
+    return this.roleService.createRole(auth.orgId, body);
+  }
+
+  @Put('/roles/:id')
+  @Authorized(EPermission.PeopleCreate)
+  editRole(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() body: CreateRoleDto) {
+    return this.roleService.editRole(auth.orgId, id, body);
+  }
+
+  @Get('/roles')
+  @Authorized(EPermission.PeopleRead)
+  getRoles(@CurrentUser() auth: AuthUser) {
+    return this.roleService.getRoles(auth.orgId);
+  }
+
+  @Delete('/roles/:id')
+  @Authorized(EPermission.PeopleRead)
+  deleteRole(@CurrentUser() auth: AuthUser, @Param('id') id :string) {
+    return this.roleService.deleteRole(auth.orgId, id);
+  }
 }
