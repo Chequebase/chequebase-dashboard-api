@@ -218,6 +218,7 @@ export default class EmailService {
   }
 
   sendKYCRejectedEmail(to: string, data: T.KYCRejectedEmail) {
+    console.log('REJECTION EMAIL SENDING.....')
     return this.send({
       to,
       subject: 'KYC Verification Rejected',
