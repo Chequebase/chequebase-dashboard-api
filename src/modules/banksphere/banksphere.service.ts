@@ -278,7 +278,6 @@ export class BanksphereService {
       try {
         await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.REJECTED })
         await Organization.updateOne({ _id: organization._id }, { status: KycStatus.REJECTED, kycRejectReason: `${data.documentType || ''}-${data.reason}`, kycRejectionLevel: data.kycLevel, kycRejectionDescription: data.description })
-        console.log({ admin })
         this.emailService.sendKYCRejectedEmail(admin.email, {
           loginLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/signin`,
           businessName: organization.businessName,
