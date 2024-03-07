@@ -20,6 +20,7 @@ import PreRegisterUser from "@/models/pre-register.model";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import Role, { RoleType } from "@/models/role.model";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
+import UserInvite from "@/models/user-invite.model";
 
 const logger = new Logger('user-service')
 
@@ -507,30 +508,46 @@ export class UserService {
 
   async acceptInvite(data: AddEmployeeDto) {
     const { code, firstName, lastName, phone, password } = data
-    const user = await User.findOne({ inviteCode: code, status: { $ne: UserStatus.DELETED } })
-    if (!user) {
-      throw new NotFoundError('Invalid or expired invite link');
-    }
-    const now = Math.round(new Date().getTime() / 1000);
-    const yesterday = now - (24 * 3600);
-    if (user.inviteSentAt && dayjs(user.inviteSentAt).isBefore(yesterday)) {
-      throw new NotFoundError('Invalid or expired invite link');
+    const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).lean()
+    if (!invite) {
+      throw new BadRequestError("Invalid or expired link")
     }
 
+    const usage = await this.planUsageService.checkUsersUsage(invite.organization)
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    await user.set({
-      emailVerified: true,
-      inviteCode: null,
+    const user = await User.create({
       firstName,
       lastName,
       phone,
       password: hashedPassword,
+      emailVerified: true,
+      departments: [invite.department],
+      email: invite.email,
+      manager: invite.manager,
+      roleRef: invite.roleRef,
+      role: invite.name,
       status: UserStatus.ACTIVE,
       KYBStatus: KycStatus.APPROVED
-    }).save()
+    })
 
-    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: user.organization.toString(), role: user.role });
+    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
+      await WalletService.chargeWallet(invite.organization, {
+        amount: usage.feature.costPerUnit.NGN,
+        narration: 'Add organization user',
+        scope: WalletEntryScope.PlanSubscription,
+        currency: 'NGN',
+        initiatedBy: invite.invitedBy,
+      })
+    }
+
+    const tokens = await this.getTokens({
+      userId: user.id,
+      email: user.email,
+      orgId: user.organization.toString(),
+      role: user.role
+    });
+  
     await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });

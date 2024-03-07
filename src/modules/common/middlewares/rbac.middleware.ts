@@ -60,5 +60,7 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
  
   let userActions = user.roleRef?.permissions?.flatMap((p: any) => p.actions)
 
-  return actions.some((role) => userActions.includes(role)) || (user.id === user.organization.admin);
+  return actions.some((role) => userActions.includes(role)) ||
+    (user.id === user.organization.admin) ||
+    user.roleRef.name === 'owner';
 }

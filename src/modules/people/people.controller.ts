@@ -5,7 +5,7 @@ import { AuthUser } from '../common/interfaces/auth-user';
 import { EPermission } from '@/models/role-permission.model';
 import { RoleService } from './role.service';
 import { CreateRoleDto } from './dto/role.dto';
-import { CreateDepartmentDto } from './dto/people.dto';
+import { CreateDepartmentDto, SendMemberInviteDto } from './dto/people.dto';
 
 @Service()
 @JsonController('/people', { transformResponse: false })
@@ -14,6 +14,30 @@ export default class PeopleController {
     private peopleService: PeopleService,
     private roleService: RoleService
   ) { }
+
+  @Post('/invites')
+  @Authorized(EPermission.PeopleCreate)
+  sendMemberInvite(@CurrentUser() auth: AuthUser, @Body() body: SendMemberInviteDto) {
+    return this.peopleService.sendMemberInvite(auth, body)
+  }
+
+  @Post('/invites/:id')
+  @Authorized(EPermission.PeopleCreate)
+  deleteMemberInvite(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.peopleService.deleteInvite(auth.orgId, id)
+  }
+
+  @Get('/invites')
+  @Authorized(EPermission.PeopleRead)
+  getInvites(@CurrentUser() auth: AuthUser) {
+    return this.peopleService.getInvites(auth.orgId)
+  }
+
+  @Post('/invites/:id/resend')
+  @Authorized(EPermission.PeopleCreate)
+  resentInvite(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.peopleService.resendInvite(auth.orgId, id)
+  }
 
   @Post('/departments')
   @Authorized(EPermission.PeopleCreate)
