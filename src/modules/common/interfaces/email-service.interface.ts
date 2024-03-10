@@ -47,7 +47,7 @@ export interface BudgetRequestEmail {
 export interface BudgetBeneficiaryAdded {
   employeeName: string
   budgetName: string
-  amountAllocated: number
+  amountAllocated: string
   budgetLink: string
 }
 
