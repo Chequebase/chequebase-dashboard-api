@@ -15,7 +15,7 @@ import Budget, { BudgetStatus, IBudget } from "@/models/budget.model"
 import { transactionOpts } from "../common/utils"
 import { UserService } from '../user/user.service'
 import User from "@/models/user.model"
-import { Role } from "../user/dto/user.dto"
+import { ERole } from "../user/dto/user.dto"
 
 const logger = new Logger('project-service')
 
@@ -265,7 +265,7 @@ export class ProjectService {
         as: 'budgets'
       })
 
-    if (user.role !== Role.Owner)
+    if (user.role !== ERole.Owner)
       agg.match({
         'budgets.beneficiaries.user': user._id,
         'budgets.status': BudgetStatus.Active
@@ -397,7 +397,7 @@ export class ProjectService {
     project.budgets = project.budgets.filter((budget: IBudget) =>
       budget.status === BudgetStatus.Active &&
       (
-        user.role === Role.Owner ||
+        user.role === ERole.Owner ||
         budget.beneficiaries.some((b: any) => b._id.equals(auth.userId))
       )
     )

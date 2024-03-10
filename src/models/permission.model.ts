@@ -1,5 +1,5 @@
 import { cdb } from '@/modules/common/mongoose';
-import { Role } from '@/modules/user/dto/user.dto';
+import { ERole } from '@/modules/user/dto/user.dto';
 import { Schema, Types } from 'mongoose';
 
 export interface IPermission {
@@ -9,7 +9,7 @@ export interface IPermission {
   permissions: {
     [feature: string]: string[]
   }
-  role: Role
+  role: ERole
   createdAt: Date
   updatedAt: Date
 }

@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
-import { MailDataRequired, MailService } from '@sendgrid/mail';
+import { MailService } from '@sendgrid/mail';
 import { Service } from 'typedi';
 import { getEnvOrThrow } from './utils';
 import * as T from './interfaces/email-service.interface';

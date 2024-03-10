@@ -111,7 +111,7 @@ export class PlanUsageService {
         , code)
     }
 
-    return { feature, exhaustedFreeUnits, exhuastedMaxUnits }
+    return { feature, exhaustedFreeUnits, exhuastedMaxUnits, units: users }
   }
 
   async getFeatureAvailability(orgId: string) {

@@ -9,7 +9,7 @@ import Budget, { BudgetStatus, IBudget } from "@/models/budget.model";
 import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
 import User, { IUser } from "@/models/user.model";
-import { Role } from "../user/dto/user.dto";
+import { ERole } from "../user/dto/user.dto";
 import { UserService } from "../user/user.service";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney, getEnvOrThrow, transactionOpts } from "../common/utils";
@@ -131,7 +131,7 @@ export default class BudgetService {
       throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
     }
 
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     // wallet balance needs to be checked because the budget will be automatically approved
     if (isOwner) {
       if (wallet.balance < data.amount) {
@@ -322,7 +322,7 @@ export default class BudgetService {
       throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
     }
 
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     // wallet balance needs to be checked because the budget will be automatically approved
     if (isOwner) {
       if (wallet.balance < data.amount) {
@@ -401,7 +401,7 @@ export default class BudgetService {
       throw new BadRequestError("User not found")
     }
 
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', query.status)
       .set('project', { $exists: false })
@@ -571,7 +571,7 @@ export default class BudgetService {
     await budget.set({ paused: data.pause }).save()
 
     if (data.pause) {
-      const owner = (await User.findOne({ organization: auth.orgId, role: Role.Owner }))!
+      const owner = (await User.findOne({ organization: auth.orgId, role: ERole.Owner }))!
       this.emailService.sendBudgetPausedEmail(owner.email, {
         budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
         budgetBalance: formatMoney(budget.balance),
@@ -625,7 +625,7 @@ export default class BudgetService {
       throw new BadRequestError("User not found")
     }
 
-    if (user.role !== Role.Owner) {
+    if (user.role !== ERole.Owner) {
       filter['beneficiaries.user'] = new ObjectId(auth.userId)
     }
 

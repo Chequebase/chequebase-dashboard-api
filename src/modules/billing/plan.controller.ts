@@ -1,7 +1,7 @@
 import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams } from 'routing-controllers';
 import { Service } from 'typedi';
 import { PlanService } from './plan.service';
-import { Role } from '../user/dto/user.dto';
+import { ERole } from '../user/dto/user.dto';
 import { GetSubscriptionHistoryDto, InitiateSubscriptionDto } from './dto/plan.dto';
 import { AuthUser } from '../common/interfaces/auth-user';
 
@@ -11,7 +11,7 @@ export default class BillingController {
   constructor (private readonly plansService: PlanService) { }
 
   @Get('/intents/:id')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   getIntentStatus(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.plansService.getIntentStatus(auth.orgId, id)
   }
@@ -22,19 +22,19 @@ export default class BillingController {
   }
 
   @Get('/subscription')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   getCurrentSubscription(@CurrentUser() auth: AuthUser) {
     return this.plansService.getCurrentSubscription(auth.orgId)
   }
 
   @Get('/subscription/history')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   getSubscriptionHistory(@CurrentUser() auth: AuthUser, @QueryParams() query: GetSubscriptionHistoryDto) {
     return this.plansService.getSubscriptionHistory(auth.orgId, query)
   }
 
   @Post('/subscription/initiate')
-  @Authorized(Role.Owner)
+  @Authorized(ERole.Owner)
   initiateSubscription(@CurrentUser() auth: AuthUser, @Body() body: InitiateSubscriptionDto) {
     return this.plansService.initiateSubscription(auth, body)
   }

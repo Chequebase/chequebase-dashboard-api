@@ -1,5 +1,5 @@
 import { KycStatus, UserStatus } from "@/models/user.model";
-import { Role } from "@/modules/user/dto/user.dto";
+import { ERole } from "@/modules/user/dto/user.dto";
 import { IsString, IsOptional, IsInt, Min, IsEnum, IsBoolean, IsEmail, IsNotEmpty, MinLength } from "class-validator";
 
 export enum BanksphereRole {
@@ -129,8 +129,8 @@ export class CreateTeamMemeberDto {
   lastName: string;
 
   @IsString()
-  @IsEnum(Role)
-  role: Role;
+  @IsEnum(ERole)
+  role: ERole;
 }
 
 export class AddTeamMemberDto {

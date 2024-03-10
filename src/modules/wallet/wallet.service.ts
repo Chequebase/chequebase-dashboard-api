@@ -21,7 +21,7 @@ import { ChargeWallet } from "./interfaces/wallet.interface";
 import numeral from "numeral";
 import { AuthUser } from "../common/interfaces/auth-user";
 import User from "@/models/user.model";
-import { Role } from "../user/dto/user.dto";
+import { ERole } from "../user/dto/user.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import { walletQueue } from "@/queues";
 
@@ -224,7 +224,7 @@ export default class WalletService {
       })
       .set('budget', query.budget)
       .set('project', query.project)
-      .set('initiatedBy', user.role === Role.Owner ? query.beneficiary : user._id)
+      .set('initiatedBy', user.role === ERole.Owner ? query.beneficiary : user._id)
       .set('createdAt', {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()
