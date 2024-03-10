@@ -212,7 +212,7 @@ export default class BudgetService {
             employeeName: beneficiary.firstName,
             budgetName: budget!.name,
             budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-            amountAllocated: iUser?.allocation || 0
+            amountAllocated: formatMoney(iUser?.allocation || 0)
           })
         })
       }
@@ -264,7 +264,7 @@ export default class BudgetService {
           employeeName: beneficiary.firstName,
           budgetName: budget!.name,
           budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-          amountAllocated: iUser?.allocation || 0
+          amountAllocated: formatMoney(iUser?.allocation || 0)
         })
       })
       removedBeneficiaries.forEach((beneficiary) => {
