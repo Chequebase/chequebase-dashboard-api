@@ -1,11 +1,11 @@
-import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Post, Put } from 'routing-controllers';
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patch, Post, Put } from 'routing-controllers';
 import { Service } from 'typedi';
 import { PeopleService } from './people.service';
 import { AuthUser } from '../common/interfaces/auth-user';
 import { EPermission } from '@/models/role-permission.model';
 import { RoleService } from './role.service';
 import { CreateRoleDto } from './dto/role.dto';
-import { CreateDepartmentDto, SendMemberInviteDto } from './dto/people.dto';
+import { CreateDepartmentDto, EditEmployeeDto, SendMemberInviteDto } from './dto/people.dto';
 
 @Service()
 @JsonController('/people', { transformResponse: false })
@@ -85,5 +85,11 @@ export default class PeopleController {
   @Authorized(EPermission.PeopleRead)
   deleteRole(@CurrentUser() auth: AuthUser, @Param('id') id :string) {
     return this.roleService.deleteRole(auth.orgId, id);
+  }
+
+  @Patch('/employee/:id/')
+  @Authorized(EPermission.PeopleCreate)
+  editEmployee(@CurrentUser() auth: AuthUser, @Param('id') id :string, @Body() dto: EditEmployeeDto) {
+    return this.peopleService.editEmployee(auth.orgId, id, dto);
   }
 }
