@@ -52,3 +52,13 @@ class InviteData {
   @IsOptional()
   department: string
 }
+
+export class EditEmployeeDto  {
+  @IsString()
+  @IsOptional()
+  manager: string
+
+  @IsString()
+  @IsOptional()
+  department: string
+}
