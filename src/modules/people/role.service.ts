@@ -14,7 +14,7 @@ export class RoleService {
         { type: RoleType.Default },
       ]
     })
-      .populate({ path: 'permissions', select: 'name actions' })
+      .populate({ path: 'permissions', select: 'name module actions' })
       .lean()
   }
 
