@@ -13,7 +13,7 @@ import { AuthUser } from "../common/interfaces/auth-user"
 import { escapeRegExp, getEnvOrThrow } from "../common/utils"
 import Logger from "../common/utils/logger"
 import { FeatureLimitExceededError } from "../common/utils/service-errors"
-import { CreateDepartmentDto, SendMemberInviteDto } from "./dto/people.dto"
+import { CreateDepartmentDto, EditEmployeeDto, SendMemberInviteDto } from "./dto/people.dto"
 
 const logger = new Logger('people-service')
 
@@ -193,5 +193,18 @@ export class PeopleService {
     })
 
     return { ...invite, code: undefined }
+  }
+
+  async editEmployee(orgId: string, userId: string, data: EditEmployeeDto) {
+    const employee = await User.findOneAndUpdate({ _id: userId, organization: orgId }, {
+      manager: data.manager,
+      $addToSet: { departments: data.department }
+    })
+
+    if (!employee) {
+      throw new BadRequestError('Employee does not exist')
+    }
+
+    return { message: 'Employee updated successfully'}
   }
 }
