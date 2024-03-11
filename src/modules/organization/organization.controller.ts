@@ -50,7 +50,7 @@ export default class OrganizationsController {
     return this.organizationsService.applyForApproval(auth.orgId);
   }
 
-  @Authorized(ERole.Owner)
+  @Authorized()
   @Get('/get-organization')
   findOne(@CurrentUser() auth: AuthUser) {
     return Organization.findById(auth.orgId).lean()
