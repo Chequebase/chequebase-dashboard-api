@@ -26,7 +26,7 @@ export interface UserInviteModel
 const UserInviteSchema = new Schema<IUserInvite>(
   {
     email: { type: String, required: true, lowercase: true },
-    name: { type: String, required: true },
+    name: { type: String, required: false },
     expiry: { type: Date, required: true },
     code: { type: String, required: true },
     phoneNumber: String,
