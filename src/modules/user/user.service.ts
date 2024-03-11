@@ -534,7 +534,8 @@ export class UserService {
       roleRef: invite.roleRef,
       role: invite.name,
       status: UserStatus.ACTIVE,
-      KYBStatus: KycStatus.APPROVED
+      KYBStatus: KycStatus.APPROVED,
+      organization: invite.organization,
     })
 
     if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
