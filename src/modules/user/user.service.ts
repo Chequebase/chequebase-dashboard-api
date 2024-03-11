@@ -513,6 +513,12 @@ export class UserService {
       throw new BadRequestError("Invalid or expired link")
     }
 
+    const $regex = new RegExp(`^${escapeRegExp(invite.email)}$`, "i");
+    const exists = await User.findOne({ email: { $regex } })
+    if (exists) {
+      throw new BadRequestError('User already exists')
+    }
+
     const usage = await this.planUsageService.checkUsersUsage(invite.organization)
     const hashedPassword = await bcrypt.hash(password, 12)
 
