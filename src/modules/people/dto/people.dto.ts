@@ -31,7 +31,7 @@ export class SendMemberInviteDto {
 
 class InviteData {
   @IsString()
-  @IsString()
+  @IsOptional()
   name: string
 
   @IsString()
