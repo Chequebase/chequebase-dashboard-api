@@ -508,7 +508,7 @@ export class UserService {
 
   async acceptInvite(data: AddEmployeeDto) {
     const { code, firstName, lastName, phone, password } = data
-    const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).lean()
+    const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).populate('roleRef').lean()
     if (!invite) {
       throw new BadRequestError("Invalid or expired link")
     }
@@ -531,8 +531,8 @@ export class UserService {
       departments: [invite.department],
       email: invite.email,
       manager: invite.manager,
-      roleRef: invite.roleRef,
-      role: invite.name,
+      roleRef: invite.roleRef._id,
+      role: invite.roleRef.name,
       status: UserStatus.ACTIVE,
       KYBStatus: KycStatus.APPROVED,
       organization: invite.organization,
