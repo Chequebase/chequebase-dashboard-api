@@ -122,7 +122,7 @@ export class PeopleService {
     }
 
     const emailRegexps = data.invites.map(i => new RegExp(`^${escapeRegExp(i.email)}$`, "i"))
-    const existingUsers = await User.find({ organization: auth.orgId, email: emailRegexps }).select('email').lean()
+    const existingUsers = await User.find({ email: emailRegexps }).select('email').lean()
     if (existingUsers.length) {
       const existingEmails = existingUsers.map(user => user.email).join(', ');
       throw new BadRequestError(`Invitation failed. Emails already registered: ${existingEmails}`);
