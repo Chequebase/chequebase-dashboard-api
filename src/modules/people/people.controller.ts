@@ -59,8 +59,8 @@ export default class PeopleController {
 
   @Delete('/departments')
   @Authorized(EPermission.PeopleRead)
-  getDepartments(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
-    return this.peopleService.deleteDepartment(auth.orgId, id);
+  getDepartments(@CurrentUser() auth: AuthUser) {
+    return this.peopleService.getDepartments(auth.orgId);
   }
 
   @Get('/permissions')
