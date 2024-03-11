@@ -96,6 +96,10 @@ export class PeopleService {
     return { message: 'Department deleted successfully' }
   }
 
+  async getDepartments(orgId: string) {
+    return await Department.find({ organization: orgId }).lean()
+  }
+
   async sendMemberInvite(auth: AuthUser, data: SendMemberInviteDto) {
     const organization = await Organization.findById(auth.orgId);
     if (!organization) {
