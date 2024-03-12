@@ -10,15 +10,11 @@ export class CreateDepartmentDto {
   manager: string
 
   @IsArray()
-  @Type(() => String)
-  @ValidateNested({ each: true })
   @ArrayMinSize(1)
   @IsOptional()
   members: string[]
 
   @IsArray()
-  @Type(() => String)
-  @ValidateNested({ each: true })
   @ArrayMinSize(1)
   @IsOptional()
   budgets: string[]
