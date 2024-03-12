@@ -26,7 +26,6 @@ const departmentSchema = new Schema<IDepartment>(
     manager: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: true
     },
     budgets: [{
       type: Schema.Types.ObjectId,
