@@ -13,7 +13,7 @@ import { AuthUser } from "../common/interfaces/auth-user"
 import { escapeRegExp, getEnvOrThrow } from "../common/utils"
 import Logger from "../common/utils/logger"
 import { FeatureLimitExceededError } from "../common/utils/service-errors"
-import { CreateDepartmentDto, EditEmployeeDto, SendMemberInviteDto } from "./dto/people.dto"
+import { CreateDepartmentDto, EditEmployeeDto, GetDepartmentDto, SendMemberInviteDto } from "./dto/people.dto"
 
 const logger = new Logger('people-service')
 
@@ -96,8 +96,16 @@ export class PeopleService {
     return { message: 'Department deleted successfully' }
   }
 
-  async getDepartments(orgId: string) {
-    return await Department.find({ organization: orgId }).lean()
+  async getDepartments(orgId: string, query: GetDepartmentDto) {
+    const filter: any = { organization: orgId }
+    if (query.search) {
+      filter.name = { $regex: escapeRegExp(query.search), $options: 'i' }
+    }
+
+    return await Department.paginate(filter, {
+      page: query.page,
+      lean: true
+    })
   }
 
   async sendMemberInvite(auth: AuthUser, data: SendMemberInviteDto) {

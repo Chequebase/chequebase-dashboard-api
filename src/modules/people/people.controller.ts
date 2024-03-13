@@ -1,11 +1,11 @@
-import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patch, Post, Put } from 'routing-controllers';
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patch, Post, Put, QueryParams } from 'routing-controllers';
 import { Service } from 'typedi';
 import { PeopleService } from './people.service';
 import { AuthUser } from '../common/interfaces/auth-user';
 import { EPermission } from '@/models/role-permission.model';
 import { RoleService } from './role.service';
 import { CreateRoleDto } from './dto/role.dto';
-import { CreateDepartmentDto, EditEmployeeDto, SendMemberInviteDto } from './dto/people.dto';
+import { CreateDepartmentDto, EditEmployeeDto, GetDepartmentDto, SendMemberInviteDto } from './dto/people.dto';
 
 @Service()
 @JsonController('/people', { transformResponse: false })
@@ -59,8 +59,8 @@ export default class PeopleController {
 
   @Get('/departments')
   @Authorized(EPermission.PeopleRead)
-  getDepartments(@CurrentUser() auth: AuthUser) {
-    return this.peopleService.getDepartments(auth.orgId);
+  getDepartments(@CurrentUser() auth: AuthUser, @QueryParams() query: GetDepartmentDto) {
+    return this.peopleService.getDepartments(auth.orgId, query);
   }
 
   @Get('/permissions')
