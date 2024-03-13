@@ -8,7 +8,7 @@ import RolePermission from "@/models/role-permission.model";
 @Service()
 export class RoleService {
   async getRoles(orgId: string) {
-    return Role.find({
+    const roles = await Role.find({
       $or: [
         { organization: orgId, type: RoleType.Custom },
         { type: RoleType.Default },
@@ -16,6 +16,14 @@ export class RoleService {
     })
       .populate({ path: 'permissions', select: 'name module actions' })
       .lean()
+    
+    const populatedRoles = await Promise.all(roles.map(async r => {
+      const members = await User.find({ organization: orgId, roleRef: r._id })
+        .select('firstName lastName avatar').limit(3).lean()
+      return Object.assign(r, { members })
+    }))
+
+    return populatedRoles
   }
 
   async createRole(orgId: string, payload: CreateRoleDto) {

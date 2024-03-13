@@ -102,10 +102,23 @@ export class PeopleService {
       filter.name = { $regex: escapeRegExp(query.search), $options: 'i' }
     }
 
-    return await Department.paginate(filter, {
+    const departmentResult = await Department.paginate(filter, {
       page: query.page,
-      lean: true
+      lean: true,
+      populate: [
+        { path: 'budgets', select: 'name' },
+        { path: 'manager', select: 'firstName lastName' }
+      ]
     })
+
+    departmentResult.docs = await Promise.all(departmentResult.docs.map(async (d) => {
+      const members = await User.find({ organization: orgId, departments: d._id })
+        .select('firstName lastName avatar').lean()
+      
+      return Object.assign(d, { members })
+    }))
+
+    return departmentResult
   }
 
   async sendMemberInvite(auth: AuthUser, data: SendMemberInviteDto) {
