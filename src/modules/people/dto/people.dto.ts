@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsEmail, IsOptional, IsString, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsEmail, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 
 export class CreateDepartmentDto {
   @IsString()
@@ -61,4 +61,13 @@ export class EditEmployeeDto  {
   @IsString()
   @IsOptional()
   department: string
+}
+
+export class GetDepartmentDto {
+  @IsNumber()
+  page: number
+
+  @IsString()
+  @IsOptional()
+  search: string
 }

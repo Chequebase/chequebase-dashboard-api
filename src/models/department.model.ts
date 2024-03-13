@@ -1,9 +1,11 @@
 import { cdb } from '@/modules/common/mongoose';
-import { Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import { IOrganization } from './organization.model';
 import { IUser } from './user.model';
 import { IBudget } from './budget.model';
+import aggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 export interface IDepartment {
   _id: ObjectId
@@ -14,6 +16,10 @@ export interface IDepartment {
   createdAt: Date
   updatedAt: Date
 }
+
+interface DepartmentModel extends
+  mongoose.PaginateModel<IOrganization>,
+  mongoose.AggregatePaginateModel<IOrganization> { }
 
 const departmentSchema = new Schema<IDepartment>(
   {
@@ -35,6 +41,9 @@ const departmentSchema = new Schema<IDepartment>(
   { timestamps: true },
 );
 
-const Department = cdb.model<IDepartment>('Department', departmentSchema);
+departmentSchema.plugin(aggregatePaginate);
+departmentSchema.plugin(mongoosePaginate);
+
+const Department = cdb.model<IDepartment, DepartmentModel>('Department', departmentSchema);
 
 export default Department 
