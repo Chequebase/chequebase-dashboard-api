@@ -90,7 +90,7 @@ export class PeopleService {
     }
 
     await User.updateMany({ organization: orgId }, {
-      $pull: { departments: department }
+      $pull: { departments: department._id }
     })
 
     return { message: 'Department deleted successfully' }
