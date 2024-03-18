@@ -11,7 +11,7 @@ import { ERole } from '../user/dto/user.dto';
 export default class SettingsController {
   constructor (private readonly settingsService: SettingsService) { }
 
-  @Authorized(ERole.Owner)
+  @Authorized()
   @Post('/create-pin')
   createPin(@CurrentUser() auth: AuthUser, @Body() createPinDto: CreatePinDto) {
     return this.settingsService.createPin(auth.userId, createPinDto);
