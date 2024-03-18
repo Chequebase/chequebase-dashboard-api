@@ -22,7 +22,7 @@ export default class BillingController {
   }
 
   @Get('/subscription')
-  @Authorized(ERole.Owner)
+  @Authorized()
   getCurrentSubscription(@CurrentUser() auth: AuthUser) {
     return this.plansService.getCurrentSubscription(auth.orgId)
   }
