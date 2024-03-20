@@ -116,10 +116,12 @@ export default class BudgetService {
       throw new NotFoundError('User not found')
     }
 
-    const valid = await UserService.verifyTransactionPin(user.id, data.pin)
-    if (!valid) {
-      throw new BadRequestError('Invalid pin')
-    }
+    // Note: not need anymore
+
+    // const valid = await UserService.verifyTransactionPin(user.id, data.pin)
+    // if (!valid) {
+    //   throw new BadRequestError('Invalid pin')
+    // }
 
     const wallet = await Wallet.findOne({
       organization: auth.orgId,

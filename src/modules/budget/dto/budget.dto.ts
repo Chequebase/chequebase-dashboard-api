@@ -59,8 +59,9 @@ export class CreateBudgetDto extends CreateTranferBudgetDto {
   @ArrayMinSize(1)
   beneficiaries: BeneficiaryDto[]
 
-  @IsString()
-  pin: string
+  // Note: not need anymore
+  // @IsString()
+  // pin: string
 }
 
 export class BeneficiaryDto {
