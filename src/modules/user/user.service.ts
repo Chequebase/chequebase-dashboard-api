@@ -74,11 +74,11 @@ export class UserService {
       throw new BadRequestError('Account with same email already exists');
     }
 
-    const adminRole = await Role.findOne({ name: 'admin', type: RoleType.Default })
-    if (!adminRole) {
-      logger.error('role not found', { name: 'admin', type: 'default' })
-      throw new ServiceUnavailableError('Unable to complete registration at this time')
-    }
+    // const adminRole = await Role.findOne({ name: 'admin', type: RoleType.Default })
+    // if (!adminRole) {
+    //   logger.error('role not found', { name: 'admin', type: 'default' })
+    //   throw new ServiceUnavailableError('Unable to complete registration at this time')
+    // }
 
     const emailVerifyCode = this.generateRandomString(8);
     const user = await User.create({
