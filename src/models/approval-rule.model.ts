@@ -15,6 +15,12 @@ export enum ApprovalType {
   Everyone = 'everyone'
 }
 
+export enum ApprovalRulePriority {
+  High = 'high',
+  Medium = 'medium',
+  Low = 'low'
+}
+
 export interface IApprovalRule {
   _id: ObjectId
   amount: number
@@ -22,6 +28,7 @@ export interface IApprovalRule {
   approvalType: ApprovalType
   workflowType: WorkflowType
   reviewers: any[]
+  priority: ApprovalRulePriority
   createdBy: any
   createdAt: Date
   updatedAt: Date
@@ -33,6 +40,11 @@ interface ApprovalRuleModel extends
 
 const approvalRuleSchema = new Schema<IApprovalRule>(
   {
+    priority: {
+      type: String,
+      default: ApprovalRulePriority.Medium,
+      enum: Object.values(ApprovalRulePriority)
+    },
     amount: {
       type: Number,
       required: true
