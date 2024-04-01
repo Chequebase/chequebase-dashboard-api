@@ -1,5 +1,5 @@
 import { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
-import { IsArray, IsEnum, IsInt, IsNumber, IsOptional, Min } from "class-validator";
+import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, Min } from "class-validator";
 
 export class CreateRule {
   @IsEnum(WorkflowType)
@@ -31,4 +31,13 @@ export class GetRulesQuery {
   @IsInt()
   @IsOptional()
   amount: number
+}
+
+export class GetApprovalRequestsQuery {
+  @IsInt()
+  @Min(1)
+  page: number
+
+  @IsBoolean()
+  reviewed: boolean
 }
