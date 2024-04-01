@@ -24,6 +24,7 @@ export enum ApprovalRulePriority {
 export interface IApprovalRule {
   _id: ObjectId
   amount: number
+  name: string
   organization: any
   approvalType: ApprovalType
   workflowType: WorkflowType
@@ -40,6 +41,10 @@ interface ApprovalRuleModel extends
 
 const approvalRuleSchema = new Schema<IApprovalRule>(
   {
+    name: {
+      type: String,
+      required: true
+    },
     priority: {
       type: String,
       default: ApprovalRulePriority.Medium,
