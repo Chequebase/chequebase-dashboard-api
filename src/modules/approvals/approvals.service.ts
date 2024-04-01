@@ -1,7 +1,7 @@
 import ApprovalRule from "@/models/approval-rule.model";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { CreateRule, GetApprovalRequestsQuery, GetRulesQuery } from "./dto/approvals.dto";
-import { BadRequestError } from "routing-controllers";
+import { CreateRule, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
+import { BadRequestError, NotFoundError } from "routing-controllers";
 import User from "@/models/user.model";
 import QueryFilter from "../common/utils/query-filter";
 import { Service } from "typedi";
@@ -37,6 +37,19 @@ export default class ApprovalService {
       reviewers: data.reviewers,
     })
 
+    return rule
+  }
+
+  async updateApprovalRule(orgId: string, ruleId: string, data: UpdateRule) {
+    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, {
+      amount: data.amount,
+      approvalType: data.approvalType,
+      workflowType: data.workflowType,
+      reviewers: data.reviewers,
+    }, { new: true })
+    
+    if (!rule) throw new NotFoundError("Rule not found")
+    
     return rule
   }
 
