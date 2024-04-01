@@ -29,6 +29,7 @@ export default class ApprovalService {
     }
 
     rule = await ApprovalRule.create({
+      name: data.name,
       organization: auth.orgId,
       createdBy: auth.userId,
       amount: data.amount,
