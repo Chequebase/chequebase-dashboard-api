@@ -116,6 +116,153 @@ export default class BudgetService {
     return { message: 'Budget request declined' }
   }
 
+  async requestBudget(auth: AuthUser, data: CreateBudgetDto) {
+    const wallet = await Wallet.findOne({
+      organization: auth.orgId,
+      currency: data.currency
+    })
+
+    if (!wallet) {
+      logger.error('wallet not found', { currency: data.currency, orgId: auth.orgId })
+      throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
+    }
+
+    const rule = await ApprovalRule.findOne({
+      organization: auth.orgId,
+      workflowType: WorkflowType.Expense,
+      amount: { $lte: data.amount }
+    })
+
+    const noApprovalRequired = !rule || auth.isOwner
+    if (noApprovalRequired && wallet.balance < data.amount) {
+      throw new BadRequestError('Insufficient Balance')
+    }
+
+    const budget = await Budget.create({
+      organization: auth.orgId,
+      wallet: wallet._id,
+      name: data.name,
+      status: BudgetStatus.Pending,
+      amount: data.amount,
+      balance: 0,
+      currency: wallet.currency,
+      expiry: data.expiry,
+      threshold: data.threshold ?? data.amount,
+      beneficiaries: data.beneficiaries,
+      createdBy: auth.userId,
+      description: data.description,
+      priority: data.priority,
+    })
+
+    if (noApprovalRequired) {
+      return this.approveExpense(budget.id)
+    }
+
+    await ApprovalRequest.create({
+      organization: auth.orgId,
+      workflowType: WorkflowType.Expense,
+      requester: auth.userId,
+      approvalRule: rule._id,
+      reviews: rule.reviewers.map(userId => ({ user: userId })),
+      properties: {
+        budget: budget._id,
+        budgetExpiry: data.expiry,
+        budgetExtensionAmount: data.amount,
+        budgetBeneficiaries: data.beneficiaries,
+      }
+    })
+
+    // TODO: send notifications to reviewers
+
+    return {
+      status: budget.status,
+      budget: budget._id
+    }
+  }
+
+  async approveExpense(budgetId: string) {
+    const budget = await Budget.findById(budgetId)
+      .populate<{ wallet: IWallet }>('wallet')
+      .populate('beneficiaries.user')
+      .populate<{ createdBy: IUser }>('createdBy')
+    if (!budget) {
+      throw new BadRequestError('Budget not found')
+    }
+
+    const wallet = budget.wallet
+    if (wallet.balance < budget.amount) {
+      throw new BadRequestError('Insufficient Balance')
+    }
+
+    await this.planUsageService.checkActiveBudgetUsage(budget.organization.toString())
+
+    budget.balance = budget.amount
+    budget.status = BudgetStatus.Active
+    budget.approvedDate = new Date()
+
+    await cdb.transaction(async session => {
+      await budget.save({ session })
+      const [entry] = await WalletEntry.create([{
+        organization: budget.organization,
+        budget: budget._id,
+        wallet: budget!.wallet,
+        initiatedBy: budget.createdBy._id,
+        project: budget.project,
+        currency: budget.currency,
+        type: WalletEntryType.Debit,
+        ledgerBalanceBefore: wallet.ledgerBalance,
+        ledgerBalanceAfter: wallet.ledgerBalance,
+        balanceBefore: wallet.balance,
+        balanceAfter: numeral(wallet.balance).subtract(budget.balance).value(),
+        amount: budget.amount,
+        scope: WalletEntryScope.BudgetFunding,
+        narration: `Budget "${budget.name}" activated`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          budgetBalanceAfter: budget.balance
+        }
+      }], { session })
+
+      await Wallet.updateOne({ _id: budget.wallet._id }, {
+        $set: { walletEntry: entry._id },
+        $inc: { balance: -budget.amount }
+      }, { session })
+
+      // this.emailService.sendBudgetCreatedEmail(budget.createdBy.email, {
+      //   budgetAmount: formatMoney(budget!.amount),
+      //   budgetName: budget.name,
+      //   currency: budget.currency,
+      //   dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+      //   employeeName: budget.createdBy.firstName
+      // })
+    }, transactionOpts)
+
+    this.emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
+      budgetAmount: formatMoney(budget.balance),
+      currency: budget.currency,
+      budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
+      budgetName: budget.name,
+      employeeName: budget.createdBy.firstName
+    })
+
+    if (budget.beneficiaries.length > 0) {
+      budget.beneficiaries.forEach((beneficiary: any) => {
+        return beneficiary.user && this.emailService.sendBudgetBeneficiaryAdded(beneficiary.user.email, {
+          employeeName: beneficiary.user.firstName,
+          budgetName: budget!.name,
+          budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+          amountAllocated: formatMoney(beneficiary?.allocation || 0)
+        })
+      })
+    }
+
+    return {
+      status: budget.status,
+      budget: budget._id
+    }
+  }
+
   async createBudget(auth: AuthUser, data: CreateBudgetDto) {
     const user = await User.findById(auth.userId)
     if (!user) {
@@ -139,7 +286,7 @@ export default class BudgetService {
       throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
     }
 
-    const isOwner = user.role === ERole.Owner
+    const isOwner = user.role === ERole.Owner || auth.isOwner
     // wallet balance needs to be checked because the budget will be automatically approved
     if (isOwner) {
       if (wallet.balance < data.amount) {

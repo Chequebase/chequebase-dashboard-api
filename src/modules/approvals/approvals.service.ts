@@ -164,6 +164,8 @@ export default class ApprovalService {
           beneficiaries: request.properties.budgetBeneficiaries,
           approvalRequest: request._id.toString()
         })
+      case WorkflowType.Expense: 
+        return this.budgetService.approveExpense(request.properties.budget)
       default:
         logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })
         throw new BadRequestError("Something went wrong")

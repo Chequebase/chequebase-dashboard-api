@@ -76,7 +76,7 @@ export default class BudgetController {
   @Post('/')
   @Authorized()
   createBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
-    return this.budgetService.createBudget(auth, dto)
+    return this.budgetService.requestBudget(auth, dto)
   }
 
   @Post('/transfer')
