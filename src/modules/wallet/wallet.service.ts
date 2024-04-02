@@ -105,6 +105,7 @@ export default class WalletService {
     const virtualAccountId = new ObjectId()
     const reference = `va-${createId()}`
     const account = await this.virtualAccountService.createAccount({
+      type: 'static',
       email: organization.email,
       name: organization.businessName,
       provider: data.provider,

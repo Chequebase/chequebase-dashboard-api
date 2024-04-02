@@ -48,6 +48,10 @@ export class GetRulesQuery {
   @IsInt()
   @IsOptional()
   amount: number
+
+  @IsString()
+  @IsOptional()
+  search: string
 }
 
 export class GetApprovalRequestsQuery {
@@ -57,4 +61,9 @@ export class GetApprovalRequestsQuery {
 
   @IsBoolean()
   reviewed: boolean
+}
+
+export class DeclineRequest {
+  @IsString()
+  reason: string
 }

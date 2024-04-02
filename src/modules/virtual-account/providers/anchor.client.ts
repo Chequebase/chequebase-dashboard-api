@@ -18,9 +18,58 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     }
   })
 
-  async createVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult> {
+  async createStaticVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult> {
     const data = {
       type: 'VirtualNuban',
+      metadata: payload.metadata,
+      attributes: {
+        virtualAccountDetail: {
+          name: payload.name,
+          amount: payload.amount,
+          bvn: payload.identity.number,
+          reference: payload.reference,
+          email: payload.email,
+          description: `Virtual account for ${payload.name}`,
+          permanent: true
+        }
+      },
+      relationships: {
+        settlementAccount: {
+          data: {
+            id: getEnvOrThrow('ANCHOR_DEPOSIT_ACCOUNT'),
+            type: 'DepositAccount'
+          }
+        }
+      }
+    }
+
+    try {
+      const res = await this.http.post('/api/v1/virtual-nubans', { data })
+      const details = res.data.data.attributes
+
+      return {
+        accountName: details.accountName,
+        accountNumber: details.accountNumber,
+        bankCode: details.bank.nipCode,
+        bankName: details.bank.name,
+        provider: VirtualAccountClientName.Anchor,
+      }
+    } catch (err: any) {
+      this.logger.error('error creating virtual account', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        payload: JSON.stringify(payload),
+        status: err.response.status
+      });
+
+      throw new ServiceUnavailableError('Unable to create virtual account');
+    }
+  }
+
+  async createDynamicVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult> {
+    console.log('%o',payload)
+    const data = {
+      type: 'VirtualNuban',
+      metadata: payload.metadata,
       attributes: {
         virtualAccountDetail: {
           name: payload.name,
@@ -28,7 +77,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
           reference: payload.reference,
           email: payload.email,
           description: `Virtual account for ${payload.name}`,
-          permanent: true
+          permanent: false
         }
       },
       relationships: {

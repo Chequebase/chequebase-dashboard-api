@@ -4,7 +4,7 @@ import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto } from "./dto/budget.dto";
+import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto, ExtendBudget } from "./dto/budget.dto";
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model";
 import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
@@ -18,6 +18,11 @@ import { PlanUsageService } from "../billing/plan-usage.service";
 import { cdb } from "../common/mongoose";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import Project from "@/models/project.model";
+import ApprovalRequest, { ApprovalRequestReviewStatus, IApprovalRequest } from "@/models/approval-request.model";
+import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model";
+import Organization from "@/models/organization.model";
+import { VirtualAccountService } from "../virtual-account/virtual-account.service";
+import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 
 const logger = new Logger('budget-service')
 
@@ -25,7 +30,8 @@ const logger = new Logger('budget-service')
 export default class BudgetService {
   constructor (
     private emailService: EmailService,
-    private planUsageService: PlanUsageService
+    private planUsageService: PlanUsageService,
+    private virtualAccountService: VirtualAccountService
   ) { }
 
   static async initiateBudgetClosure(data: InitiateProjectClosure) {
@@ -396,6 +402,95 @@ export default class BudgetService {
     return budget!
   }
 
+  async requestBudgetExtension(auth: AuthUser, budgetId: string, data: RequestBudgetExtension) {
+    const existingRequest = await ApprovalRequest.findOne({
+      requester: auth.userId,
+      organization: auth.orgId,
+      workflowType: WorkflowType.BudgetExtension,
+      status: ApprovalRequestReviewStatus.Pending,
+      'properties.budget': budgetId
+    })
+
+    if (existingRequest) {
+      throw new BadRequestError('A pending budget extension request already exists for this budget');
+    }
+
+    let request: IApprovalRequest | undefined
+
+    if (!auth.isOwner) {
+      const rule = await ApprovalRule.findOne({
+        organization: auth.orgId,
+        workflowType: WorkflowType.BudgetExtension,
+        amount: { $lte: data.amount }
+      })
+
+      if (rule) {
+        request = await ApprovalRequest.create({
+          organization: auth.orgId,
+          workflowType: WorkflowType.BudgetExtension,
+          requester: auth.userId,
+          approvalRule: rule._id,
+          reviews: rule.reviewers.map(userId => ({ user: userId })),
+          properties: {
+            budget: budgetId,
+            budgetExpiry: data.expiry,
+            budgetExtensionAmount: data.amount,
+            budgetBeneficiaries: data.beneficiaries,
+          }
+        })
+
+        return {
+          status: request.status,
+          message: 'Request submitted successfully'
+        }
+      }
+    }
+
+    return this.extendBudget(auth.orgId, budgetId, {
+      approvalRequest: request?._id?.toString(),
+      ...data
+    })
+  }
+
+  async extendBudget(orgId: string, budgetId: string, extension: ExtendBudget) {
+    const budget = await Budget.findOne({ budget: budgetId, organization: orgId })
+    if (!budget) throw new BadRequestError("Budget not found")
+
+    const organization = await Organization.findOne({ organization: orgId })
+    if (!organization) throw new BadRequestError("Organization not found")
+
+    const wallet = await Wallet.findOne({ organization: orgId })
+    if (!wallet) throw new BadRequestError("Wallet not found")
+
+    const account = await this.virtualAccountService.createAccount({
+      type: 'dynamic',
+      email: organization.email,
+      name: `${budget.name} Extension`,
+      provider: VirtualAccountClientName.Anchor,
+      reference: createId(),
+      currency: wallet.currency,
+      metadata: {
+        intentType: 'budget_extension',
+        budget: budgetId,
+        extension: {
+          approvalRequest: extension.approvalRequest,
+          expiry: extension.expiry,
+          beneficiaries: extension.beneficiaries,
+          amount: extension.amount
+        }
+      },
+      identity: {
+        type: 'bvn',
+        number: organization.owners[0]?.bvn,
+      }
+    })
+
+    return {
+      status: 'approved',
+      account
+    }
+  }
+
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
     query.status ??= BudgetStatus.Active
     const user = await User.findById(auth.userId).lean()
@@ -403,7 +498,7 @@ export default class BudgetService {
       throw new BadRequestError("User not found")
     }
 
-    const isOwner = user.role === ERole.Owner
+    const isOwner = user.role === ERole.Owner || auth.isOwner
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', query.status)
       .set('project', { $exists: false })
@@ -627,7 +722,7 @@ export default class BudgetService {
       throw new BadRequestError("User not found")
     }
 
-    if (user.role !== ERole.Owner) {
+    if (user.role !== ERole.Owner || !auth?.isOwner) {
       filter['beneficiaries.user'] = new ObjectId(auth.userId)
     }
 

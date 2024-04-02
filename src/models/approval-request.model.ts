@@ -5,7 +5,7 @@ import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
 import { WorkflowType } from './approval-rule.model';
 
-export enum ReviewStatus {
+export enum ApprovalRequestReviewStatus {
   Pending = 'pending',
   Approved = 'approved',
   Declined = 'declined',
@@ -16,13 +16,18 @@ export interface IApprovalRequest {
   organization: any
   approvalRule: any
   workflowType: WorkflowType
-  status: ReviewStatus
+  status: ApprovalRequestReviewStatus
   requester: any
   properties: {
     budget?: any
     transaction?: any
     budgetExtensionAmount?: number
-    receipt?: string
+    budgetExpiry?: Date
+    budgetBeneficiaries?: {
+      user: any,
+      allocation: number
+    }[]
+    transactionReceipt?: string
   }
   reviews: {
     user: any
@@ -60,12 +65,20 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
         ref: "WalletEntry",
       },
       budgetExtensionAmount: Number,
-      receipt: String
+      budgetExpiry: Date,
+      budgetBeneficiaries: [{
+        allocation: Number,
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User'
+        }
+      }],
+      transactionReceipt: String
     },
     status: {
       type: String,
-      default: ReviewStatus.Pending,
-      enum: Object.values(ReviewStatus)
+      default: ApprovalRequestReviewStatus.Pending,
+      enum: Object.values(ApprovalRequestReviewStatus)
     },
     requester: {
       type: mongoose.Schema.Types.ObjectId,
@@ -79,7 +92,10 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
         required: true
       },
       reason: String,
-      status: String,
+      status: {
+        type: String,
+        default: ApprovalRequestReviewStatus.Pending
+      },
       timestamp: Date
     }],
     organization: {
