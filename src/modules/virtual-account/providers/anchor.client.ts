@@ -66,7 +66,6 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
   }
 
   async createDynamicVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult> {
-    console.log('%o',payload)
     const data = {
       type: 'VirtualNuban',
       metadata: payload.metadata,

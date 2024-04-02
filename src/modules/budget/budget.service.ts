@@ -611,9 +611,10 @@ export default class BudgetService {
 
     const account = await this.virtualAccountService.createAccount({
       type: 'dynamic',
+      amount: extension.amount,
       email: organization.email,
       name: `${budget.name} Extension`,
-      provider: VirtualAccountClientName.Anchor,
+      provider: VirtualAccountClientName.Paystack,
       reference: createId(),
       currency: wallet.currency,
       metadata: {
