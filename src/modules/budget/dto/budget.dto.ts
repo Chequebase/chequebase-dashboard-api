@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import { BudgetCurrency, BudgetPriority, BudgetStatus } from "@/models/budget.model";
-import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsBoolean, IsDate, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, isString, IsString, Min, ValidateNested } from "class-validator";
 import { ObjectId } from "mongodb";
 
 export class CreateTranferBudgetDto {
@@ -139,4 +139,26 @@ export class InitiateProjectClosure {
   budgetId: string | ObjectId
   userId?: string
   reason: string
+}
+
+export class RequestBudgetExtension {
+  @IsInt()
+  amount: number
+
+  @IsDate()
+  @IsOptional()
+  expiry?: Date
+
+  @Type(() => BeneficiaryDto)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsOptional()
+  beneficiaries?: BeneficiaryDto[]
+}
+
+export class ExtendBudget extends RequestBudgetExtension {
+  @IsString()
+  @IsOptional()
+  approvalRequest?: string
 }

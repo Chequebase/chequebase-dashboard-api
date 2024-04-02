@@ -23,6 +23,10 @@ export class VirtualAccountService {
       throw new BadRequestError('Currency not supported by provider')
     }
 
-    return client.createVirtualAccount(data)
+    if (data.type === 'static') {
+      return client.createStaticVirtualAccount(data)
+    }
+
+    return client.createDynamicVirtualAccount(data)
   }
 }

@@ -6,6 +6,7 @@ export type AuthUser = {
   email: string;
   role: string;
   sub: string
+  isOwner: boolean
   roleRef: {
     name: string
     type: RoleType;

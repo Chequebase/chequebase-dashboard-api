@@ -48,7 +48,10 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
     throw new UnauthorizedError('Can Not Log In At This Time')
   }
 
-  requestAction.request.auth = Object.assign(decodedToken, { roleRef: user?.roleRef })
+  requestAction.request.auth = Object.assign(decodedToken, {
+    roleRef: user?.roleRef,
+    isOwner: user?.roleRef?.name === 'owner' && user?.roleRef?.type === 'default'
+  })
  
   if (!actions.length) {
     return true;

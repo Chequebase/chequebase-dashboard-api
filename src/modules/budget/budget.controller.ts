@@ -1,13 +1,14 @@
 import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, Put, QueryParams } from "routing-controllers";
 import { Service } from "typedi";
 import BudgetService from "./budget.service";
-import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
+import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { ERole } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
 import { GetTransferFee, InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
 import { ProjectService } from "./project.service";
 import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto";
+import { EPermission } from "@/models/role-permission.model";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
@@ -124,6 +125,12 @@ export default class BudgetController {
   @Authorized(ERole.Owner)
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
     return this.budgetService.editBudget(auth, id, dto)
+  }
+
+  @Post('/:id/extend')
+  @Authorized(EPermission.BudgetExtend)
+  extendBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: RequestBudgetExtension) {
+    return this.budgetService.requestBudgetExtension(auth, id, dto)
   }
 
   @Put('/:id/cancel')
