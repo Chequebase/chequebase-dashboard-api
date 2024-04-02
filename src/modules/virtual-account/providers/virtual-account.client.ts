@@ -22,7 +22,8 @@ export interface CreateVirtualAccountResult {
 }
 
 export enum VirtualAccountClientName {
-  Anchor = 'anchor'
+  Anchor = 'anchor',
+  Paystack = 'paystack',
 }
 
 export abstract class VirtualAccountClient {
