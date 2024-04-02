@@ -37,7 +37,7 @@ export interface IBudget {
   description: string
   createdBy: ObjectId
   approvedBy: ObjectId
-  approvedDate: ObjectId
+  approvedDate: Date
   closeReason?: string
   closedBy?: ObjectId
   declinedBy?: ObjectId
