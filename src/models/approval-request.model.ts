@@ -11,6 +11,12 @@ export enum ApprovalRequestReviewStatus {
   Declined = 'declined',
 }
 
+export enum ApprovalRequestPriority {
+  High = 'high',
+  Medium = 'medium',
+  Low = 'low'
+}
+
 export interface IApprovalRequest {
   _id: ObjectId
   organization: any
@@ -18,6 +24,7 @@ export interface IApprovalRequest {
   workflowType: WorkflowType
   status: ApprovalRequestReviewStatus
   requester: any
+  priority: ApprovalRequestPriority
   properties: {
     budget?: any
     transaction?: any
@@ -102,7 +109,12 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true
-    }
+    },
+    priority: {
+      type: String,
+      default: ApprovalRequestPriority.Medium,
+      enum: Object.values(ApprovalRequestPriority)
+    },
   },
   { timestamps: true },
 );
