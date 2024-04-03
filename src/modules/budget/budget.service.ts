@@ -164,12 +164,7 @@ export default class BudgetService {
       requester: auth.userId,
       approvalRule: rule._id,
       reviews: rule.reviewers.map(userId => ({ user: userId })),
-      properties: {
-        budget: budget._id,
-        budgetExpiry: data.expiry,
-        budgetExtensionAmount: data.amount,
-        budgetBeneficiaries: data.beneficiaries,
-      }
+      properties: { budget: budget._id }
     })
 
     // TODO: send notifications to reviewers

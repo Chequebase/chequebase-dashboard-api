@@ -82,13 +82,13 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
     },
     requester: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
+      ref: "User",
       required: true
     },
     reviews: [{
       user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Organization",
+        ref: "User",
         required: true
       },
       reason: String,
