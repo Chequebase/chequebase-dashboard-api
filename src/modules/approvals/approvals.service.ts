@@ -99,6 +99,7 @@ export default class ApprovalService {
     const requests = await ApprovalRequest.paginate(filter.object, {
       page: Number(query.page),
       populate: [
+        { path: 'approvalRule', select: 'approvalType workflowType' },
         {
           path: 'reviews.user', select: 'firstName lastName avatar',
           populate: { path: 'roleRef', select: 'name' }
