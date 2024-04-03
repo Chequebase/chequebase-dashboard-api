@@ -93,7 +93,7 @@ export default class ApprovalService {
     const filter = new QueryFilter({
       organization: auth.orgId,
       'reviews.user': auth.userId,
-      'reviews.status': query.reviewed ? 'pending' : { $ne: 'pending' }
+      'reviews.status': query.reviewed ? { $ne: 'pending' } : 'pending'
     })
 
     const requests = await ApprovalRequest.paginate(filter.object, {
