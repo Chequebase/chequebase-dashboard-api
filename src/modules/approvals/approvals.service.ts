@@ -129,7 +129,7 @@ export default class ApprovalService {
     let request = await ApprovalRequest.findOne({
       _id: requestId,
       organization: auth.orgId,
-      'reviews.user': auth.orgId
+      'reviews.user': auth.userId
     })
 
     if (!request) {
