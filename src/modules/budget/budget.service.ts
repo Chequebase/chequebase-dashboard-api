@@ -644,6 +644,7 @@ export default class BudgetService {
     const isOwner = user.role === ERole.Owner || auth.isOwner
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('status', query.status)
+      .set('paused', query.paused || false)
       .set('project', { $exists: false })
 
     if (query.beneficiary) {
