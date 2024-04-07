@@ -132,6 +132,10 @@ export class GetBudgetsDto {
 
   @IsBoolean()
   @IsOptional()
+  paused: boolean
+
+  @IsBoolean()
+  @IsOptional()
   createdByUser = false
 }
 
