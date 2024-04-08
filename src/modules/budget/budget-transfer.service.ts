@@ -274,13 +274,14 @@ export class BudgetTransferService {
       throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
     }
 
-    const rule = await ApprovalRule.findOne({
+    const rules = await ApprovalRule.find({
       organization: auth.orgId,
       workflowType: WorkflowType.Transaction,
       amount: { $lte: data.amount }
     })
     
-    const noApprovalRequired =  !rule
+    const rule = rules.find(r => r.budget?.equals(budgetId)) || rules[0]
+    const noApprovalRequired = auth.isOwner || !rule
     if (noApprovalRequired) {
       return this.approveTransfer({
         accountNumber: data.accountNumber,

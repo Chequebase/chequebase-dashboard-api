@@ -27,7 +27,7 @@ export default class ApprovalService {
       organization: auth.orgId,
       workflowType: data.workflowType,
       approvalType: data.approvalType,
-      amount: data.amount
+      ...(data.budget && { budget: { $exists: true } })
     })
 
     if (rule) {
@@ -43,6 +43,7 @@ export default class ApprovalService {
       name: data.name,
       organization: auth.orgId,
       createdBy: auth.userId,
+      budget: data.budget,
       amount: data.amount,
       approvalType: data.approvalType,
       workflowType: data.workflowType,
