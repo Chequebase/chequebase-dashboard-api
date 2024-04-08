@@ -22,6 +22,7 @@ export interface IApprovalRule {
   organization: any
   approvalType: ApprovalType
   workflowType: WorkflowType
+  budget?: any
   reviewers: any[]
   createdBy: any
   createdAt: Date
@@ -61,6 +62,10 @@ const approvalRuleSchema = new Schema<IApprovalRule>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true
+    },
+    budget: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Budget"
     },
     organization: {
       type: mongoose.Schema.Types.ObjectId,

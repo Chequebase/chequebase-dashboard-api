@@ -4,6 +4,10 @@ import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from "cl
 export class CreateRule {
   @IsString()
   name: string;
+
+  @IsString()
+  @IsOptional()
+  budget: string;
   
   @IsEnum(WorkflowType)
   workflowType: WorkflowType
