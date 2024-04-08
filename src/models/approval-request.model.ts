@@ -27,14 +27,19 @@ export interface IApprovalRequest {
   priority: ApprovalRequestPriority
   properties: {
     budget?: any
-    transaction?: any
+    transaction?: {
+      amount: number
+      accountNumber: string
+      bankCode: string
+      accountName: string
+      receipt: string
+    }
     budgetExtensionAmount?: number
     budgetExpiry?: Date
     budgetBeneficiaries?: {
       user: any,
       allocation: number
     }[]
-    transactionReceipt?: string
   }
   reviews: {
     user: any
@@ -68,8 +73,12 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
         ref: "Budget",
       },
       transaction: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "WalletEntry",
+        amount: Number,
+        accountNumber: String,
+        bankCode: String,
+        bankName: String,
+        accountName: String,
+        receipt: String,
       },
       budgetExtensionAmount: Number,
       budgetExpiry: Date,
@@ -80,7 +89,6 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
           ref: 'User'
         }
       }],
-      transactionReceipt: String
     },
     status: {
       type: String,

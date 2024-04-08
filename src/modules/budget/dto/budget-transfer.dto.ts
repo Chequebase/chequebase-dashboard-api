@@ -1,7 +1,9 @@
+import { Transform } from "class-transformer";
 import { IsInt, IsString, Length } from "class-validator";
 
 export class InitiateTransferDto {
   @IsInt()
+  @Transform((n) => Number(n.value))
   amount: number
 
   @IsString()
@@ -11,8 +13,7 @@ export class InitiateTransferDto {
   @IsString()
   bankCode: string
 
-  @IsString()
-  pin: string
+  receipt?: Buffer
 }
 
 export class ResolveAccountDto {

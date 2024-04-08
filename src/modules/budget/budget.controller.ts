@@ -1,5 +1,6 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, Put, QueryParams } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, Put, QueryParams, Req, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
+import { Request } from 'express'
 import BudgetService from "./budget.service";
 import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
@@ -9,6 +10,8 @@ import { GetTransferFee, InitiateTransferDto, ResolveAccountDto } from "./dto/bu
 import { ProjectService } from "./project.service";
 import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto";
 import { EPermission } from "@/models/role-permission.model";
+import multer from "multer";
+import { plainToInstance } from "class-transformer";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
@@ -177,11 +180,14 @@ export default class BudgetController {
 
   @Post('/:id/transfer/initiate')
   @Authorized()
+  @UseBefore(multer().single('receipt'))
   initiateTransfer(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
-    @Body() body: InitiateTransferDto
+    @Req() req: Request,
   ) {
-    return this.budgetTransferService.initiateTransfer(auth, id, body)
+    const file = req.file as any
+    const dto = plainToInstance(InitiateTransferDto, { receipt: file.buffer, ...req.body })
+    return this.budgetTransferService.initiateTransfer(auth, id, dto)
   }
 }

@@ -14,11 +14,10 @@ import Budget, { BudgetStatus } from "@/models/budget.model"
 import { TransferService } from "../transfer/transfer.service"
 import { TransferClientName } from "../transfer/providers/transfer.client"
 import { AnchorService } from "../common/anchor.service"
-import { CreateTransferRecord } from "./interfaces/budget-transfer.interface"
-import { UserService } from "../user/user.service"
+import { ApproveTransfer, CreateTransferRecord } from "./interfaces/budget-transfer.interface"
 import User, { KycStatus } from "@/models/user.model"
 import { ERole } from "../user/dto/user.dto"
-import { transactionOpts } from "../common/utils"
+import { getEnvOrThrow, transactionOpts } from "../common/utils"
 import Organization from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
@@ -26,6 +25,9 @@ import { ServiceUnavailableError } from "../common/utils/service-errors"
 import Logger from "../common/utils/logger"
 import { IProject } from "@/models/project.model"
 import Bank from "@/models/bank.model"
+import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model"
+import ApprovalRequest from "@/models/approval-request.model"
+import { S3Service } from "../common/aws/s3.service"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -33,6 +35,7 @@ const logger = new Logger('budget-transfer-service')
 export class BudgetTransferService {
   constructor (
     private transferService: TransferService,
+    private s3Service: S3Service,
     private anchorService: AnchorService
   ) { }
 
@@ -62,19 +65,19 @@ export class BudgetTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(auth: AuthUser, data: InitiateTransferDto) {
-    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+  private async getCounterparty(orgId: string, accountNumber: string, bankCode: string) {
+    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
 
     let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
-      organization: auth.orgId,
-      accountNumber: data.accountNumber,
-      bankCode: data.bankCode
+      organization: orgId,
+      accountNumber: accountNumber,
+      bankCode: bankCode
     }, {
       $set: {
-        organization: auth.orgId,
+        organization: orgId,
         accountName: resolveRes.accountName,
-        accountNumber: data.accountNumber,
-        bankCode: data.bankCode,
+        accountNumber: accountNumber,
+        bankCode: bankCode,
         bankName: resolveRes.bankName,
       }
     }, {
@@ -247,9 +250,8 @@ export class BudgetTransferService {
     return true
   }
 
-  async initiateTransfer(auth: AuthUser, id: string, data: InitiateTransferDto) {
-    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
-      .populate('project')
+  async initiateTransfer(auth: AuthUser, budgetId: string, data: InitiateTransferDto) {
+    const budget = await Budget.exists({ _id: budgetId, organization: auth.orgId })
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
     }
@@ -258,28 +260,93 @@ export class BudgetTransferService {
     if (!organization) {
       throw new NotFoundError('Organization does not exist')
     }
+
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new NotFoundError('User does not exist')
     }
+
     if (organization.status === KycStatus.NO_DEBIT) {
       throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
     }
+
     if (user.KYBStatus === KycStatus.NO_DEBIT) {
       throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
     }
 
-    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
-    if (!valid) {
-      throw new BadRequestError('Invalid pin')
+    const rule = await ApprovalRule.findOne({
+      organization: auth.orgId,
+      workflowType: WorkflowType.Transaction,
+      amount: { $lte: data.amount }
+    })
+    
+    const noApprovalRequired =  !rule
+    if (noApprovalRequired) {
+      return this.approveTransfer({
+        accountNumber: data.accountNumber,
+        amount: data.amount,
+        bankCode: data.bankCode,
+        budget: budgetId,
+        userId: auth.userId
+      })
     }
 
-    const fee = await this.calcTransferFee(auth.orgId, data.amount, budget.currency)
+    if (!data.receipt) {
+      throw new BadRequestError('Transaction receipt is required')
+    }
+    
+    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    const key = `transaction-receipt/${budgetId}/${createId()}`;
+    const receiptUrl = await this.s3Service.uploadObject(
+      getEnvOrThrow('AVATAR_BUCKET_NAME'),
+      key,
+      data.receipt
+    );
+
+    await ApprovalRequest.create({
+      organization: auth.orgId,
+      workflowType: WorkflowType.Expense,
+      requester: auth.userId,
+      approvalRule: rule._id,
+      reviews: rule.reviewers.map(userId => ({ user: userId })),
+      properties: {
+        budget: budget._id,
+        transaction: {
+          accountName: resolveRes.accountName,
+          accountNumber: data.accountNumber,
+          amount: data.amount,
+          bankCode: data.bankCode,
+          bankName: resolveRes.bankName,
+          receipt: receiptUrl
+        }
+      }
+    })
+
+    // TODO: send notifications to reviewers
+
+    return {
+      status: 'pending',
+      message: 'Transaction pending approval',
+    }
+  }
+
+  async approveTransfer(data: ApproveTransfer) {
+    const budget = await Budget.findById(data.budget)
+      .populate('project')
+    if (!budget) {
+      throw new NotFoundError('Budget does not exist')
+    }
+
+    const orgId = budget.organization.toString()
+    const fee = await this.calcTransferFee(orgId, data.amount, budget.currency)
     const provider = TransferClientName.Anchor // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
-    const payload = { budget, auth, data, amountToDeduct, provider, fee }
+    const payload = {
+      auth: { userId: data.userId, orgId },
+      budget, data, amountToDeduct, provider, fee,
+    }
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(auth, data)
+    const counterparty = await this.getCounterparty(orgId, data.accountNumber, data.bankCode)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({

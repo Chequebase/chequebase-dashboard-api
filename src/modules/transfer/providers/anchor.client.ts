@@ -148,7 +148,7 @@ export class AnchorTransferClient implements TransferClient {
       this.logger.error('error verify transfer', {
         reason: JSON.stringify(err.response?.data || err?.message),
         transferId: id,
-        status: err.response.status
+        status: err.response?.status
       });
 
       if (err.response.status === 404) {
