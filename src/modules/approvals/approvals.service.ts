@@ -1,4 +1,4 @@
-import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model";
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
 import { BadRequestError, NotFoundError } from "routing-controllers";
@@ -10,12 +10,16 @@ import Counterparty from "@/models/counterparty.model";
 import BudgetService from "../budget/budget.service";
 import Logger from "../common/utils/logger";
 import { escapeRegExp } from "../common/utils";
+import { BudgetTransferService } from "../budget/budget-transfer.service";
 
 const logger = new Logger('approval-service')
 
 @Service()
 export default class ApprovalService {
-  constructor (private budgetService: BudgetService) { }
+  constructor (
+    private budgetService: BudgetService,
+    private budgetTnxService: BudgetTransferService
+  ) { }
 
   async createApprovalRule(auth: AuthUser, data: CreateRule) {
     // TODO: limit reviewer count based on plan
@@ -130,19 +134,22 @@ export default class ApprovalService {
       _id: requestId,
       organization: auth.orgId,
       'reviews.user': auth.userId
-    })
+    }).populate('approvalRule', 'approvalType')
 
     if (!request) {
       throw new BadRequestError("Approval request not found")
     }
 
-    const allApproved = request.reviews.every(r =>
-      r.status === ApprovalRequestReviewStatus.Approved ||
-      r.user.equals(auth.userId)
-    )
+    let approved = true
+    if (request.approvalRule.approvalType === ApprovalType.Everyone) {
+      approved = request.reviews.every(r =>
+        r.status === ApprovalRequestReviewStatus.Approved ||
+        r.user.equals(auth.userId)
+      )
+    }
 
     const update: any = { 'reviews.$[review].status': ApprovalRequestReviewStatus.Approved }
-    if (allApproved) update.status = ApprovalRequestReviewStatus.Approved
+    if (approved) update.status = ApprovalRequestReviewStatus.Approved
 
     request = (await ApprovalRequest.findOneAndUpdate(
       { _id: requestId },
@@ -150,23 +157,33 @@ export default class ApprovalService {
       { multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
     ))!
 
-    if (!allApproved) {
+    if (!approved) {
       return {
         status: request.status,
         message: 'Review submitted successfully'
       }
     }
 
+    const props = request.properties
     switch (request.workflowType) {
       case WorkflowType.BudgetExtension:
-        return this.budgetService.extendBudget(auth.orgId, request.properties.budget, {
-          amount: request.properties.budgetExtensionAmount!,
-          expiry: request.properties.budgetExpiry,
-          beneficiaries: request.properties.budgetBeneficiaries,
+        return this.budgetService.extendBudget(auth.orgId, props.budget, {
+          amount: props.budgetExtensionAmount!,
+          expiry: props.budgetExpiry,
+          beneficiaries: props.budgetBeneficiaries,
           approvalRequest: request._id.toString()
         })
       case WorkflowType.Expense: 
-        return this.budgetService.approveExpense(request.properties.budget)
+        return this.budgetService.approveExpense(props.budget)
+      case WorkflowType.Transaction:
+        const trnx = props.transaction!
+        return this.budgetTnxService.approveTransfer({
+          accountNumber: trnx.accountNumber,
+          amount: trnx.amount,
+          bankCode: trnx.bankCode,
+          budget: props.budget,
+          userId: request.requester.toString()
+        })
       default:
         logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })
         throw new BadRequestError("Something went wrong")

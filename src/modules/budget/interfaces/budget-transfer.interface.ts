@@ -4,7 +4,7 @@ import { AuthUser } from "@/modules/common/interfaces/auth-user"
 import { InitiateTransferDto } from "../dto/budget-transfer.dto"
 
 export interface CreateTransferRecord {
-  auth: AuthUser
+  auth: { orgId: string; userId: string }
   budget: IBudget
   counterparty: ICounterparty
   data: InitiateTransferDto
@@ -18,4 +18,12 @@ export interface RunSecurityCheck {
   budget: IBudget
   amountToDeduct: number
   data: InitiateTransferDto
+}
+
+export interface ApproveTransfer {
+  budget: string
+  amount: number
+  bankCode: string
+  accountNumber: string
+  userId: string
 }
