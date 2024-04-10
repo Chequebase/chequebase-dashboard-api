@@ -11,6 +11,7 @@ import BudgetService from "../budget/budget.service";
 import Logger from "../common/utils/logger";
 import { escapeRegExp } from "../common/utils";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
+import Budget, { BudgetStatus } from "@/models/budget.model";
 
 const logger = new Logger('approval-service')
 
@@ -191,7 +192,7 @@ export default class ApprovalService {
     }
   }
 
-  async declineApporvalRequest(auth: AuthUser, requestId: string, data: DeclineRequest) {
+  async declineApprovalRequest(auth: AuthUser, requestId: string, data: DeclineRequest) {
     let request = await ApprovalRequest.findOne({
       _id: requestId,
       organization: auth.orgId,
@@ -208,11 +209,18 @@ export default class ApprovalService {
       status: ApprovalRequestReviewStatus.Declined
     }
 
-    request = await ApprovalRequest.findOneAndUpdate(
+    request = (await ApprovalRequest.findOneAndUpdate(
       { _id: requestId },
       { $set: update },
       { multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
-    )
+    ))!
+
+    if (request.workflowType === WorkflowType.Expense) {
+      await Budget.updateOne(
+        { _id: request.properties.budget },
+        { status: BudgetStatus.Closed, closedBy: auth.userId, closeReason: data.reason }
+      )
+    }
 
     return request
   }
