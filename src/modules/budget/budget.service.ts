@@ -654,6 +654,7 @@ export default class BudgetService {
       filter.set('beneficiaries.user', new ObjectId(auth.userId))
     } else {
       if (query.createdByUser) filter.set('createdBy', new ObjectId(auth.userId))
+      else if (!query.returnAll) filter.set('createdBy', { $ne: new ObjectId(auth.userId) })
       else filter.set('createdBy', { $ne: new ObjectId(auth.userId) })
     }
 
@@ -675,7 +676,6 @@ export default class BudgetService {
       }
     }
 
-    console.log('%o',filter.object)
     const aggregate = Budget.aggregate()
       .match(filter.object)
       .sort({ priority: 1, createdAt: -1 })
