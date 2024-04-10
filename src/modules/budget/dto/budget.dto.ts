@@ -113,9 +113,8 @@ export class GetBudgetsDto {
   page = 1
 
   @IsString()
-  @IsEnum(BudgetStatus)
   @IsOptional()
-  status: BudgetStatus
+  status: string
 
   @IsString()
   @IsOptional()

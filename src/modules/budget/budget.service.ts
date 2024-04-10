@@ -643,7 +643,6 @@ export default class BudgetService {
 
     const isOwner = user.role === ERole.Owner || auth.isOwner
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
-      .set('status', query.status)
       .set('paused', query.paused || false)
       .set('project', { $exists: false })
 
@@ -666,6 +665,17 @@ export default class BudgetService {
       ])
     }
 
+    if (query.status) {
+      if (query.status === 'inactive') {
+        let status: any = { status: 'closed' }
+        !filter.object.$or && (status = [status])
+        filter.append('$or', status).append('$or', { paused: true })
+      } else {
+        filter.set('status', query.status)
+      }
+    }
+
+    console.log('%o',filter.object)
     const aggregate = Budget.aggregate()
       .match(filter.object)
       .sort({ priority: 1, createdAt: -1 })
