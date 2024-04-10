@@ -655,7 +655,6 @@ export default class BudgetService {
     } else {
       if (query.createdByUser) filter.set('createdBy', new ObjectId(auth.userId))
       else if (!query.returnAll) filter.set('createdBy', { $ne: new ObjectId(auth.userId) })
-      else filter.set('createdBy', { $ne: new ObjectId(auth.userId) })
     }
 
     if (query.search) {
@@ -931,4 +930,22 @@ export default class BudgetService {
     
     return budgetAgg
   }
+
+  async getCategories() {
+    
+  }
+
+  async deleteCategory() {
+    
+  }
+
+  async updateCategory() {
+    
+  }
+
+  async getCounterparties() {
+    
+  }
+
+  
 }
