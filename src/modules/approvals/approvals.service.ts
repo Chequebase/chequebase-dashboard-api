@@ -225,4 +225,36 @@ export default class ApprovalService {
 
     return request
   }
+
+  async createDefaultApprovalRules(orgId: string, userId: string) {
+    await ApprovalRule.create([
+      {
+        name: 'Transaction Rule',
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Transaction,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: 'Expense Rule',
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Expense,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: 'Budget Extension Rule',
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.BudgetExtension,
+        organization: orgId,
+        reviewers: [userId],
+      }
+    ])
+  }
 }
