@@ -136,6 +136,10 @@ export class GetBudgetsDto {
   @IsBoolean()
   @IsOptional()
   createdByUser = false
+
+  @IsBoolean()
+  @IsOptional()
+  returnAll = false
 }
 
 export class InitiateProjectClosure {
