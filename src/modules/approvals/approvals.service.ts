@@ -115,6 +115,7 @@ export default class ApprovalService {
           populate: { path: 'roleRef', select: 'name' }
         },
         { path: 'properties.budget', select: 'name amount description createdAt expiry' },
+        { path: 'properties.budgetBeneficiaries.user', select: 'firstName lastName avatar' },
         {
           path: 'properties.transaction', select: 'status amount category meta',
           populate: {
