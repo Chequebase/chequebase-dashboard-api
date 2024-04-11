@@ -6,7 +6,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
 import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
-import { ResolveAccountDto, InitiateTransferDto, GetTransferFee } from "./dto/budget-transfer.dto"
+import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient } from "./dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import { IWallet } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
@@ -14,10 +14,10 @@ import Budget, { BudgetStatus } from "@/models/budget.model"
 import { TransferService } from "../transfer/transfer.service"
 import { TransferClientName } from "../transfer/providers/transfer.client"
 import { AnchorService } from "../common/anchor.service"
-import { ApproveTransfer, CreateTransferRecord } from "./interfaces/budget-transfer.interface"
+import { ApproveTransfer, CreateTransferRecord, RunSecurityCheck } from "./interfaces/budget-transfer.interface"
 import User, { KycStatus } from "@/models/user.model"
 import { ERole } from "../user/dto/user.dto"
-import { getEnvOrThrow, transactionOpts } from "../common/utils"
+import { escapeRegExp, getEnvOrThrow, transactionOpts } from "../common/utils"
 import Organization from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
@@ -28,6 +28,7 @@ import Bank from "@/models/bank.model"
 import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model"
 import ApprovalRequest from "@/models/approval-request.model"
 import { S3Service } from "../common/aws/s3.service"
+import TransferCategory from "@/models/transfer-category"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -65,25 +66,16 @@ export class BudgetTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(orgId: string, accountNumber: string, bankCode: string) {
+  private async getCounterparty(orgId: string, bankCode: string, accountNumber: string) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
-
     let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
       organization: orgId,
-      accountNumber: accountNumber,
-      bankCode: bankCode
+      accountNumber,
+      bankCode
     }, {
-      $set: {
-        organization: orgId,
-        accountName: resolveRes.accountName,
-        accountNumber: accountNumber,
-        bankCode: bankCode,
-        bankName: resolveRes.bankName,
-      }
-    }, {
-      upsert: true,
-      returnOriginal: false
-    }).lean()
+      accountName: resolveRes.accountName,
+      bankName: resolveRes.bankName,
+    }, { new: true, upsert: true }).lean()
 
     return { ...counterparty, bankId: resolveRes.bankId }
   }
@@ -161,7 +153,7 @@ export class BudgetTransferService {
     }, transactionOpts)
   }
 
-  private async runTransferWindowCheck(payload: any) {
+  private async runTransferWindowCheck(payload: RunSecurityCheck) {
     const { data, auth } = payload
     const oneMinuteAgo = dayjs().subtract(1, 'minute').toDate()
 
@@ -181,7 +173,7 @@ export class BudgetTransferService {
     return true
   }
 
-  private async runBeneficiaryCheck(payload: any) {
+  private async runBeneficiaryCheck(payload: RunSecurityCheck) {
     const { budget, auth, data } = payload
     const user = await User.findById(auth.userId).lean()
     if (!user) {
@@ -218,7 +210,7 @@ export class BudgetTransferService {
     }
   }
 
-  private async runSecurityChecks(payload: any) {
+  private async runSecurityChecks(payload: RunSecurityCheck) {
     const { budget, amountToDeduct } = payload
     if (budget.status !== BudgetStatus.Active) {
       throw new BadRequestError("Budget is not active")
@@ -279,7 +271,22 @@ export class BudgetTransferService {
       workflowType: WorkflowType.Transaction,
       amount: { $lte: data.amount }
     })
-    
+
+    let resolveRes
+    // TODO: add guard for only owner and manager
+    if (data.saveRecipient) {
+      resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+      await Counterparty.findOneAndUpdate({
+        organization: auth.orgId,
+        bankCode: data.bankCode,
+        accountNumber: data.accountNumber,
+      }, {
+        isRecipient: true,
+        accountName: resolveRes.accountName,
+        bankName: resolveRes.bankName,
+      }, { upsert: true })
+    }
+
     const rule = rules.find(r => r.budget?.equals(budgetId)) || rules[0]
     const noApprovalRequired = auth.isOwner || !rule
     if (noApprovalRequired) {
@@ -288,7 +295,8 @@ export class BudgetTransferService {
         amount: data.amount,
         bankCode: data.bankCode,
         budget: budgetId,
-        userId: auth.userId
+        userId: auth.userId,
+        category: data.category
       })
     }
 
@@ -296,13 +304,16 @@ export class BudgetTransferService {
       throw new BadRequestError('Transaction receipt is required')
     }
     
-    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
     const key = `transaction-receipt/${budgetId}/${createId()}`;
     const receiptUrl = await this.s3Service.uploadObject(
       getEnvOrThrow('AVATAR_BUCKET_NAME'),
       key,
       data.receipt
     );
+
+    if (!resolveRes){
+      resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    }
 
     await ApprovalRequest.create({
       organization: auth.orgId,
@@ -318,7 +329,8 @@ export class BudgetTransferService {
           amount: data.amount,
           bankCode: data.bankCode,
           bankName: resolveRes.bankName,
-          receipt: receiptUrl
+          receipt: receiptUrl,
+          category: data.category
         }
       }
     })
@@ -344,10 +356,14 @@ export class BudgetTransferService {
     const amountToDeduct = numeral(data.amount).add(fee).value()!
     const payload = {
       auth: { userId: data.userId, orgId },
-      budget, data, amountToDeduct, provider, fee,
+      category: data.category,
+      budget, data,
+      provider, fee,
+      amountToDeduct
     }
+
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(orgId, data.accountNumber, data.bankCode)
+    const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
@@ -404,5 +420,79 @@ export class BudgetTransferService {
         attributes: undefined
       }
     })
+  }
+
+
+  async getCategories(auth: AuthUser) {
+    return TransferCategory.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
+  }
+
+  async createCategory(auth: AuthUser, name: string) {
+    const $regex = new RegExp(`^${escapeRegExp(name)}$`, "i")
+    const exists = await TransferCategory.exists({ organization: auth.orgId, email: { $regex } })
+    if (exists) { 
+      throw new BadRequestError('Category already exists')
+    }
+
+    return TransferCategory.create({ organization: auth.orgId, name })
+  }
+
+  async deleteCategory(auth: AuthUser, catId: string) {
+    const category = await TransferCategory.findOneAndDelete({ _id: catId, organization: auth.orgId })
+    if (!category) {
+      throw new BadRequestError("Category does not exist")
+    }
+
+    return { message: 'deleted successfully' }
+  }
+
+  async updateCategory(auth: AuthUser, catId: string, name: string) {
+    const category = await TransferCategory.findOneAndUpdate({ _id: catId, organization: auth.orgId }, {
+      name
+    })
+    if (!category) {
+      throw new BadRequestError("Category does not exist")
+    }
+
+    return { message: 'updated successfully' }
+  }
+
+  async getRecipients(auth:AuthUser ) {
+    return Counterparty.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
+  }
+
+  async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
+    const recipient = await Counterparty.findOne({ _id: id, user: auth.userId, organization: auth.orgId, isRecipient: true })
+    if (!recipient) {
+      throw new BadRequestError("Recipient not found")
+    }
+
+    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    await recipient.updateOne({
+      bankName: resolveRes.bankName,
+      bankCode: data.bankCode,
+      accountName: resolveRes.accountName,
+      accountNumber: data.accountNumber,
+    })
+
+    return { message: 'Recipient updated' }
+  }
+
+  async deleteRecipient(auth: AuthUser, id: string) {
+    const recipient = await Counterparty.findOneAndUpdate(
+      { _id: id, organization: auth.orgId, user: auth.userId, isRecipient: true },
+      { isRecipient: false }
+    )
+
+    if (!recipient) { 
+      throw new BadRequestError("Recipient not found")
+    }
+
+    return { message: 'Recipient deleted' }
+  }
+
+  async createDefaultCategories(orgId: string) {
+    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
+    return TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
   }
 }

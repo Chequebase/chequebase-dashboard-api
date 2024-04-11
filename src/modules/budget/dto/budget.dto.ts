@@ -169,3 +169,8 @@ export class ExtendBudget extends RequestBudgetExtension {
   @IsOptional()
   approvalRequest?: string
 }
+
+export class CreateTransferCategory {
+  @IsString()
+  name: string
+}

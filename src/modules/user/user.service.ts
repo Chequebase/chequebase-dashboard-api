@@ -22,6 +22,7 @@ import Role, { RoleType } from "@/models/role.model";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import UserInvite from "@/models/user-invite.model";
 import ApprovalService from "../approvals/approvals.service";
+import { BudgetTransferService } from "../budget/budget-transfer.service";
 
 const logger = new Logger('user-service')
 
@@ -33,6 +34,7 @@ export class UserService {
     private planUsageService: PlanUsageService,
     private slackNotificationService: SlackNotificationService,
     private approvalService: ApprovalService,
+    private budgetTnxService: BudgetTransferService,
   ) { }
 
   static async verifyTransactionPin(id: string, pin: string) {
@@ -105,7 +107,10 @@ export class UserService {
     await user.updateOne({ organization: organization._id })
 
     // create default approval rules
-    await this.approvalService.createDefaultApprovalRules(organization.id, user.id)
+    await Promise.all([
+      this.approvalService.createDefaultApprovalRules(organization.id, user.id),
+      this.budgetTnxService.createDefaultCategories(organization.id)
+    ])
 
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${emailVerifyCode}&email=${data.email}`
     this.emailService.sendVerifyEmail(data.email, {
