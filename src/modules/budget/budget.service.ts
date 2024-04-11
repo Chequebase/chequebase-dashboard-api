@@ -930,22 +930,4 @@ export default class BudgetService {
     
     return budgetAgg
   }
-
-  async getCategories() {
-    
-  }
-
-  async deleteCategory() {
-    
-  }
-
-  async updateCategory() {
-    
-  }
-
-  async getCounterparties() {
-    
-  }
-
-  
 }

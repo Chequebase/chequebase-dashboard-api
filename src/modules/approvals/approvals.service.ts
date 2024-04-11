@@ -116,16 +116,7 @@ export default class ApprovalService {
         },
         { path: 'properties.budget', select: 'name amount description createdAt expiry' },
         { path: 'properties.budgetBeneficiaries.user', select: 'firstName lastName avatar' },
-        {
-          path: 'properties.transaction', select: 'status amount category meta',
-          populate: {
-            path: 'meta.counterparty',
-            localField: 'meta.counterparty',
-            select: 'accountName accountNumber bankName',
-            foreignField: '_id',
-            model: Counterparty
-          }
-        },
+        { path: 'properties.transaction.category', select: 'name' },
       ]
     })
 
@@ -185,7 +176,8 @@ export default class ApprovalService {
           amount: trnx.amount,
           bankCode: trnx.bankCode,
           budget: props.budget,
-          userId: request.requester.toString()
+          userId: request.requester.toString(),
+          category: trnx.category
         })
       default:
         logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })

@@ -1,12 +1,12 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, Put, QueryParams, Req, UseBefore } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import { Request } from 'express'
 import BudgetService from "./budget.service";
-import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
+import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { ERole } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
-import { GetTransferFee, InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
+import { GetTransferFee, InitiateTransferDto, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto";
 import { ProjectService } from "./project.service";
 import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto";
 import { EPermission } from "@/models/role-permission.model";
@@ -80,6 +80,49 @@ export default class BudgetController {
   @Authorized()
   createBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
     return this.budgetService.requestBudget(auth, dto)
+  }
+
+  // TODO: add rbac for categories and recipient endpoints
+  @Get('/categories')
+  @Authorized()
+  getCategories(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
+    return this.budgetTransferService.getCategories(auth)
+  }
+
+  @Post('/categories')
+  @Authorized()
+  createCategory(@CurrentUser() auth: AuthUser, @Body() dto: CreateTransferCategory) {
+    return this.budgetTransferService.createCategory(auth, dto.name)
+  }
+
+  @Patch('/categories/:id')
+  @Authorized()
+  updateCategory(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: CreateTransferCategory) {
+    return this.budgetTransferService.updateCategory(auth, id, dto.name)
+  }
+
+  @Delete('/categories/:id')
+  @Authorized()
+  deleteCategory(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.budgetTransferService.deleteCategory(auth, id)
+  }
+
+  @Get('/recipients')
+  @Authorized()
+  getRecipients(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
+    return this.budgetTransferService.getRecipients(auth)
+  }
+
+  @Patch('/recipients/:id')
+  @Authorized()
+  updateRecipient(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateRecipient) {
+    return this.budgetTransferService.updateRecipient(auth, id, dto)
+  }
+
+  @Delete('/categories/:id')
+  @Authorized()
+  deleteRecipient(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.budgetTransferService.deleteRecipient(auth, id)
   }
 
   @Post('/transfer')

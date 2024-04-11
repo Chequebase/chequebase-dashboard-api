@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsInt, IsString, Length } from "class-validator";
+import { IsBoolean, IsInt, IsOptional, IsString, Length } from "class-validator";
 
 export class InitiateTransferDto {
   @IsInt()
@@ -14,6 +14,13 @@ export class InitiateTransferDto {
   bankCode: string
 
   receipt?: Buffer
+
+  @IsBoolean()
+  @IsOptional()
+  saveRecipient = false
+
+  @IsString()
+  category: string
 }
 
 export class ResolveAccountDto {
@@ -31,4 +38,12 @@ export class GetTransferFee {
 
   @IsString()
   budget: string
+}
+
+export class UpdateRecipient {
+  @IsString()
+  bankCode: string
+
+  @IsString()
+  accountNumber: string
 }

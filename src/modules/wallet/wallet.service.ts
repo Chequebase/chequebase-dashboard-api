@@ -246,9 +246,10 @@ export default class WalletService {
 
     const history = await WalletEntry.paginate(filter.object, {
       select: 'status currency fee type reference wallet amount scope budget createdAt',
-      populate: {
-        path: 'budget', select: 'name'
-      },
+      populate: [
+        { path: 'budget', select: 'name' },
+        { path: 'category', select: 'name' }
+      ],
       sort: '-createdAt',
       page: Number(query.page),
       limit: query.limit,
@@ -276,6 +277,7 @@ export default class WalletService {
 
     const cursor = WalletEntry.find(filter)
       .populate({ path: 'budget', select: 'name' })
+      .populate({ path: 'category', select: 'name' })
       .select('status fee balanceBefore balanceAfter currency type amount scope budget createdAt')
       .sort('-createdAt')
       .lean()
@@ -291,6 +293,7 @@ export default class WalletService {
       'Balance After': formatMoney(entry.balanceAfter),
       'Balance Before': formatMoney(entry.balanceBefore),
       'Budget': entry.budget?.name || '---',
+      'Category': entry.category?.name || '---',
       'Scope': entry.scope.toUpperCase().replaceAll('_', ' '),
       'Date': dayjs(entry.createdAt).tz('Africa/Lagos').format('MMM D, YYYY h:mm A'),
     }));
@@ -322,6 +325,7 @@ export default class WalletService {
     const entry = await WalletEntry.findOne({ _id: entryId, organization: orgId })
       .select('-gatewayResponse -provider')
       .populate('budget')
+      .populate('category')
       .lean()
 
     if (!entry) {
