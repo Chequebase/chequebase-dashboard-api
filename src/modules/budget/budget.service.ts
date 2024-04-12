@@ -4,7 +4,7 @@ import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ApproveBudgetBodyDto, BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto, ExtendBudget } from "./dto/budget.dto";
+import { BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto, ExtendBudget, FundBudget, FundBudgetSource } from "./dto/budget.dto";
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model";
 import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
@@ -23,6 +23,7 @@ import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model";
 import Organization from "@/models/organization.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
 
 const logger = new Logger('budget-service')
 
@@ -133,10 +134,9 @@ export default class BudgetService {
       amount: { $lte: data.amount }
     })
 
-    const noApprovalRequired = !rule || auth.isOwner
-    if (noApprovalRequired && wallet.balance < data.amount) {
-      throw new BadRequestError('Insufficient Balance')
-    }
+    const beneficiaries = data.beneficiaries?.length ?
+      data.beneficiaries :
+      [{ user: auth.userId, allocation: data.amount }]
 
     const budget = await Budget.create({
       organization: auth.orgId,
@@ -148,13 +148,13 @@ export default class BudgetService {
       currency: wallet.currency,
       expiry: data.expiry,
       threshold: data.threshold ?? data.amount,
-      beneficiaries: data.beneficiaries,
       createdBy: auth.userId,
       description: data.description,
       priority: data.priority,
+      beneficiaries
     })
 
-    if (noApprovalRequired) {
+    if (!rule || auth.isOwner) {
       return this.approveExpense(budget.id)
     }
 
@@ -183,20 +183,25 @@ export default class BudgetService {
     if (!budget) {
       throw new BadRequestError('Budget not found')
     }
-
+ 
+    budget.approvedDate = new Date()
+    
     const wallet = budget.wallet
     if (wallet.balance < budget.amount) {
-      throw new BadRequestError('Insufficient Balance')
+      await budget.save()
+      return {
+        status: budget.status,
+        message: 'Pending budget funding'
+      }
     }
 
     await this.planUsageService.checkActiveBudgetUsage(budget.organization.toString())
 
-    budget.balance = budget.amount
-    budget.status = BudgetStatus.Active
-    budget.approvedDate = new Date()
-
     await cdb.transaction(async session => {
+      budget.balance = budget.amount
+      budget.status = BudgetStatus.Active
       await budget.save({ session })
+
       const [entry] = await WalletEntry.create([{
         organization: budget.organization,
         budget: budget._id,
@@ -256,121 +261,6 @@ export default class BudgetService {
       status: budget.status,
       budget: budget._id
     }
-  }
-
-  async createBudget(auth: AuthUser, data: CreateBudgetDto) {
-    const user = await User.findById(auth.userId)
-    if (!user) {
-      throw new NotFoundError('User not found')
-    }
-
-    // Note: not need anymore
-
-    // const valid = await UserService.verifyTransactionPin(user.id, data.pin)
-    // if (!valid) {
-    //   throw new BadRequestError('Invalid pin')
-    // }
-
-    const wallet = await Wallet.findOne({
-      organization: auth.orgId,
-      currency: data.currency
-    })
-
-    if (!wallet) {
-      logger.error('wallet not found', { currency: data.currency, orgId: auth.orgId })
-      throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
-    }
-
-    const isOwner = user.role === ERole.Owner || auth.isOwner
-    // wallet balance needs to be checked because the budget will be automatically approved
-    if (isOwner) {
-      if (wallet.balance < data.amount) {
-        throw new BadRequestError('Insufficient Balance')
-      }
-
-      await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
-    }
-
-    let budget: IBudget
-    await cdb.transaction(async session => {
-      [budget] = await Budget.create([{
-        organization: auth.orgId,
-        wallet: wallet._id,
-        name: data.name,
-        status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
-        amount: data.amount,
-        balance: isOwner ? data.amount : 0,
-        currency: wallet.currency,
-        expiry: data.expiry,
-        threshold: data.threshold ?? data.amount,
-        beneficiaries: data.beneficiaries,
-        createdBy: auth.userId,
-        description: data.description,
-        priority: data.priority,
-        ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
-      }], { session })
-
-      if (isOwner) {
-        const [entry] = await WalletEntry.create([{
-          organization: budget.organization,
-          budget: budget._id,
-          wallet: budget.wallet,
-          initiatedBy: auth.userId,
-          project: budget.project,
-          currency: budget.currency,
-          type: WalletEntryType.Debit,
-          ledgerBalanceBefore: wallet.ledgerBalance,
-          ledgerBalanceAfter: wallet.ledgerBalance,
-          balanceBefore: wallet.balance,
-          balanceAfter: numeral(wallet.balance).subtract(budget.balance).value(),
-          amount: budget.amount,
-          scope: WalletEntryScope.BudgetFunding,
-          narration: `Budget "${budget.name}" activated`,
-          reference: createId(),
-          status: WalletEntryStatus.Successful,
-          meta: {
-            budgetBalanceAfter: budget.balance
-          }
-        }], { session })
-
-        await wallet.updateOne({
-          $set: { walletEntry: entry._id },
-          $inc: { balance: -budget.amount }
-        }, { session })
-      }
-    }, transactionOpts)
-
-    if (isOwner) {
-      this.emailService.sendBudgetCreatedEmail(user.email, {
-        budgetAmount: formatMoney(budget!.amount),
-        budgetName: budget!.name,
-        currency: budget!.currency,
-        dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-        employeeName: user.firstName
-      })
-    }
-
-    // send beneficiaries emails
-    try {
-      if (data.beneficiaries.length > 0) {
-        const beneficiaries = await Promise.all(data.beneficiaries.map((beneficiary: BeneficiaryDto) => {
-          return User.findById(beneficiary.user).lean()
-        }))
-        beneficiaries.forEach((beneficiary) => {
-          const iUser = data.beneficiaries.find(b => b.user === beneficiary!._id.toString())
-          return beneficiary && this.emailService.sendBudgetBeneficiaryAdded(beneficiary?.email, {
-            employeeName: beneficiary.firstName,
-            budgetName: budget!.name,
-            budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-            amountAllocated: formatMoney(iUser?.allocation || 0)
-          })
-        })
-      }
-    } catch (error) {
-      logger.error('Unable to send beneficiary email', { error })
-    }
-
-    return budget!
   }
 
   async editBudget(auth: AuthUser, id: string, data: EditBudgetDto) {
@@ -456,95 +346,98 @@ export default class BudgetService {
     return budget
   }
 
-  async createTransferBudget(auth: AuthUser, data: CreateTranferBudgetDto) {
-    const user = await User.findById(auth.userId)
-    if (!user) {
-      throw new NotFoundError('User not found')
+  async fundBudget(auth: AuthUser, budgetId: string, data: FundBudget) {
+    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+    if (!budget) {
+      throw new BadRequestError("Budget not found")
     }
 
-    const wallet = await Wallet.findOne({
-      organization: auth.orgId,
-      currency: data.currency
-    })
+    if (budget.status !== BudgetStatus.Pending) {
+      throw new BadRequestError('Budget status is not pending')
+    }
 
+    if (!budget.approvedDate) {
+      throw new BadRequestError('Budget is yet to be approved')
+    }
+
+    await this.planUsageService.checkActiveBudgetUsage(budget.organization.toString())
+
+    if (data.source === FundBudgetSource.Wallet) {
+      return this.fundBudgetViaWallet(budget)
+    } else if (data.source === FundBudgetSource.Transfer) {
+      throw new ServiceUnavailableError('This funding source is not available at the moment')
+    } 
+
+    throw new BadRequestError('Invalid funding source')
+  }
+
+  async fundBudgetViaWallet(budget: IBudget) {
+    const wallet = await Wallet.findOne({ _id: budget.wallet })
     if (!wallet) {
-      logger.error('wallet not found', { currency: data.currency, orgId: auth.orgId })
-      throw new BadRequestError(`Organization does not have a wallet for ${data.currency}`)
+      throw new BadRequestError("Budget wallet not found")
     }
 
-    const isOwner = user.role === ERole.Owner
-    // wallet balance needs to be checked because the budget will be automatically approved
-    if (isOwner) {
-      if (wallet.balance < data.amount) {
-        throw new BadRequestError('Insufficient Balance')
-      }
-
-      await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
+    if (wallet.balance < budget.amount) {
+      throw new BadRequestError("Insufficient funds")
     }
 
-    const beneficiaries: BeneficiaryDto[] = [{ user: auth.userId }]
-    let budget: IBudget
     await cdb.transaction(async session => {
-      [budget] = await Budget.create([{
-        organization: auth.orgId,
-        wallet: wallet._id,
-        name: data.name,
-        status: isOwner ? BudgetStatus.Active : BudgetStatus.Pending,
-        amount: data.amount,
-        balance: isOwner ? data.amount : 0,
-        currency: wallet.currency,
-        expiry: data.expiry,
-        threshold: data.threshold ?? data.amount,
-        beneficiaries,
-        createdBy: auth.userId,
-        description: data.description,
-        priority: data.priority,
-        ...(isOwner && { approvedBy: auth.userId, approvedDate: new Date() })
+      await Budget.updateOne({ _id: budget._id }, {
+        balance: budget.amount,
+        status: BudgetStatus.Active,
+      }).session(session)
+
+      const [entry] = await WalletEntry.create([{
+        organization: budget.organization,
+        budget: budget._id,
+        wallet: budget!.wallet,
+        initiatedBy: budget.createdBy._id,
+        project: budget.project,
+        currency: budget.currency,
+        type: WalletEntryType.Debit,
+        ledgerBalanceBefore: wallet.ledgerBalance,
+        ledgerBalanceAfter: wallet.ledgerBalance,
+        balanceBefore: wallet.balance,
+        balanceAfter: numeral(wallet.balance).subtract(budget.balance).value(),
+        amount: budget.amount,
+        scope: WalletEntryScope.BudgetFunding,
+        narration: `Budget "${budget.name}" activated`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          budgetBalanceAfter: budget.balance
+        }
       }], { session })
 
-      if (isOwner) {
-        const [entry] = await WalletEntry.create([{
-          organization: budget.organization,
-          budget: budget._id,
-          wallet: budget.wallet,
-          initiatedBy: auth.userId,
-          project: budget.project,
-          currency: budget.currency,
-          type: WalletEntryType.Debit,
-          ledgerBalanceBefore: wallet.ledgerBalance,
-          ledgerBalanceAfter: wallet.ledgerBalance,
-          balanceBefore: wallet.balance,
-          balanceAfter: numeral(wallet.balance).subtract(budget.balance).value(),
-          amount: budget.amount,
-          scope: WalletEntryScope.BudgetFunding,
-          narration: `Budget "${budget.name}" activated`,
-          reference: createId(),
-          status: WalletEntryStatus.Successful,
-          meta: {
-            budgetBalanceAfter: budget.balance
-          }
-        }], { session })
+      await Wallet.updateOne({ _id: budget.wallet._id }, {
+        $set: { walletEntry: entry._id },
+        $inc: { balance: -budget.amount }
+      }, { session })
 
-        await wallet.updateOne({
-          $set: { walletEntry: entry._id },
-          $inc: { balance: -budget.amount }
-        }, { session })
-      }
+      // this.emailService.sendBudgetCreatedEmail(budget.createdBy.email, {
+      //   budgetAmount: formatMoney(budget!.amount),
+      //   budgetName: budget.name,
+      //   currency: budget.currency,
+      //   dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+      //   employeeName: budget.createdBy.firstName
+      // })
     }, transactionOpts)
 
-    if (!isOwner) {
-      this.emailService.sendBudgetRequestEmail(user.email, {
-        budgetName: budget!.name,
-        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-        employeeName: user.firstName,
-        currency: budget!.currency
-      })
-    }
 
-    return budget!
+    return {
+      status: 'active',
+      message: 'Budget activated'
+    }
   }
 
   async requestBudgetExtension(auth: AuthUser, budgetId: string, data: RequestBudgetExtension) {
+    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+    if (!budget) throw new BadRequestError("Budget does not exist")
+    
+    if (budget.status !== BudgetStatus.Active || budget.paused || !budget.approvedDate) {
+      throw new BadRequestError("Inactive budgets cannot be extended")
+    }
+
     const existingRequest = await ApprovalRequest.findOne({
       requester: auth.userId,
       organization: auth.orgId,
@@ -557,41 +450,34 @@ export default class BudgetService {
       throw new BadRequestError('A pending budget extension request already exists for this budget');
     }
 
-    let request: IApprovalRequest | undefined
+    const rule = await ApprovalRule.findOne({
+      organization: auth.orgId,
+      workflowType: WorkflowType.BudgetExtension,
+      amount: { $lte: data.amount }
+    })
 
-    if (!auth.isOwner) {
-      const rule = await ApprovalRule.findOne({
-        organization: auth.orgId,
-        workflowType: WorkflowType.BudgetExtension,
-        amount: { $lte: data.amount }
-      })
-
-      if (rule) {
-        request = await ApprovalRequest.create({
-          organization: auth.orgId,
-          workflowType: WorkflowType.BudgetExtension,
-          requester: auth.userId,
-          approvalRule: rule._id,
-          reviews: rule.reviewers.map(userId => ({ user: userId })),
-          properties: {
-            budget: budgetId,
-            budgetExpiry: data.expiry,
-            budgetExtensionAmount: data.amount,
-            budgetBeneficiaries: data.beneficiaries,
-          }
-        })
-
-        return {
-          status: request.status,
-          message: 'Request submitted successfully'
-        }
-      }
+    if (auth.isOwner || !rule) {
+      return this.extendBudget(auth.orgId, budgetId, data)
     }
 
-    return this.extendBudget(auth.orgId, budgetId, {
-      approvalRequest: request?._id?.toString(),
-      ...data
+    const request = await ApprovalRequest.create({
+      organization: auth.orgId,
+      workflowType: WorkflowType.BudgetExtension,
+      requester: auth.userId,
+      approvalRule: rule._id,
+      reviews: rule.reviewers.map(userId => ({ user: userId })),
+      properties: {
+        budget: budgetId,
+        budgetExpiry: data.expiry,
+        budgetExtensionAmount: data.amount,
+        budgetBeneficiaries: data.beneficiaries,
+      }
     })
+
+    return {
+      status: request.status,
+      message: 'Request submitted successfully'
+    }
   }
 
   async extendBudget(orgId: string, budgetId: string, extension: ExtendBudget) {
@@ -722,77 +608,6 @@ export default class BudgetService {
       .sort({ amount: 1, createdAt: -1 })
 
     return budgets
-  }
-
-  async approveBudget(auth: AuthUser, id: string, data: ApproveBudgetBodyDto) {
-    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
-      .populate<{ createdBy: IUser }>('createdBy')
-      .populate<{ wallet: IWallet }>('wallet')
-    if (!budget) {
-      throw new NotFoundError('Budget not found')
-    }
-
-    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
-    if (!valid) {
-      throw new BadRequestError('Invalid pin')
-    }
-
-    if (budget.status !== BudgetStatus.Pending) {
-      throw new BadRequestError('Only pending budgets can be approved')
-    }
-
-    if (budget.wallet.balance < budget.amount) {
-      throw new BadRequestError('Insufficient Balance')
-    }
-
-    await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
-
-    await cdb.transaction(async session => {
-      await budget.set({
-        status: BudgetStatus.Active,
-        approvedBy: auth.userId,
-        approvedDate: new Date(),
-        ...data,
-        balance: budget.amount,
-      }).save({ session })
-
-      const [entry] = await WalletEntry.create([{
-        organization: budget.organization,
-        budget: budget._id,
-        project: budget.project,
-        wallet: budget.wallet,
-        initiatedBy: auth.userId,
-        currency: budget.currency,
-        type: WalletEntryType.Debit,
-        ledgerBalanceBefore: budget.wallet.ledgerBalance,
-        ledgerBalanceAfter: budget.wallet.ledgerBalance,
-        balanceBefore: budget.wallet.balance,
-        balanceAfter: numeral(budget.wallet.balance).subtract(budget.balance).value(),
-        amount: budget.amount,
-        scope: WalletEntryScope.BudgetFunding,
-        narration: `Budget "${budget.name}" activated`,
-        reference: createId(),
-        status: WalletEntryStatus.Successful,
-        meta: {
-          budgetBalanceAfter: budget.balance
-        }
-      }], { session })
-
-      await Wallet.updateOne({ _id: budget.wallet._id }, {
-        $set: { walletEntry: entry._id },
-        $inc: { balance: -budget.amount }
-      }, { session })
-    }, transactionOpts)
-
-    this.emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
-      budgetAmount: formatMoney(budget.balance),
-      currency: budget.currency,
-      budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
-      budgetName: budget.name,
-      employeeName: budget.createdBy.firstName
-    })
-
-    return { message: 'Budget approved' }
   }
 
   async pauseBudget(auth: AuthUser, budgetId: string, data: PauseBudgetBodyDto) {

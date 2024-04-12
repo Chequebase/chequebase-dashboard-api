@@ -211,7 +211,11 @@ export default class ApprovalService {
     if (request.workflowType === WorkflowType.Expense) {
       await Budget.updateOne(
         { _id: request.properties.budget },
-        { status: BudgetStatus.Closed, closedBy: auth.userId, closeReason: data.reason }
+        {
+          status: BudgetStatus.Closed,
+          declinedBy: auth.userId,
+          declineReason: data.reason
+        }
       )
     }
 
