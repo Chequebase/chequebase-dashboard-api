@@ -300,16 +300,15 @@ export class BudgetTransferService {
       })
     }
 
-    if (!data.receipt) {
-      throw new BadRequestError('Transaction receipt is required')
+    let receiptUrl
+    if (data.receipt) {
+      const key = `transaction-receipt/${budgetId}/${createId()}`;
+      receiptUrl = await this.s3Service.uploadObject(
+        getEnvOrThrow('AVATAR_BUCKET_NAME'),
+        key,
+        data.receipt
+      );
     }
-    
-    const key = `transaction-receipt/${budgetId}/${createId()}`;
-    const receiptUrl = await this.s3Service.uploadObject(
-      getEnvOrThrow('AVATAR_BUCKET_NAME'),
-      key,
-      data.receipt
-    );
 
     if (!resolveRes){
       resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)

@@ -1,4 +1,3 @@
-import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
 import { BadRequestError, NotFoundError } from "routing-controllers";
@@ -12,6 +11,7 @@ import Logger from "../common/utils/logger";
 import { escapeRegExp } from "../common/utils";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 import Budget, { BudgetStatus } from "@/models/budget.model";
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 
 const logger = new Logger('approval-service')
 
