@@ -1,4 +1,4 @@
-import { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
+import { WorkflowType, ApprovalType } from "@/models/approval-rule.model";
 import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 export class CreateRule {

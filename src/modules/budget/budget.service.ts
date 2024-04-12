@@ -19,11 +19,11 @@ import { cdb } from "../common/mongoose";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import Project from "@/models/project.model";
 import ApprovalRequest, { ApprovalRequestReviewStatus, IApprovalRequest } from "@/models/approval-request.model";
-import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model";
 import Organization from "@/models/organization.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
+import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model";
 
 const logger = new Logger('budget-service')
 
