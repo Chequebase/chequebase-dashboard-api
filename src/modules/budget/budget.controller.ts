@@ -2,7 +2,7 @@ import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patc
 import { Service } from "typedi";
 import { Request } from 'express'
 import BudgetService from "./budget.service";
-import { CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory } from "./dto/budget.dto"
+import { CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory, FundBudget } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { ERole } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
@@ -183,6 +183,13 @@ export default class BudgetController {
   @Authorized()
   cancelBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetService.cancelBudget(auth, id)
+  }
+
+  // TODO: add rbac permission
+  @Post('/:id/fund')
+  @Authorized()
+  fundBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: FundBudget) {
+    return this.budgetService.fundBudget(auth, id, dto)
   }
 
   @Get('/:id')
