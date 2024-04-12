@@ -1,9 +1,29 @@
 import { Type } from "class-transformer";
 import { BudgetCurrency, BudgetPriority, BudgetStatus } from "@/models/budget.model";
-import { ArrayMinSize, IsArray, IsBoolean, IsDate, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, isString, IsString, Min, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsBoolean, IsDate, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsOptional, isString, IsString, Min, ValidateNested } from "class-validator";
 import { ObjectId } from "mongodb";
 
-export class CreateTranferBudgetDto {
+export class EditBudgetDto {
+  @IsInt()
+  @IsOptional()
+  threshold?: number
+
+  @IsDateString()
+  @IsOptional()
+  expiry?: Date
+
+  @IsEnum(BudgetPriority)
+  @IsOptional()
+  priority = BudgetPriority.Medium
+
+  @Type(() => BeneficiaryDto)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  beneficiaries: BeneficiaryDto[]
+}
+
+export class CreateBudgetDto {
   @IsString()
   name: string
 
@@ -30,34 +50,13 @@ export class CreateTranferBudgetDto {
   @IsEnum(BudgetPriority)
   @IsOptional()
   priority = BudgetPriority.Medium
-}
-
-export class EditBudgetDto {
-  @IsInt()
-  @IsOptional()
-  threshold?: number
-
-  @IsDateString()
-  @IsOptional()
-  expiry?: Date
-
-  @IsEnum(BudgetPriority)
-  @IsOptional()
-  priority = BudgetPriority.Medium
 
   @Type(() => BeneficiaryDto)
   @ValidateNested({ each: true })
   @IsArray()
+  @IsOptional()
   @ArrayMinSize(1)
-  beneficiaries: BeneficiaryDto[]
-}
-
-export class CreateBudgetDto extends CreateTranferBudgetDto {
-  @Type(() => BeneficiaryDto)
-  @ValidateNested({ each: true })
-  @IsArray()
-  @ArrayMinSize(1)
-  beneficiaries: BeneficiaryDto[]
+  beneficiaries?: BeneficiaryDto[]
 
   // Note: not need anymore
   // @IsString()
@@ -173,4 +172,14 @@ export class ExtendBudget extends RequestBudgetExtension {
 export class CreateTransferCategory {
   @IsString()
   name: string
+}
+
+export enum FundBudgetSource {
+  Wallet = 'wallet',
+  Transfer = 'transfer'
+}
+
+export class FundBudget {
+  @IsEnum(FundBudgetSource)
+  source: string
 }

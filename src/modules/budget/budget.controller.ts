@@ -2,7 +2,7 @@ import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patc
 import { Service } from "typedi";
 import { Request } from 'express'
 import BudgetService from "./budget.service";
-import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory } from "./dto/budget.dto"
+import { CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { ERole } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
@@ -127,8 +127,8 @@ export default class BudgetController {
 
   @Post('/transfer')
   @Authorized()
-  createTransferBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateTranferBudgetDto) {
-    return this.budgetService.createTransferBudget(auth, dto)
+  createTransferBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
+    return this.budgetService.requestBudget(auth, dto)
   }
 
   @Get('/')
@@ -189,16 +189,6 @@ export default class BudgetController {
   @Authorized()
   getBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetService.getBudget(auth, id)
-  }
-
-  @Post('/:id/approve')
-  @Authorized(ERole.Owner)
-  approveBudget(
-    @CurrentUser() auth: AuthUser,
-    @Param('id') id: string,
-    @Body() body: ApproveBudgetBodyDto
-  ) {
-    return this.budgetService.approveBudget(auth, id, body)
   }
 
   @Post('/:id/pause')
