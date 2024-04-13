@@ -15,12 +15,14 @@ export interface IBudgetPolicy {
   organization: any
   type: PolicyType
   name: string
+  description: string
   amount: number
   budget?: any
   daysOfWeek?: number[]
   department?: any
   recipient?: any
   createdBy: any
+  enabled: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -33,12 +35,13 @@ const BudgetPolicySchema = new Schema<IBudgetPolicy>(
   {
     name: {
       type: String,
-      required: true
+      required: true,
     },
     amount: {
       type: Number,
       required: true
     },
+    description: { type: String, required: true },
     type: {
       type: String,
       enum: Object.values(PolicyType),
@@ -66,7 +69,8 @@ const BudgetPolicySchema = new Schema<IBudgetPolicy>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true
-    }
+    },
+    enabled: { type: Boolean, default: true }
   },
   { timestamps: true },
 );
@@ -76,7 +80,7 @@ BudgetPolicySchema.plugin(mongoosePaginate);
 
 const BudgetPolicy = cdb.model<IBudgetPolicy, BudgetPolicyModel>('BudgetPolicy', BudgetPolicySchema);
 
-export default BudgetPolicy 
+export default BudgetPolicy
 
 // automatic flagging calendar, budget, department, vendor
 // spend limit amount, calendar, 

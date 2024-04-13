@@ -12,6 +12,8 @@ import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, GetProjectsDto, P
 import { EPermission } from "@/models/role-permission.model";
 import multer from "multer";
 import { plainToInstance } from "class-transformer";
+import { BudgetPolicyService } from "./budget-policy.service";
+import { CreatePolicy, GetPolicies, updatePolicy } from "./dto/budget-policy.dto";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
@@ -19,6 +21,7 @@ export default class BudgetController {
   constructor (
     private budgetService: BudgetService,
     private budgetTransferService: BudgetTransferService,
+    private policyService: BudgetPolicyService,
     private projectService: ProjectService
   ) { }
 
@@ -85,7 +88,7 @@ export default class BudgetController {
   // TODO: add rbac for categories and recipient endpoints
   @Get('/categories')
   @Authorized()
-  getCategories(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
+  getCategories(@CurrentUser() auth: AuthUser) {
     return this.budgetTransferService.getCategories(auth)
   }
 
@@ -105,6 +108,30 @@ export default class BudgetController {
   @Authorized()
   deleteCategory(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetTransferService.deleteCategory(auth, id)
+  }
+
+  @Get('/policies')
+  @Authorized(EPermission.PolicyRead)
+  getPolicies(@CurrentUser() auth: AuthUser, @QueryParams() query: GetPolicies) {
+    return this.policyService.getPolicies(auth, query)
+  }
+
+  @Post('/policies')
+  @Authorized(EPermission.PolicyEdit)
+  createPolicy(@CurrentUser() auth: AuthUser, @Body() dto: CreatePolicy) {
+    return this.policyService.createPolicy(auth, dto)
+  }
+
+  @Put('/policies/:id')
+  @Authorized(EPermission.PolicyEdit)
+  updatePolicy(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: updatePolicy) {
+    return this.policyService.updatePolicy(auth, id, dto)
+  }
+
+  @Delete('/policies/:id')
+  @Authorized(EPermission.PolicyEdit)
+  deletePolicy(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.policyService.deletePolicy(auth, id)
   }
 
   @Get('/recipients')

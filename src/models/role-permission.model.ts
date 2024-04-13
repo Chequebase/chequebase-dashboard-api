@@ -20,6 +20,8 @@ export enum EPermission {
   ApprovalsRead = 'approvals:read',
   ApprovalsApprove = 'approvals:approve',
   ApprovalsDecline = 'approvals:decline',
+  PolicyEdit = 'policy.edit',
+  PolicyRead = 'policy.read',
   PeopleCreate = 'people:create',
   PeopleRead = 'people:read',
   LicenseRead = 'license:read',
