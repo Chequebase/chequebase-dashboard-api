@@ -38,12 +38,10 @@ const UserInviteSchema = new Schema<IUserInvite>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
     },
-    roleRef: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: Role,
-      },
-    ],
+    roleRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: Role,
+    },
     organization: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
