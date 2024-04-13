@@ -104,7 +104,7 @@ export default class UserController {
     return this.userService.updateProfile(auth.userId, updateProfileDto, auth.orgId);
   }
 
-  @Authorized(ERole.Owner)
+  @Authorized()
   @Post('/profile/avatar')
   @UseBefore(multer({ limits: { fileSize: 52_428_800 } }).single('avatar'))
   uploadAvatar(

@@ -583,7 +583,7 @@ export class UserService {
       limit: query.limit,
       lean: true,
       populate: [{ path: 'roleRef', select: 'name description type' }],
-      select: 'firstName lastName email emailVerified role KYBStatus status role avatar phone'
+      select: 'firstName lastName email emailVerified role KYBStatus status avatar phone'
     })
     
     return users
