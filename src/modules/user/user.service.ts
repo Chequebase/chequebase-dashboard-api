@@ -559,6 +559,7 @@ export class UserService {
       })
     }
 
+    await UserInvite.deleteOne({ _id: invite._id })
     const tokens = await this.getTokens({
       userId: user.id,
       email: user.email,
