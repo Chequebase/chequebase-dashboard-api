@@ -13,6 +13,7 @@ export enum RoleType {
 
 export interface IRole {
   name: string;
+  rank: number
   description: string;
   permissions: Array<IPermission | ObjectId>;
   type: RoleType;
@@ -25,6 +26,7 @@ export interface RoleModel
 
 const RoleSchema = new Schema<IRole>(
   {
+    rank: { type: Number, default: 1 },
     name: { type: String, required: true, lowercase: true },
     description: { type: String, required: true },
     permissions: [
