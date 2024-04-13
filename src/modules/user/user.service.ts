@@ -78,11 +78,11 @@ export class UserService {
       throw new BadRequestError('Account with same email already exists');
     }
 
-    // const adminRole = await Role.findOne({ name: 'admin', type: RoleType.Default })
-    // if (!adminRole) {
-    //   logger.error('role not found', { name: 'admin', type: 'default' })
-    //   throw new ServiceUnavailableError('Unable to complete registration at this time')
-    // }
+    const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
+    if (!ownerRole) {
+      logger.error('role not found', { name: 'owner', type: 'default' })
+      throw new ServiceUnavailableError('Unable to complete registration at this time')
+    }
 
     const emailVerifyCode = this.generateRandomString(8);
     const user = await User.create({
@@ -90,6 +90,7 @@ export class UserService {
       password: await bcrypt.hash(data.password, 12),
       emailVerifyCode,
       role: ERole.Owner,
+      roleRef: ownerRole._id,
       hashRt: '',
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
