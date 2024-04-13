@@ -656,9 +656,14 @@ export class UserService {
   }
 
   async deleteMember(id: string, orgId: string) {
-    const employee = await this.getMember(id, orgId);
+    const employee = await User.findOne({ _id: id, organization: orgId })
+      .populate('roleRef')
     if (!employee) {
       throw new NotFoundError('User not found');
+    }
+
+    if (employee.roleRef.name === 'owner' && employee.roleRef.type === 'default') {
+      throw new BadRequestError("You cannot delete business owner")
     }
 
     await User.deleteOne({ _id: id, organization: orgId })
