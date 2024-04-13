@@ -15,6 +15,7 @@ export class RoleService {
       ]
     })
       .populate({ path: 'permissions', select: 'name module actions' })
+      .sort('rank')
       .lean()
     
     const populatedRoles = await Promise.all(roles.map(async r => {
