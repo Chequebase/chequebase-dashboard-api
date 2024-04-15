@@ -91,7 +91,7 @@ export class PlanService {
   }
 
   async fetchPlans() {
-    const plans = await SubscriptionPlan.find().sort('amount.NGN').lean()
+    const plans = await SubscriptionPlan.find().sort({ 'amount.NGN': 1 }).lean()
     
     return plans
   }
