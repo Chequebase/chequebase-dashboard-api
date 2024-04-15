@@ -221,15 +221,45 @@ export class PeopleService {
   }
 
   async editEmployee(orgId: string, userId: string, data: EditEmployeeDto) {
-    const update: any = { manager: data.manager }
-    if (data.department) {
-      update.$addToSet = { departments: data.department }
-    }
-    
-    const employee = await User.findOneAndUpdate({ _id: userId, organization: orgId }, update)
+    const update: any = {}
+    const employee = await User.findOne({ _id: userId, organization: orgId })
+      .populate('roleRef')
     if (!employee) {
-      throw new BadRequestError('Employee does not exist')
+      throw new BadRequestError('User not found')
     }
+
+    if (data.manager) {
+      const manager = User.exists({ _id: data.manager, organization: orgId })
+      if (!manager) {
+        throw new BadRequestError('Manager not found')
+      }
+      
+      update.manager = data.manager
+    }
+
+    if (data.role) {
+      if (employee.roleRef?.name === 'owner' && employee.roleRef?.type === 'default') {
+        throw new BadRequestError("Owner's role cannot be updated")
+      }
+
+      const role = await Role.exists({ _id: data.role, $or: [{ organization: orgId }, { type: 'default' }] })
+      if (!role) {
+        throw new BadRequestError('Role not found')
+      }
+
+      update.roleRef = role._id
+    }
+
+    if (data.department) {
+      const department = await Department.exists({ _id: data.department, organization: orgId })
+      if (!department) {
+        throw new BadRequestError('Department not found')
+      }
+
+      update.$addToSet = { departments: department._id }
+    }
+
+    await User.updateOne({ _id: userId }, update)
 
     return { message: 'Employee updated successfully'}
   }

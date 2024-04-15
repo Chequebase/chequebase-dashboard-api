@@ -61,6 +61,10 @@ export class EditEmployeeDto  {
   @IsString()
   @IsOptional()
   department: string
+
+  @IsString()
+  @IsOptional()
+  role: string
 }
 
 export class GetDepartmentDto {
