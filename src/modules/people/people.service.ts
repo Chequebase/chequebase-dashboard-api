@@ -229,11 +229,15 @@ export class PeopleService {
     }
 
     if (data.manager) {
+      if (data.manager === userId) {
+        throw new BadRequestError("Employee and manager cannot be the same user")
+      }
+
       const manager = User.exists({ _id: data.manager, organization: orgId })
       if (!manager) {
         throw new BadRequestError('Manager not found')
       }
-      
+
       update.manager = data.manager
     }
 
