@@ -221,11 +221,12 @@ export class PeopleService {
   }
 
   async editEmployee(orgId: string, userId: string, data: EditEmployeeDto) {
-    const employee = await User.findOneAndUpdate({ _id: userId, organization: orgId }, {
-      manager: data.manager,
-      $addToSet: { departments: data.department }
-    })
-
+    const update: any = { manager: data.manager }
+    if (data.department) {
+      update.$addToSet = { departments: data.department }
+    }
+    
+    const employee = await User.findOneAndUpdate({ _id: userId, organization: orgId }, update)
     if (!employee) {
       throw new BadRequestError('Employee does not exist')
     }

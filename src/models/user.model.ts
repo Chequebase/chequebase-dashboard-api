@@ -37,6 +37,7 @@ export interface IUser {
   password: string;
   organization: ObjectId | IOrganization
   departments: ObjectId[] | IDepartment[]
+  manager: any
   roleRef: any
   role: string
   rememberMe: number
@@ -73,6 +74,10 @@ const userSchema = new Schema<IUser>(
     organization: {
       type: Schema.Types.ObjectId,
       ref: 'Organization'
+    },
+    manager: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
     },
     departments: [{
       type: Schema.Types.ObjectId,
