@@ -81,7 +81,3 @@ BudgetPolicySchema.plugin(mongoosePaginate);
 const BudgetPolicy = cdb.model<IBudgetPolicy, BudgetPolicyModel>('BudgetPolicy', BudgetPolicySchema);
 
 export default BudgetPolicy
-
-// automatic flagging calendar, budget, department, vendor
-// spend limit amount, calendar, 
-// receipt poil
