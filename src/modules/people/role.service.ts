@@ -50,7 +50,7 @@ export class RoleService {
   }
 
   async deleteRole(orgId: string, roleId: string) {
-    const inUse = await User.exists({ organization: orgId, role: roleId });
+    const inUse = await User.exists({ organization: orgId, roleRef: roleId });
     if (inUse) {
       throw new BadRequestError('Cannot delete a role that is still in use')
     }
