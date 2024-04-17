@@ -21,6 +21,9 @@ export class InitiateTransferDto {
 
   @IsString()
   category: string
+
+  @IsString()
+  pin: string
 }
 
 export class ResolveAccountDto {
