@@ -257,7 +257,9 @@ export default class BudgetController {
     const file = req.file as any
     const dto = plainToInstance(InitiateTransferDto, { receipt: file?.buffer, ...req.body })
     const errors = await validate(dto)
-    if (errors.length) throw errors
+    if (errors.length) {
+      throw { errors }
+    }
 
     return this.budgetTransferService.initiateTransfer(auth, id, dto)
   }
