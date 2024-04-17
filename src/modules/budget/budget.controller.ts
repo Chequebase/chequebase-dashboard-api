@@ -14,6 +14,7 @@ import multer from "multer";
 import { plainToInstance } from "class-transformer";
 import { BudgetPolicyService } from "./budget-policy.service";
 import { CreatePolicy, GetPolicies, updatePolicy } from "./dto/budget-policy.dto";
+import { validate } from "class-validator";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
@@ -248,13 +249,16 @@ export default class BudgetController {
   @Post('/:id/transfer/initiate')
   @Authorized()
   @UseBefore(multer().single('receipt'))
-  initiateTransfer(
+  async initiateTransfer(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
     @Req() req: Request,
   ) {
     const file = req.file as any
     const dto = plainToInstance(InitiateTransferDto, { receipt: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) throw errors
+
     return this.budgetTransferService.initiateTransfer(auth, id, dto)
   }
 }
