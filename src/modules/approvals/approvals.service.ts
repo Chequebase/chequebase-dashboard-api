@@ -5,7 +5,6 @@ import User from "@/models/user.model";
 import QueryFilter from "../common/utils/query-filter";
 import { Service } from "typedi";
 import ApprovalRequest, { ApprovalRequestReviewStatus } from "@/models/approval-request.model";
-import Counterparty from "@/models/counterparty.model";
 import BudgetService from "../budget/budget.service";
 import Logger from "../common/utils/logger";
 import { escapeRegExp } from "../common/utils";
@@ -189,7 +188,7 @@ export default class ApprovalService {
     let request = await ApprovalRequest.findOne({
       _id: requestId,
       organization: auth.orgId,
-      'reviews.user': auth.orgId
+      'reviews.user': auth.userId
     })
 
     if (!request) {
