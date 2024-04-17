@@ -254,7 +254,7 @@ export default class BudgetController {
     @Req() req: Request,
   ) {
     const file = req.file as any
-    const dto = plainToInstance(InitiateTransferDto, { receipt: file.buffer, ...req.body })
+    const dto = plainToInstance(InitiateTransferDto, { receipt: file?.buffer, ...req.body })
     return this.budgetTransferService.initiateTransfer(auth, id, dto)
   }
 }

@@ -29,6 +29,7 @@ import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model"
 import ApprovalRequest from "@/models/approval-request.model"
 import { S3Service } from "../common/aws/s3.service"
 import TransferCategory from "@/models/transfer-category"
+import { UserService } from "../user/user.service"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -243,6 +244,11 @@ export class BudgetTransferService {
   }
 
   async initiateTransfer(auth: AuthUser, budgetId: string, data: InitiateTransferDto) {
+    const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!validPin) {
+      throw new BadRequestError('Invalid pin')
+    }
+    
     const budget = await Budget.exists({ _id: budgetId, organization: auth.orgId })
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
