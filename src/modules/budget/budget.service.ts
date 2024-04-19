@@ -171,6 +171,7 @@ export default class BudgetService {
 
     return {
       status: budget.status,
+      approvalRequired: true,
       budget: budget._id
     }
   }
@@ -191,6 +192,7 @@ export default class BudgetService {
       await budget.save()
       return {
         budget: budget._id,
+        fundingRequired: true,
         status: budget.status,
         message: 'Pending budget funding'
       }
