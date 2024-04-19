@@ -190,6 +190,7 @@ export default class BudgetService {
     if (wallet.balance < budget.amount) {
       await budget.save()
       return {
+        budget: budget._id,
         status: budget.status,
         message: 'Pending budget funding'
       }
