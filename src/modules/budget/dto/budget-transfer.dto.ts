@@ -17,6 +17,7 @@ export class InitiateTransferDto {
 
   @IsBoolean()
   @IsOptional()
+  @Transform((v) => v.value === 'true')
   saveRecipient = false
 
   @IsString()
