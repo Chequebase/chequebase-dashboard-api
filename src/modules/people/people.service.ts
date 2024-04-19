@@ -105,6 +105,7 @@ export class PeopleService {
     const departmentResult = await Department.paginate(filter, {
       page: query.page,
       lean: true,
+      sort: '-createdAt',
       populate: [
         { path: 'budgets', select: 'name' },
         { path: 'manager', select: 'firstName lastName' }
