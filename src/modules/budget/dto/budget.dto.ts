@@ -91,9 +91,6 @@ export class CloseBudgetBodyDto {
 }
 
 export class PauseBudgetBodyDto {
-  @IsString()
-  pin: string
-
   @IsBoolean()
   @IsOptional()
   pause = true

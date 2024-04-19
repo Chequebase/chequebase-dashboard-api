@@ -619,11 +619,6 @@ export default class BudgetService {
       throw new NotFoundError('Budget not found')
     }
 
-    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
-    if (!valid) {
-      throw new BadRequestError('Invalid pin')
-    }
-
     if (budget.status !== BudgetStatus.Active) {
       throw new BadRequestError('Only active budgets can be paused')
     }
