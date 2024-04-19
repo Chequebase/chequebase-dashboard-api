@@ -532,7 +532,7 @@ export default class BudgetService {
 
     const isOwner = user.role === ERole.Owner || auth.isOwner
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
-      .set('paused', query.paused || false)
+      .set('paused', query.paused)
       .set('project', { $exists: false })
 
     if (query.beneficiary) {
@@ -657,11 +657,6 @@ export default class BudgetService {
       .populate<{ createdBy: IUser }>('createdBy')
     if (!budget) {
       throw new NotFoundError('Budget not found')
-    }
-
-    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
-    if (!valid) {
-      throw new BadRequestError('Invalid pin')
     }
 
     if (budget.status === BudgetStatus.Closed) {

@@ -88,9 +88,6 @@ export class ApproveBudgetBodyDto {
 export class CloseBudgetBodyDto {
   @IsString()
   reason: string
-
-  @IsString()
-  pin: string
 }
 
 export class PauseBudgetBodyDto {
