@@ -43,6 +43,8 @@ export class BudgetPolicyService {
     }
 
     return BudgetPolicy.paginate(filter.object, {
+      page: data.page,
+      sort: '-createdAt',
       populate: [
         { path: 'department', select: 'name'},
         { path: 'budget', select: 'name'},

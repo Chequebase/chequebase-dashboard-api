@@ -94,4 +94,7 @@ export class GetPolicies {
   @IsString()
   @IsOptional()
   recipient: string
+
+  @IsInt()
+  page: number
 }
