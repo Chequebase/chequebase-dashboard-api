@@ -434,7 +434,7 @@ export class BudgetTransferService {
 
   async createCategory(auth: AuthUser, name: string) {
     const $regex = new RegExp(`^${escapeRegExp(name)}$`, "i")
-    const exists = await TransferCategory.exists({ organization: auth.orgId, email: { $regex } })
+    const exists = await TransferCategory.exists({ organization: auth.orgId, name: { $regex } })
     if (exists) { 
       throw new BadRequestError('Category already exists')
     }
