@@ -15,6 +15,7 @@ export enum EPermission {
   BudgetDelete = 'budget:delete',
   BudgetFreeze = 'budget:freeze',
   BudgetExtend = 'budget:extend',
+  BudgetFund = 'budget:fund',
   BudgetBeneficiaryCreate = 'budget.beneficiary:create',
   ApprovalsCreate = 'approvals.create',
   ApprovalsRead = 'approvals:read',

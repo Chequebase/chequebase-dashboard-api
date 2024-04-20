@@ -137,7 +137,7 @@ export default class BudgetController {
 
   @Get('/recipients')
   @Authorized()
-  getRecipients(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
+  getRecipients(@CurrentUser() auth: AuthUser) {
     return this.budgetTransferService.getRecipients(auth)
   }
 
@@ -213,9 +213,8 @@ export default class BudgetController {
     return this.budgetService.cancelBudget(auth, id)
   }
 
-  // TODO: add rbac permission
   @Post('/:id/fund')
-  @Authorized()
+  @Authorized(EPermission.BudgetFund)
   fundBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: FundBudget) {
     return this.budgetService.fundBudget(auth, id, dto)
   }
