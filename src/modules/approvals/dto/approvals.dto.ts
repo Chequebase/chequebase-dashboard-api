@@ -64,7 +64,7 @@ export class GetApprovalRequestsQuery {
   page: number
 
   @IsInt()
-  pageSize: string
+  pageSize: number
 
   @IsBoolean()
   reviewed: boolean
