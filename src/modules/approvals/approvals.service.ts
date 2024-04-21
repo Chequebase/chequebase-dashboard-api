@@ -104,6 +104,7 @@ export default class ApprovalService {
 
     const requests = await ApprovalRequest.paginate(filter.object, {
       page: Number(query.page),
+      limit: query.pageSize,
       sort: '-createdAt',
       populate: [
         { path: 'approvalRule', select: 'approvalType workflowType' },
