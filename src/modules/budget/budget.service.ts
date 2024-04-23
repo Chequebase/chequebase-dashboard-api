@@ -24,6 +24,7 @@ import { VirtualAccountService } from "../virtual-account/virtual-account.servic
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model";
+import { PolicyType } from "@/models/budget-policy.model";
 
 const logger = new Logger('budget-service')
 
@@ -560,7 +561,7 @@ export default class BudgetService {
         !filter.object.$or && (status = [status])
         filter.append('$or', status).append('$or', { paused: true })
       } else {
-        filter.set('status', query.status)
+        filter.set('status', query.status).set('paused', false)
       }
     }
 
@@ -572,6 +573,25 @@ export default class BudgetService {
         localField: 'beneficiaries.user',
         foreignField: '_id',
         as: 'beneficiaries'
+      })
+      .lookup({
+        from: 'budgetpolicies',
+        let: { budgetId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              organization: new ObjectId(auth.orgId),
+              type: PolicyType.Receipt,
+              $expr: {
+                $or: [
+                  { $eq: ['$$budgetId', '$budget'] },
+                  { $exists: ['$budget', false] },
+                ]
+              }
+            }
+          }
+        ],
+        as: 'receiptPolicies'
       })
       .project({
         name: 1,
@@ -586,6 +606,7 @@ export default class BudgetService {
         threshold: 1,
         expiry: 1,
         description: 1,
+        receiptPolicies: { name: 1, type: 1, enabled: 1 },
         beneficiaries: { email: 1, firstName: 1, lastName: 1, avatar: 1 }
       })
 
@@ -702,6 +723,25 @@ export default class BudgetService {
         foreignField: '_id',
         as: 'beneficiaries'
       })
+      .lookup({
+        from: 'budgetpolicies',
+        let: { budgetId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              organization: new ObjectId(auth.orgId),
+              type: PolicyType.Receipt,
+              $expr: {
+                $or: [
+                  { $eq: ['$$budgetId', '$budget'] },
+                  { $exists: ['$budget', false] },
+                ]
+              }
+            }
+          }
+        ],
+        as: 'receiptPolicies'
+      })
       .project({
         name: 1,
         amount: 1,
@@ -715,6 +755,7 @@ export default class BudgetService {
         expiry: 1,
         approvedDate: 1,
         description: 1,
+        receiptPolicies: { name: 1, type: 1, enabled: 1 },
         approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
         beneficiaries: { email: 1, firstName: 1, lastName: 1, avatar: 1 },
       })
