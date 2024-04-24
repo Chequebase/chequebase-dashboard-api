@@ -171,7 +171,7 @@ export class UserService {
       otp
     })
 
-    return { userId: user.id }
+    return { userId: user.id, emailVerified: user.emailVerified  }
   }
 
   // getRememberMeExpirationDate(data: LoginDto) {
