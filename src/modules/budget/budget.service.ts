@@ -581,7 +581,7 @@ export default class BudgetService {
           {
             $match: {
               organization: new ObjectId(auth.orgId),
-              type: PolicyType.Receipt,
+              type: PolicyType.ReceiptPolicy,
               $expr: {
                 $or: [
                   { $eq: ['$$budgetId', '$budget'] },
@@ -730,7 +730,7 @@ export default class BudgetService {
           {
             $match: {
               organization: new ObjectId(auth.orgId),
-              type: PolicyType.Receipt,
+              type: PolicyType.ReceiptPolicy,
               $expr: {
                 $or: [
                   { $eq: ['$$budgetId', '$budget'] },
