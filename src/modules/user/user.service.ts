@@ -132,6 +132,10 @@ export class UserService {
       throw new UnauthorizedError('Wrong login credentials!')
     }
 
+    if (!user.emailVerified) {
+      throw new UnauthorizedError('Wrong login credentials!')
+    }
+
     const organization = await Organization.findById(user.organization);
     if (!organization) {
       throw new UnauthorizedError(`User Organization not found`);
@@ -171,7 +175,7 @@ export class UserService {
       otp
     })
 
-    return { userId: user.id, emailVerified: user.emailVerified  }
+    return { userId: user.id  }
   }
 
   // getRememberMeExpirationDate(data: LoginDto) {
