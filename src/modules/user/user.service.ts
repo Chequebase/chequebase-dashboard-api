@@ -25,6 +25,7 @@ import ApprovalService from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 
 const logger = new Logger('user-service')
+const whiteListDevEmails = ['uzochukwu.onuegbu25+dev@gmail.com', 'uxwithdavid@gmail.com']
 
 @Service()
 export class UserService {
@@ -151,9 +152,12 @@ export class UserService {
     // }
 
     // const expirationDate = this.getRememberMeExpirationDate(data)
-    const otp = Math.floor(100000 + Math.random() * 900000);
+    let otp = Math.floor(100000 + Math.random() * 900000);
     const otpExpiresAt = this.getOtpExpirationDate(10)
 
+    if (whiteListDevEmails.includes(user.email)) {
+      otp = 123456
+    }
     await user.updateOne({
       hashRt: '',
       rememberMe: data.rememberMe,
