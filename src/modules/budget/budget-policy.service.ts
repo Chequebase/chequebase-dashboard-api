@@ -68,7 +68,7 @@ export class BudgetPolicyService {
   }
 
   async checkInvoicePolicy(data: CheckInvoicePolicy) {
-    const user = await User.findById(data.user).select('department')
+    const user = await User.findById(data.user).select('department organization')
     if (!user) {
       throw new BadRequestError("User not found")
     }
@@ -101,7 +101,7 @@ export class BudgetPolicyService {
   }
 
   async checkCalendarPolicy(data: CheckCalendarPolicy) {
-    const user = await User.findById(data.user).select('department')
+    const user = await User.findById(data.user).select('department organization')
     if (!user) {
       throw new BadRequestError("User not found")
     }
@@ -138,7 +138,7 @@ export class BudgetPolicyService {
   }
 
   async checkSpendLimitPolicy(data: CheckSpendLimitPolicy) {
-    const user = await User.findById(data.user).select('department')
+    const user = await User.findById(data.user).select('department organization')
     if (!user) {
       throw new BadRequestError("User not found")
     }
