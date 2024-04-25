@@ -6,7 +6,7 @@ import { CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtens
 import { AuthUser } from "../common/interfaces/auth-user";
 import { ERole } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
-import { GetTransferFee, InitiateTransferDto, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto";
+import { CheckTransferPolicyDto, GetTransferFee, InitiateTransferDto, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto";
 import { ProjectService } from "./project.service";
 import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto";
 import { EPermission } from "@/models/role-permission.model";
@@ -133,6 +133,11 @@ export default class BudgetController {
   @Authorized(EPermission.PolicyEdit)
   deletePolicy(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.policyService.deletePolicy(auth, id)
+  }
+
+  @Delete('/policies/check-transfer')
+  checkTransferPolicy(@CurrentUser() auth: AuthUser, @Body() dto: CheckTransferPolicyDto) {
+    return this.policyService.checkTransferPolicy(auth.userId, dto)
   }
 
   @Get('/recipients')
