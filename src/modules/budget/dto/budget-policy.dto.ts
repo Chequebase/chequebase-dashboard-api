@@ -1,5 +1,5 @@
-import { PolicyType } from "@/models/budget-policy.model";
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
+import { PolicyType, SpendPeriod } from "@/models/budget-policy.model";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min, ValidateIf } from "class-validator";
 
 export class CreatePolicy {
   @IsEnum(PolicyType)
@@ -8,17 +8,21 @@ export class CreatePolicy {
   @IsString()
   name: string
 
+  @IsEnum(SpendPeriod)
+  @IsOptional()
+  spendPeriod: string
+
   @IsInt({ each: true })
   @Min(1, { each: true })
   @Max(7, { each: true })
   @ArrayMinSize(1)
   @ArrayMaxSize(7)
   @IsArray()
-  @IsOptional()
+  @ValidateIf((obj) => obj.type === PolicyType.Calendar)
   daysOfWeek: string
 
   @IsInt()
-  @IsOptional()
+  @ValidateIf((obj) => obj.type === PolicyType.SpendLimit)
   amount: number
 
   @IsString()

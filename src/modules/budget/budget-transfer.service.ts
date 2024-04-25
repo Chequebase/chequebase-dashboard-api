@@ -30,6 +30,7 @@ import ApprovalRequest from "@/models/approval-request.model"
 import { S3Service } from "../common/aws/s3.service"
 import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
+import { BudgetPolicyService } from "./budget-policy.service"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -38,7 +39,8 @@ export class BudgetTransferService {
   constructor (
     private transferService: TransferService,
     private s3Service: S3Service,
-    private anchorService: AnchorService
+    private anchorService: AnchorService,
+    private budgetPolicyService: BudgetPolicyService
   ) { }
 
   private async calcTransferFee(orgId: string, amount: number, currency: string) {
@@ -272,6 +274,18 @@ export class BudgetTransferService {
       throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
     }
 
+    // check expense policies
+    const policyCheckData = {
+      ...data,
+      user: auth.userId,
+      dayOfWeek: new Date().getDay(),
+      budget: budgetId
+    }
+    await Promise.all([
+      this.budgetPolicyService.checkCalendarPolicy(policyCheckData),
+      this.budgetPolicyService.checkSpendLimitPolicy(policyCheckData),
+    ])
+
     const rules = await ApprovalRule.find({
       organization: auth.orgId,
       workflowType: WorkflowType.Transaction,
@@ -314,6 +328,13 @@ export class BudgetTransferService {
         key,
         data.receipt
       );
+    } else {
+      await this.budgetPolicyService.checkInvoicePolicy({
+        user: auth.userId,
+        budget: budgetId,
+        bankCode: data.bankCode,
+        accountNumber: data.accountNumber
+      })
     }
 
     if (!resolveRes){
@@ -344,6 +365,7 @@ export class BudgetTransferService {
 
     return {
       status: 'pending',
+      approvalRequired: true,
       message: 'Transaction pending approval',
     }
   }
@@ -392,6 +414,7 @@ export class BudgetTransferService {
 
     return {
       status: transferResponse.status,
+      approvalRequired: false,
       message: transferResponse.message
     }
   }
