@@ -51,3 +51,19 @@ export class UpdateRecipient {
   @IsString()
   accountNumber: string
 }
+
+export class CheckTransferPolicyDto {
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  amount: number
+
+  @IsString()
+  @Length(10)
+  accountNumber: string
+
+  @IsString()
+  budget: string
+
+  @IsString()
+  bankCode: string
+}

@@ -9,6 +9,7 @@ import { CheckCalendarPolicy, CheckInvoicePolicy, CheckSpendLimitPolicy } from "
 import User from "@/models/user.model";
 import dayjs from "dayjs";
 import WalletEntry, { WalletEntryStatus } from "@/models/wallet-entry.model";
+import { CheckTransferPolicyDto } from "./dto/budget-transfer.dto";
 
 @Service()
 export class BudgetPolicyService {
@@ -180,5 +181,25 @@ export class BudgetPolicyService {
 
       if ((totalSpent + data.amount) >= policy.amount) throw new BadRequestError(message)
     }))
+  }
+
+  async checkTransferPolicy(userId: string, data: CheckTransferPolicyDto) {
+    const payload = {
+      ...data,
+      user: userId,
+      dayOfWeek: new Date().getDay()
+    }
+
+    const results = await Promise.allSettled([
+      this.checkCalendarPolicy(payload),
+      this.checkSpendLimitPolicy(payload),
+      this.checkInvoicePolicy(payload)
+    ])
+
+    return {
+      calendar: results[0].status === 'rejected',
+      spend_limit: results[1].status === 'rejected',
+      invoice: results[2].status === 'rejected',
+    }
   }
 }
