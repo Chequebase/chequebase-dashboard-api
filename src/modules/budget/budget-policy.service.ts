@@ -161,9 +161,9 @@ export class BudgetPolicyService {
     await Promise.all(policies.map(async policy => {
       let flagged = false
       if (!policy.department && !policy.budget) flagged = true
-      console.log({ user })
+      console.log({ user, policy })
       if (policy.department) flagged = user.departments.some(d => policy.department.equals(d))
-      console.log({ user1: user })
+      console.log({ user1: user, policy })
       if (policy.budget) flagged = policy.budget.equals(data.budget)
 
       if (!flagged) return;
