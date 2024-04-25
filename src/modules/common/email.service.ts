@@ -59,7 +59,7 @@ export default class EmailService {
     return this.send({
       to,
       subject: 'Verify Email',
-      templateId: 'd-c4a09459df54437bb3ff11956daafd21',
+      templateId: 'd-2b166f40f9e64670abdc586f46447f6b',
       dynamicTemplateData: data
     })
   }
