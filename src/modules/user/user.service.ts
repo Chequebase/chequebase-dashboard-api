@@ -58,6 +58,7 @@ export class UserService {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const userExists = await PreRegisterUser.findOne({ email: { $regex } })
     if (userExists) {
+      // resend email if not verified
       throw new BadRequestError('Already joined waitlist');
     }
     await PreRegisterUser.create({
