@@ -178,7 +178,7 @@ export class BudgetPolicyService {
       const totalSpent = totalSpentAgg?.amount || 0
 
 
-      if (totalSpent >= policy.amount) throw new BadRequestError(message)
+      if ((totalSpent + data.amount) >= policy.amount) throw new BadRequestError(message)
     }))
   }
 }
