@@ -106,7 +106,13 @@ export class UserService {
       email: data.email
     })
 
-    await user.updateOne({ organization: organization._id })
+    let otp = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiresAt = this.getOtpExpirationDate(10)
+
+    if (whiteListDevEmails.includes(user.email)) {
+      otp = 123456
+    }
+    await user.updateOne({ organization: organization._id, otpExpiresAt, otp })
 
     // create default approval rules
     await Promise.all([
@@ -116,6 +122,8 @@ export class UserService {
 
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${emailVerifyCode}&email=${data.email}`
     this.emailService.sendVerifyEmail(data.email, {
+      customerName: data.businessName,
+      otp,
       verificationLink: link
     })
 
@@ -164,7 +172,7 @@ export class UserService {
     }
     await user.updateOne({
       hashRt: '',
-      rememberMe: data.rememberMe,
+      // rememberMe: data.rememberMe,
       otpExpiresAt,
       otp
     })
