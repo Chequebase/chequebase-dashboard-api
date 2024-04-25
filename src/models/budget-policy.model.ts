@@ -6,8 +6,8 @@ import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum PolicyType {
   SpendLimit = 'spend_limit',
-  AutomaticFlagging = 'automatic_flagging',
-  ReceiptPolicy = 'receipt_policy',
+  Calendar = 'calendar',
+  Invoice = 'invoice',
 }
 
 export interface IBudgetPolicy {
@@ -19,12 +19,19 @@ export interface IBudgetPolicy {
   amount: number
   budget?: any
   daysOfWeek?: number[]
+  spendPeriod: SpendPeriod
   department?: any
   recipient?: any
   createdBy: any
   enabled: boolean
   createdAt: Date
   updatedAt: Date
+}
+
+export enum SpendPeriod {
+  Daily = 'daily',
+  Weekly = 'weekly',
+  Monthly = 'monthly'
 }
 
 interface BudgetPolicyModel extends
@@ -37,16 +44,14 @@ const BudgetPolicySchema = new Schema<IBudgetPolicy>(
       type: String,
       required: true,
     },
-    amount: {
-      type: Number,
-      required: true
-    },
+    amount: Number,
     description: { type: String, required: true },
     type: {
       type: String,
       enum: Object.values(PolicyType),
       required: true
     },
+    spendPeriod: {type: String, enum: Object.values(SpendPeriod)},
     daysOfWeek: [String],
     department: {
       type: mongoose.Schema.Types.ObjectId,
