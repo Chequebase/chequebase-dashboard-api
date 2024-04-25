@@ -126,7 +126,9 @@ export class BudgetPolicyService {
 
       let flagged = false
 
+      console.log({ user })
       if (policy.department) flagged = user.departments.some(d => policy.department.equals(d))
+      console.log({ user1: user })
       if (policy.budget) flagged = policy.budget.equals(data.budget)
       if (policy.recipient) {
         flagged = policy.recipient.bankCode === data.bankCode && policy.recipient.accountNumber === data.accountNumber
