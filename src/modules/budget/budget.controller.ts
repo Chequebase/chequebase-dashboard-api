@@ -135,7 +135,7 @@ export default class BudgetController {
     return this.policyService.deletePolicy(auth, id)
   }
 
-  @Delete('/policies/check-transfer')
+  @Post('/policies/check-transfer')
   checkTransferPolicy(@CurrentUser() auth: AuthUser, @Body() dto: CheckTransferPolicyDto) {
     return this.policyService.checkTransferPolicy(auth.userId, dto)
   }
