@@ -58,7 +58,7 @@ export class UserService {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const userExists = await PreRegisterUser.findOne({ email: { $regex } })
     if (userExists) {
-      // resend email if not verified
+
       throw new BadRequestError('Already joined waitlist');
     }
     await PreRegisterUser.create({
@@ -77,6 +77,15 @@ export class UserService {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const userExists = await User.findOne({ email: { $regex } })
     if (userExists) {
+      if (!userExists.emailVerified) {
+        const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
+        this.emailService.sendVerifyEmail(userExists.email, {
+          customerName: userExists.firstName,
+          otp: userExists.otp,
+          verificationLink: link
+        })
+        return { message: "User created, check your email for verification link" };
+      }
       throw new BadRequestError('Account with same email already exists');
     }
 
@@ -121,9 +130,11 @@ export class UserService {
       this.budgetTnxService.createDefaultCategories(organization.id)
     ])
 
+
+    const isOwner = user.role === ERole.Owner
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${emailVerifyCode}&email=${data.email}`
     this.emailService.sendVerifyEmail(data.email, {
-      customerName: data.businessName,
+      customerName: isOwner ? organization.businessName : user.firstName,
       otp,
       verificationLink: link
     })
