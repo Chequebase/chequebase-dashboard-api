@@ -355,8 +355,7 @@ export class UserService {
 
     // modify this to check for 10mins validity
     let checkemailVerifyCode = (userHash: string, hash: string) => Number(userHash) === Number(hash);
-    const otpExpiresAtTimestamp = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
-    const isValid = checkemailVerifyCode(user.emailVerifyCode, verificationCode) && otpExpiresAtTimestamp > new Date().getTime();
+    const isValid = checkemailVerifyCode(user.emailVerifyCode, verificationCode)
 
     if (!isValid) {
       throw new UnauthorizedError(`Invalid Otp`);
