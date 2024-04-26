@@ -81,7 +81,7 @@ export class UserService {
         const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
         this.emailService.sendVerifyEmail(userExists.email, {
           customerName: userExists.firstName,
-          otp: userExists.otp,
+          otp: userExists.emailVerifyCode,
           verificationLink: link
         })
         return { message: "User created, check your email for verification link" };
@@ -95,11 +95,19 @@ export class UserService {
       throw new ServiceUnavailableError('Unable to complete registration at this time')
     }
 
-    const emailVerifyCode = this.generateRandomString(8);
+    let emailVerifyCode = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiresAt = this.getOtpExpirationDate(10)
+
+    // TODO: remove
+    if (whiteListDevEmails.includes(data.email)) {
+      emailVerifyCode = 123456
+    }
+
     const user = await User.create({
       email: data.email,
       password: await bcrypt.hash(data.password, 12),
       emailVerifyCode,
+      otpExpiresAt,
       role: ERole.Owner,
       roleRef: ownerRole._id,
       hashRt: '',
@@ -115,14 +123,7 @@ export class UserService {
       admin: user._id,
       email: data.email
     })
-
-    let otp = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate(10)
-
-    if (whiteListDevEmails.includes(user.email)) {
-      otp = 123456
-    }
-    await user.updateOne({ organization: organization._id, otpExpiresAt, otp })
+    await user.updateOne({ organization: organization._id })
 
     // create default approval rules
     await Promise.all([
@@ -135,7 +136,7 @@ export class UserService {
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${emailVerifyCode}&email=${data.email}`
     this.emailService.sendVerifyEmail(data.email, {
       customerName: isOwner ? organization.businessName : user.firstName,
-      otp,
+      otp: emailVerifyCode,
       emailVerificationLink: link
     })
 
@@ -346,13 +347,19 @@ export class UserService {
     if (!user) {
       throw new BadRequestError('User not found');
     }
-    if (verificationCode !== user.emailVerifyCode) {
-      throw new BadRequestError('Invalid credentials');
-    }
 
     const organization = await Organization.findById(user.organization);
     if (!organization) {
       throw new UnauthorizedError(`User Organization not found`);
+    }
+
+    // modify this to check for 10mins validity
+    let checkemailVerifyCode = (userHash: string, hash: string) => Number(userHash) === Number(hash);
+    const otpExpiresAtTimestamp = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
+    const isValid = checkemailVerifyCode(user.emailVerifyCode, verificationCode) && otpExpiresAtTimestamp > new Date().getTime();
+
+    if (!isValid) {
+      throw new UnauthorizedError(`Invalid Otp`);
     }
 
     await user.updateOne({
