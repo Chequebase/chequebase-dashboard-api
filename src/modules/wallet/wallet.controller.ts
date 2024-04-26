@@ -69,7 +69,7 @@ export default class WalletController {
   }
   
   @Get('/history/:id')
-  @Authorized(ERole.Owner)
+  @Authorized()
   getWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWalletEntry(auth.orgId, id)
   }
