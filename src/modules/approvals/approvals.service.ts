@@ -163,12 +163,8 @@ export default class ApprovalService {
     const props = request.properties
     switch (request.workflowType) {
       case WorkflowType.BudgetExtension:
-        return this.budgetService.extendBudget(auth.orgId, props.budget, {
-          amount: props.budgetExtensionAmount!,
-          expiry: props.budgetExpiry,
-          beneficiaries: props.budgetBeneficiaries,
-          approvalRequest: request._id.toString()
-        })
+        // TODO: alert users in fund_request rule reviewers
+        return { status: 'active' }
       case WorkflowType.Expense: 
         return this.budgetService.approveExpense(props.budget)
       case WorkflowType.Transaction:

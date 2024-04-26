@@ -89,7 +89,7 @@ export class BudgetPolicyService {
         throw new BadRequestError(message)
       }
 
-      if (policy.department) flagged = user.departments.some(d => policy.department.equals(d))
+      if (policy.department) flagged = user.departments?.some(d => policy.department.equals(d))
       if (policy.budget) flagged = policy.budget.equals(data.budget)
       if (policy.recipient) {
         flagged = policy.recipient.bankCode === data.bankCode && policy.recipient.accountNumber === data.accountNumber
@@ -126,7 +126,7 @@ export class BudgetPolicyService {
 
       let flagged = false
 
-      if (policy.department) flagged = user.departments.some(d => policy.department.equals(d))
+      if (policy.department) flagged = user.departments?.some(d => policy.department.equals(d))
       if (policy.budget) flagged = policy.budget.equals(data.budget)
       if (policy.recipient) {
         flagged = policy.recipient.bankCode === data.bankCode && policy.recipient.accountNumber === data.accountNumber
@@ -161,7 +161,7 @@ export class BudgetPolicyService {
     await Promise.all(policies.map(async policy => {
       let flagged = false
       if (!policy.department && !policy.budget) flagged = true
-      if (policy.department) flagged = user.departments.some(d => policy.department.equals(d))
+      if (policy.department) flagged = user.departments?.some(d => policy.department.equals(d))
       if (policy.budget) flagged = policy.budget.equals(data.budget)
 
       if (!flagged) return;
