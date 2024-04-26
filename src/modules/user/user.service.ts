@@ -136,7 +136,7 @@ export class UserService {
     this.emailService.sendVerifyEmail(data.email, {
       customerName: isOwner ? organization.businessName : user.firstName,
       otp,
-      verificationLink: link
+      emailVerificationLink: link
     })
 
     return { message: "User created, check your email for verification link" };
