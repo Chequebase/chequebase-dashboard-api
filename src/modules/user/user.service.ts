@@ -366,7 +366,10 @@ export class UserService {
       status: UserStatus.ACTIVE
     })
 
-    return { message: 'success' };
+    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
+    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    return { tokens, userId: user.id }
   }
 
   async forgotPassword(email: string) {
