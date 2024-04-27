@@ -320,13 +320,13 @@ export class BudgetTransferService {
       })
     }
 
-    let receiptUrl
-    if (data.receipt) {
-      const key = `transaction-receipt/${budgetId}/${createId()}`;
-      receiptUrl = await this.s3Service.uploadObject(
+    let invoiceUrl
+    if (data.invoice) {
+      const key = `transaction-invoice/${budgetId}/${createId()}`;
+      invoiceUrl = await this.s3Service.uploadObject(
         getEnvOrThrow('AVATAR_BUCKET_NAME'),
         key,
-        data.receipt
+        data.invoice
       );
     } else {
       await this.budgetPolicyService.checkInvoicePolicy({
@@ -355,7 +355,7 @@ export class BudgetTransferService {
           amount: data.amount,
           bankCode: data.bankCode,
           bankName: resolveRes.bankName,
-          receipt: receiptUrl,
+          invoice: invoiceUrl,
           category: data.category
         }
       }

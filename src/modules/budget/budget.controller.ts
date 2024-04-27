@@ -253,14 +253,14 @@ export default class BudgetController {
 
   @Post('/:id/transfer/initiate')
   @Authorized()
-  @UseBefore(multer().single('receipt'))
+  @UseBefore(multer().single('invoice'))
   async initiateTransfer(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
     @Req() req: Request,
   ) {
     const file = req.file as any
-    const dto = plainToInstance(InitiateTransferDto, { receipt: file?.buffer, ...req.body })
+    const dto = plainToInstance(InitiateTransferDto, { invoice: file?.buffer, ...req.body })
     const errors = await validate(dto)
     if (errors.length) {
       throw { errors }

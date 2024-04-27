@@ -13,7 +13,7 @@ export class InitiateTransferDto {
   @IsString()
   bankCode: string
 
-  receipt?: Buffer
+  invoice?: Buffer
 
   @IsBoolean()
   @IsOptional()
