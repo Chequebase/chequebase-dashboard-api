@@ -136,6 +136,7 @@ export default class BudgetController {
   }
 
   @Post('/policies/check-transfer')
+  @Authorized()
   checkTransferPolicy(@CurrentUser() auth: AuthUser, @Body() dto: CheckTransferPolicyDto) {
     return this.policyService.checkTransferPolicy(auth.userId, dto)
   }
