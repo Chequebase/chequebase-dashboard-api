@@ -32,7 +32,7 @@ export interface IApprovalRequest {
       accountNumber: string
       bankCode: string
       accountName: string
-      receipt: string
+      invoice: string
       category: any
     }
     budgetExtensionAmount?: number
@@ -79,7 +79,7 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
         bankCode: String,
         bankName: String,
         accountName: String,
-        receipt: String,
+        invoice: String,
         category: {
           type: mongoose.Schema.Types.ObjectId,
           ref: 'TransferCategory'
