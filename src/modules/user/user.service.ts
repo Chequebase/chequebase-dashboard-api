@@ -25,7 +25,7 @@ import ApprovalService from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 
 const logger = new Logger('user-service')
-const whiteListDevEmails = ['uzochukwu.onuegbu25+dev@gmail.com', 'uxwithdavid@gmail.com']
+const whiteListDevEmails = ['uzochukwu.onuegbu25+dev@gmail.com']
 
 @Service()
 export class UserService {
