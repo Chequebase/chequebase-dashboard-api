@@ -164,6 +164,7 @@ export default class BudgetService {
       workflowType: WorkflowType.Expense,
       requester: auth.userId,
       approvalRule: rule._id,
+      priority: data.priority,
       reviews: rule.reviewers.map(userId => ({ user: userId })),
       properties: { budget: budget._id }
     })

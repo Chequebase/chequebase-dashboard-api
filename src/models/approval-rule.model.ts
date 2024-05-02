@@ -8,6 +8,7 @@ export enum WorkflowType {
   Transaction = 'transaction',
   Expense = 'expense',
   BudgetExtension = 'budget_extension',
+  FundRequest = 'fund_request',
 }
 
 export enum ApprovalType {
@@ -39,14 +40,11 @@ const approvalRuleSchema = new Schema<IApprovalRule>(
       type: String,
       required: true
     },
-    amount: {
-      type: Number,
-      required: true
-    },
+    amount: { type: Number, default: 0 },
     approvalType: {
       type: String,
       enum: Object.values(ApprovalType),
-      required: true
+      default: ApprovalType.Everyone
     },
     workflowType: {
       type: String,

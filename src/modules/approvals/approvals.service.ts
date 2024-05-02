@@ -27,7 +27,7 @@ export default class ApprovalService {
       organization: auth.orgId,
       workflowType: data.workflowType,
       approvalType: data.approvalType,
-      ...(data.budget && { budget: { $exists: true } })
+      ...(data.budget && { budget: data.budget })
     })
 
     if (rule) {
@@ -37,6 +37,11 @@ export default class ApprovalService {
     const reviewers = await User.find({ _id: { $in: data.reviewers }, organization: auth.orgId })
     if (reviewers.length !== data.reviewers.length) {
       throw new BadRequestError("Invalid rule approvers")
+    }
+
+    if (data.workflowType === WorkflowType.FundRequest) {
+      data.amount = 0
+      data.approvalType = ApprovalType.Anyone
     }
 
     rule = await ApprovalRule.create({
