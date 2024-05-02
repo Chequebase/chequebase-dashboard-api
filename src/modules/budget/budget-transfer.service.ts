@@ -26,7 +26,7 @@ import Logger from "../common/utils/logger"
 import { IProject } from "@/models/project.model"
 import Bank from "@/models/bank.model"
 import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model"
-import ApprovalRequest from "@/models/approval-request.model"
+import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model"
 import { S3Service } from "../common/aws/s3.service"
 import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
@@ -346,6 +346,7 @@ export class BudgetTransferService {
       workflowType: WorkflowType.Expense,
       requester: auth.userId,
       approvalRule: rule._id,
+      priority: ApprovalRequestPriority.High,
       reviews: rule.reviewers.map(userId => ({ user: userId })),
       properties: {
         budget: budget._id,
