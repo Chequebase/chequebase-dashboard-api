@@ -133,7 +133,7 @@ export class UserService {
 
 
     const isOwner = user.role === ERole.Owner
-    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${emailVerifyCode}&email=${data.email}`
+    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
     this.emailService.sendVerifyEmail(data.email, {
       customerName: isOwner ? organization.businessName : user.firstName,
       otp: emailVerifyCode,
