@@ -343,7 +343,7 @@ export class BudgetTransferService {
 
     await ApprovalRequest.create({
       organization: auth.orgId,
-      workflowType: WorkflowType.Expense,
+      workflowType: rule.workflowType,
       requester: auth.userId,
       approvalRule: rule._id,
       priority: ApprovalRequestPriority.High,

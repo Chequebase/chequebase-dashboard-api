@@ -253,6 +253,15 @@ export default class ApprovalService {
         workflowType: WorkflowType.BudgetExtension,
         organization: orgId,
         reviewers: [userId],
+      },
+      {
+        name: 'Fund Request',
+        amount: 0,
+        approvalType: ApprovalType.Anyone,
+        createdBy: userId,
+        workflowType: WorkflowType.FundRequest,
+        organization: orgId,
+        reviewers: [userId],
       }
     ])
   }
