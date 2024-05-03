@@ -18,7 +18,7 @@ import { PlanUsageService } from "../billing/plan-usage.service";
 import { cdb } from "../common/mongoose";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import Project from "@/models/project.model";
-import ApprovalRequest, { ApprovalRequestReviewStatus, IApprovalRequest } from "@/models/approval-request.model";
+import ApprovalRequest, { ApprovalRequestPriority, ApprovalRequestReviewStatus, IApprovalRequest } from "@/models/approval-request.model";
 import Organization from "@/models/organization.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
@@ -159,12 +159,17 @@ export default class BudgetService {
       return this.approveExpense(budget.id)
     }
 
+    const priorityToApprovalPriority = {
+      1: ApprovalRequestPriority.High,
+      2: ApprovalRequestPriority.Medium,
+      3: ApprovalRequestPriority.Low
+    }
     await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: WorkflowType.Expense,
       requester: auth.userId,
       approvalRule: rule._id,
-      priority: data.priority,
+      priority: priorityToApprovalPriority[data.priority],
       reviews: rule.reviewers.map(userId => ({ user: userId })),
       properties: { budget: budget._id }
     })
@@ -739,5 +744,32 @@ export default class BudgetService {
       .project({ _id: 0, currency: '$_id', balance: 1 })
     
     return budgetAgg
+  }
+
+  async initiateFundRequest(auth: AuthUser, requestId: string) {
+    const approvalRequest = await ApprovalRequest.findOne({ _id: requestId, organization: auth.orgId })
+    if (!approvalRequest) {
+      throw new BadRequestError("Invalid request")
+    }
+
+    const rule = await ApprovalRule.findOne({ organization: auth.orgId, workflowType: WorkflowType.FundRequest })
+    if (!rule) {
+      throw new BadRequestError("Unable to initiate fund request, contact admin")
+    }
+
+    const req = await ApprovalRequest.create({
+      organization: auth.orgId,
+      approvalRule: rule._id,
+      priority: ApprovalRequestPriority.High,
+      requester: auth.userId,
+      reviews: rule.reviewers.map((user) => ({ user })),
+      workflowType: rule.workflowType,
+      status: ApprovalRequestReviewStatus.Pending,
+      properties: approvalRequest.properties
+    })
+
+    // TODO: send email notification to reviewers
+
+    return { status: req.status }
   }
 }
