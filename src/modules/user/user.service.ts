@@ -177,26 +177,29 @@ export class UserService {
     // }
 
     // const expirationDate = this.getRememberMeExpirationDate(data)
-    let otp = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate(10)
 
-    if (whiteListDevEmails.includes(user.email)) {
-      otp = 123456
+    if (user.status === UserStatus.ACTIVE) {
+      let otp = Math.floor(100000 + Math.random() * 900000);
+      const otpExpiresAt = this.getOtpExpirationDate(10)
+
+      if (whiteListDevEmails.includes(user.email)) {
+        otp = 123456
+      }
+      await user.updateOne({
+        hashRt: '',
+        // rememberMe: data.rememberMe,
+        otpExpiresAt,
+        otp
+      })
+
+      const isOwner = user.role === ERole.Owner
+      this.emailService.sendOtpEmail(user.email, {
+        customerName: isOwner ? organization.businessName : user.firstName,
+        otp
+      })
     }
-    await user.updateOne({
-      hashRt: '',
-      // rememberMe: data.rememberMe,
-      otpExpiresAt,
-      otp
-    })
 
-    const isOwner = user.role === ERole.Owner
-    this.emailService.sendOtpEmail(user.email, {
-      customerName: isOwner ? organization.businessName : user.firstName,
-      otp
-    })
-
-    return { userId: user.id  }
+    return { userId: user.id, status: user.status  }
   }
 
   // getRememberMeExpirationDate(data: LoginDto) {
