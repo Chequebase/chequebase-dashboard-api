@@ -1,7 +1,7 @@
 import { JsonController, Get, Authorized, CurrentUser, Post, Body, QueryParams, Param, Delete, Patch, Put } from "routing-controllers";
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
+import { ApproveApprovalRequestBody, CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
 import ApprovalService from "./approvals.service";
 import { EPermission } from "@/models/role-permission.model";
 
@@ -42,8 +42,8 @@ export default class ApprovalsController {
 
   @Post('/requests/:id/approve')
   @Authorized(EPermission.ApprovalsApprove)
-  approveApprovalRequest(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
-    return this.approvalService.approveApprovalRequests(auth, id)
+  approveApprovalRequest(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: ApproveApprovalRequestBody) {
+    return this.approvalService.approveApprovalRequests(auth, id, dto)
   }
 
   @Post('/requests/:id/decline')

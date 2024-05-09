@@ -6,6 +6,8 @@ import { UnauthorizedError } from "routing-controllers";
 import { SubscriptionPaymentJob } from "@/queues/jobs/subscription/subscription-payment.job";
 import { PaystackService } from "@/modules/common/paystack.service";
 import { subscriptionQueue } from "@/queues";
+import PaymentIntent, { IntentType } from "@/models/payment-intent.model";
+import { FundBudgetJob } from "@/queues/jobs/budget/fund-budget.job";
 
 @Service()
 export class PaystackWebhookHandler {
@@ -23,6 +25,7 @@ export class PaystackWebhookHandler {
   private async onChargeSuccess(body: any) {
     const reference = body.data.reference
     const { data } = await this.paystackService.verifyPaymentByReference(reference)
+
     const jobData: SubscriptionPaymentJob = {
       chargedAmount: data.amount,
       currency: data.currency,
@@ -36,8 +39,15 @@ export class PaystackWebhookHandler {
       paymentType: data.channel
     }
 
-    await subscriptionQueue.add('processSubscriptionPayment', jobData)
+    const metadata = data.metadata
+    if (!metadata.intentType || metadata.intentType === IntentType.PlanSubscription) {
+      await subscriptionQueue.add('processSubscriptionPayment', jobData as SubscriptionPaymentJob)
+    }
 
+    if (metadata.intentType === IntentType.BudgetFundRequest) {
+      await subscriptionQueue.add('processFundBudget', jobData as FundBudgetJob)
+    }
+    
     return { message: 'webhook handled' }
   }
 

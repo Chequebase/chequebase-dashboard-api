@@ -26,6 +26,7 @@ export interface IApprovalRequest {
   requester: any
   priority: ApprovalRequestPriority
   properties: {
+    fundRequestType?: string
     budget?: any
     transaction?: {
       amount: number
@@ -69,6 +70,7 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
       required: true
     },
     properties: {
+      fundRequestType: { type: String },
       budget: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Budget",

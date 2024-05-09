@@ -4,6 +4,14 @@ import Logger from "./utils/logger";
 import { getEnvOrThrow } from "./utils";
 import { ServiceUnavailableError } from "./utils/service-errors";
 
+interface InitialisePayment {
+  amount: number;
+  reference: string;
+  email: string
+  subaccount: string
+  bearer?: string
+}
+
 @Service()
 export class PaystackService {
   private http: AxiosInstance
@@ -29,6 +37,20 @@ export class PaystackService {
       });
 
       throw new ServiceUnavailableError('Unable to verify payment');
+    }
+  }
+
+  async initializePayment(payload: InitialisePayment) {
+    try {
+      const { data } = await this.http.post(`transaction/initialize`, payload)
+      return data
+    } catch (err: any) {
+      this.logger.error('error initializing payment', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        ...payload
+      });
+
+      throw new ServiceUnavailableError('Unable to initialize payment');
     }
   }
 }

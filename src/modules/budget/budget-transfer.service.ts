@@ -25,7 +25,7 @@ import { ServiceUnavailableError } from "../common/utils/service-errors"
 import Logger from "../common/utils/logger"
 import { IProject } from "@/models/project.model"
 import Bank from "@/models/bank.model"
-import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model"
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model"
 import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model"
 import { S3Service } from "../common/aws/s3.service"
 import TransferCategory from "@/models/transfer-category"
@@ -308,7 +308,12 @@ export class BudgetTransferService {
     }
 
     const rule = rules.find(r => r.budget?.equals(budgetId)) || rules[0]
-    const noApprovalRequired = auth.isOwner || !rule
+    let noApprovalRequired = !rule
+    if (rule) {
+      const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
+      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+    }
+
     if (noApprovalRequired) {
       return this.approveTransfer({
         accountNumber: data.accountNumber,

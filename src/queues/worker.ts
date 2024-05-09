@@ -16,6 +16,7 @@ import sendAccountStatement from './jobs/wallet/account-statement.job';
 import processRequiredDocuments from './jobs/organization/processRequiredDocuments';
 import processKycApproved from './jobs/organization/processKycApproved';
 import processKycRejected from './jobs/organization/processKycRejected';
+import processFundBudget from './jobs/budget/fund-budget.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -37,6 +38,7 @@ function setupQueues() {
       repeat: { cron: '0  * * * *', tz } // every hour
     })
     
+    budgetQueue.process('processFundBudget', processFundBudget)
     budgetQueue.process('closeExpiredBudget', closeExpiredBudget)
     budgetQueue.process('fetchExpiredBudgets', fetchExpiredBudgets)
     budgetQueue.add('fetchExpiredBudgets', null, {
