@@ -36,6 +36,8 @@ export interface IBudget {
   threshold?: number
   description: string
   createdBy: ObjectId
+  extensionApprovalRequest: any
+  fundRequestApprovalRequest: any
   approvedDate: Date
   closeReason?: string
   closedBy?: ObjectId
@@ -66,6 +68,14 @@ const budgetSchema = new Schema<IBudget>(
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User'
+    },
+    extensionApprovalRequest: {
+      type: Schema.Types.ObjectId,
+      ref: 'ApprovalRequest'
+    },
+    fundRequestApprovalRequest: {
+      type: Schema.Types.ObjectId,
+      ref: 'ApprovalRequest'
     },
     approvedDate: Date,
     organization: {

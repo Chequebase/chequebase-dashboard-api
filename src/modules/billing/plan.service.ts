@@ -208,7 +208,8 @@ export class PlanService {
       message: 'Kindly complete payment',
       amount,
       reference: intent.reference,
-      intent: intent._id
+      intent: intent._id,
+      intentType: intent.type
     }
   }
 

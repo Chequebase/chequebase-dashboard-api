@@ -1,5 +1,5 @@
 import { AuthUser } from "../common/interfaces/auth-user";
-import { CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
+import { ApproveApprovalRequestBody, CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import User from "@/models/user.model";
 import QueryFilter from "../common/utils/query-filter";
@@ -103,6 +103,7 @@ export default class ApprovalService {
   async getApprovalRequests(auth: AuthUser, query: GetApprovalRequestsQuery) {
     const filter = new QueryFilter({
       organization: auth.orgId,
+      status: query.reviewed ? { $ne: 'pending' } : 'pending',
       'reviews.user': auth.userId,
       'reviews.status': query.reviewed ? { $ne: 'pending' } : 'pending'
     })
@@ -130,12 +131,13 @@ export default class ApprovalService {
     return requests
   }
 
-  async approveApprovalRequests(auth: AuthUser, requestId: string) {
+  async approveApprovalRequests(auth: AuthUser, requestId: string, data: ApproveApprovalRequestBody) {
     let request = await ApprovalRequest.findOne({
       _id: requestId,
       organization: auth.orgId,
       'reviews.user': auth.userId
     }).populate('approvalRule', 'approvalType')
+      .populate('properties.budget', 'amount currency')
 
     if (!request) {
       throw new BadRequestError("Approval request not found")
@@ -151,6 +153,10 @@ export default class ApprovalService {
 
     const update: any = { 'reviews.$[review].status': ApprovalRequestReviewStatus.Approved }
     if (approved) update.status = ApprovalRequestReviewStatus.Approved
+
+    if (request.workflowType === WorkflowType.FundRequest && approved) {
+      return this.budgetService.approveFundRequest(auth, request, data.source)
+    }
 
     request = (await ApprovalRequest.findOneAndUpdate(
       { _id: requestId },
@@ -168,17 +174,17 @@ export default class ApprovalService {
     const props = request.properties
     switch (request.workflowType) {
       case WorkflowType.BudgetExtension:
-        // TODO: alert users in fund_request rule reviewers
+        await Budget.updateOne({ _id: props.budget._id }, { extensionApprovalRequest: request._id })
         return { status: 'active' }
       case WorkflowType.Expense: 
-        return this.budgetService.approveExpense(props.budget)
+        return this.budgetService.approveExpense(props.budget._id)
       case WorkflowType.Transaction:
         const trnx = props.transaction!
         return this.budgetTnxService.approveTransfer({
           accountNumber: trnx.accountNumber,
           amount: trnx.amount,
           bankCode: trnx.bankCode,
-          budget: props.budget,
+          budget: props.budget._id,
           userId: request.requester.toString(),
           category: trnx.category
         })
@@ -220,6 +226,10 @@ export default class ApprovalService {
           declineReason: data.reason
         }
       )
+    } else if (request.workflowType === WorkflowType.FundRequest) {
+      await Budget.updateOne({ _id: request.properties.budget }, {
+        fundRequestApprovalRequest: null 
+      })
     }
 
     return request

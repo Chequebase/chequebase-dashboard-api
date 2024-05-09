@@ -4,13 +4,12 @@ import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto, ExtendBudget, FundBudget, FundBudgetSource } from "./dto/budget.dto";
+import { BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto, ExtendBudget, FundBudget, FundBudgetSource, FundRequest } from "./dto/budget.dto";
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model";
 import Wallet, { IWallet } from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
 import User, { IUser } from "@/models/user.model";
 import { ERole } from "../user/dto/user.dto";
-import { UserService } from "../user/user.service";
 import QueryFilter from "../common/utils/query-filter";
 import { escapeRegExp, formatMoney, getEnvOrThrow, transactionOpts } from "../common/utils";
 import EmailService from "../common/email.service";
@@ -23,8 +22,9 @@ import Organization from "@/models/organization.model";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
-import ApprovalRule, { WorkflowType } from "@/models/approval-rule.model";
-import { PolicyType } from "@/models/budget-policy.model";
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
+import PaymentIntent, { IntentType, PaymentIntentStatus } from "@/models/payment-intent.model";
+import { PaystackService } from "../common/paystack.service";
 
 const logger = new Logger('budget-service')
 
@@ -33,7 +33,8 @@ export default class BudgetService {
   constructor (
     private emailService: EmailService,
     private planUsageService: PlanUsageService,
-    private virtualAccountService: VirtualAccountService
+    private virtualAccountService: VirtualAccountService,
+    private paystackService: PaystackService
   ) { }
 
   static async initiateBudgetClosure(data: InitiateProjectClosure) {
@@ -155,7 +156,13 @@ export default class BudgetService {
       beneficiaries
     })
 
-    if (!rule || auth.isOwner) {
+    let noApprovalRequired = !rule
+    if (rule) {
+      const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
+      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+    }
+
+    if (noApprovalRequired) {
       return this.approveExpense(budget.id)
     }
 
@@ -168,9 +175,9 @@ export default class BudgetService {
       organization: auth.orgId,
       workflowType: WorkflowType.Expense,
       requester: auth.userId,
-      approvalRule: rule._id,
+      approvalRule: rule!._id,
       priority: priorityToApprovalPriority[data.priority],
-      reviews: rule.reviewers.map(userId => ({ user: userId })),
+      reviews: rule!.reviewers.map(userId => ({ user: userId })),
       properties: { budget: budget._id }
     })
 
@@ -181,6 +188,110 @@ export default class BudgetService {
       approvalRequired: true,
       budget: budget._id
     }
+  }
+
+  async approveFundRequest(auth: AuthUser, request: IApprovalRequest, source: string) {
+    const props = request.properties;
+    let amount = 0
+    const budgetUpdate: any = { }
+    if (props.fundRequestType === 'extension') {
+      amount = props.budgetExtensionAmount!
+      budgetUpdate.$inc = { balance: amount, amount }
+    } else if (props.fundRequestType === 'expense') {
+      amount = props.budget.amount
+      budgetUpdate.$inc = { balance: amount }
+      budgetUpdate.status = BudgetStatus.Active
+    }
+
+    if (source === 'paystack') {
+      let intent = await PaymentIntent.create({
+        organization: request.organization,
+        type: IntentType.BudgetFundRequest,
+        status: PaymentIntentStatus.Pending,
+        currency: 'NGN',
+        reference: `pi_${createId()}`,
+        amount,
+        meta: {
+          user: auth.userId,
+          provider: "paystack",
+          request: request._id
+        }
+      });
+
+      await this.paystackService.initializePayment({
+        reference: intent.reference,
+        amount,
+        subaccount: getEnvOrThrow('PAYSTACK_SETTLEMENT_SUBACCOUNT'),
+        email: auth.email,
+        bearer: 'subaccount'
+      })
+
+      return {
+        status: 'pending',
+        message: 'Kindly complete payment',
+        amount,
+        reference: intent.reference,
+        intent: intent._id,
+        intentType: intent.type
+      }
+    }
+
+    await cdb.transaction(async (session) => {
+      const wallet = await Wallet.findOneAndUpdate(
+        {
+          organization: request.organization,
+          currency: props.budget.currency,
+          balance: { $gte: amount }
+        },
+        { $inc: { balance: -amount, ledgerBalance: -amount } },
+        { session, new: true }
+      )
+
+      if (!wallet) {
+        throw new BadRequestError("Insufficient funds")
+      }
+
+      const budget = await Budget.findOneAndUpdate({ _id: props.budget._id }, {
+        status: "active",
+        ...budgetUpdate
+      }, { new: true, session })
+
+      await ApprovalRequest.updateOne({ _id: request._id }, {
+        status: "approved",
+        'reviews.$[review].status': ApprovalRequestReviewStatus.Approved
+      },
+        { session, multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
+      )
+      
+      const reference = createId()
+      const [entry] = await WalletEntry.create([{
+        organization: request.organization,
+        wallet: wallet._id,
+        initiatedBy: auth.userId,
+        currency: wallet.currency,
+        type: WalletEntryType.Debit,
+        balanceBefore: numeral(wallet.balance).add(amount).value(),
+        ledgerBalanceBefore: numeral(wallet.ledgerBalance).add(amount).value(),
+        ledgerBalanceAfter: wallet.ledgerBalance,
+        balanceAfter: wallet.balance,
+        amount,
+        scope: WalletEntryScope.BudgetFunding,
+        paymentMethod: 'wallet',
+        provider: 'wallet',
+        providerRef: reference,
+        narration: "Fund request",
+        reference: reference,
+        budget: props.budget._id,
+        status: WalletEntryStatus.Successful,
+        meta: {
+          budgetBalanceAfter: budget!.balance
+        }
+      }], { session })
+
+      await wallet.updateOne({ walletEntry: entry._id }, { session })
+    }, transactionOpts)
+  
+    return { status: "approved", message: "Budget funded" }
   }
 
   async approveExpense(budgetId: string) {
@@ -466,7 +577,13 @@ export default class BudgetService {
       amount: { $lte: data.amount }
     })
 
-    if (auth.isOwner || !rule) {
+    let noApprovalRequired = !rule
+    if (rule) {
+      const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
+      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+    }
+
+    if (noApprovalRequired) {
       return this.extendBudget(auth.orgId, budgetId, data)
     }
 
@@ -474,8 +591,8 @@ export default class BudgetService {
       organization: auth.orgId,
       workflowType: WorkflowType.BudgetExtension,
       requester: auth.userId,
-      approvalRule: rule._id,
-      reviews: rule.reviewers.map(userId => ({ user: userId })),
+      approvalRule: rule!._id,
+      reviews: rule!.reviewers.map(userId => ({ user: userId })),
       properties: {
         budget: budgetId,
         budgetExpiry: data.expiry,
@@ -704,6 +821,20 @@ export default class BudgetService {
       })
       .unwind({ path: '$approvedBy', preserveNullAndEmptyArrays: true })
       .lookup({
+        from: 'approvalrequests',
+        localField: 'fundRequestApprovalRequest',
+        foreignField: '_id',
+        as: 'fundRequestApprovalRequest'
+      })
+      .unwind({ path: '$fundRequestApprovalRequest', preserveNullAndEmptyArrays: true })
+      .lookup({
+        from: 'approvalrequests',
+        localField: 'extensionApprovalRequest',
+        foreignField: '_id',
+        as: 'extensionApprovalRequest'
+      })
+      .unwind({ path: '$extensionApprovalRequest', preserveNullAndEmptyArrays: true })
+      .lookup({
         from: 'users',
         localField: 'beneficiaries.user',
         foreignField: '_id',
@@ -722,6 +853,8 @@ export default class BudgetService {
         expiry: 1,
         approvedDate: 1,
         description: 1,
+        fundRequestApprovalRequest: 1,
+        extensionApprovalRequest: 1,
         approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
         beneficiaries: { email: 1, firstName: 1, lastName: 1, avatar: 1 },
       })
@@ -746,30 +879,54 @@ export default class BudgetService {
     return budgetAgg
   }
 
-  async initiateFundRequest(auth: AuthUser, requestId: string) {
-    const approvalRequest = await ApprovalRequest.findOne({ _id: requestId, organization: auth.orgId })
-    if (!approvalRequest) {
-      throw new BadRequestError("Invalid request")
+  async initiateFundRequest(auth: AuthUser, budgetId: string, data: FundRequest) {
+    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+      .populate('extensionApprovalRequest', 'properties')
+      .populate('fundRequestApprovalRequest', 'status')
+      .lean()
+    if (!budget) {
+      throw new BadRequestError('Budget not found')
     }
 
     const rule = await ApprovalRule.findOne({ organization: auth.orgId, workflowType: WorkflowType.FundRequest })
     if (!rule) {
-      throw new BadRequestError("Unable to initiate fund request, contact admin")
+      throw new BadRequestError('Unable to request funding, contact admin')
     }
 
-    const req = await ApprovalRequest.create({
+    if (data.type === 'expense' && (budget.status !== 'pending' || !budget.approvedDate)) {
+      throw new BadRequestError("Budget is not valid for expense funding request")
+    }
+    
+    if (data.type === 'extension' && budget.status === 'active' && !budget.extensionApprovalRequest) {
+      throw new BadRequestError("Budget is not valid for expense funding request")
+    }
+
+    // TODO: alert fund request reviewers
+
+    if (budget.fundRequestApprovalRequest) {
+      return {
+        request: budget.fundRequestApprovalRequest._id,
+        status: budget.fundRequestApprovalRequest.status
+      }
+    }
+
+    const request = await ApprovalRequest.create({
       organization: auth.orgId,
       approvalRule: rule._id,
       priority: ApprovalRequestPriority.High,
+      reviews: rule.reviewers.map(user => ({ user })),
       requester: auth.userId,
-      reviews: rule.reviewers.map((user) => ({ user })),
-      workflowType: rule.workflowType,
-      status: ApprovalRequestReviewStatus.Pending,
-      properties: approvalRequest.properties
+      status: 'pending',
+      workflowType: WorkflowType.FundRequest,
+      properties: {
+        budget: budgetId,
+        fundRequestType: data.type,
+        ...budget.extensionApprovalRequest
+      }
     })
 
-    // TODO: send email notification to reviewers
+    await Budget.updateOne({ _id: budgetId }, { fundRequestApprovalRequest: request._id })
 
-    return { status: req.status }
+    return { request: request.id, status: request.status  }
   }
 }

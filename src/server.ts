@@ -6,6 +6,7 @@ import { Server } from 'http';
 import Logger from './modules/common/utils/logger';
 import { cdb } from './modules/common/mongoose';
 import worker from './queues/worker'
+import { AnchorVirtualAccountClient } from './modules/virtual-account/providers/anchor.client';
 
 const logger = new Logger('main');
 let server: Server
@@ -36,5 +37,25 @@ function gracefulShutdown(signal: string) {
   })
 }
 
+async function run() {
+  const srv = new AnchorVirtualAccountClient()
+
+  const result = await srv.createStaticVirtualAccount({
+    currency: "NGN",
+    email: "chequebase@gmail.com",
+    identity: {
+      number: "10101010101",
+      type: "bvn"
+    },
+    name: "Paystack settlement",
+    provider: "anchor",
+    reference: Date.now().toString(),
+    type: "static",
+  })
+
+  console.log(result)
+}
+
+run()
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);

@@ -177,3 +177,13 @@ export class FundBudget {
   @IsEnum(FundBudgetSource)
   source: string
 }
+
+enum FundRequestType {
+  Extension = 'extension',
+  Expense = 'expense',
+}
+
+export class FundRequest {
+  @IsEnum(FundRequestType)
+  type: string
+}

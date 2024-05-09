@@ -74,3 +74,14 @@ export class DeclineRequest {
   @IsString()
   reason: string
 }
+
+enum Source {
+  Wallet = 'wallet',
+  Paystack = 'paystack',
+}
+
+export class ApproveApprovalRequestBody {
+  @IsEnum(Source)
+  @IsOptional()
+  source: string
+}
