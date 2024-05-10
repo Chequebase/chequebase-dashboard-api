@@ -86,7 +86,6 @@ export default class BudgetController {
     return this.budgetService.requestBudget(auth, dto)
   }
 
-  // TODO: add rbac for categories and recipient endpoints
   @Get('/categories')
   @Authorized()
   getCategories(@CurrentUser() auth: AuthUser) {
@@ -223,12 +222,6 @@ export default class BudgetController {
   @Authorized()
   cancelBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetService.cancelBudget(auth, id)
-  }
-
-  @Post('/:id/fund')
-  @Authorized(EPermission.BudgetFund)
-  fundBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: FundBudget) {
-    return this.budgetService.fundBudget(auth, id, dto)
   }
 
   @Get('/:id')
