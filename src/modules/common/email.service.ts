@@ -43,6 +43,15 @@ export default class EmailService {
     }
   }
 
+  sendExpenseApprovalRequest(to: string, data: T.SendApprovalRequest) {
+    return this.send({
+      to,
+      subject: 'Approval request',
+      templateId: 'd-85cdbf3f59e2467ca4f7a0444538cd23',
+      dynamicTemplateData: data
+    })
+  }
+
   sendAccountStatement(to: string, data: T.AccountStatement, attachment: T.AttachmentData) {
     const startDate = dayjs(data.startDate).tz().format('YYYY-MM-DD')
     const endDate = dayjs(data.endDate).tz().format('YYYY-MM-DD')

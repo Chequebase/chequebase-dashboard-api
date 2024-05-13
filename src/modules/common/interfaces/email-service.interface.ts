@@ -181,3 +181,15 @@ export interface AccountStatement {
   startDate: Date
   endDate: Date
 }
+
+export interface SendApprovalRequest {
+  employeeName: string
+  workflowType: string
+  requester: any
+  currency: string
+  amount: string
+  duration: string
+  beneficiaries: { avatar: string }[]
+  description: string
+  link: string
+}

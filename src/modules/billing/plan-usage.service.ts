@@ -11,7 +11,6 @@ import { FeatureLimitExceededError, FeatureUnavailableError } from "../common/ut
 
 const logger = new Logger('plan-usage-service')
 
-// TODO: maybe add have a single function to check usage for any plan feature
 @Service()
 export class PlanUsageService {
   async checkActiveBudgetUsage(orgId: string) {

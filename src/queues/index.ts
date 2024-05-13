@@ -4,9 +4,10 @@ const REDIS_HOST = process.env.REDIS_HOST || 'redis://0.0.0.0';
 
 const queueOpts: QueueOptions = {
   defaultJobOptions: {
-    removeOnComplete: {
+    removeOnComplete: true,
+    removeOnFail: {
       age: 86_400 // 24 hours,
-    },
+    }
   }
 }
 

@@ -1,4 +1,8 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc"
+import timezone from "dayjs/plugin/timezone"
 import { Service } from "typedi";
+import advancedFormat from 'dayjs/plugin/advancedFormat'
 import { ObjectId } from 'mongodb'
 import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
@@ -11,7 +15,7 @@ import Logger from "../common/utils/logger";
 import User, { IUser } from "@/models/user.model";
 import { ERole } from "../user/dto/user.dto";
 import QueryFilter from "../common/utils/query-filter";
-import { escapeRegExp, formatMoney, getEnvOrThrow, transactionOpts } from "../common/utils";
+import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils";
 import EmailService from "../common/email.service";
 import { PlanUsageService } from "../billing/plan-usage.service";
 import { cdb } from "../common/mongoose";
@@ -25,6 +29,10 @@ import { ServiceUnavailableError } from "../common/utils/service-errors";
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import PaymentIntent, { IntentType, PaymentIntentStatus } from "@/models/payment-intent.model";
 import { PaystackService } from "../common/paystack.service";
+
+dayjs.extend(advancedFormat)
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 const logger = new Logger('budget-service')
 
@@ -120,6 +128,11 @@ export default class BudgetService {
   }
 
   async requestBudget(auth: AuthUser, data: CreateBudgetDto) {
+    const user = await User.findOne({ _id: auth.userId }).select('email avatar firstName lastName')
+    if (!user) {
+      throw new BadRequestError("User not found")
+    }    
+
     const wallet = await Wallet.findOne({
       organization: auth.orgId,
       currency: data.currency
@@ -135,12 +148,13 @@ export default class BudgetService {
       workflowType: WorkflowType.Expense,
       amount: { $lte: data.amount }
     })
-
+      .populate('reviewers', 'email firstName')
+    
     const beneficiaries = data.beneficiaries?.length ?
       data.beneficiaries :
       [{ user: auth.userId, allocation: data.amount }]
 
-    const budget = await Budget.create({
+    const budget = await (await Budget.create({
       organization: auth.orgId,
       wallet: wallet._id,
       name: data.name,
@@ -154,7 +168,7 @@ export default class BudgetService {
       description: data.description,
       priority: data.priority,
       beneficiaries
-    })
+    })).populate('beneficiaries.user', 'avatar')
 
     let noApprovalRequired = !rule
     if (rule) {
@@ -171,17 +185,31 @@ export default class BudgetService {
       2: ApprovalRequestPriority.Medium,
       3: ApprovalRequestPriority.Low
     }
-    await ApprovalRequest.create({
+    const request = await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: WorkflowType.Expense,
       requester: auth.userId,
       approvalRule: rule!._id,
       priority: priorityToApprovalPriority[data.priority],
-      reviews: rule!.reviewers.map(userId => ({ user: userId })),
+      reviews: rule!.reviewers.map(({ _id }) => ({ user: _id })),
       properties: { budget: budget._id }
     })
 
-    // TODO: send notifications to reviewers
+    
+    const format = 'MMM Do, YYYY'
+    rule!.reviewers.forEach(reviewer => {
+      this.emailService.sendExpenseApprovalRequest(reviewer.email, {
+        amount: formatMoney(budget.amount),
+        currency: budget.currency,
+        employeeName: reviewer.firstName,
+        link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+        requester: `${user.firstName} ${user.lastName}`,
+        workflowType: toTitleCase(request.workflowType),
+        duration: `${dayjs().tz('Africa/Lagos').format(format)} - ${dayjs(budget.expiry).tz('Africa/Lagos').format(format)}`,
+        beneficiaries: budget.beneficiaries.map((b: any) => ({ avatar: b.user.avatar })),
+        description: budget.description,
+      })
+    });
 
     return {
       status: budget.status,
