@@ -293,7 +293,6 @@ export class BudgetTransferService {
     })
 
     let resolveRes
-    // TODO: add guard for only owner and manager
     if (data.saveRecipient) {
       resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
       await Counterparty.findOneAndUpdate({
