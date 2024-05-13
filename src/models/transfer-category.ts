@@ -1,7 +1,6 @@
 import { cdb } from '@/modules/common/mongoose';
 import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
-import { IOrganization } from './organization.model';
 
 enum TransferCategoryType {
   Custom = 'custom',
@@ -18,8 +17,8 @@ export interface ITransferCategory {
 }
 
 interface TransferCategoryModel extends
-  mongoose.PaginateModel<IOrganization>,
-  mongoose.AggregatePaginateModel<IOrganization> { }
+  mongoose.PaginateModel<ITransferCategory>,
+  mongoose.AggregatePaginateModel<ITransferCategory> { }
 
 const transferCategorySchema = new Schema<ITransferCategory>(
   {

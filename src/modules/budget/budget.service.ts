@@ -154,6 +154,12 @@ export default class BudgetService {
       data.beneficiaries :
       [{ user: auth.userId, allocation: data.amount }]
 
+    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i");
+    const budgetNameExists = await Budget.exists({ organization: auth.orgId, name: { $regex } })
+    if (budgetNameExists) {
+      throw new BadRequestError("Budget name already exists")
+    }
+
     const budget = await (await Budget.create({
       organization: auth.orgId,
       wallet: wallet._id,
@@ -191,11 +197,13 @@ export default class BudgetService {
       requester: auth.userId,
       approvalRule: rule!._id,
       priority: priorityToApprovalPriority[data.priority],
-      reviews: rule!.reviewers.map(({ _id }) => ({ user: _id })),
+      reviews: rule!.reviewers.map(user => ({
+        user,
+        status: user.equals(auth.userId) ? 'approved' : 'pending'
+      })),
       properties: { budget: budget._id }
     })
 
-    
     const format = 'MMM Do, YYYY'
     rule!.reviewers.forEach(reviewer => {
       this.emailService.sendExpenseApprovalRequest(reviewer.email, {
@@ -203,7 +211,10 @@ export default class BudgetService {
         currency: budget.currency,
         employeeName: reviewer.firstName,
         link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
-        requester: `${user.firstName} ${user.lastName}`,
+        requester: {
+          name: `${user.firstName} ${user.lastName}`,
+          avatar: user.avatar
+        },
         workflowType: toTitleCase(request.workflowType),
         duration: `${dayjs().tz('Africa/Lagos').format(format)} - ${dayjs(budget.expiry).tz('Africa/Lagos').format(format)}`,
         beneficiaries: budget.beneficiaries.map((b: any) => ({ avatar: b.user.avatar })),
@@ -580,7 +591,13 @@ export default class BudgetService {
   }
 
   async requestBudgetExtension(auth: AuthUser, budgetId: string, data: RequestBudgetExtension) {
+    const user = await User.findById(auth.userId).select('firstName lastName email avatar')
+    if (!user) {
+      throw new BadRequestError('User not found')
+    }
+
     const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+      .populate('beneficiaries.user', 'avatar')
     if (!budget) throw new BadRequestError("Budget does not exist")
     
     if (budget.status !== BudgetStatus.Active || budget.paused || !budget.approvedDate) {
@@ -620,7 +637,10 @@ export default class BudgetService {
       workflowType: WorkflowType.BudgetExtension,
       requester: auth.userId,
       approvalRule: rule!._id,
-      reviews: rule!.reviewers.map(userId => ({ user: userId })),
+      reviews: rule!.reviewers.map(user => ({
+        user,
+        status: user.equals(auth.userId) ? 'approved' : 'pending'
+      })),
       properties: {
         budget: budgetId,
         budgetExpiry: data.expiry,
@@ -628,6 +648,24 @@ export default class BudgetService {
         budgetBeneficiaries: data.beneficiaries,
       }
     })
+
+    rule!.reviewers.forEach(reviewer => {
+      this.emailService.sendBudgetExtensionApprovalRequest(reviewer.email, {
+        amount: formatMoney(data.amount),
+        currency: budget.currency,
+        budget: budget.name,
+        employeeName: reviewer.firstName,
+        link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+        requester: {
+          name: `${user.firstName} ${user.lastName}`,
+          avatar: user.avatar
+        },
+        workflowType: toTitleCase(request.workflowType),
+        beneficiaries: budget.beneficiaries.map((b: any) => ({ avatar: b.user.avatar })),
+        approvedAmount: formatMoney(budget.amount),
+        category: ''
+      })
+    });
 
     return {
       status: request.status,
@@ -908,9 +946,15 @@ export default class BudgetService {
   }
 
   async initiateFundRequest(auth: AuthUser, budgetId: string, data: FundRequest) {
+    const user = await User.findById(auth.userId).select('firstName lastName email avatar')
+    if (!user) {
+      throw new BadRequestError('user not found')
+    }
+
     const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
       .populate('extensionApprovalRequest', 'properties')
       .populate('fundRequestApprovalRequest', 'status')
+      .populate('beneficiaries.user', 'avatar')
       .lean()
     if (!budget) {
       throw new BadRequestError('Budget not found')
@@ -929,7 +973,28 @@ export default class BudgetService {
       throw new BadRequestError("Budget is not valid for expense funding request")
     }
 
-    // TODO: alert fund request reviewers
+    let amount = 0
+    if (data.type === 'extension') {
+      amount = budget.extensionApprovalRequest.properties.budgetExtensionAmount
+    } else if (data.type === 'expense') {
+      amount = budget.amount
+    }
+    
+    rule!.reviewers.forEach(reviewer => {
+      this.emailService.sendFundRequestApprovalRequest(reviewer.email, {
+        amount: formatMoney(amount),
+        currency: budget.currency,
+        budget: budget.name,
+        employeeName: reviewer.firstName,
+        link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+        requester: {
+          name: `${user.firstName} ${user.lastName}`,
+          avatar: user.avatar
+        },
+        workflowType: toTitleCase(request.workflowType),
+        beneficiaries: budget.beneficiaries.map((b: any) => ({ avatar: b.user.avatar })),
+      })
+    });
 
     if (budget.fundRequestApprovalRequest) {
       return {
@@ -942,7 +1007,10 @@ export default class BudgetService {
       organization: auth.orgId,
       approvalRule: rule._id,
       priority: ApprovalRequestPriority.High,
-      reviews: rule.reviewers.map(user => ({ user })),
+      reviews: rule!.reviewers.map(user => ({
+        user,
+        status: user.equals(auth.userId) ? 'approved' : 'pending'
+      })),
       requester: auth.userId,
       status: 'pending',
       workflowType: WorkflowType.FundRequest,
