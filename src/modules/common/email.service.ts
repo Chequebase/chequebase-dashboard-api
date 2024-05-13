@@ -43,12 +43,39 @@ export default class EmailService {
     }
   }
 
-  sendExpenseApprovalRequest(to: string, data: T.SendApprovalRequest) {
+  sendExpenseApprovalRequest(to: string, data: T.SendExpenseApprovalRequest) {
     return this.send({
       to,
-      subject: 'Approval request',
+      subject: 'Expense approval request',
       templateId: 'd-85cdbf3f59e2467ca4f7a0444538cd23',
       dynamicTemplateData: data
+    })
+  }
+
+  sendFundRequestApprovalRequest(to: string, data: T.SendFundRequestApprovalRequest) {
+    return this.send({
+      to,
+      subject: 'Fund request approval request',
+      templateId: 'd-ba87c8b05a524883ac9a3400e51a27b2',
+      dynamicTemplateData: data
+    })
+  }
+
+  sendBudgetExtensionApprovalRequest(to: string, data: T.SendBudgetExtensionApprovalRequest) {
+    return this.send({
+      to,
+      subject: 'Budget extension approval request',
+      templateId: 'd-697c268cd98649dca5ed3d3cb940625c',
+      dynamicTemplateData: data
+    })
+  }
+
+  sendTransactionApprovalRequest(to: string, data: T.SendTransactionApprovalRequest) {
+    return this.send({
+      to,
+      subject: 'Transaction approval request',
+      templateId: 'd-63ba0805ef1e4d248ca49e939d7f96f2',
+      dynamicTemplateData: { ...data, transactionLink: link }
     })
   }
 

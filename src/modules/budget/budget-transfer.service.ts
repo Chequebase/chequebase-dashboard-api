@@ -17,8 +17,8 @@ import { AnchorService } from "../common/anchor.service"
 import { ApproveTransfer, CreateTransferRecord, RunSecurityCheck } from "./interfaces/budget-transfer.interface"
 import User, { KycStatus } from "@/models/user.model"
 import { ERole } from "../user/dto/user.dto"
-import { escapeRegExp, getEnvOrThrow, transactionOpts } from "../common/utils"
-import Organization from "@/models/organization.model"
+import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
+import Organization, { IOrganization } from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
@@ -31,6 +31,7 @@ import { S3Service } from "../common/aws/s3.service"
 import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
 import { BudgetPolicyService } from "./budget-policy.service"
+import EmailService from "../common/email.service"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -40,7 +41,8 @@ export class BudgetTransferService {
     private transferService: TransferService,
     private s3Service: S3Service,
     private anchorService: AnchorService,
-    private budgetPolicyService: BudgetPolicyService
+    private budgetPolicyService: BudgetPolicyService,
+    private emailService: EmailService
   ) { }
 
   private async calcTransferFee(orgId: string, amount: number, currency: string) {
@@ -251,16 +253,13 @@ export class BudgetTransferService {
       throw new BadRequestError('Invalid pin')
     }
     
-    const budget = await Budget.exists({ _id: budgetId, organization: auth.orgId })
+    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+      .populate<{ organization: IOrganization }>('organization')
+      .populate('beneficiaries.user', 'avatar')
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
     }
-
-    const organization = await Organization.findById(auth.orgId).lean()
-    if (!organization) {
-      throw new NotFoundError('Organization does not exist')
-    }
-
+    const organization = budget.organization
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new NotFoundError('User does not exist')
@@ -272,6 +271,11 @@ export class BudgetTransferService {
 
     if (user.KYBStatus === KycStatus.NO_DEBIT) {
       throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const category = await TransferCategory.findOne({ _id: data.category, organization: auth.orgId }).lean()
+    if (!category) {
+      throw new NotFoundError('Category does not exist')
     }
 
     // check expense policies
@@ -345,13 +349,16 @@ export class BudgetTransferService {
       resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
     }
 
-    await ApprovalRequest.create({
+    const request = await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: rule.workflowType,
       requester: auth.userId,
       approvalRule: rule._id,
       priority: ApprovalRequestPriority.High,
-      reviews: rule.reviewers.map(userId => ({ user: userId })),
+      reviews: rule!.reviewers.map(user => ({
+        user,
+        status: user.equals(auth.userId) ? 'approved' : 'pending'
+      })),
       properties: {
         budget: budget._id,
         transaction: {
@@ -361,12 +368,29 @@ export class BudgetTransferService {
           bankCode: data.bankCode,
           bankName: resolveRes.bankName,
           invoice: invoiceUrl,
-          category: data.category
+          category: category.name
         }
       }
     })
 
-    // TODO: send notifications to reviewers
+    rule!.reviewers.forEach(reviewer => {
+      this.emailService.sendTransactionApprovalRequest(reviewer.email, {
+        amount: formatMoney(data.amount),
+        currency: budget.currency,
+        budget: budget.name,
+        employeeName: reviewer.firstName,
+        link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+        requester: {
+          name: `${user.firstName} ${user.lastName}`,
+          avatar: user.avatar
+        },
+        workflowType: toTitleCase(request.workflowType),
+        beneficiaries: budget.beneficiaries.map((b: any) => ({ avatar: b.user.avatar })),
+        category: category.name,
+        recipient: resolveRes.accountName,
+        recipientBank: resolveRes.bankName,
+      })
+    });
 
     return {
       status: 'pending',
