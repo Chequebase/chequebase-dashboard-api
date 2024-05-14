@@ -75,7 +75,16 @@ export default class EmailService {
       to,
       subject: 'Transaction approval request',
       templateId: 'd-63ba0805ef1e4d248ca49e939d7f96f2',
-      dynamicTemplateData: { ...data, transactionLink: link }
+      dynamicTemplateData: { ...data, transactionLink: data.link }
+    })
+  }
+
+  sendApprovalRequestReviewed(to: string, data: T.SendApprovalRequestReviewed) {
+    return this.send({
+      to,
+      subject: 'Approval request reviewed',
+      templateId: 'd-48d72dad3b99401a9dd4690f94ed34c5',
+      dynamicTemplateData: data
     })
   }
 

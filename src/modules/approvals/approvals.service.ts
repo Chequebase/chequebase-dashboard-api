@@ -11,6 +11,7 @@ import { escapeRegExp } from "../common/utils";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
+import EmailService from "../common/email.service";
 
 const logger = new Logger('approval-service')
 
@@ -18,7 +19,8 @@ const logger = new Logger('approval-service')
 export default class ApprovalService {
   constructor (
     private budgetService: BudgetService,
-    private budgetTnxService: BudgetTransferService
+    private budgetTnxService: BudgetTransferService,
+    private emailService: EmailService
   ) { }
 
   async createApprovalRule(auth: AuthUser, data: CreateRule) {
@@ -101,13 +103,21 @@ export default class ApprovalService {
   }
 
   async getApprovalRequests(auth: AuthUser, query: GetApprovalRequestsQuery) {
-    const filter = new QueryFilter({
-      organization: auth.orgId,
-      status: query.reviewed ? { $ne: 'pending' } : 'pending',
-      'reviews.user': auth.userId,
-      'reviews.status': query.reviewed ? { $ne: 'pending' } : 'pending'
-    })
-
+    const filter = new QueryFilter({ organization: auth.orgId })
+    if (query.requestedByMe) {
+      filter.set('requester', auth.userId)
+    } else {
+      filter.set('reviews.user', auth.userId)
+      if (query.reviewed) {
+        filter.set('$or', [
+          { status: { $in: ['approved', 'declined'] } },
+          { 'reviews.status': { $in: ['approved', 'declined'] } }
+        ])
+      } else {
+        filter.set('reviews.status', 'pending').set('status', 'pending')
+      }
+    }
+    
     const requests = await ApprovalRequest.paginate(filter.object, {
       page: Number(query.page),
       limit: query.limit,
