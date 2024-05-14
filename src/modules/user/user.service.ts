@@ -645,6 +645,11 @@ export class UserService {
   async getMember(id: string, orgId: string) {
     const user = await User.findOne({ _id: id, organization: orgId, status: { $ne: UserStatus.DELETED } })
       .select('firstName lastName email emailVerified role KYBStatus status avatar phone')
+      .populate('departments', 'name')
+      .populate({
+        path: 'manager', select: 'firstName lastName email avatar',
+        populate: { path: 'roleRef', select: 'name type' }
+      })
       .lean()
     
     if (!user) {
