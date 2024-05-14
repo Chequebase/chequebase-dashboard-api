@@ -68,6 +68,10 @@ export class GetApprovalRequestsQuery {
 
   @IsBoolean()
   reviewed: boolean
+
+  @IsBoolean()
+  @IsOptional()
+  requestedByMe = false
 }
 
 export class DeclineRequest {

@@ -243,3 +243,22 @@ export interface SendTransactionApprovalRequest {
   beneficiaries: { avatar: string }[]
   link: string
 }
+
+export interface SendApprovalRequestReviewed {
+  employeeName: string,
+  budgetName: string,
+  requestType: string,
+  approverName: string,
+  status: string,
+  reviews: {
+    user: {
+      firstName: string,
+      lastName: string,
+      avatar: string,
+      role: string
+    },
+    reason?: string,
+    status: string
+  }[]
+  createdAt: string
+}

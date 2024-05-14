@@ -296,7 +296,7 @@ export class BudgetTransferService {
       amount: { $lte: data.amount }
     })
 
-    let resolveRes
+    let resolveRes: any
     if (data.saveRecipient) {
       resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
       await Counterparty.findOneAndUpdate({
