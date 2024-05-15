@@ -2,13 +2,16 @@ import ApprovalRequest, { ApprovalRequestReviewStatus } from "@/models/approval-
 import Budget, { BudgetStatus } from "@/models/budget.model"
 import PaymentIntent, { PaymentIntentStatus } from "@/models/payment-intent.model"
 import { PlanService } from "@/modules/billing/plan.service"
+import EmailService from "@/modules/common/email.service"
+import { toTitleCase } from "@/modules/common/utils"
 import Logger from "@/modules/common/utils/logger"
 import { Job } from "bull"
+import dayjs from "dayjs"
 import { BadRequestError } from "routing-controllers"
 import Container from "typedi"
 
 const logger = new Logger('fund-budget.job')
-const planService = Container.get(PlanService)
+const emailService = Container.get(EmailService)
 
 export interface FundBudgetJob {
   reference: string
@@ -22,6 +25,7 @@ export interface FundBudgetJob {
   meta: any
   provider: string
 }
+
 
 async function processFundBudget(job: Job<FundBudgetJob>) {
   const { reference, chargedAmount, currency, webhookDump, paymentType } = job.data
@@ -52,7 +56,7 @@ async function processFundBudget(job: Job<FundBudgetJob>) {
       return { message: 'unexpected charged amount' }
     }
 
-    const request = await ApprovalRequest.findOne({ _id: intent.meta.request })
+    let request = await ApprovalRequest.findOne({ _id: intent.meta.request })
     if (!request) {
       logger.log('approval request not found', { id: intent.meta.request })
       throw new BadRequestError("Approval request not found")
@@ -72,15 +76,42 @@ async function processFundBudget(job: Job<FundBudgetJob>) {
 
     await Budget.updateOne({ _id: props.budget._id }, {
       status: "active",
+      extensionApprovalRequest: null,
+      fundRequestApprovalRequest: null,
       ...budgetUpdate
     })
 
-    await ApprovalRequest.updateOne({ _id: request._id }, {
+    request = (await ApprovalRequest.findOneAndUpdate({ _id: request._id }, {
       status: "approved",
       'reviews.$[review].status': ApprovalRequestReviewStatus.Approved
     },
-      { multi: false, arrayFilters: [{ 'review.user': intent.meta.user }] }
+      { new: true, multi: false, arrayFilters: [{ 'review.user': intent.meta.user }] }
     )
+      .populate('requester', 'email avatar firstName lastName')
+      .populate('properties.budget', 'name amount')
+      .populate({
+        path: 'reviews.user', select: 'firstName lastName avatar',
+        populate: { select: 'name', path: 'roleRef' }
+      }))!
+
+    const approver = request.reviews.find(r => r.user._id.equals(intent.meta.user))!
+    emailService.sendApprovalRequestReviewed(request.requester.email, {
+      approverName: approver.user.firstName,
+      budgetName: request.properties.budget.name,
+      createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
+      employeeName: request.requester.firstName,
+      requestType: toTitleCase(request.workflowType),
+      reviews: request.reviews.map((review) => ({
+        status: review.status,
+        user: {
+          avatar: review.user.avatar,
+          firstName: review.user.firstName,
+          lastName: review.user.lastName,
+          role: review.user.roleRef.name
+        }
+      })),
+      status: 'Approved'
+    })
 
     return { message: 'budget funded' }
   } catch (err: any) {

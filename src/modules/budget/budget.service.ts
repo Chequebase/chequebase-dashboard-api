@@ -292,16 +292,24 @@ export default class BudgetService {
 
       const budget = await Budget.findOneAndUpdate({ _id: props.budget._id }, {
         status: "active",
+        extensionApprovalRequest: null,
+        fundRequestApprovalRequest: null,
         ...budgetUpdate
       }, { new: true, session })
 
-      await ApprovalRequest.updateOne({ _id: request._id }, {
+      request = (await ApprovalRequest.findOneAndUpdate({ _id: request._id }, {
         status: "approved",
         'reviews.$[review].status': ApprovalRequestReviewStatus.Approved
       },
-        { session, multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
+        { new: true, session, multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
       )
-      
+        .populate('requester', 'email avatar firstName lastName')
+        .populate('properties.budget', 'name amount')
+        .populate({
+          path: 'reviews.user', select: 'firstName lastName avatar',
+          populate: { select: 'name', path: 'roleRef' }
+        }))!
+
       const reference = createId()
       const [entry] = await WalletEntry.create([{
         organization: request.organization,
@@ -328,6 +336,25 @@ export default class BudgetService {
       }], { session })
 
       await wallet.updateOne({ walletEntry: entry._id }, { session })
+
+      const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
+      this.emailService.sendApprovalRequestReviewed(request.requester.email, {
+        approverName: approver.user.firstName,
+        budgetName: request.properties.budget.name,
+        createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
+        employeeName: request.requester.firstName,
+        requestType: toTitleCase(request.workflowType),
+        reviews: request.reviews.map((review) => ({
+          status: review.status,
+          user: {
+            avatar: review.user.avatar,
+            firstName: review.user.firstName,
+            lastName: review.user.lastName,
+            role: review.user.roleRef.name
+          }
+        })),
+        status: 'Approved'
+      })
     }, transactionOpts)
   
     return { status: "approved", message: "Budget funded" }

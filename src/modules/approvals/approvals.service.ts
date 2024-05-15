@@ -7,11 +7,12 @@ import { Service } from "typedi";
 import ApprovalRequest, { ApprovalRequestReviewStatus } from "@/models/approval-request.model";
 import BudgetService from "../budget/budget.service";
 import Logger from "../common/utils/logger";
-import { escapeRegExp } from "../common/utils";
+import { escapeRegExp, toTitleCase } from "../common/utils";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import EmailService from "../common/email.service";
+import dayjs from "dayjs";
 
 const logger = new Logger('approval-service')
 
@@ -168,29 +169,31 @@ export default class ApprovalService {
       return this.budgetService.approveFundRequest(auth, request, data.source)
     }
 
-    request = (await ApprovalRequest.findOneAndUpdate(
-      { _id: requestId },
-      { $set: update },
-      { multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
-    ))!
-
     if (!approved) {
+      await ApprovalRequest.updateOne(
+        { _id: requestId },
+        { $set: update },
+        { multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
+      )
+
       return {
         status: request.status,
         message: 'Review submitted successfully'
       }
     }
 
+    let response: any
     const props = request.properties
     switch (request.workflowType) {
       case WorkflowType.BudgetExtension:
         await Budget.updateOne({ _id: props.budget._id }, { extensionApprovalRequest: request._id })
-        return { status: 'active' }
+        response = { status: 'active' }
+        break;
       case WorkflowType.Expense: 
-        return this.budgetService.approveExpense(props.budget._id)
+        response = await this.budgetService.approveExpense(props.budget._id)
       case WorkflowType.Transaction:
         const trnx = props.transaction!
-        return this.budgetTnxService.approveTransfer({
+        response = await this.budgetTnxService.approveTransfer({
           accountNumber: trnx.accountNumber,
           amount: trnx.amount,
           bankCode: trnx.bankCode,
@@ -202,6 +205,39 @@ export default class ApprovalService {
         logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })
         throw new BadRequestError("Something went wrong")
     }
+
+    request = (await ApprovalRequest.findOneAndUpdate(
+      { _id: requestId },
+      { $set: update },
+      { new: true, multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
+    )
+      .populate('requester', 'email avatar firstName lastName')
+      .populate('properties.budget', 'name amount')
+      .populate({
+        path: 'reviews.user', select: 'firstName lastName avatar',
+        populate: { select: 'name', path: 'roleRef' }
+      }))!
+        
+    const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
+    this.emailService.sendApprovalRequestReviewed(request.requester.email, {
+      approverName: approver.user.firstName,
+      budgetName: request.properties.budget.name,
+      createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
+      employeeName: request.requester.firstName,
+      requestType: toTitleCase(request.workflowType),
+      reviews: request.reviews.map((review) => ({
+        status: review.status,
+        user: {
+          avatar: review.user.avatar,
+          firstName: review.user.firstName,
+          lastName: review.user.lastName,
+          role: review.user.roleRef.name
+        }
+      })),
+      status: 'Approved'
+    })
+
+    return response
   }
 
   async declineApprovalRequest(auth: AuthUser, requestId: string, data: DeclineRequest) {
@@ -224,8 +260,14 @@ export default class ApprovalService {
     request = (await ApprovalRequest.findOneAndUpdate(
       { _id: requestId },
       { $set: update },
-      { multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
-    ))!
+      { new: true, multi: false, arrayFilters: [{ 'review.user': auth.userId }] }
+    )
+      .populate('requester', 'email avatar firstName lastName')
+      .populate('properties.budget', 'name')
+      .populate({
+        path: 'reviews.user', select: 'firstName lastName avatar',
+        populate: { select: 'name', path: 'roleRef' }
+      }))!
 
     if (request.workflowType === WorkflowType.Expense) {
       await Budget.updateOne(
@@ -241,6 +283,25 @@ export default class ApprovalService {
         fundRequestApprovalRequest: null 
       })
     }
+
+    const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
+    this.emailService.sendApprovalRequestReviewed(request.requester.email, {
+      approverName: approver.user.firstName,
+      budgetName: request.properties.budget.name,
+      createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
+      employeeName: request.requester.firstName,
+      requestType: toTitleCase(request.workflowType),
+      reviews: request.reviews.map((review) => ({
+        status: review.status,
+        user: {
+          avatar: review.user.avatar,
+          firstName: review.user.firstName,
+          lastName: review.user.lastName,
+          role: review.user.roleRef.name
+        }
+      })),
+      status: 'Declined'
+    })
 
     return request
   }
