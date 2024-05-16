@@ -326,6 +326,10 @@ export default class WalletService {
       .select('-gatewayResponse -provider')
       .populate('budget')
       .populate('category')
+      .populate({
+        path: 'initiatedBy', select: 'firstName lastName avatar',
+        populate: { path: 'roleRef', select: 'name' }
+      })
       .lean()
 
     if (!entry) {
