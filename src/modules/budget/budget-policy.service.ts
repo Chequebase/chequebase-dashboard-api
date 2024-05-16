@@ -14,6 +14,29 @@ import { CheckTransferPolicyDto } from "./dto/budget-transfer.dto";
 @Service()
 export class BudgetPolicyService {
   async createPolicy(auth: AuthUser, data: CreatePolicy) {
+    if (data.budget) {
+      const policyExists = await BudgetPolicy.exists({
+        organization: auth.orgId,
+        type: data.type,
+        budget: data.budget,
+        department: data.department,
+      })
+
+      if (policyExists) {
+        throw new BadRequestError("A similar policy on same budget/department already exists");
+      }
+    }
+
+    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
+    const nameExists = await BudgetPolicy.exists({
+      organization: auth.orgId,
+      name: { $regex }
+    })
+
+    if (nameExists) { 
+      throw new BadRequestError("Policy with similar name already exists")
+    }
+
     return await BudgetPolicy.create({
       organization: auth.orgId,
       createdBy: auth.userId,
