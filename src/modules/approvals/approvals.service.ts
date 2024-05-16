@@ -111,11 +111,12 @@ export default class ApprovalService {
       filter.set('reviews.user', auth.userId)
       if (query.reviewed) {
         filter.set('$or', [
-          { status: { $in: ['approved', 'declined'] } },
-          { 'reviews.status': { $in: ['approved', 'declined'] } }
+          { status: { $ne: 'pending' } },
+          { 'reviews': { $elemMatch: { status: { $ne: 'pending' }, user: auth.userId } } }
         ])
       } else {
-        filter.set('reviews.status', 'pending').set('status', 'pending')
+        filter.set('status', 'pending')
+          .set('reviews', { $elemMatch: { status: 'pending', user: auth.userId } })
       }
     }
     
