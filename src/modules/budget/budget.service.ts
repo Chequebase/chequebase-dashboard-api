@@ -174,7 +174,7 @@ export default class BudgetService {
       description: data.description,
       priority: data.priority,
       beneficiaries
-    })).populate('beneficiaries.user', 'avatar')
+    })).populate('beneficiaries.user', 'firstName lastName avatar')
 
     let noApprovalRequired = !rule
     if (rule) {
@@ -194,6 +194,7 @@ export default class BudgetService {
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: WorkflowType.Expense,
+      approvalType: rule!.approvalType,
       requester: auth.userId,
       approvalRule: rule!._id,
       priority: priorityToApprovalPriority[data.priority],
@@ -205,6 +206,7 @@ export default class BudgetService {
     })
 
     const format = 'MMM Do, YYYY'
+    const expiry = budget.expiry ? dayjs(budget.expiry).tz('Africa/Lagos').format(format) : 'N/A'
     rule!.reviewers.forEach(reviewer => {
       this.emailService.sendExpenseApprovalRequest(reviewer.email, {
         amount: formatMoney(budget.amount),
@@ -216,8 +218,12 @@ export default class BudgetService {
           avatar: user.avatar
         },
         workflowType: toTitleCase(request.workflowType),
-        duration: `${dayjs().tz('Africa/Lagos').format(format)} - ${dayjs(budget.expiry).tz('Africa/Lagos').format(format)}`,
-        beneficiaries: budget.beneficiaries.map((b: any) => ({ avatar: b.user.avatar })),
+        duration: `${dayjs().tz('Africa/Lagos').format(format)} - ${expiry}`,
+        beneficiaries: budget.beneficiaries.map((b: any) => ({
+          avatar: b.user.avatar,
+          firstName: b.user.firstName,
+          lastName: b.user.lastName
+        })),
         description: budget.description,
       })
     });
@@ -662,6 +668,7 @@ export default class BudgetService {
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: WorkflowType.BudgetExtension,
+      approvalType: rule!.approvalType,
       requester: auth.userId,
       approvalRule: rule!._id,
       reviews: rule!.reviewers.map(user => ({
@@ -1033,6 +1040,7 @@ export default class BudgetService {
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
       approvalRule: rule._id,
+      approvalType: rule.approvalType,
       priority: ApprovalRequestPriority.High,
       reviews: rule!.reviewers.map(user => ({
         user,

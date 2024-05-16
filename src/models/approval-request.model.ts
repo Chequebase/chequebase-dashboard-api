@@ -3,7 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
-import { WorkflowType } from './approval-rule.model';
+import { ApprovalType, WorkflowType } from './approval-rule.model';
 
 export enum ApprovalRequestReviewStatus {
   Pending = 'pending',
@@ -22,6 +22,7 @@ export interface IApprovalRequest {
   organization: any
   approvalRule: any
   workflowType: WorkflowType
+  approvalType: ApprovalType
   status: ApprovalRequestReviewStatus
   requester: any
   priority: ApprovalRequestPriority
@@ -62,6 +63,11 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
     workflowType: {
       type: String,
       enum: Object.values(WorkflowType),
+      required: true
+    },
+    approvalType: {
+      type: String,
+      enum: Object.values(ApprovalType),
       required: true
     },
     approvalRule: {
