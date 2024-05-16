@@ -2,7 +2,7 @@ import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patc
 import { Service } from "typedi";
 import { Request } from 'express'
 import BudgetService from "./budget.service";
-import { CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory, FundBudget, FundRequest } from "./dto/budget.dto"
+import { CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory, FundBudget, FundRequestBody } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
 import { ERole } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
@@ -202,8 +202,13 @@ export default class BudgetController {
 
   @Post('/:id/fund-request')
   @Authorized()
-  initiateFundRequest(@CurrentUser() auth: AuthUser, @Param('id') budgetId: string, @Body() dto: FundRequest) {
-    return this.budgetService.initiateFundRequest(auth, budgetId, dto)
+  initiateFundRequest(@CurrentUser() auth: AuthUser, @Param('id') budgetId: string, @Body() dto: FundRequestBody) {
+    return this.budgetService.initiateFundRequest({
+      userId: auth.userId,
+      orgId: auth.orgId,
+      type: dto.type,
+      budgetId
+    })
   }
 
   @Put('/:id')

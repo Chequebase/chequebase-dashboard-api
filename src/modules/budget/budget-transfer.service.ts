@@ -255,7 +255,7 @@ export class BudgetTransferService {
     
     const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
       .populate<{ organization: IOrganization }>('organization')
-      .populate('beneficiaries.user', 'avatar')
+      .populate('beneficiaries.user', 'firstName lastName avatar')
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
     }
@@ -386,7 +386,11 @@ export class BudgetTransferService {
           avatar: user.avatar
         },
         workflowType: toTitleCase(request.workflowType),
-        beneficiaries: budget.beneficiaries.map((b: any) => ({ avatar: b.user.avatar })),
+        beneficiaries: budget.beneficiaries.map((b: any) => ({
+          avatar: b.user.avatar,
+          firstName: b.user.firstName,
+          lastName: b.user.lastName
+        })),
         category: category.name,
         recipient: resolveRes.accountName,
         recipientBank: resolveRes.bankName,

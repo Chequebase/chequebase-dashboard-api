@@ -72,8 +72,7 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
     },
     approvalRule: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "ApprovalRule",
-      required: true
+      ref: "ApprovalRule"
     },
     properties: {
       fundRequestType: { type: String },
