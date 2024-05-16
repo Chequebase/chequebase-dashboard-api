@@ -96,7 +96,7 @@ async function processFundBudget(job: Job<FundBudgetJob>) {
 
     const approver = request.reviews.find(r => r.user._id.equals(intent.meta.user))!
     emailService.sendApprovalRequestReviewed(request.requester.email, {
-      approverName: approver.user.firstName,
+      approverName: `${approver.user.firstName} ${approver.user.lastName}`,
       budgetName: request.properties.budget.name,
       createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
       employeeName: request.requester.firstName,
