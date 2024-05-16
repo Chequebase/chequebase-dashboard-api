@@ -170,6 +170,7 @@ export class BudgetPolicyService {
       const [totalSpentAgg] = await WalletEntry.aggregate().match({
         organization: user.organization,
         initiatedBy: user._id,
+        ...(policy.budget && { budget: policy.budget }),
         status: { $in: [WalletEntryStatus.Successful, WalletEntryStatus.Pending] },
         createdAt: { gte: from }
       }).group({
