@@ -147,15 +147,14 @@ export default class ApprovalService {
       _id: requestId,
       organization: auth.orgId,
       'reviews.user': auth.userId
-    }).populate('approvalRule', 'approvalType')
-      .populate('properties.budget', 'amount currency')
+    }).populate('properties.budget', 'amount currency')
 
     if (!request) {
       throw new BadRequestError("Approval request not found")
     }
 
     let approved = true
-    if (request.approvalRule.approvalType === ApprovalType.Everyone) {
+    if (request.approvalType === ApprovalType.Everyone) {
       approved = request.reviews.every(r =>
         r.status === ApprovalRequestReviewStatus.Approved ||
         r.user.equals(auth.userId)
@@ -189,8 +188,9 @@ export default class ApprovalService {
         await Budget.updateOne({ _id: props.budget._id }, { extensionApprovalRequest: request._id })
         response = { status: 'active' }
         break;
-      case WorkflowType.Expense: 
+      case WorkflowType.Expense:
         response = await this.budgetService.approveExpense(props.budget._id)
+        break;
       case WorkflowType.Transaction:
         const trnx = props.transaction!
         response = await this.budgetTnxService.approveTransfer({
@@ -201,6 +201,7 @@ export default class ApprovalService {
           userId: request.requester.toString(),
           category: trnx.category
         })
+        break;
       default:
         logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })
         throw new BadRequestError("Something went wrong")
