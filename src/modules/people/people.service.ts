@@ -247,12 +247,13 @@ export class PeopleService {
         throw new BadRequestError("Owner's role cannot be updated")
       }
 
-      const role = await Role.exists({ _id: data.role, $or: [{ organization: orgId }, { type: 'default' }] })
+      const role = await Role.findOne({ _id: data.role, $or: [{ organization: orgId }, { type: 'default' }] })
       if (!role) {
         throw new BadRequestError('Role not found')
       }
 
       update.roleRef = role._id
+      update.role = role.name
     }
 
     if (data.department) {
