@@ -369,7 +369,7 @@ export class BudgetTransferService {
           bankCode: data.bankCode,
           bankName: resolveRes.bankName,
           invoice: invoiceUrl,
-          category: category.name
+          category: category._id
         }
       }
     })
