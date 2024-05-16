@@ -125,7 +125,6 @@ export default class ApprovalService {
       limit: query.limit,
       sort: '-createdAt',
       populate: [
-        { path: 'approvalRule', select: 'approvalType workflowType' },
         {
           path: 'reviews.user', select: 'firstName lastName avatar',
           populate: { path: 'roleRef', select: 'name' }
@@ -187,7 +186,12 @@ export default class ApprovalService {
     switch (request.workflowType) {
       case WorkflowType.BudgetExtension:
         await Budget.updateOne({ _id: props.budget._id }, { extensionApprovalRequest: request._id })
-        response = { status: 'active' }
+        response = await this.budgetService.initiateFundRequest({
+          orgId: request.organization._id,
+          userId: request.requester._id,
+          budgetId: props.budget._id,
+          type: 'extension',
+        })
         break;
       case WorkflowType.Expense:
         response = await this.budgetService.approveExpense(props.budget._id)

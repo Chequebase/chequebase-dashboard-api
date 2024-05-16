@@ -157,12 +157,6 @@ export class RequestBudgetExtension {
   beneficiaries?: BeneficiaryDto[]
 }
 
-export class ExtendBudget extends RequestBudgetExtension {
-  @IsString()
-  @IsOptional()
-  approvalRequest?: string
-}
-
 export class CreateTransferCategory {
   @IsString()
   name: string
@@ -183,7 +177,7 @@ enum FundRequestType {
   Expense = 'expense',
 }
 
-export class FundRequest {
+export class FundRequestBody {
   @IsEnum(FundRequestType)
   type: string
 }
