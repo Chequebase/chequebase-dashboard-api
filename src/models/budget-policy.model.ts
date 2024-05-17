@@ -52,7 +52,7 @@ const BudgetPolicySchema = new Schema<IBudgetPolicy>(
       required: true
     },
     spendPeriod: {type: String, enum: Object.values(SpendPeriod)},
-    daysOfWeek: [String],
+    daysOfWeek: [Number],
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
