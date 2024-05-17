@@ -14,7 +14,7 @@ import { CheckTransferPolicyDto } from "./dto/budget-transfer.dto";
 @Service()
 export class BudgetPolicyService {
   async createPolicy(auth: AuthUser, data: CreatePolicy) {
-    if (data.budget) {
+    if (data.budget || data.department) {
       const policyExists = await BudgetPolicy.exists({
         organization: auth.orgId,
         type: data.type,
@@ -54,10 +54,37 @@ export class BudgetPolicyService {
   }
 
   async updatePolicy(auth: AuthUser, policyId: string, data: updatePolicy) {
-    const policy = await BudgetPolicy.findOneAndUpdate({ _id: policyId, organization: auth.orgId }, data, { new: true })
+    let policy = await BudgetPolicy.findOne({ _id: policyId, organization: auth.orgId })
     if (!policy) {
       throw new BadRequestError("Policy not found")
     }
+
+    if (data.budget || data.department) {
+      const policyExists = await BudgetPolicy.exists({
+        _id: { $ne: policyId },
+        organization: auth.orgId,
+        type: policy.type,
+        budget: data.budget,
+        department: data.department,
+      })
+
+      if (policyExists) {
+        throw new BadRequestError("A similar policy on same budget/department already exists");
+      }
+    }
+
+    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
+    const nameExists = await BudgetPolicy.exists({
+      _id: { $ne: policyId },
+      organization: auth.orgId,
+      name: { $regex }
+    })
+
+    if (nameExists) {
+      throw new BadRequestError("Policy with similar name already exists")
+    }
+
+    policy = await BudgetPolicy.findOneAndUpdate({ _id: policyId, organization: auth.orgId }, data, { new: true })
 
     return policy
   }
