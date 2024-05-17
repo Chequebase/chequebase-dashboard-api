@@ -931,7 +931,7 @@ export default class BudgetService {
         fundRequestApprovalRequest: 1,
         extensionApprovalRequest: 1,
         approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
-        beneficiaries: { email: 1, firstName: 1, lastName: 1, avatar: 1 },
+        beneficiaries: { _id: 1, email: 1, firstName: 1, lastName: 1, avatar: 1 },
       })
 
     if (!budget) {

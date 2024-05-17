@@ -95,7 +95,7 @@ export class BudgetPolicyService {
       .set('department', data.department)
       .set('recipient', data.recipient)
     if (data.search) {
-      filter.set('name', new RegExp(`^${escapeRegExp(data.search)}$`, "i"));
+      filter.set('name', { $regex: escapeRegExp(data.search), $options: "i" });
     }
 
     return BudgetPolicy.paginate(filter.object, {
