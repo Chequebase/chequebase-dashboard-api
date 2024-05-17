@@ -1,5 +1,5 @@
 import { WorkflowType, ApprovalType } from "@/models/approval-rule.model";
-import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, isString, IsString, Min } from "class-validator";
 
 export class CreateRule {
   @IsString()
@@ -23,6 +23,9 @@ export class CreateRule {
 }
 
 export class UpdateRule {
+  @IsString()
+  name: string
+  
   @IsEnum(WorkflowType)
   workflowType: WorkflowType
 

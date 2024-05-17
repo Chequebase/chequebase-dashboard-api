@@ -26,6 +26,16 @@ export default class ApprovalService {
 
   async createApprovalRule(auth: AuthUser, data: CreateRule) {
     // TODO: limit reviewer count based on plan
+    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
+    const nameExists = await ApprovalRule.exists({
+      organization: auth.orgId,
+      name: { $regex }
+    })
+
+    if (nameExists) {
+      throw new BadRequestError("Approval rule with similar name already exists")
+    }
+
     let rule = await ApprovalRule.findOne({
       organization: auth.orgId,
       workflowType: data.workflowType,
@@ -62,7 +72,19 @@ export default class ApprovalService {
   }
 
   async updateApprovalRule(orgId: string, ruleId: string, data: UpdateRule) {
+    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
+    const nameExists = await ApprovalRule.exists({
+      _id: { $ne: ruleId },
+      organization: orgId,
+      name: { $regex }
+    })
+
+    if (nameExists) {
+      throw new BadRequestError("Approval rule with similar name already exists")
+    }
+
     const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, {
+      name: data.name,
       amount: data.amount,
       approvalType: data.approvalType,
       workflowType: data.workflowType,
@@ -106,16 +128,17 @@ export default class ApprovalService {
   async getApprovalRequests(auth: AuthUser, query: GetApprovalRequestsQuery) {
     const filter = new QueryFilter({ organization: auth.orgId })
     if (query.requestedByMe) {
-      filter.set('requester', auth.userId)
+      filter.set('requester', auth.userId).set('status', 'pending')
     } else {
-      filter.set('reviews.user', auth.userId)
       if (query.reviewed) {
         filter.set('$or', [
-          { status: { $ne: 'pending' } },
+          { 'requester': auth.userId, status: { $ne: 'pending' } },
+          { 'reviews.user': auth.userId, status: { $ne: 'pending' } },
           { 'reviews': { $elemMatch: { status: { $ne: 'pending' }, user: auth.userId } } }
         ])
       } else {
-        filter.set('status', 'pending')
+        filter.set('reviews.user', auth.userId)
+          .set('status', 'pending')
           .set('reviews', { $elemMatch: { status: 'pending', user: auth.userId } })
       }
     }
