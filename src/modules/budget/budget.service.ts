@@ -22,7 +22,6 @@ import { cdb } from "../common/mongoose";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import Project from "@/models/project.model";
 import ApprovalRequest, { ApprovalRequestPriority, ApprovalRequestReviewStatus, IApprovalRequest } from "@/models/approval-request.model";
-import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import PaymentIntent, { IntentType, PaymentIntentStatus } from "@/models/payment-intent.model";
@@ -40,7 +39,6 @@ export default class BudgetService {
   constructor (
     private emailService: EmailService,
     private planUsageService: PlanUsageService,
-    private virtualAccountService: VirtualAccountService,
     private paystackService: PaystackService
   ) { }
 
@@ -916,6 +914,20 @@ export default class BudgetService {
         foreignField: 'budget',
         as: 'policies'
       })
+      .lookup({
+        from: 'departments',
+        localField: 'policies.department',
+        foreignField: '_id',
+        as: 'policies.department'
+      })
+      .unwind({ path: '$policies.department', preserveNullAndEmptyArrays: true })
+      .lookup({
+        from: 'counterparties',
+        localField: 'policies.recipient',
+        foreignField: '_id',
+        as: 'policies.recipient'
+      })
+      .unwind({ path: '$policies.recipient', preserveNullAndEmptyArrays: true })
       .lookup({
         from: 'users',
         localField: 'beneficiaries.user',
