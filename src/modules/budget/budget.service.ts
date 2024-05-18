@@ -942,6 +942,7 @@ export default class BudgetService {
     if (!budget.approvedDate) {
       const expenseRequest = await ApprovalRequest.exists({
         organization: auth.orgId,
+        status: 'pending',
         workflowType: WorkflowType.Expense,
         'properties.budget': budget._id
       })
