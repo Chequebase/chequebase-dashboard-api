@@ -943,7 +943,7 @@ export default class BudgetService {
 
   async getBudgetPolicies(auth: AuthUser, budgetId: string) {
     const policies = await BudgetPolicy.find({ budget: budgetId, organization: auth.orgId })
-      .populate('recipient', 'name')
+      .populate('recipient')
       .populate('budget', 'name')
       .populate('department', 'name')
       .lean()
