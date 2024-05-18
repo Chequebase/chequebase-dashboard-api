@@ -916,6 +916,7 @@ export default class BudgetService {
         as: 'beneficiaries'
       })
       .project({
+        _id: 1,
         name: 1,
         amount: 1,
         amountUsed: 1,
@@ -936,6 +937,15 @@ export default class BudgetService {
 
     if (!budget) {
       throw new NotFoundError("Budget not found")
+    }
+
+    if (!budget.approvedDate) {
+      const expenseRequest = await ApprovalRequest.exists({
+        organization: auth.orgId,
+        workflowType: WorkflowType.Expense,
+        'properties.budget': budget._id
+      })
+      budget.expenseApprovalRequest = expenseRequest?._id
     }
 
     return budget
