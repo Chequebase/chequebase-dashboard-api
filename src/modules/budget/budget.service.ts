@@ -911,12 +911,19 @@ export default class BudgetService {
       })
       .unwind({ path: '$extensionApprovalRequest', preserveNullAndEmptyArrays: true })
       .lookup({
+        from: 'budgetpolicies',
+        localField: '_id',
+        foreignField: 'budget',
+        as: 'policies'
+      })
+      .lookup({
         from: 'users',
         localField: 'beneficiaries.user',
         foreignField: '_id',
         as: 'beneficiaries'
       })
       .project({
+        policies: 1,
         name: 1,
         amount: 1,
         amountUsed: 1,
