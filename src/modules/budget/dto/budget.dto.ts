@@ -145,7 +145,7 @@ export class RequestBudgetExtension {
   @IsInt()
   amount: number
 
-  @IsDate()
+  @IsDateString()
   @IsOptional()
   expiry?: Date
 
