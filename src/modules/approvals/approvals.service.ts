@@ -1,13 +1,16 @@
 import { AuthUser } from "../common/interfaces/auth-user";
+import utc from "dayjs/plugin/utc"
+import timezone from "dayjs/plugin/timezone"
+import advancedFormat from 'dayjs/plugin/advancedFormat'
 import { ApproveApprovalRequestBody, CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import User from "@/models/user.model";
+import User, { IUser } from "@/models/user.model";
 import QueryFilter from "../common/utils/query-filter";
 import { Service } from "typedi";
 import ApprovalRequest, { ApprovalRequestReviewStatus } from "@/models/approval-request.model";
 import BudgetService from "../budget/budget.service";
 import Logger from "../common/utils/logger";
-import { escapeRegExp, toTitleCase } from "../common/utils";
+import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase } from "../common/utils";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
@@ -15,6 +18,9 @@ import EmailService from "../common/email.service";
 import dayjs from "dayjs";
 
 const logger = new Logger('approval-service')
+dayjs.extend(advancedFormat)
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 @Service()
 export default class ApprovalService {
@@ -142,7 +148,7 @@ export default class ApprovalService {
           .set('reviews', { $elemMatch: { status: 'pending', user: auth.userId } })
       }
     }
-    
+
     const requests = await ApprovalRequest.paginate(filter.object, {
       page: Number(query.page),
       limit: query.limit,
@@ -246,7 +252,7 @@ export default class ApprovalService {
         path: 'reviews.user', select: 'firstName lastName avatar',
         populate: { select: 'name', path: 'roleRef' }
       }))!
-        
+
     const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
     this.emailService.sendApprovalRequestReviewed(request.requester.email, {
       approverName: `${approver.user.firstName} ${approver.user.lastName}`,
@@ -309,7 +315,7 @@ export default class ApprovalService {
       )
     } else if (request.workflowType === WorkflowType.FundRequest) {
       await Budget.updateOne({ _id: request.properties.budget }, {
-        fundRequestApprovalRequest: null 
+        fundRequestApprovalRequest: null
       })
     }
 
@@ -374,5 +380,75 @@ export default class ApprovalService {
         reviewers: [userId],
       }
     ])
+  }
+
+  async sendRequestReminder(auth: AuthUser, requestId: string) {
+    const request = await ApprovalRequest.findOne({ _id: requestId, organization: auth.orgId, 'request': auth.userId })
+      .populate('reviews.user', 'firstName lastName avatar')
+      .populate('properties.category', 'name')
+      .populate({
+        path: 'properties.budget', select: 'name currency description beneficiaries amount',
+        populate: { path: 'beneficiaries.user', select: 'firstName lastName avatar' }
+      })
+    if (!request) {
+      throw new BadRequestError('Approval request not found')
+    }
+
+    if (request.reminderSent) throw new BadRequestError("A reminder has already been sent")
+    if (dayjs().isBefore(dayjs(request.createdAt).add(24, 'hour'))) {
+      throw new BadRequestError('Reminder can only be sent after 24 hours');
+    }
+
+    
+    const budget = request.properties.budget
+    let amount = 0
+    if (
+      request.workflowType === WorkflowType.BudgetExtension ||
+      (request.workflowType === WorkflowType.FundRequest && request.properties.fundRequestType === 'extension')
+    ) {
+      amount = request.properties.budgetExtensionAmount!
+    } else {
+      amount = budget.amount
+    }
+    
+    const format = 'MMM Do, YYYY'
+    const expiry = budget.expiry ? dayjs(budget.expiry).tz('Africa/Lagos').format(format) : 'N/A'
+    const getVariables = (user: IUser) => ({
+      employeeName: user.firstName,
+      link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+      workflowType: toTitleCase(request.workflowType),
+      budget: budget.name,
+      amount: formatMoney(amount),
+      currency: budget.currency,
+      category: request.properties.transaction?.category?.name as any,
+      recipient: request.properties.transaction?.accountName as any,
+      recipientBank: request.properties.transaction?.bankName as any,
+      duration: `${dayjs().tz('Africa/Lagos').format(format)} - ${expiry}`,
+      approvedAmount: formatMoney(budget.amount),
+      description: budget.description,
+      beneficiaries: budget.beneficiaries.map((b: any) => ({
+        avatar: b.user.avatar,
+        firstName: b.user.firstName,
+        lastName: b.user.lastName
+      })),
+      requester: {
+        name: `${request.requester.firstName} ${request.requester.lastName}`,
+        avatar: request.requester.avatar
+      }
+    })
+
+    const pendingReviews = request.reviews.filter(r => r.status === 'pending')
+    pendingReviews.forEach(review => {
+      if(request.workflowType === WorkflowType.Transaction)
+        this.emailService.sendTransactionApprovalRequest(review.user.email, getVariables(request.requester))
+      else if (request.workflowType === WorkflowType.Expense)
+        this.emailService.sendExpenseApprovalRequest(review.user.email, getVariables(request.requester))
+      else if (request.workflowType === WorkflowType.FundRequest)
+        this.emailService.sendFundRequestApprovalRequest(review.user.email, getVariables(request.requester))
+      else if(request.workflowType === WorkflowType.BudgetExtension)
+        this.emailService.sendBudgetExtensionApprovalRequest(review.user.email, getVariables(request.requester))
+    });
+
+    await ApprovalRequest.updateOne({ _id: request._id}, { reminderSent: true})
   }
 }
