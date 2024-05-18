@@ -26,6 +26,7 @@ export interface IApprovalRequest {
   status: ApprovalRequestReviewStatus
   requester: any
   priority: ApprovalRequestPriority
+  reminderSent: boolean
   properties: {
     fundRequestType?: string
     budget?: any
@@ -33,6 +34,7 @@ export interface IApprovalRequest {
       amount: number
       accountNumber: string
       bankCode: string
+      bankName: string
       accountName: string
       invoice: string
       category: any
@@ -135,6 +137,7 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
       default: ApprovalRequestPriority.Medium,
       enum: Object.values(ApprovalRequestPriority)
     },
+    reminderSent: { type: Boolean, default: false }
   },
   { timestamps: true },
 );

@@ -51,4 +51,10 @@ export default class ApprovalsController {
   declineApprovalRequest(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: DeclineRequest) {
     return this.approvalService.declineApprovalRequest(auth, id, dto)
   }
+
+  @Post('/requests/:id/reminder')
+  @Authorized()
+  sendRequestReminder(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.approvalService.sendRequestReminder(auth, id)
+  }
 }
