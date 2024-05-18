@@ -235,6 +235,12 @@ export default class BudgetController {
     return this.budgetService.getBudget(auth, id)
   }
 
+  @Get('/:id/policies')
+  @Authorized()
+  getBudgetPolicies(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.budgetService.getBudgetPolicies(auth, id)
+  }
+
   @Post('/:id/pause')
   @Authorized(ERole.Owner)
   pauseBudget(

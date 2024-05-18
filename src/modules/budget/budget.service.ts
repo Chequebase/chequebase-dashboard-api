@@ -27,6 +27,7 @@ import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule
 import PaymentIntent, { IntentType, PaymentIntentStatus } from "@/models/payment-intent.model";
 import { PaystackService } from "../common/paystack.service";
 import { InitiateFundRequest } from "./interfaces/budget.interface";
+import BudgetPolicy from "@/models/budget-policy.model";
 
 dayjs.extend(advancedFormat)
 dayjs.extend(utc)
@@ -909,33 +910,12 @@ export default class BudgetService {
       })
       .unwind({ path: '$extensionApprovalRequest', preserveNullAndEmptyArrays: true })
       .lookup({
-        from: 'budgetpolicies',
-        localField: '_id',
-        foreignField: 'budget',
-        as: 'policies'
-      })
-      .lookup({
-        from: 'departments',
-        localField: 'policies.department',
-        foreignField: '_id',
-        as: 'policies.department'
-      })
-      .unwind({ path: '$policies.department', preserveNullAndEmptyArrays: true })
-      .lookup({
-        from: 'counterparties',
-        localField: 'policies.recipient',
-        foreignField: '_id',
-        as: 'policies.recipient'
-      })
-      .unwind({ path: '$policies.recipient', preserveNullAndEmptyArrays: true })
-      .lookup({
         from: 'users',
         localField: 'beneficiaries.user',
         foreignField: '_id',
         as: 'beneficiaries'
       })
       .project({
-        policies: 1,
         name: 1,
         amount: 1,
         amountUsed: 1,
@@ -959,6 +939,16 @@ export default class BudgetService {
     }
 
     return budget
+  }
+
+  async getBudgetPolicies(auth: AuthUser, budgetId: string) {
+    const policies = await BudgetPolicy.find({ budget: budgetId, organization: auth.orgId })
+      .populate('recipient', 'name')
+      .populate('budget', 'name')
+      .populate('department', 'name')
+      .lean()
+    
+    return policies
   }
 
   async getBalances(auth: AuthUser) {
