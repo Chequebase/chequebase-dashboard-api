@@ -4,9 +4,9 @@ import WalletService from "./wallet.service";
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
-import { Request, Response } from "express";
+import { Response } from "express";
 import publicApiGuard from "../common/guards/public-api.guard";
-import { ERole } from "../user/dto/user.dto";
+import { EPermission } from "@/models/role-permission.model";
 
 @Service()
 @JsonController('/wallet', { transformResponse: false })
@@ -32,7 +32,7 @@ export default class WalletController {
   }
 
   @Get('/statement/csv')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.TransactionDownload)
   async getWalletStatement(
     @Res() res: Response,
     @CurrentUser() auth: AuthUser,
@@ -51,19 +51,19 @@ export default class WalletController {
   }
 
   @Get('/statement')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.TransactionRead)
   async getAccountStatement(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletStatementDto) {
     return this.walletService.sendWalletStatement(auth.orgId, query)
   }
 
   @Get('/balances')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.TransactionRead)
   getBalances(@CurrentUser() auth: AuthUser) {
     return this.walletService.getBalances(auth.orgId)
   }
 
   @Get('/:id')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.TransactionRead)
   getWallet(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWallet(auth.orgId, id)
   }

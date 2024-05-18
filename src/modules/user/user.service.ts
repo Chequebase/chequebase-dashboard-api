@@ -715,7 +715,7 @@ export class UserService {
       throw new BadRequestError("You cannot delete business owner")
     }
 
-    await User.deleteOne({ _id: id, organization: orgId })
+    await User.updateOne({ _id: id, organization: orgId }, { status: UserStatus.DELETED })
 
     return { message: 'Member deleted' }
   }
