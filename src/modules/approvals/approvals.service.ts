@@ -398,7 +398,6 @@ export default class ApprovalService {
     if (dayjs().isBefore(dayjs(request.createdAt).add(24, 'hour'))) {
       throw new BadRequestError('Reminder can only be sent after 24 hours');
     }
-
     
     const budget = request.properties.budget
     let amount = 0
@@ -449,6 +448,8 @@ export default class ApprovalService {
         this.emailService.sendBudgetExtensionApprovalRequest(review.user.email, getVariables(request.requester))
     });
 
-    await ApprovalRequest.updateOne({ _id: request._id}, { reminderSent: true})
+    await ApprovalRequest.updateOne({ _id: request._id }, { reminderSent: true })
+    
+    return { message: 'Reminder sent' }
   }
 }
