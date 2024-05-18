@@ -51,7 +51,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/pause')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.BudgetFreeze)
   pauseProject(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -61,7 +61,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/sub-budget')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.BudgetCreate)
   addSubBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -71,7 +71,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/close')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.BudgetDelete)
   closeProject(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -212,7 +212,7 @@ export default class BudgetController {
   }
 
   @Put('/:id')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.BudgetCreate)
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
     return this.budgetService.editBudget(auth, id, dto)
   }
@@ -242,7 +242,7 @@ export default class BudgetController {
   }
 
   @Post('/:id/pause')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.BudgetCreate)
   pauseBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -252,7 +252,7 @@ export default class BudgetController {
   }
 
   @Post('/:id/close')
-  @Authorized(ERole.Owner)
+  @Authorized(EPermission.BudgetDelete)
   closeBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
