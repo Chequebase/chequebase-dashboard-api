@@ -7,7 +7,7 @@ import * as fastCsv from 'fast-csv';
 import { ObjectId } from 'mongodb'
 import { createId } from '@paralleldrive/cuid2'
 import Organization from "@/models/organization.model";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
+import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
 import VirtualAccount from "@/models/virtual-account.model";
@@ -24,13 +24,14 @@ import User from "@/models/user.model";
 import { ERole } from "../user/dto/user.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import { walletQueue } from "@/queues";
+import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
 @Service()
 export default class WalletService {
-  constructor (private virtualAccountService: VirtualAccountService) { }
+  constructor (private virtualAccountService: VirtualAccountService, private slackService: SlackNotificationService) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()
@@ -341,5 +342,15 @@ export default class WalletService {
     }
 
     return entry
+  }
+
+  async reportTransactionToSlack(orgId: string, data: ReportTransactionDto) {
+    const { transactionId, message } = data;
+    const entry = await this.getWalletEntry(orgId, transactionId);
+    const slackMssage = `:warning: Reported Transaction :warning: \n\n
+      *Message*: ${message}
+      *Tx*: ${entry}
+    `;
+    await this.slackService.sendMessage(AllowedSlackWebhooks.reportTransaction, slackMssage);
   }
 }

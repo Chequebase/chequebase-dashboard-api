@@ -1,7 +1,7 @@
 import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, Req, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import WalletService from "./wallet.service";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
+import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Response } from "express";
@@ -72,5 +72,10 @@ export default class WalletController {
   @Authorized()
   getWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWalletEntry(auth.orgId, id)
+  }
+
+  @Post('/report-transaction')
+  reportTransaction(@CurrentUser() auth: AuthUser, @Body() dto: ReportTransactionDto) {
+    return this.walletService.reportTransactionToSlack(auth.orgId, dto)
   }
 }

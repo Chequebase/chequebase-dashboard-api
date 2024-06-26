@@ -1,5 +1,4 @@
-import { WalletEntryType } from "@/models/wallet-entry.model";
-import { IsDateString, IsEnum, IsIn } from "class-validator";
+import { IsDateString, IsIn, IsString } from "class-validator";
 
 export class GetOverviewSummaryDto {
   @IsDateString()
@@ -24,4 +23,12 @@ export class GetCashflowTrendDto {
 
   @IsIn(["NGN"])
   currency: string
+}
+
+export class ReportSuggestionDto {
+  @IsString()
+  title: string
+
+  @IsString()
+  message: string
 }

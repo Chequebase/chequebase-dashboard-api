@@ -1,8 +1,8 @@
-import { Get, CurrentUser, JsonController, Authorized, QueryParams } from 'routing-controllers';
+import { Get, CurrentUser, JsonController, Authorized, QueryParams, Post, Body } from 'routing-controllers';
 import { Service } from 'typedi';
 import { OverviewService } from './overview.service';
 import { AuthUser } from '../common/interfaces/auth-user';
-import { GetCashflowTrendDto, GetOverviewSummaryDto } from './dto/overview.dto';
+import { GetCashflowTrendDto, GetOverviewSummaryDto, ReportSuggestionDto } from './dto/overview.dto';
 
 @Service()
 @JsonController('/overview', { transformResponse: false })
@@ -19,5 +19,10 @@ export class OverviewController {
   @Authorized()
   cashflowTrend(@CurrentUser() auth: AuthUser, @QueryParams() query: GetCashflowTrendDto) {
     return this.overviewService.cashflowTrend(auth, query);
+  }
+
+  @Post('/suggestion')
+  reportTransaction(@Body() dto: ReportSuggestionDto) {
+    return this.overviewService.reportSuggestionToSlack(dto)
   }
 }
