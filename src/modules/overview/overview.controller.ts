@@ -22,7 +22,7 @@ export class OverviewController {
   }
 
   @Post('/suggestion')
-  reportTransaction(@Body() dto: ReportSuggestionDto) {
+  reportSuggestion(@Body() dto: ReportSuggestionDto) {
     return this.overviewService.reportSuggestionToSlack(dto)
   }
 }
