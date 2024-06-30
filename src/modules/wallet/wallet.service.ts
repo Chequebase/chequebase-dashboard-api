@@ -352,5 +352,6 @@ export default class WalletService {
       *Tx*: ${JSON.stringify(entry)}
     `;
     await this.slackService.sendMessage(AllowedSlackWebhooks.reportTransaction, slackMssage);
+    return 'sucesss';
   }
 }
