@@ -24,6 +24,9 @@ export class ReportTransactionDto {
 
   @IsString()
   message: string
+
+  @IsString()
+  reason: string
 }
 
 export class GetWalletEntriesDto {
