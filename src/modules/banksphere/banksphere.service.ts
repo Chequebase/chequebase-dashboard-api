@@ -255,7 +255,7 @@ export class BanksphereService {
         // TODO: check if anchor is verified first
         await this.walletService.createWallet({ baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.Anchor, organization: accountId })
         this.emailService.sendKYCApprovedEmail(admin.email, {
-          loginLink: `${getEnvOrThrow('BANKSPHERE_URL')}/auth/signin`,
+          loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
           businessName: organization.businessName
         })
         return 'approved'
