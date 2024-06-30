@@ -75,6 +75,7 @@ export default class WalletController {
   }
 
   @Post('/report-transaction')
+  @Authorized()
   reportTransaction(@CurrentUser() auth: AuthUser, @Body() dto: ReportTransactionDto) {
     return this.walletService.reportTransactionToSlack(auth.orgId, dto)
   }
