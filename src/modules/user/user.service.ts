@@ -25,7 +25,7 @@ import ApprovalService from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 
 const logger = new Logger('user-service')
-const whiteListDevEmails = ['uzochukwu.onuegbu25+dev@gmail.com']
+const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
 
 @Service()
 export class UserService {
@@ -165,19 +165,6 @@ export class UserService {
       throw new UnauthorizedError('Wrong login credentials!')
     }
 
-    // const returnRememberMe = data.rememberMe ? true : user?.rememberMe
-    // if (user?.rememberMe) {
-    //   //password match
-    //   const tokens = await this.getTokens(user.id, user.email, organization.id);
-    //   await this.updateHashRefreshToken(user.id, tokens.refresh_token);
-    //   await user.updateOne({
-    //     rememberMe: data.rememberMe,
-    //   })
-    //   return { tokens, userId: user.id, rememberMe: true }
-    // }
-
-    // const expirationDate = this.getRememberMeExpirationDate(data)
-
     if (user.status === UserStatus.ACTIVE) {
       let otp = Math.floor(100000 + Math.random() * 900000);
       const otpExpiresAt = this.getOtpExpirationDate(10)
@@ -185,9 +172,19 @@ export class UserService {
       if (whiteListDevEmails.includes(user.email)) {
         otp = 123456
       }
+    if (user.rememberMe && user.rememberMe > new Date().getTime()) {
+      const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
+      await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       await user.updateOne({
         hashRt: '',
-        // rememberMe: data.rememberMe,
+        otpExpiresAt,
+        otp
+      })
+      return { tokens, userId: user.id, status: user.status }
+    }
+      await user.updateOne({
+        hashRt: '',
+        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
         otpExpiresAt,
         otp
       })
@@ -202,15 +199,15 @@ export class UserService {
     return { userId: user.id, status: user.status  }
   }
 
-  // getRememberMeExpirationDate(data: LoginDto) {
-  //   if (!data?.rememberMe) {
-  //     return Date.now()
-  //   }
+  getRememberMeExpirationDate(data: LoginDto) {
+    if (!data?.rememberMe) {
+      return Date.now()
+    }
 
-  //   const expirationDate = new Date();
-  //   expirationDate.setUTCDate(expirationDate.getUTCDate() + 30);
-  //   return expirationDate.getTime();
-  // }
+    const expirationDate = new Date();
+    expirationDate.setUTCDate(expirationDate.getUTCDate() + 30);
+    return expirationDate.getTime();
+  }
 
   getOtpExpirationDate(minutes: number) {
     const optExpriresAt = new Date();
