@@ -35,7 +35,7 @@ export interface IUser {
   email: string;
   emailVerified: boolean;
   password: string;
-  organization: ObjectId | IOrganization
+  organization: any
   departments: ObjectId[] | IDepartment[]
   manager: any
   roleRef: any

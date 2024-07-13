@@ -6,7 +6,6 @@ import { Server } from 'http';
 import Logger from './modules/common/utils/logger';
 import { cdb } from './modules/common/mongoose';
 import worker from './queues/worker'
-import { AnchorVirtualAccountClient } from './modules/virtual-account/providers/anchor.client';
 
 const logger = new Logger('main');
 let server: Server

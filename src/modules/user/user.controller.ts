@@ -1,4 +1,4 @@
-import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from 'routing-controllers';
+import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, HeaderParam, JsonController, Param, Patch, Post, Put, QueryParam, QueryParams, Req, Res, UseBefore } from 'routing-controllers';
 import { AddEmployeeDto, CreateEmployeeDto, ForgotPasswordDto, LoginDto, OtpDto, PasswordResetDto, GetMembersQueryDto, RegisterDto, ResendEmailDto, ResendOtpDto, ERole, UpdateEmployeeDto, VerifyEmailDto, UpdateProfileDto, PreRegisterDto } from './dto/user.dto';
 import { UserService } from './user.service';
 import { AuthUser } from '@/modules/common/interfaces/auth-user';
@@ -6,7 +6,8 @@ import { Service } from 'typedi';
 import { verifyToken } from '@/modules/common/middlewares/rbac.middleware';
 import { getEnvOrThrow } from '@/modules/common/utils';
 import multer from 'multer';
-import { Request } from 'express';
+import { Request, Response } from 'express';
+import Logger from '../common/utils/logger';
 
 // const uploadOptions = {
 //   storage: multer.diskStorage({
@@ -15,6 +16,9 @@ import { Request } from 'express';
 //     }
 //   })
 // };
+
+const logger = new Logger('user-controller')
+
 @Service()
 @JsonController('/auth', { transformResponse: false })
 export default class UserController {
@@ -27,6 +31,26 @@ export default class UserController {
     }
 
     return this.userService.preRegister(data);
+  }
+
+  @Get('/reactivate')
+  async reactivate(@Req() req: Request, @Res() res: Response) {
+    try {
+      const code = req.query.code
+      if (!code) {
+        return res.status(400).send('<h1>Invalid reactivation link</h1>')
+      }
+
+      const result = await this.userService.reactivate(code as string);
+      if (result.success) {
+        return res.redirect(`${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`)
+      }
+
+      return res.status(400).send(`<h1>${result.message}</h1>`)
+    } catch (err: any) {
+      logger.error('error during reactivate', {reason: err.message, stack: err.stack })
+      return res.status(500).send('<h1>Something went wrong</h1>')
+    }
   }
 
   @Post('/register')

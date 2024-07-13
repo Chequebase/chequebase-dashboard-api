@@ -73,6 +73,43 @@ export class UserService {
     return { message: "Wailtlist joined, check your email for more details" };
   }
 
+  async reactivate(code: string) {
+    const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).populate('roleRef').lean()
+    if (!invite) {
+      return { success: false, message: 'Invalid reactivation link' }
+    }
+
+    const $regex = new RegExp(`^${escapeRegExp(invite.email)}$`, "i");
+    const user = await User.findOne({ organization: invite.organization, email: { $regex }, status: UserStatus.DELETED })
+    if (!user) {
+      logger.error('unable to find deleted user with invite email', { email: invite.email})
+      return { success: false, message: 'Invalid reactivation link' }
+    }
+
+    const usage = await this.planUsageService.checkUsersUsage(invite.organization)
+
+    user.status = UserStatus.ACTIVE
+    if (invite.department) user.departments = [invite.department]
+    user.manager = invite.manager
+    user.roleRef = invite.roleRef._id
+    user.role = invite.roleRef.name
+    await user.save()
+
+    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
+      await WalletService.chargeWallet(invite.organization, {
+        amount: usage.feature.costPerUnit.NGN,
+        narration: 'Reactivate organization user',
+        scope: WalletEntryScope.PlanSubscription,
+        currency: 'NGN',
+        initiatedBy: invite.invitedBy,
+      })
+    }
+
+    await UserInvite.deleteOne({ _id: invite._id })
+
+    return { success: true, message: 'User reactivated successfully' }
+  }
+
   async register(data: RegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const userExists = await User.findOne({ email: { $regex } })
@@ -571,13 +608,15 @@ export class UserService {
     const usage = await this.planUsageService.checkUsersUsage(invite.organization)
     const hashedPassword = await bcrypt.hash(password, 12)
 
+    const departments = []
+    if (invite.department) departments.push(invite.department)
     const user = await User.create({
       firstName,
       lastName,
       phone,
       password: hashedPassword,
       emailVerified: true,
-      departments: [invite.department],
+      departments,
       email: invite.email,
       manager: invite.manager,
       roleRef: invite.roleRef._id,

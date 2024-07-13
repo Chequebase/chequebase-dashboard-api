@@ -2,7 +2,7 @@ import Department from "@/models/department.model"
 import Organization from "@/models/organization.model"
 import Role, { RoleType } from "@/models/role.model"
 import UserInvite from "@/models/user-invite.model"
-import User from "@/models/user.model"
+import User, { UserStatus } from "@/models/user.model"
 import { createId } from "@paralleldrive/cuid2"
 import dayjs from "dayjs"
 import { BadRequestError, NotFoundError } from "routing-controllers"
@@ -128,7 +128,7 @@ export class PeopleService {
       throw new NotFoundError("Organization not found")
     }
 
-    const { extraUnits, usage } = await this.checkForAvailableSeats(data, auth.orgId)
+    await this.checkForAvailableSeats(data, auth.orgId)
 
     const invitedRoles = data.invites.map(i => i.role)
     const roles = await Role.find({
@@ -144,18 +144,20 @@ export class PeopleService {
     }
 
     const emailRegexps = data.invites.map(i => new RegExp(`^${escapeRegExp(i.email)}$`, "i"))
-    const existingUsers = await User.find({ email: emailRegexps }).select('email').lean()
+    const existingUsers = await User.find({ email: emailRegexps, status: { $ne: UserStatus.DELETED } }).select('email').lean()
     if (existingUsers.length) {
       const existingEmails = existingUsers.map(user => user.email).join(', ');
       throw new BadRequestError(`Invitation failed. Emails already registered: ${existingEmails}`);
     }
-
+ 
     const existingInvites = await UserInvite.find({ organization: auth.orgId, email: emailRegexps }).select('email').lean()
-    if (existingUsers.length) {
+    if (existingInvites.length) {
       const existingEmails = existingInvites.map(user => user.email).join(', ');
       throw new BadRequestError(`Invitation failed. Already invited: ${existingEmails}`);
     }
 
+    const deletedUsers = await User.find({ organization: auth.orgId, email: emailRegexps, status: UserStatus.DELETED })
+      .select('firstName email').lean()
     const userInvites = await UserInvite.create(data.invites.map(i => ({
       code: createId(),
       email: i.email,
@@ -170,22 +172,20 @@ export class PeopleService {
     })))
 
     userInvites.forEach(invite => {
-      this.emailService.sendEmployeeInviteEmail(invite.email, {
-        inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${invite.code}&companyName=${organization.businessName}`,
-        companyName: organization.businessName
-      })
+      const deletedUser = deletedUsers.find(u => u.email === invite.email)
+      if (deletedUser) {
+        this.emailService.sendMemberReactivation(deletedUser.email, {
+          firstName: deletedUser.firstName,
+          link: `${getEnvOrThrow('BASE_BACKEND_URL')}/auth/reactivate?code=${invite.code}`,
+          organizationName: organization.businessName
+        })
+      } else {
+        this.emailService.sendEmployeeInviteEmail(invite.email, {
+          inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${invite.code}&companyName=${organization.businessName}`,
+          companyName: organization.businessName
+        })
+      }
     })
-
-    // can't charge at this point cos invites can be deleted
-    // if (extraUnits) {
-    //   await WalletService.chargeWallet(auth.orgId, {
-    //     amount: usage.feature.costPerUnit.NGN * extraUnits,
-    //     narration: 'Add organization user(s)',
-    //     scope: WalletEntryScope.PlanSubscription,
-    //     currency: 'NGN',
-    //     initiatedBy: auth.userId,
-    //   })
-    // }
 
     return { message: 'Invitation sent successfully' }
   }

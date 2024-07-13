@@ -182,6 +182,12 @@ export interface AccountStatement {
   endDate: Date
 }
 
+export interface SendMemberReactivation {
+  organizationName: string,
+  firstName: string,
+  link: string
+}
+
 export interface SendExpenseApprovalRequest {
   employeeName: string
   workflowType: string
