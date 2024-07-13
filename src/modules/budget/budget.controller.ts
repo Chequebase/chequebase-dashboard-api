@@ -4,7 +4,6 @@ import { Request } from 'express'
 import BudgetService from "./budget.service";
 import { CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory, FundBudget, FundRequestBody } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
-import { ERole } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
 import { CheckTransferPolicyDto, GetTransferFee, InitiateTransferDto, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto";
 import { ProjectService } from "./project.service";
