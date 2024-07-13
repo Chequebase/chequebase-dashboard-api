@@ -153,7 +153,11 @@ export default class BudgetService {
       [{ user: auth.userId, allocation: data.amount }]
 
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i");
-    const budgetNameExists = await Budget.exists({ organization: auth.orgId, name: { $regex } })
+    const budgetNameExists = await Budget.exists({
+      organization: auth.orgId,
+      name: { $regex },
+      status: { $ne: 'closed' }
+    })
     if (budgetNameExists) {
       throw new BadRequestError("Budget name already exists")
     }

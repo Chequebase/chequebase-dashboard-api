@@ -52,6 +52,15 @@ export default class EmailService {
     })
   }
 
+  sendMemberReactivation(to: string, data: T.SendMemberReactivation) {
+    return this.send({
+      to,
+      subject: 'Your account has been reactivated',
+      templateId: 'd-218717c6ede14cc8b2b3ebe3f1b2529e',
+      dynamicTemplateData: data
+    })
+  }
+
   sendFundRequestApprovalRequest(to: string, data: T.SendFundRequestApprovalRequest) {
     return this.send({
       to,
