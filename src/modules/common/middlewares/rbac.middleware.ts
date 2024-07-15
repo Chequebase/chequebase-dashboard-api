@@ -4,7 +4,6 @@ import { getEnvOrThrow } from '../utils';
 import Logger from '../utils/logger';
 import User, { KycStatus, UserStatus } from '@/models/user.model';
 import { IOrganization } from '@/models/organization.model';
-import { AuthUser } from '../interfaces/auth-user';
 
 const logger = new Logger('rbac')
 
@@ -27,25 +26,44 @@ export const verifyToken = (token: string, secret = secretKey) => {
   }
 }
 
-export const RBAC = async (requestAction: Action, action: string[] = []) => {
+export const RBAC = async (requestAction: Action, actions: string[] = []) => {
   const token = requestAction.request.headers['authorization']?.split('Bearer ')?.pop()
-  requestAction.request.auth = verifyToken(token)
-  if (!requestAction.request?.auth) { 
+  const decodedToken = verifyToken(token)
+  if (!decodedToken) {
     throw new UnauthorizedError('Unauthorized')
   }
 
-  if (!action.length) {
-    return true;
-  }
+  const user = await User.findById(decodedToken.sub)
+    .populate<{ organization: IOrganization }>('organization')
+    .populate({
+      path: 'roleRef', select: 'name type permissions',
+      populate: { path: 'permissions', select: 'actions name' }
+    })
 
-  const { sub: id } = requestAction.request.auth as AuthUser;
-  const user = await User.findById(id).populate<{ organization: IOrganization }>('organization')
   if (!user || user.status === UserStatus.DELETED || user.status === UserStatus.DISABLED) {
     throw new UnauthorizedError('Unauthorized')
   }
+
   if (user?.organization.status === KycStatus.BLOCKED) {
     throw new UnauthorizedError('Can Not Log In At This Time')
   }
 
-  return action.some((role) => action.includes(role)) || (user.id === user.organization.admin);
+  requestAction.request.auth = Object.assign(decodedToken, {
+    roleRef: user?.roleRef,
+    isOwner: user?.roleRef?.name === 'owner' && user?.roleRef?.type === 'default'
+  })
+ 
+  if (!actions.length) {
+    return true;
+  }
+
+  if (!user.roleRef) {
+    return actions.includes(user.role)
+  }
+ 
+  let userActions = user.roleRef?.permissions?.flatMap((p: any) => p.actions)
+
+  return actions.some((role) => userActions.includes(role)) ||
+    (user.id === user.organization.admin) ||
+    user.roleRef.name === 'owner';
 }

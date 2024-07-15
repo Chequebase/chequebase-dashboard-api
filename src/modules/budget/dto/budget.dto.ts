@@ -1,9 +1,29 @@
 import { Type } from "class-transformer";
 import { BudgetCurrency, BudgetPriority, BudgetStatus } from "@/models/budget.model";
-import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsBoolean, IsDate, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsOptional, isString, IsString, Min, ValidateNested } from "class-validator";
 import { ObjectId } from "mongodb";
 
-export class CreateTranferBudgetDto {
+export class EditBudgetDto {
+  @IsInt()
+  @IsOptional()
+  threshold?: number
+
+  @IsDateString()
+  @IsOptional()
+  expiry?: Date
+
+  @IsEnum(BudgetPriority)
+  @IsOptional()
+  priority = BudgetPriority.Medium
+
+  @Type(() => BeneficiaryDto)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  beneficiaries: BeneficiaryDto[]
+}
+
+export class CreateBudgetDto {
   @IsString()
   name: string
 
@@ -30,37 +50,17 @@ export class CreateTranferBudgetDto {
   @IsEnum(BudgetPriority)
   @IsOptional()
   priority = BudgetPriority.Medium
-}
-
-export class EditBudgetDto {
-  @IsInt()
-  @IsOptional()
-  threshold?: number
-
-  @IsDateString()
-  @IsOptional()
-  expiry?: Date
-
-  @IsEnum(BudgetPriority)
-  @IsOptional()
-  priority = BudgetPriority.Medium
 
   @Type(() => BeneficiaryDto)
   @ValidateNested({ each: true })
   @IsArray()
+  @IsOptional()
   @ArrayMinSize(1)
-  beneficiaries: BeneficiaryDto[]
-}
+  beneficiaries?: BeneficiaryDto[]
 
-export class CreateBudgetDto extends CreateTranferBudgetDto {
-  @Type(() => BeneficiaryDto)
-  @ValidateNested({ each: true })
-  @IsArray()
-  @ArrayMinSize(1)
-  beneficiaries: BeneficiaryDto[]
-
-  @IsString()
-  pin: string
+  // Note: not need anymore
+  // @IsString()
+  // pin: string
 }
 
 export class BeneficiaryDto {
@@ -88,15 +88,9 @@ export class ApproveBudgetBodyDto {
 export class CloseBudgetBodyDto {
   @IsString()
   reason: string
-
-  @IsString()
-  pin: string
 }
 
 export class PauseBudgetBodyDto {
-  @IsString()
-  pin: string
-
   @IsBoolean()
   @IsOptional()
   pause = true
@@ -112,9 +106,8 @@ export class GetBudgetsDto {
   page = 1
 
   @IsString()
-  @IsEnum(BudgetStatus)
   @IsOptional()
-  status: BudgetStatus
+  status: string
 
   @IsString()
   @IsOptional()
@@ -131,11 +124,60 @@ export class GetBudgetsDto {
 
   @IsBoolean()
   @IsOptional()
+  paused: boolean
+
+  @IsBoolean()
+  @IsOptional()
   createdByUser = false
+
+  @IsBoolean()
+  @IsOptional()
+  returnAll = false
 }
 
 export class InitiateProjectClosure {
   budgetId: string | ObjectId
   userId?: string
   reason: string
+}
+
+export class RequestBudgetExtension {
+  @IsInt()
+  amount: number
+
+  @IsDateString()
+  @IsOptional()
+  expiry?: Date
+
+  @Type(() => BeneficiaryDto)
+  @ValidateNested({ each: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsOptional()
+  beneficiaries?: BeneficiaryDto[]
+}
+
+export class CreateTransferCategory {
+  @IsString()
+  name: string
+}
+
+export enum FundBudgetSource {
+  Wallet = 'wallet',
+  Transfer = 'transfer'
+}
+
+export class FundBudget {
+  @IsEnum(FundBudgetSource)
+  source: string
+}
+
+enum FundRequestType {
+  Extension = 'extension',
+  Expense = 'expense',
+}
+
+export class FundRequestBody {
+  @IsEnum(FundRequestType)
+  type: string
 }

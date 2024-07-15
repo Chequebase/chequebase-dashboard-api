@@ -3,6 +3,7 @@ import { cdb } from "@/modules/common/mongoose";
 
 export enum IntentType {
   PlanSubscription = "plan_subscription",
+  BudgetFundRequest = "budget_fund_request",
   FundWallet = "fund_wallet",
   TokenizeCard = "tokenize_card",
 }

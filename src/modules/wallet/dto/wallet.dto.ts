@@ -17,6 +17,18 @@ export class CreateWalletDto {
   organization: string
 }
 
+export class ReportTransactionDto {
+  @IsString()
+  @IsHexadecimal()
+  transactionId: string
+
+  @IsString()
+  message: string
+
+  @IsString()
+  reason: string
+}
+
 export class GetWalletEntriesDto {
   @IsString()
   @IsOptional()

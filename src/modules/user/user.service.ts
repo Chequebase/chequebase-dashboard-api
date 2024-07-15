@@ -7,7 +7,7 @@ import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization, { IOrganization } from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, Role, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
+import { LoginDto, ERole, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
 import { createId } from "@paralleldrive/cuid2";
@@ -18,8 +18,14 @@ import { S3Service } from "../common/aws/s3.service";
 import { Request } from "express";
 import PreRegisterUser from "@/models/pre-register.model";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
+import Role, { RoleType } from "@/models/role.model";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
+import UserInvite from "@/models/user-invite.model";
+import ApprovalService from "../approvals/approvals.service";
+import { BudgetTransferService } from "../budget/budget-transfer.service";
 
 const logger = new Logger('user-service')
+const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
 
 @Service()
 export class UserService {
@@ -27,7 +33,9 @@ export class UserService {
     private s3Service: S3Service,
     private emailService: EmailService,
     private planUsageService: PlanUsageService,
-    private slackNotificationService: SlackNotificationService
+    private slackNotificationService: SlackNotificationService,
+    private approvalService: ApprovalService,
+    private budgetTnxService: BudgetTransferService,
   ) { }
 
   static async verifyTransactionPin(id: string, pin: string) {
@@ -50,6 +58,7 @@ export class UserService {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const userExists = await PreRegisterUser.findOne({ email: { $regex } })
     if (userExists) {
+
       throw new BadRequestError('Already joined waitlist');
     }
     await PreRegisterUser.create({
@@ -64,19 +73,80 @@ export class UserService {
     return { message: "Wailtlist joined, check your email for more details" };
   }
 
+  async reactivate(code: string) {
+    const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).populate('roleRef').lean()
+    if (!invite) {
+      return { success: false, message: 'Invalid reactivation link' }
+    }
+
+    const $regex = new RegExp(`^${escapeRegExp(invite.email)}$`, "i");
+    const user = await User.findOne({ organization: invite.organization, email: { $regex }, status: UserStatus.DELETED })
+    if (!user) {
+      logger.error('unable to find deleted user with invite email', { email: invite.email})
+      return { success: false, message: 'Invalid reactivation link' }
+    }
+
+    const usage = await this.planUsageService.checkUsersUsage(invite.organization)
+
+    user.status = UserStatus.ACTIVE
+    if (invite.department) user.departments = [invite.department]
+    user.manager = invite.manager
+    user.roleRef = invite.roleRef._id
+    user.role = invite.roleRef.name
+    await user.save()
+
+    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
+      await WalletService.chargeWallet(invite.organization, {
+        amount: usage.feature.costPerUnit.NGN,
+        narration: 'Reactivate organization user',
+        scope: WalletEntryScope.PlanSubscription,
+        currency: 'NGN',
+        initiatedBy: invite.invitedBy,
+      })
+    }
+
+    await UserInvite.deleteOne({ _id: invite._id })
+
+    return { success: true, message: 'User reactivated successfully' }
+  }
+
   async register(data: RegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const userExists = await User.findOne({ email: { $regex } })
     if (userExists) {
+      if (!userExists.emailVerified) {
+        const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
+        this.emailService.sendVerifyEmail(userExists.email, {
+          customerName: userExists.firstName,
+          otp: userExists.emailVerifyCode,
+          verificationLink: link
+        })
+        return { message: "User created, check your email for verification link" };
+      }
       throw new BadRequestError('Account with same email already exists');
     }
 
-    const emailVerifyCode = this.generateRandomString(8);
+    const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
+    if (!ownerRole) {
+      logger.error('role not found', { name: 'owner', type: 'default' })
+      throw new ServiceUnavailableError('Unable to complete registration at this time')
+    }
+
+    let emailVerifyCode = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiresAt = this.getOtpExpirationDate(10)
+
+    // TODO: remove
+    if (whiteListDevEmails.includes(data.email)) {
+      emailVerifyCode = 123456
+    }
+
     const user = await User.create({
       email: data.email,
       password: await bcrypt.hash(data.password, 12),
       emailVerifyCode,
-      role: Role.Owner,
+      otpExpiresAt,
+      role: ERole.Owner,
+      roleRef: ownerRole._id,
       hashRt: '',
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
@@ -90,12 +160,21 @@ export class UserService {
       admin: user._id,
       email: data.email
     })
-
     await user.updateOne({ organization: organization._id })
 
-    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${emailVerifyCode}&email=${data.email}`
+    // create default approval rules
+    await Promise.all([
+      this.approvalService.createDefaultApprovalRules(organization.id, user.id),
+      this.budgetTnxService.createDefaultCategories(organization.id)
+    ])
+
+
+    const isOwner = user.role === ERole.Owner
+    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
     this.emailService.sendVerifyEmail(data.email, {
-      verificationLink: link
+      customerName: isOwner ? organization.businessName : user.firstName,
+      otp: emailVerifyCode,
+      emailVerificationLink: link
     })
 
     return { message: "User created, check your email for verification link" };
@@ -111,6 +190,10 @@ export class UserService {
       throw new UnauthorizedError('Wrong login credentials!')
     }
 
+    if (!user.emailVerified) {
+      throw new UnauthorizedError('Wrong login credentials!')
+    }
+
     const organization = await Organization.findById(user.organization);
     if (!organization) {
       throw new UnauthorizedError(`User Organization not found`);
@@ -119,46 +202,49 @@ export class UserService {
       throw new UnauthorizedError('Wrong login credentials!')
     }
 
-    // const returnRememberMe = data.rememberMe ? true : user?.rememberMe
-    // if (user?.rememberMe) {
-    //   //password match
-    //   const tokens = await this.getTokens(user.id, user.email, organization.id);
-    //   await this.updateHashRefreshToken(user.id, tokens.refresh_token);
-    //   await user.updateOne({
-    //     rememberMe: data.rememberMe,
-    //   })
-    //   return { tokens, userId: user.id, rememberMe: true }
-    // }
+    if (user.status === UserStatus.ACTIVE) {
+      let otp = Math.floor(100000 + Math.random() * 900000);
+      const otpExpiresAt = this.getOtpExpirationDate(10)
 
-    // const expirationDate = this.getRememberMeExpirationDate(data)
-    const otp = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate(10)
+      if (whiteListDevEmails.includes(user.email)) {
+        otp = 123456
+      }
+    if (user.rememberMe && user.rememberMe > new Date().getTime()) {
+      const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
+      await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+      await user.updateOne({
+        hashRt: '',
+        otpExpiresAt,
+        otp
+      })
+      return { tokens, userId: user.id, status: user.status }
+    }
+      await user.updateOne({
+        hashRt: '',
+        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
+        otpExpiresAt,
+        otp
+      })
 
-    await user.updateOne({
-      hashRt: '',
-      rememberMe: data.rememberMe,
-      otpExpiresAt,
-      otp
-    })
+      const isOwner = user.role === ERole.Owner
+      this.emailService.sendOtpEmail(user.email, {
+        customerName: isOwner ? organization.businessName : user.firstName,
+        otp
+      })
+    }
 
-    const isOwner = user.role === Role.Owner
-    this.emailService.sendOtpEmail(user.email, {
-      customerName: isOwner ? organization.businessName : user.firstName,
-      otp
-    })
-
-    return { userId: user.id }
+    return { userId: user.id, status: user.status  }
   }
 
-  // getRememberMeExpirationDate(data: LoginDto) {
-  //   if (!data?.rememberMe) {
-  //     return Date.now()
-  //   }
+  getRememberMeExpirationDate(data: LoginDto) {
+    if (!data?.rememberMe) {
+      return Date.now()
+    }
 
-  //   const expirationDate = new Date();
-  //   expirationDate.setUTCDate(expirationDate.getUTCDate() + 30);
-  //   return expirationDate.getTime();
-  // }
+    const expirationDate = new Date();
+    expirationDate.setUTCDate(expirationDate.getUTCDate() + 30);
+    return expirationDate.getTime();
+  }
 
   getOtpExpirationDate(minutes: number) {
     const optExpriresAt = new Date();
@@ -178,7 +264,7 @@ export class UserService {
       throw new UnauthorizedError('User Organization not found');
     }
 
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     if (user.otpExpiresAt && user.otpExpiresAt > new Date().getTime() && user.otp) {
       const otp = user.otp
       this.emailService.sendOtpEmail(user.email, {
@@ -298,13 +384,18 @@ export class UserService {
     if (!user) {
       throw new BadRequestError('User not found');
     }
-    if (verificationCode !== user.emailVerifyCode) {
-      throw new BadRequestError('Invalid credentials');
-    }
 
     const organization = await Organization.findById(user.organization);
     if (!organization) {
       throw new UnauthorizedError(`User Organization not found`);
+    }
+
+    // modify this to check for 10mins validity
+    let checkemailVerifyCode = (userHash: string, hash: string) => Number(userHash) === Number(hash);
+    const isValid = checkemailVerifyCode(user.emailVerifyCode, verificationCode)
+
+    if (!isValid) {
+      throw new UnauthorizedError(`Invalid Otp`);
     }
 
     await user.updateOne({
@@ -312,7 +403,10 @@ export class UserService {
       status: UserStatus.ACTIVE
     })
 
-    return { message: 'success' };
+    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
+    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    return { tokens, userId: user.id }
   }
 
   async forgotPassword(email: string) {
@@ -397,10 +491,15 @@ export class UserService {
 
   async getProfile(userId: string) {
     const user = await User.findById(userId)
-      .select('firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone')
+      .select('firstName lastName avatar email emailVerified manager role KYBStatus createdAt organization pin phone')
+      .populate('manager', 'firstName lastName avatar')
       .populate({
         path: 'organization', select: 'subscription',
         populate: 'subscription.object'
+      })
+      .populate({
+        path: 'roleRef', select: 'type name permissions',
+        populate: { path: 'permissions', select: 'name actions' }
       })
       .lean()
     
@@ -428,7 +527,7 @@ export class UserService {
     const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
     const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
     const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
-    const payload: AuthUser = { sub: user.userId, email: user.email, userId: user.userId, orgId: user.orgId, role: user.role }
+    const payload = { sub: user.userId, email: user.email, userId: user.userId, orgId: user.orgId, role: user.role }
     
     return {
       access_token: jwt.sign(payload, accessSecret, { expiresIn: accessExpiresIn }),
@@ -495,30 +594,56 @@ export class UserService {
 
   async acceptInvite(data: AddEmployeeDto) {
     const { code, firstName, lastName, phone, password } = data
-    const user = await User.findOne({ inviteCode: code, status: { $ne: UserStatus.DELETED } })
-    if (!user) {
-      throw new NotFoundError('Invalid or expired invite link');
-    }
-    const now = Math.round(new Date().getTime() / 1000);
-    const yesterday = now - (24 * 3600);
-    if (user.inviteSentAt && dayjs(user.inviteSentAt).isBefore(yesterday)) {
-      throw new NotFoundError('Invalid or expired invite link');
+    const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).populate('roleRef').lean()
+    if (!invite) {
+      throw new BadRequestError("Invalid or expired link")
     }
 
+    const $regex = new RegExp(`^${escapeRegExp(invite.email)}$`, "i");
+    const exists = await User.findOne({ email: { $regex } })
+    if (exists) {
+      throw new BadRequestError('User already exists')
+    }
+
+    const usage = await this.planUsageService.checkUsersUsage(invite.organization)
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    await user.set({
-      emailVerified: true,
-      inviteCode: null,
+    const departments = []
+    if (invite.department) departments.push(invite.department)
+    const user = await User.create({
       firstName,
       lastName,
       phone,
       password: hashedPassword,
+      emailVerified: true,
+      departments,
+      email: invite.email,
+      manager: invite.manager,
+      roleRef: invite.roleRef._id,
+      role: invite.roleRef.name,
       status: UserStatus.ACTIVE,
-      KYBStatus: KycStatus.APPROVED
-    }).save()
+      KYBStatus: KycStatus.APPROVED,
+      organization: invite.organization,
+    })
 
-    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: user.organization.toString(), role: user.role });
+    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
+      await WalletService.chargeWallet(invite.organization, {
+        amount: usage.feature.costPerUnit.NGN,
+        narration: 'Add organization user',
+        scope: WalletEntryScope.PlanSubscription,
+        currency: 'NGN',
+        initiatedBy: invite.invitedBy,
+      })
+    }
+
+    await UserInvite.deleteOne({ _id: invite._id })
+    const tokens = await this.getTokens({
+      userId: user.id,
+      email: user.email,
+      orgId: user.organization.toString(),
+      role: user.role
+    });
+  
     await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
@@ -534,7 +659,11 @@ export class UserService {
       page: Number(query.page),
       limit: query.limit,
       lean: true,
-      select: 'firstName lastName email emailVerified role KYBStatus status avatar phone'
+      populate: [
+        { path: 'roleRef', select: 'name description type' },
+        { path: 'manager', select: 'firstName lastName avatar' },
+      ],
+      select: 'firstName manager lastName email emailVerified role KYBStatus status avatar phone'
     })
     
     return users
@@ -552,6 +681,11 @@ export class UserService {
   async getMember(id: string, orgId: string) {
     const user = await User.findOne({ _id: id, organization: orgId, status: { $ne: UserStatus.DELETED } })
       .select('firstName lastName email emailVerified role KYBStatus status avatar phone')
+      .populate('departments', 'name')
+      .populate({
+        path: 'manager', select: 'firstName lastName email avatar',
+        populate: { path: 'roleRef', select: 'name type' }
+      })
       .lean()
     
     if (!user) {
@@ -607,12 +741,17 @@ export class UserService {
   }
 
   async deleteMember(id: string, orgId: string) {
-    const employee = await this.getMember(id, orgId);
+    const employee = await User.findOne({ _id: id, organization: orgId })
+      .populate('roleRef')
     if (!employee) {
       throw new NotFoundError('User not found');
     }
 
-    await User.deleteOne({ _id: id, organization: orgId })
+    if (employee.roleRef.name === 'owner' && employee.roleRef.type === 'default') {
+      throw new BadRequestError("You cannot delete business owner")
+    }
+
+    await User.updateOne({ _id: id, organization: orgId }, { status: UserStatus.DELETED })
 
     return { message: 'Member deleted' }
   }

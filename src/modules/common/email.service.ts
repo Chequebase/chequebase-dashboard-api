@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
-import { MailDataRequired, MailService } from '@sendgrid/mail';
+import { MailService } from '@sendgrid/mail';
 import { Service } from 'typedi';
 import { getEnvOrThrow } from './utils';
 import * as T from './interfaces/email-service.interface';
@@ -43,6 +43,60 @@ export default class EmailService {
     }
   }
 
+  sendExpenseApprovalRequest(to: string, data: T.SendExpenseApprovalRequest) {
+    return this.send({
+      to,
+      subject: 'Expense approval request',
+      templateId: 'd-85cdbf3f59e2467ca4f7a0444538cd23',
+      dynamicTemplateData: data
+    })
+  }
+
+  sendMemberReactivation(to: string, data: T.SendMemberReactivation) {
+    return this.send({
+      to,
+      subject: 'Your account has been reactivated',
+      templateId: 'd-218717c6ede14cc8b2b3ebe3f1b2529e',
+      dynamicTemplateData: data
+    })
+  }
+
+  sendFundRequestApprovalRequest(to: string, data: T.SendFundRequestApprovalRequest) {
+    return this.send({
+      to,
+      subject: 'Fund request approval request',
+      templateId: 'd-ba87c8b05a524883ac9a3400e51a27b2',
+      dynamicTemplateData: data
+    })
+  }
+
+  sendBudgetExtensionApprovalRequest(to: string, data: T.SendBudgetExtensionApprovalRequest) {
+    return this.send({
+      to,
+      subject: 'Budget extension approval request',
+      templateId: 'd-697c268cd98649dca5ed3d3cb940625c',
+      dynamicTemplateData: data
+    })
+  }
+
+  sendTransactionApprovalRequest(to: string, data: T.SendTransactionApprovalRequest) {
+    return this.send({
+      to,
+      subject: 'Transaction approval request',
+      templateId: 'd-63ba0805ef1e4d248ca49e939d7f96f2',
+      dynamicTemplateData: { ...data, transactionLink: data.link }
+    })
+  }
+
+  sendApprovalRequestReviewed(to: string, data: T.SendApprovalRequestReviewed) {
+    return this.send({
+      to,
+      subject: 'Approval request reviewed',
+      templateId: 'd-48d72dad3b99401a9dd4690f94ed34c5',
+      dynamicTemplateData: data
+    })
+  }
+
   sendAccountStatement(to: string, data: T.AccountStatement, attachment: T.AttachmentData) {
     const startDate = dayjs(data.startDate).tz().format('YYYY-MM-DD')
     const endDate = dayjs(data.endDate).tz().format('YYYY-MM-DD')
@@ -59,7 +113,7 @@ export default class EmailService {
     return this.send({
       to,
       subject: 'Verify Email',
-      templateId: 'd-c4a09459df54437bb3ff11956daafd21',
+      templateId: 'd-2b166f40f9e64670abdc586f46447f6b',
       dynamicTemplateData: data
     })
   }

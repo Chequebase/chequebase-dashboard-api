@@ -1,12 +1,12 @@
 import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, Req, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import WalletService from "./wallet.service";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
+import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
-import { Request, Response } from "express";
+import { Response } from "express";
 import publicApiGuard from "../common/guards/public-api.guard";
-import { Role } from "../user/dto/user.dto";
+import { EPermission } from "@/models/role-permission.model";
 
 @Service()
 @JsonController('/wallet', { transformResponse: false })
@@ -32,7 +32,7 @@ export default class WalletController {
   }
 
   @Get('/statement/csv')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.TransactionDownload)
   async getWalletStatement(
     @Res() res: Response,
     @CurrentUser() auth: AuthUser,
@@ -51,26 +51,32 @@ export default class WalletController {
   }
 
   @Get('/statement')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.TransactionRead)
   async getAccountStatement(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletStatementDto) {
     return this.walletService.sendWalletStatement(auth.orgId, query)
   }
 
   @Get('/balances')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.TransactionRead)
   getBalances(@CurrentUser() auth: AuthUser) {
     return this.walletService.getBalances(auth.orgId)
   }
 
   @Get('/:id')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.TransactionRead)
   getWallet(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWallet(auth.orgId, id)
   }
   
   @Get('/history/:id')
-  @Authorized(Role.Owner)
+  @Authorized()
   getWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWalletEntry(auth.orgId, id)
+  }
+
+  @Post('/report-transaction')
+  @Authorized()
+  reportTransaction(@CurrentUser() auth: AuthUser, @Body() dto: ReportTransactionDto) {
+    return this.walletService.reportTransactionToSlack(auth.orgId, dto)
   }
 }

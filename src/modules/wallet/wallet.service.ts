@@ -7,7 +7,7 @@ import * as fastCsv from 'fast-csv';
 import { ObjectId } from 'mongodb'
 import { createId } from '@paralleldrive/cuid2'
 import Organization from "@/models/organization.model";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto } from "./dto/wallet.dto";
+import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
 import VirtualAccount from "@/models/virtual-account.model";
@@ -21,16 +21,17 @@ import { ChargeWallet } from "./interfaces/wallet.interface";
 import numeral from "numeral";
 import { AuthUser } from "../common/interfaces/auth-user";
 import User from "@/models/user.model";
-import { Role } from "../user/dto/user.dto";
+import { ERole } from "../user/dto/user.dto";
 import Budget, { BudgetStatus } from "@/models/budget.model";
 import { walletQueue } from "@/queues";
+import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
 @Service()
 export default class WalletService {
-  constructor (private virtualAccountService: VirtualAccountService) { }
+  constructor (private virtualAccountService: VirtualAccountService, private slackService: SlackNotificationService) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()
@@ -105,6 +106,7 @@ export default class WalletService {
     const virtualAccountId = new ObjectId()
     const reference = `va-${createId()}`
     const account = await this.virtualAccountService.createAccount({
+      type: 'static',
       email: organization.email,
       name: organization.businessName,
       provider: data.provider,
@@ -224,7 +226,7 @@ export default class WalletService {
       })
       .set('budget', query.budget)
       .set('project', query.project)
-      .set('initiatedBy', user.role === Role.Owner ? query.beneficiary : user._id)
+      .set('initiatedBy', user.role === ERole.Owner ? query.beneficiary : user._id)
       .set('createdAt', {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()
@@ -245,9 +247,10 @@ export default class WalletService {
 
     const history = await WalletEntry.paginate(filter.object, {
       select: 'status currency fee type reference wallet amount scope budget createdAt',
-      populate: {
-        path: 'budget', select: 'name'
-      },
+      populate: [
+        { path: 'budget', select: 'name' },
+        { path: 'category', select: 'name' }
+      ],
       sort: '-createdAt',
       page: Number(query.page),
       limit: query.limit,
@@ -275,6 +278,7 @@ export default class WalletService {
 
     const cursor = WalletEntry.find(filter)
       .populate({ path: 'budget', select: 'name' })
+      .populate({ path: 'category', select: 'name' })
       .select('status fee balanceBefore balanceAfter currency type amount scope budget createdAt')
       .sort('-createdAt')
       .lean()
@@ -290,6 +294,7 @@ export default class WalletService {
       'Balance After': formatMoney(entry.balanceAfter),
       'Balance Before': formatMoney(entry.balanceBefore),
       'Budget': entry.budget?.name || '---',
+      'Category': entry.category?.name || '---',
       'Scope': entry.scope.toUpperCase().replaceAll('_', ' '),
       'Date': dayjs(entry.createdAt).tz('Africa/Lagos').format('MMM D, YYYY h:mm A'),
     }));
@@ -321,6 +326,11 @@ export default class WalletService {
     const entry = await WalletEntry.findOne({ _id: entryId, organization: orgId })
       .select('-gatewayResponse -provider')
       .populate('budget')
+      .populate('category')
+      .populate({
+        path: 'initiatedBy', select: 'firstName lastName avatar',
+        populate: { path: 'roleRef', select: 'name' }
+      })
       .lean()
 
     if (!entry) {
@@ -332,5 +342,16 @@ export default class WalletService {
     }
 
     return entry
+  }
+
+  async reportTransactionToSlack(orgId: string, data: ReportTransactionDto) {
+    const { transactionId, message } = data;
+    const entry = await this.getWalletEntry(orgId, transactionId);
+    const slackMssage = `:warning: Reported Transaction :warning: \n\n
+      *Message*: ${message}
+      *Tx*: ${JSON.stringify(entry)}
+    `;
+    await this.slackService.sendMessage(AllowedSlackWebhooks.reportTransaction, slackMssage);
+    return 'sucesss';
   }
 }

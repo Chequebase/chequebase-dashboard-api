@@ -1,9 +1,15 @@
 import { KycStatus, UserStatus } from "@/models/user.model";
-import { Role } from "@/modules/user/dto/user.dto";
+import { ERole } from "@/modules/user/dto/user.dto";
 import { IsString, IsOptional, IsInt, Min, IsEnum, IsBoolean, IsEmail, IsNotEmpty, MinLength } from "class-validator";
 
 export enum BanksphereRole {
   Admin = 'admin',
+}
+
+export enum KycLevel {
+  COPMANY_INFO = "companyInfo",
+  OWNER_INFO = "ownerInfo",
+  BUSINESS_DOCUMENTATION = "businessDocumentation",
 }
 
 export class BankSphereLoginDto {
@@ -99,6 +105,13 @@ export class RejectKYCDto {
   reason: string
 
   @IsString()
+  kycLevel: KycLevel
+
+  @IsString()
+  @IsOptional()
+  description: string
+
+  @IsString()
   @IsOptional()
   documentType: string
 }
@@ -116,8 +129,8 @@ export class CreateTeamMemeberDto {
   lastName: string;
 
   @IsString()
-  @IsEnum(Role)
-  role: Role;
+  @IsEnum(ERole)
+  role: ERole;
 }
 
 export class AddTeamMemberDto {

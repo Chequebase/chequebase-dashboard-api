@@ -90,7 +90,7 @@ async function generatePdf(variables: any) {
     const data = response.data.data
     return Buffer.from(data).toString('base64')
   } catch (err: any) {
-    logger.error('error generating pdf file', { message: JSON.stringify(err.response.data) || err.message })
+    logger.error('error generating pdf file', { message: JSON.stringify(err.response?.data) || err.message })
     throw err
   }
 }

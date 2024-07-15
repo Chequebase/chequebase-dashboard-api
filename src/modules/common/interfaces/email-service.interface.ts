@@ -47,7 +47,7 @@ export interface BudgetRequestEmail {
 export interface BudgetBeneficiaryAdded {
   employeeName: string
   budgetName: string
-  amountAllocated: number
+  amountAllocated: string
   budgetLink: string
 }
 
@@ -180,4 +180,91 @@ export interface AccountStatement {
   customerName: string
   startDate: Date
   endDate: Date
+}
+
+export interface SendMemberReactivation {
+  organizationName: string,
+  firstName: string,
+  link: string
+}
+
+export interface SendExpenseApprovalRequest {
+  employeeName: string
+  workflowType: string
+  requester: {
+    name: string,
+    avatar: string
+  }
+  currency: string
+  amount: string
+  duration: string
+  beneficiaries: { avatar: string }[]
+  description: string
+  link: string
+}
+
+export interface SendFundRequestApprovalRequest {
+  employeeName: string
+  workflowType: string
+  requester: {
+    name: string,
+    avatar: string
+  }
+  currency: string
+  amount: string
+  budget: string
+  beneficiaries: { avatar: string }[]
+  link: string
+}
+
+export interface SendBudgetExtensionApprovalRequest {
+  employeeName: string
+  workflowType: string
+  requester: {
+    name: string,
+    avatar: string
+  }
+  currency: string
+  amount: string
+  approvedAmount: string
+  budget: string
+  category: string
+  beneficiaries: { avatar: string }[]
+  link: string
+}
+
+export interface SendTransactionApprovalRequest {
+  employeeName: string
+  workflowType: string
+  requester: {
+    name: string,
+    avatar: string
+  }
+  currency: string
+  amount: string
+  recipient: string
+  recipientBank: string
+  budget: string
+  category: string
+  beneficiaries: { avatar: string }[]
+  link: string
+}
+
+export interface SendApprovalRequestReviewed {
+  employeeName: string,
+  budgetName: string,
+  requestType: string,
+  approverName: string,
+  status: string,
+  reviews: {
+    user: {
+      firstName: string,
+      lastName: string,
+      avatar: string,
+      role: string
+    },
+    reason?: string,
+    status: string
+  }[]
+  createdAt: string
 }

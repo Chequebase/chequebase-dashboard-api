@@ -1,7 +1,7 @@
 import { UserStatus } from '@/models/user.model';
 import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum, IsInt, Min } from 'class-validator';
 
-export enum Role {
+export enum ERole {
   Owner = 'owner',
   Cfo = 'cfo',
   Employee = 'employee'
@@ -103,8 +103,8 @@ export class CreateEmployeeDto {
   phone: string;
 
   @IsString()
-  @IsEnum(Role)
-  role: Role;
+  @IsEnum(ERole)
+  role: ERole;
 }
 
 export class AddEmployeeDto {
@@ -148,9 +148,9 @@ export class UpdateEmployeeDto {
   phone: string;
 
   @IsString()
-  @IsEnum(Role)
+  @IsEnum(ERole)
   @IsOptional()
-  role: Role;
+  role: ERole;
 }
 
 export class UpdateProfileDto {

@@ -6,7 +6,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
 import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
-import { ResolveAccountDto, InitiateTransferDto, GetTransferFee } from "./dto/budget-transfer.dto"
+import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient } from "./dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import { IWallet } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
@@ -14,18 +14,24 @@ import Budget, { BudgetStatus } from "@/models/budget.model"
 import { TransferService } from "../transfer/transfer.service"
 import { TransferClientName } from "../transfer/providers/transfer.client"
 import { AnchorService } from "../common/anchor.service"
-import { CreateTransferRecord } from "./interfaces/budget-transfer.interface"
-import { UserService } from "../user/user.service"
+import { ApproveTransfer, CreateTransferRecord, RunSecurityCheck } from "./interfaces/budget-transfer.interface"
 import User, { KycStatus } from "@/models/user.model"
-import { Role } from "../user/dto/user.dto"
-import { transactionOpts } from "../common/utils"
-import Organization from "@/models/organization.model"
+import { ERole } from "../user/dto/user.dto"
+import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
+import Organization, { IOrganization } from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
 import Logger from "../common/utils/logger"
 import { IProject } from "@/models/project.model"
 import Bank from "@/models/bank.model"
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model"
+import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model"
+import { S3Service } from "../common/aws/s3.service"
+import TransferCategory from "@/models/transfer-category"
+import { UserService } from "../user/user.service"
+import { BudgetPolicyService } from "./budget-policy.service"
+import EmailService from "../common/email.service"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -33,7 +39,10 @@ const logger = new Logger('budget-transfer-service')
 export class BudgetTransferService {
   constructor (
     private transferService: TransferService,
-    private anchorService: AnchorService
+    private s3Service: S3Service,
+    private anchorService: AnchorService,
+    private budgetPolicyService: BudgetPolicyService,
+    private emailService: EmailService
   ) { }
 
   private async calcTransferFee(orgId: string, amount: number, currency: string) {
@@ -62,25 +71,16 @@ export class BudgetTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(auth: AuthUser, data: InitiateTransferDto) {
-    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
-
+  private async getCounterparty(orgId: string, bankCode: string, accountNumber: string) {
+    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
     let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
-      organization: auth.orgId,
-      accountNumber: data.accountNumber,
-      bankCode: data.bankCode
+      organization: orgId,
+      accountNumber,
+      bankCode
     }, {
-      $set: {
-        organization: auth.orgId,
-        accountName: resolveRes.accountName,
-        accountNumber: data.accountNumber,
-        bankCode: data.bankCode,
-        bankName: resolveRes.bankName,
-      }
-    }, {
-      upsert: true,
-      returnOriginal: false
-    }).lean()
+      accountName: resolveRes.accountName,
+      bankName: resolveRes.bankName,
+    }, { new: true, upsert: true }).lean()
 
     return { ...counterparty, bankId: resolveRes.bankId }
   }
@@ -158,7 +158,7 @@ export class BudgetTransferService {
     }, transactionOpts)
   }
 
-  private async runTransferWindowCheck(payload: any) {
+  private async runTransferWindowCheck(payload: RunSecurityCheck) {
     const { data, auth } = payload
     const oneMinuteAgo = dayjs().subtract(1, 'minute').toDate()
 
@@ -178,14 +178,14 @@ export class BudgetTransferService {
     return true
   }
 
-  private async runBeneficiaryCheck(payload: any) {
+  private async runBeneficiaryCheck(payload: RunSecurityCheck) {
     const { budget, auth, data } = payload
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new BadRequestError('User not found')
     }
 
-    if (user.role === Role.Owner) {
+    if (user.role === ERole.Owner) {
       return true
     }
 
@@ -215,7 +215,7 @@ export class BudgetTransferService {
     }
   }
 
-  private async runSecurityChecks(payload: any) {
+  private async runSecurityChecks(payload: RunSecurityCheck) {
     const { budget, amountToDeduct } = payload
     if (budget.status !== BudgetStatus.Active) {
       throw new BadRequestError("Budget is not active")
@@ -247,39 +247,184 @@ export class BudgetTransferService {
     return true
   }
 
-  async initiateTransfer(auth: AuthUser, id: string, data: InitiateTransferDto) {
-    const budget = await Budget.findOne({ _id: id, organization: auth.orgId })
+  async initiateTransfer(auth: AuthUser, budgetId: string, data: InitiateTransferDto) {
+    const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!validPin) {
+      throw new BadRequestError('Invalid pin')
+    }
+    
+    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
+      .populate<{ organization: IOrganization }>('organization')
+      .populate('beneficiaries.user', 'firstName lastName avatar')
+    if (!budget) {
+      throw new NotFoundError('Budget does not exist')
+    }
+    const organization = budget.organization
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    if (organization.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const category = await TransferCategory.findOne({ _id: data.category, organization: auth.orgId }).lean()
+    if (!category) {
+      throw new NotFoundError('Category does not exist')
+    }
+
+    // check expense policies
+    const policyCheckData = {
+      ...data,
+      user: auth.userId,
+      dayOfWeek: new Date().getDay(),
+      budget: budgetId
+    }
+    await Promise.all([
+      this.budgetPolicyService.checkCalendarPolicy(policyCheckData),
+      this.budgetPolicyService.checkSpendLimitPolicy(policyCheckData),
+    ])
+
+    const rules = await ApprovalRule.find({
+      organization: auth.orgId,
+      workflowType: WorkflowType.Transaction,
+      amount: { $lte: data.amount }
+    })
+
+    let resolveRes: any
+    if (data.saveRecipient) {
+      resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+      await Counterparty.findOneAndUpdate({
+        organization: auth.orgId,
+        bankCode: data.bankCode,
+        accountNumber: data.accountNumber,
+      }, {
+        isRecipient: true,
+        accountName: resolveRes.accountName,
+        bankName: resolveRes.bankName,
+      }, { upsert: true })
+    }
+
+    const rule = rules.find(r => r.budget?.equals(budgetId)) || rules[0]
+    let noApprovalRequired = !rule
+    if (rule) {
+      const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
+      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+    }
+
+    if (noApprovalRequired) {
+      return this.approveTransfer({
+        accountNumber: data.accountNumber,
+        amount: data.amount,
+        bankCode: data.bankCode,
+        budget: budgetId,
+        userId: auth.userId,
+        category: data.category
+      })
+    }
+
+    let invoiceUrl
+    if (data.invoice) {
+      const key = `transaction-invoice/${budgetId}/${createId()}`;
+      invoiceUrl = await this.s3Service.uploadObject(
+        getEnvOrThrow('AVATAR_BUCKET_NAME'),
+        key,
+        data.invoice
+      );
+    } else {
+      await this.budgetPolicyService.checkInvoicePolicy({
+        user: auth.userId,
+        budget: budgetId,
+        bankCode: data.bankCode,
+        accountNumber: data.accountNumber
+      })
+    }
+
+    if (!resolveRes){
+      resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    }
+
+    const request = await ApprovalRequest.create({
+      organization: auth.orgId,
+      workflowType: rule.workflowType,
+      approvalType: rule.approvalType,
+      requester: auth.userId,
+      approvalRule: rule._id,
+      priority: ApprovalRequestPriority.High,
+      reviews: rule!.reviewers.map(user => ({
+        user,
+        status: user.equals(auth.userId) ? 'approved' : 'pending'
+      })),
+      properties: {
+        budget: budget._id,
+        transaction: {
+          accountName: resolveRes.accountName,
+          accountNumber: data.accountNumber,
+          amount: data.amount,
+          bankCode: data.bankCode,
+          bankName: resolveRes.bankName,
+          invoice: invoiceUrl,
+          category: category._id
+        }
+      }
+    })
+
+    rule!.reviewers.forEach(reviewer => {
+      this.emailService.sendTransactionApprovalRequest(reviewer.email, {
+        amount: formatMoney(data.amount),
+        currency: budget.currency,
+        budget: budget.name,
+        employeeName: reviewer.firstName,
+        link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+        requester: {
+          name: `${user.firstName} ${user.lastName}`,
+          avatar: user.avatar
+        },
+        workflowType: toTitleCase(request.workflowType),
+        beneficiaries: budget.beneficiaries.map((b: any) => ({
+          avatar: b.user.avatar,
+          firstName: b.user.firstName,
+          lastName: b.user.lastName
+        })),
+        category: category.name,
+        recipient: resolveRes.accountName,
+        recipientBank: resolveRes.bankName,
+      })
+    });
+
+    return {
+      status: 'pending',
+      approvalRequired: true,
+      message: 'Transaction pending approval',
+    }
+  }
+
+  async approveTransfer(data: ApproveTransfer) {
+    const budget = await Budget.findById(data.budget)
       .populate('project')
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
     }
 
-    const organization = await Organization.findById(auth.orgId).lean()
-    if (!organization) {
-      throw new NotFoundError('Organization does not exist')
-    }
-    const user = await User.findById(auth.userId).lean()
-    if (!user) {
-      throw new NotFoundError('User does not exist')
-    }
-    if (organization.status === KycStatus.NO_DEBIT) {
-      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
-    }
-    if (user.KYBStatus === KycStatus.NO_DEBIT) {
-      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
-    }
-
-    const valid = await UserService.verifyTransactionPin(auth.userId, data.pin)
-    if (!valid) {
-      throw new BadRequestError('Invalid pin')
-    }
-
-    const fee = await this.calcTransferFee(auth.orgId, data.amount, budget.currency)
+    const orgId = budget.organization.toString()
+    const fee = await this.calcTransferFee(orgId, data.amount, budget.currency)
     const provider = TransferClientName.Anchor // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
-    const payload = { budget, auth, data, amountToDeduct, provider, fee }
+    const payload = {
+      auth: { userId: data.userId, orgId },
+      category: data.category,
+      budget, data,
+      provider, fee,
+      amountToDeduct
+    }
+
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(auth, data)
+    const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
@@ -303,6 +448,7 @@ export class BudgetTransferService {
 
     return {
       status: transferResponse.status,
+      approvalRequired: false,
       message: transferResponse.message
     }
   }
@@ -336,5 +482,79 @@ export class BudgetTransferService {
         attributes: undefined
       }
     })
+  }
+
+
+  async getCategories(auth: AuthUser) {
+    return TransferCategory.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
+  }
+
+  async createCategory(auth: AuthUser, name: string) {
+    const $regex = new RegExp(`^${escapeRegExp(name)}$`, "i")
+    const exists = await TransferCategory.exists({ organization: auth.orgId, name: { $regex } })
+    if (exists) { 
+      throw new BadRequestError('Category already exists')
+    }
+
+    return TransferCategory.create({ organization: auth.orgId, name })
+  }
+
+  async deleteCategory(auth: AuthUser, catId: string) {
+    const category = await TransferCategory.findOneAndDelete({ _id: catId, organization: auth.orgId })
+    if (!category) {
+      throw new BadRequestError("Category does not exist")
+    }
+
+    return { message: 'deleted successfully' }
+  }
+
+  async updateCategory(auth: AuthUser, catId: string, name: string) {
+    const category = await TransferCategory.findOneAndUpdate({ _id: catId, organization: auth.orgId }, {
+      name
+    })
+    if (!category) {
+      throw new BadRequestError("Category does not exist")
+    }
+
+    return { message: 'updated successfully' }
+  }
+
+  async getRecipients(auth:AuthUser ) {
+    return Counterparty.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
+  }
+
+  async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
+    const recipient = await Counterparty.findOne({ _id: id, user: auth.userId, organization: auth.orgId, isRecipient: true })
+    if (!recipient) {
+      throw new BadRequestError("Recipient not found")
+    }
+
+    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    await recipient.updateOne({
+      bankName: resolveRes.bankName,
+      bankCode: data.bankCode,
+      accountName: resolveRes.accountName,
+      accountNumber: data.accountNumber,
+    })
+
+    return { message: 'Recipient updated' }
+  }
+
+  async deleteRecipient(auth: AuthUser, id: string) {
+    const recipient = await Counterparty.findOneAndUpdate(
+      { _id: id, organization: auth.orgId, user: auth.userId, isRecipient: true },
+      { isRecipient: false }
+    )
+
+    if (!recipient) { 
+      throw new BadRequestError("Recipient not found")
+    }
+
+    return { message: 'Recipient deleted' }
+  }
+
+  async createDefaultCategories(orgId: string) {
+    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
+    return TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
   }
 }

@@ -30,6 +30,9 @@ export class ExceptionFilter implements ExpressErrorMiddlewareInterface {
     logger.error(error.message, { path: request.originalUrl, stack: error.stack })
 
     if (error instanceof MulterError) {
+      if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+        return response.status(400).json({ message: `Invalid file field ${error.field}`})
+      }
       return response.status(400).json({
         message: 'file could not be processed'
       })

@@ -91,7 +91,7 @@ export class PlanService {
   }
 
   async fetchPlans() {
-    const plans = await SubscriptionPlan.find().sort('amount.NGN').lean()
+    const plans = await SubscriptionPlan.find().sort({ 'amount.NGN': 1 }).lean()
     
     return plans
   }
@@ -208,7 +208,8 @@ export class PlanService {
       message: 'Kindly complete payment',
       amount,
       reference: intent.reference,
-      intent: intent._id
+      intent: intent._id,
+      intentType: intent.type
     }
   }
 

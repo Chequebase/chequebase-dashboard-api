@@ -53,6 +53,7 @@ export interface IWalletEntry {
   narration: string
   reference: string
   status: WalletEntryStatus
+  category: any
   meta: { [key: string]: any }
   createdAt: Date;
   updatedAt: Date;
@@ -81,6 +82,10 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     project: {
       type: Schema.Types.ObjectId,
       ref: 'Project'
+    },
+    category: {
+      type: Schema.Types.ObjectId,
+      ref: 'TransferCategory'
     },
     wallet: {
       type: Schema.Types.ObjectId,

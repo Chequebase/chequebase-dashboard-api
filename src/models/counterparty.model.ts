@@ -8,6 +8,7 @@ export interface ICounterparty {
   accountName: string
   accountNumber: string
   bankCode: string
+  isRecipient: boolean
   bankName: string
   description: string
   createdAt: Date
@@ -16,6 +17,7 @@ export interface ICounterparty {
 
 const counterpartySchema = new Schema<ICounterparty>(
   {
+    isRecipient: { type: Boolean, default: false },
     organization: {
       type: Schema.Types.ObjectId,
       ref: 'Organization',

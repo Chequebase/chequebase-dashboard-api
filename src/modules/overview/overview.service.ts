@@ -6,19 +6,22 @@ import Budget, { BudgetStatus } from '@/models/budget.model';
 import WalletEntry, { WalletEntryScope, WalletEntryStatus } from '@/models/wallet-entry.model';
 import { getPercentageDiff } from '../common/utils';
 import { getDates, getPrevFromAndTo } from '../common/utils/date';
-import { GetCashflowTrendDto, GetOverviewSummaryDto } from './dto/overview.dto';
+import { GetCashflowTrendDto, GetOverviewSummaryDto, ReportSuggestionDto } from './dto/overview.dto';
 import { AuthUser } from '../common/interfaces/auth-user';
 import User, { IUser } from '@/models/user.model';
 import { BadRequestError } from 'routing-controllers';
-import { Role } from '../user/dto/user.dto';
+import { ERole } from '../user/dto/user.dto';
 import Project, { ProjectStatus } from '@/models/project.model';
+import { AllowedSlackWebhooks, SlackNotificationService } from '../common/slack/slackNotification.service';
 
 dayjs.extend(isBetween)
 
 @Service()
 export class OverviewService {
+  constructor (private slackService: SlackNotificationService) { }
+
   private async getWalletBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
-    if (user.role !== Role.Owner) {
+    if (user.role !== ERole.Owner) {
       return { value: null, percentageDiff: null }
     }
 
@@ -62,7 +65,7 @@ export class OverviewService {
   }
 
   private async getBudgetBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
     const filter: any = {
       organization: user.organization,
@@ -149,7 +152,7 @@ export class OverviewService {
       },
     }
 
-    if (user.role !== Role.Owner) {
+    if (user.role !== ERole.Owner) {
       filter.initiatedBy = user._id
       filter.scope.$in = [WalletEntryScope.BudgetTransfer]
     }
@@ -192,7 +195,7 @@ export class OverviewService {
     if (!user) throw new BadRequestError('User not found')
 
     const userId = new ObjectId(auth.userId)
-    const isOwner = user.role === Role.Owner
+    const isOwner = user.role === ERole.Owner
     const ownerExpenseScopes = [WalletEntryScope.PlanSubscription, WalletEntryScope.BudgetTransfer]
     const ownerIncomeScopes = [WalletEntryScope.WalletFunding]
     const employeeExpenseScopes = [WalletEntryScope.BudgetTransfer]
@@ -307,5 +310,14 @@ export class OverviewService {
       expense: getPercentageDiff(prevExpense?.value, currentExpense),
       trend
     }
+  }
+
+  async reportSuggestionToSlack(data: ReportSuggestionDto) {
+    const { title, message } = data;
+    const slackMssage = `:warning: Reported Suggestion :warning: \n\n
+      *Title*: ${title}
+      *Message*: ${message}
+    `;
+    await this.slackService.sendMessage(AllowedSlackWebhooks.suggestions, slackMssage);
   }
 }

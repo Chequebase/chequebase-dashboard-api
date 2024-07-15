@@ -37,7 +37,11 @@ export default class AnchorWebhookHandler {
 
     await walletQueue.add('processWalletInflow', jobData)
 
-    await this.onPaymentSettledNotification({ ...jobData, customerId: payment.virtualNuban.accountId, businessName: payment.virtualNuban.accountName })
+    await this.onPaymentSettledNotification({
+      ...jobData,
+      customerId: payment.virtualNuban.accountId,
+      businessName: payment.virtualNuban.accountName
+    })
 
     return { message: 'payment queued' }
   }

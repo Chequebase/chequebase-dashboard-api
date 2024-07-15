@@ -1,13 +1,19 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, Put, QueryParams } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
+import { Request } from 'express'
 import BudgetService from "./budget.service";
-import { ApproveBudgetBodyDto, CloseBudgetBodyDto, CreateBudgetDto, CreateTranferBudgetDto, EditBudgetDto, GetBudgetsDto, PauseBudgetBodyDto } from "./dto/budget.dto"
+import { CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, PauseBudgetBodyDto, CreateTransferCategory, FundBudget, FundRequestBody } from "./dto/budget.dto"
 import { AuthUser } from "../common/interfaces/auth-user";
-import { Role } from "../user/dto/user.dto";
 import { BudgetTransferService } from "./budget-transfer.service";
-import { GetTransferFee, InitiateTransferDto, ResolveAccountDto } from "./dto/budget-transfer.dto";
+import { CheckTransferPolicyDto, GetTransferFee, InitiateTransferDto, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto";
 import { ProjectService } from "./project.service";
 import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, GetProjectsDto, PauseProjectDto, ProjectSubBudget } from "./dto/project.dto";
+import { EPermission } from "@/models/role-permission.model";
+import multer from "multer";
+import { plainToInstance } from "class-transformer";
+import { BudgetPolicyService } from "./budget-policy.service";
+import { CreatePolicy, GetPolicies, updatePolicy } from "./dto/budget-policy.dto";
+import { validate } from "class-validator";
 
 @Service()
 @JsonController('/budget', { transformResponse: false })
@@ -15,6 +21,7 @@ export default class BudgetController {
   constructor (
     private budgetService: BudgetService,
     private budgetTransferService: BudgetTransferService,
+    private policyService: BudgetPolicyService,
     private projectService: ProjectService
   ) { }
 
@@ -43,7 +50,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/pause')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.BudgetFreeze)
   pauseProject(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -53,7 +60,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/sub-budget')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.BudgetCreate)
   addSubBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -63,7 +70,7 @@ export default class BudgetController {
   }
 
   @Post('/project/:id/close')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.BudgetDelete)
   closeProject(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -75,13 +82,85 @@ export default class BudgetController {
   @Post('/')
   @Authorized()
   createBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
-    return this.budgetService.createBudget(auth, dto)
+    return this.budgetService.requestBudget(auth, dto)
+  }
+
+  @Get('/categories')
+  @Authorized()
+  getCategories(@CurrentUser() auth: AuthUser) {
+    return this.budgetTransferService.getCategories(auth)
+  }
+
+  @Post('/categories')
+  @Authorized()
+  createCategory(@CurrentUser() auth: AuthUser, @Body() dto: CreateTransferCategory) {
+    return this.budgetTransferService.createCategory(auth, dto.name)
+  }
+
+  @Patch('/categories/:id')
+  @Authorized()
+  updateCategory(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: CreateTransferCategory) {
+    return this.budgetTransferService.updateCategory(auth, id, dto.name)
+  }
+
+  @Delete('/categories/:id')
+  @Authorized()
+  deleteCategory(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.budgetTransferService.deleteCategory(auth, id)
+  }
+
+  @Get('/policies')
+  @Authorized(EPermission.PolicyRead)
+  getPolicies(@CurrentUser() auth: AuthUser, @QueryParams() query: GetPolicies) {
+    return this.policyService.getPolicies(auth, query)
+  }
+
+  @Post('/policies')
+  @Authorized(EPermission.PolicyEdit)
+  createPolicy(@CurrentUser() auth: AuthUser, @Body() dto: CreatePolicy) {
+    return this.policyService.createPolicy(auth, dto)
+  }
+
+  @Put('/policies/:id')
+  @Authorized(EPermission.PolicyEdit)
+  updatePolicy(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: updatePolicy) {
+    return this.policyService.updatePolicy(auth, id, dto)
+  }
+
+  @Delete('/policies/:id')
+  @Authorized(EPermission.PolicyEdit)
+  deletePolicy(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.policyService.deletePolicy(auth, id)
+  }
+
+  @Post('/policies/check-transfer')
+  @Authorized()
+  checkTransferPolicy(@CurrentUser() auth: AuthUser, @Body() dto: CheckTransferPolicyDto) {
+    return this.policyService.checkTransferPolicy(auth.userId, dto)
+  }
+
+  @Get('/recipients')
+  @Authorized()
+  getRecipients(@CurrentUser() auth: AuthUser) {
+    return this.budgetTransferService.getRecipients(auth)
+  }
+
+  @Patch('/recipients/:id')
+  @Authorized()
+  updateRecipient(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateRecipient) {
+    return this.budgetTransferService.updateRecipient(auth, id, dto)
+  }
+
+  @Delete('/categories/:id')
+  @Authorized()
+  deleteRecipient(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.budgetTransferService.deleteRecipient(auth, id)
   }
 
   @Post('/transfer')
   @Authorized()
-  createTransferBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateTranferBudgetDto) {
-    return this.budgetService.createTransferBudget(auth, dto)
+  createTransferBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
+    return this.budgetService.requestBudget(auth, dto)
   }
 
   @Get('/')
@@ -120,10 +199,27 @@ export default class BudgetController {
     return this.budgetService.getBalances(auth)
   }
 
+  @Post('/:id/fund-request')
+  @Authorized()
+  initiateFundRequest(@CurrentUser() auth: AuthUser, @Param('id') budgetId: string, @Body() dto: FundRequestBody) {
+    return this.budgetService.initiateFundRequest({
+      userId: auth.userId,
+      orgId: auth.orgId,
+      type: dto.type,
+      budgetId
+    })
+  }
+
   @Put('/:id')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.BudgetCreate)
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
     return this.budgetService.editBudget(auth, id, dto)
+  }
+
+  @Post('/:id/extend')
+  @Authorized(EPermission.BudgetExtend)
+  extendBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: RequestBudgetExtension) {
+    return this.budgetService.requestBudgetExtension(auth, id, dto)
   }
 
   @Put('/:id/cancel')
@@ -138,18 +234,14 @@ export default class BudgetController {
     return this.budgetService.getBudget(auth, id)
   }
 
-  @Post('/:id/approve')
-  @Authorized(Role.Owner)
-  approveBudget(
-    @CurrentUser() auth: AuthUser,
-    @Param('id') id: string,
-    @Body() body: ApproveBudgetBodyDto
-  ) {
-    return this.budgetService.approveBudget(auth, id, body)
+  @Get('/:id/policies')
+  @Authorized()
+  getBudgetPolicies(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.budgetService.getBudgetPolicies(auth, id)
   }
 
   @Post('/:id/pause')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.BudgetCreate)
   pauseBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -159,7 +251,7 @@ export default class BudgetController {
   }
 
   @Post('/:id/close')
-  @Authorized(Role.Owner)
+  @Authorized(EPermission.BudgetDelete)
   closeBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -170,11 +262,19 @@ export default class BudgetController {
 
   @Post('/:id/transfer/initiate')
   @Authorized()
-  initiateTransfer(
+  @UseBefore(multer().single('invoice'))
+  async initiateTransfer(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
-    @Body() body: InitiateTransferDto
+    @Req() req: Request,
   ) {
-    return this.budgetTransferService.initiateTransfer(auth, id, body)
+    const file = req.file as any
+    const dto = plainToInstance(InitiateTransferDto, { invoice: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) {
+      throw { errors }
+    }
+
+    return this.budgetTransferService.initiateTransfer(auth, id, dto)
   }
 }
