@@ -664,7 +664,7 @@ export default class BudgetService {
     let noApprovalRequired = !rule
     if (rule) {
       const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
-      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.toString() === auth.userId)
     }
 
     const reviewers = rule?.reviewers || [auth.userId]
@@ -1014,6 +1014,8 @@ export default class BudgetService {
     } else if (type === 'expense') {
       amount = budget.amount
     }
+
+    // TODO: duduct from wallet  if amount available
     
     rule!.reviewers.forEach(reviewer => {
       this.emailService.sendFundRequestApprovalRequest(reviewer.email, {
