@@ -1024,7 +1024,7 @@ export default class BudgetService {
       await cdb.transaction(async (session) => {
         const wallet = await Wallet.findOneAndUpdate(
           {
-            organization: request.organization,
+            organization: data.orgId,
             currency: budget!.currency,
             balance: { $gte: amount }
           },
@@ -1046,7 +1046,7 @@ export default class BudgetService {
 
         const reference = createId()
         const [entry] = await WalletEntry.create([{
-          organization: request.organization,
+          organization: data.orgId,
           wallet: wallet._id,
           initiatedBy: data.userId,
           currency: wallet.currency,
@@ -1070,25 +1070,6 @@ export default class BudgetService {
         }], { session })
 
         await wallet.updateOne({ walletEntry: entry._id }, { session })
-
-        const approver = request.reviews.find(r => r.user._id.equals(data.userId))!
-        this.emailService.sendApprovalRequestReviewed(request.requester.email, {
-          approverName: `${approver.user.firstName} ${approver.user.lastName}`,
-          budgetName: request.properties.budget.name,
-          createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
-          employeeName: request.requester.firstName,
-          requestType: toTitleCase(request.workflowType),
-          reviews: request.reviews.map((review) => ({
-            status: review.status,
-            user: {
-              avatar: review.user.avatar,
-              firstName: review.user.firstName,
-              lastName: review.user.lastName,
-              role: review.user.roleRef.name
-            }
-          })),
-          status: 'Approved'
-        })
       }, transactionOpts)
 
       return {

@@ -220,7 +220,7 @@ export default class ApprovalService {
           userId: request.requester._id,
           budgetId: props.budget._id,
           type: 'extension',
-        })
+        }, false)
         break;
       case WorkflowType.Expense:
         response = await this.budgetService.approveExpense(props.budget._id)
