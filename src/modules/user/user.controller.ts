@@ -8,6 +8,7 @@ import { getEnvOrThrow } from '@/modules/common/utils';
 import multer from 'multer';
 import { Request, Response } from 'express';
 import Logger from '../common/utils/logger';
+import { FeatureError } from '../common/utils/service-errors';
 
 // const uploadOptions = {
 //   storage: multer.diskStorage({
@@ -48,7 +49,10 @@ export default class UserController {
 
       return res.status(400).send(`<h1>${result.message}</h1>`)
     } catch (err: any) {
-      logger.error('error during reactivate', {reason: err.message, stack: err.stack })
+      if (err instanceof FeatureError) {
+        return res.status(err.httpCode).send(`<h1>${err.message}</h1>`)
+      }
+      logger.error('error during user reactivation', {reason: err.message, stack: err.stack })
       return res.status(500).send('<h1>Something went wrong</h1>')
     }
   }

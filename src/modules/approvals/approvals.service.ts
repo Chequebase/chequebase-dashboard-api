@@ -220,7 +220,7 @@ export default class ApprovalService {
           userId: request.requester._id,
           budgetId: props.budget._id,
           type: 'extension',
-        })
+        }, false)
         break;
       case WorkflowType.Expense:
         response = await this.budgetService.approveExpense(props.budget._id)
@@ -384,7 +384,7 @@ export default class ApprovalService {
 
   async sendRequestReminder(auth: AuthUser, requestId: string) {
     const request = await ApprovalRequest.findOne({ _id: requestId, organization: auth.orgId, 'request': auth.userId })
-      .populate('reviews.user', 'firstName lastName avatar')
+      .populate('reviews.user', 'email firstName lastName avatar')
       .populate('properties.transaction.category', 'name')
       .populate({
         path: 'properties.budget', select: 'name currency description beneficiaries amount',

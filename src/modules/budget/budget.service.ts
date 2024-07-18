@@ -664,7 +664,7 @@ export default class BudgetService {
     let noApprovalRequired = !rule
     if (rule) {
       const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
-      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.toString() === auth.userId)
     }
 
     const reviewers = rule?.reviewers || [auth.userId]
@@ -694,7 +694,7 @@ export default class BudgetService {
         orgId: auth.orgId,
         userId: auth.userId,
         type: 'extension'
-      })
+      }, false)
     }
 
     rule!.reviewers.forEach(reviewer => {
@@ -979,14 +979,14 @@ export default class BudgetService {
     return budgetAgg
   }
 
-  async initiateFundRequest(data: InitiateFundRequest) {
+  async initiateFundRequest(data: InitiateFundRequest, approvalRequired = true) {
     const { type, orgId, userId, budgetId } = data
     const user = await User.findById(userId).select('firstName lastName email avatar')
     if (!user) {
       throw new BadRequestError('User not found')
     }
 
-    const budget = await Budget.findOne({ _id: budgetId, organization: orgId })
+    let budget = await Budget.findOne({ _id: budgetId, organization: orgId })
       .populate('extensionApprovalRequest', 'properties')
       .populate('fundRequestApprovalRequest', 'status')
       .populate('beneficiaries.user', 'firstName lastName avatar')
@@ -1009,17 +1009,80 @@ export default class BudgetService {
     }
 
     let amount = 0
+    let budgetUpdate: any = {}
     if (type === 'extension') {
       amount = budget.extensionApprovalRequest.properties.budgetExtensionAmount
+      budgetUpdate.$inc = { balance: amount, amount }
     } else if (type === 'expense') {
       amount = budget.amount
+      budgetUpdate.$inc = { balance: amount }
+      budgetUpdate.status = BudgetStatus.Active
+    }
+
+    // we want to immediately fund budget if the amount is available in wallet
+    if (!approvalRequired) {
+      await cdb.transaction(async (session) => {
+        const wallet = await Wallet.findOneAndUpdate(
+          {
+            organization: data.orgId,
+            currency: budget!.currency,
+            balance: { $gte: amount }
+          },
+          { $inc: { balance: -amount, ledgerBalance: -amount } },
+          { session, new: true }
+        )
+
+        if (!wallet) {
+          // insufficient funds, create fund request
+          return;
+        }
+
+        budget = await Budget.findOneAndUpdate({ _id: budget!._id }, {
+          status: "active",
+          extensionApprovalRequest: null,
+          fundRequestApprovalRequest: null,
+          ...budgetUpdate
+        }, { new: true, session })
+
+        const reference = createId()
+        const [entry] = await WalletEntry.create([{
+          organization: data.orgId,
+          wallet: wallet._id,
+          initiatedBy: data.userId,
+          currency: wallet.currency,
+          type: WalletEntryType.Debit,
+          balanceBefore: numeral(wallet.balance).add(amount).value(),
+          ledgerBalanceBefore: numeral(wallet.ledgerBalance).add(amount).value(),
+          ledgerBalanceAfter: wallet.ledgerBalance,
+          balanceAfter: wallet.balance,
+          amount,
+          scope: WalletEntryScope.BudgetFunding,
+          paymentMethod: 'wallet',
+          provider: 'wallet',
+          providerRef: reference,
+          narration: "Fund request",
+          reference: reference,
+          budget: budget!._id,
+          status: WalletEntryStatus.Successful,
+          meta: {
+            budgetBalanceAfter: budget!.balance
+          }
+        }], { session })
+
+        await wallet.updateOne({ walletEntry: entry._id }, { session })
+      }, transactionOpts)
+
+      return {
+        status: 'approved',
+        message: 'Budget funded'
+      }
     }
     
     rule!.reviewers.forEach(reviewer => {
       this.emailService.sendFundRequestApprovalRequest(reviewer.email, {
         amount: formatMoney(amount),
-        currency: budget.currency,
-        budget: budget.name,
+        currency: budget!.currency,
+        budget: budget!.name,
         employeeName: reviewer.firstName,
         link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
         requester: {
@@ -1027,7 +1090,7 @@ export default class BudgetService {
           avatar: user.avatar
         },
         workflowType: toTitleCase(WorkflowType.FundRequest),
-        beneficiaries: budget.beneficiaries.map((b: any) => ({
+        beneficiaries: budget!.beneficiaries.map((b: any) => ({
           avatar: b.user.avatar,
           firstName: b.user.firstName,
           lastName: b.user.lastName
