@@ -19,7 +19,7 @@ import { Request } from "express";
 import PreRegisterUser from "@/models/pre-register.model";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import Role, { RoleType } from "@/models/role.model";
-import { FeatureLimitExceededError, ServiceUnavailableError } from "../common/utils/service-errors";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
 import UserInvite from "@/models/user-invite.model";
 import ApprovalService from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
@@ -98,9 +98,9 @@ export class UserService {
           initiatedBy: invite.invitedBy,
         })
       } catch (err) {
-        throw new FeatureLimitExceededError(
+        throw new BadRequestError(
           `Organization has reached its maximum limit for users. To continue adding users top-up your wallet`
-          , code)
+          )
       }
     }
 
