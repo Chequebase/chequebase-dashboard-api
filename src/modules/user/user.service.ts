@@ -19,7 +19,7 @@ import { Request } from "express";
 import PreRegisterUser from "@/models/pre-register.model";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import Role, { RoleType } from "@/models/role.model";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
+import { FeatureLimitExceededError, ServiceUnavailableError } from "../common/utils/service-errors";
 import UserInvite from "@/models/user-invite.model";
 import ApprovalService from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
@@ -96,13 +96,21 @@ export class UserService {
     await user.save()
 
     if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
-      await WalletService.chargeWallet(invite.organization, {
-        amount: usage.feature.costPerUnit.NGN,
-        narration: 'Reactivate organization user',
-        scope: WalletEntryScope.PlanSubscription,
-        currency: 'NGN',
-        initiatedBy: invite.invitedBy,
-      })
+      const amount = usage.feature.costPerUnit.NGN
+      const amountStr = `${(amount/100).toFixed(2)}`
+      try {
+        await WalletService.chargeWallet(invite.organization, {
+          amount,
+          narration: 'Reactivate organization user',
+          scope: WalletEntryScope.PlanSubscription,
+          currency: 'NGN',
+          initiatedBy: invite.invitedBy,
+        })
+      } catch (err) {
+        throw new FeatureLimitExceededError(
+          `Organization has reached its maximum limit for users. To continue adding users top-up your wallet`
+          , code)
+      }
     }
 
     await UserInvite.deleteOne({ _id: invite._id })
@@ -606,6 +614,16 @@ export class UserService {
     }
 
     const usage = await this.planUsageService.checkUsersUsage(invite.organization)
+    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
+      await WalletService.chargeWallet(invite.organization, {
+        amount: usage.feature.costPerUnit.NGN,
+        narration: 'Add organization user',
+        scope: WalletEntryScope.PlanSubscription,
+        currency: 'NGN',
+        initiatedBy: invite.invitedBy,
+      })
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12)
 
     const departments = []
@@ -625,16 +643,6 @@ export class UserService {
       KYBStatus: KycStatus.APPROVED,
       organization: invite.organization,
     })
-
-    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
-      await WalletService.chargeWallet(invite.organization, {
-        amount: usage.feature.costPerUnit.NGN,
-        narration: 'Add organization user',
-        scope: WalletEntryScope.PlanSubscription,
-        currency: 'NGN',
-        initiatedBy: invite.invitedBy,
-      })
-    }
 
     await UserInvite.deleteOne({ _id: invite._id })
     const tokens = await this.getTokens({
