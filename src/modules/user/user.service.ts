@@ -87,17 +87,8 @@ export class UserService {
     }
 
     const usage = await this.planUsageService.checkUsersUsage(invite.organization)
-
-    user.status = UserStatus.ACTIVE
-    if (invite.department) user.departments = [invite.department]
-    user.manager = invite.manager
-    user.roleRef = invite.roleRef._id
-    user.role = invite.roleRef.name
-    await user.save()
-
     if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
       const amount = usage.feature.costPerUnit.NGN
-      const amountStr = `${(amount/100).toFixed(2)}`
       try {
         await WalletService.chargeWallet(invite.organization, {
           amount,
@@ -112,6 +103,13 @@ export class UserService {
           , code)
       }
     }
+
+    user.status = UserStatus.ACTIVE
+    if (invite.department) user.departments = [invite.department]
+    user.manager = invite.manager
+    user.roleRef = invite.roleRef._id
+    user.role = invite.roleRef.name
+    await user.save()
 
     await UserInvite.deleteOne({ _id: invite._id })
 
@@ -568,6 +566,21 @@ export class UserService {
     }
 
     const usage = await this.planUsageService.checkUsersUsage(orgId)
+    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
+      try {
+        await WalletService.chargeWallet(orgId, {
+          amount: usage.feature.costPerUnit.NGN,
+          narration: 'Add organization user',
+          scope: WalletEntryScope.PlanSubscription,
+          currency: 'NGN',
+          initiatedBy: userId,
+        })
+      } catch (err) {
+        throw new BadRequestError(
+          `Organization has reached its maximum limit for users. To continue adding users top-up your wallet`
+        )
+      }
+    }
 
     const code = createId()
     await User.create({
@@ -581,16 +594,6 @@ export class UserService {
       status: UserStatus.INVITED,
       KYBStatus: KycStatus.NOT_STARTED
     })
-
-    if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
-      await WalletService.chargeWallet(orgId, {
-        amount: usage.feature.costPerUnit.NGN,
-        narration: 'Add organization user',
-        scope: WalletEntryScope.PlanSubscription,
-        currency: 'NGN',
-        initiatedBy: userId,
-      })
-    }
 
     this.emailService.sendEmployeeInviteEmail(data.email, {
       inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${code}&companyName=${organization.businessName}`,
@@ -615,13 +618,19 @@ export class UserService {
 
     const usage = await this.planUsageService.checkUsersUsage(invite.organization)
     if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
-      await WalletService.chargeWallet(invite.organization, {
-        amount: usage.feature.costPerUnit.NGN,
-        narration: 'Add organization user',
-        scope: WalletEntryScope.PlanSubscription,
-        currency: 'NGN',
-        initiatedBy: invite.invitedBy,
-      })
+      try {
+        await WalletService.chargeWallet(invite.organization, {
+          amount: usage.feature.costPerUnit.NGN,
+          narration: 'Add organization user',
+          scope: WalletEntryScope.PlanSubscription,
+          currency: 'NGN',
+          initiatedBy: invite.invitedBy,
+        })
+      } catch (err) {
+        throw new BadRequestError(
+          `Organization has reached its maximum limit for users. To continue adding users top-up your wallet`
+        )
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 12)
