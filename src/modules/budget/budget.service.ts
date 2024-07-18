@@ -361,7 +361,7 @@ export default class BudgetService {
             role: review.user.roleRef.name
           }
         })),
-        status: 'Approved'
+        status: 'approved'
       })
     }, transactionOpts)
   

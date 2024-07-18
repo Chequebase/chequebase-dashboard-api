@@ -110,7 +110,7 @@ async function processFundBudget(job: Job<FundBudgetJob>) {
           role: review.user.roleRef.name
         }
       })),
-      status: 'Approved'
+      status: 'approved'
     })
 
     return { message: 'budget funded' }
