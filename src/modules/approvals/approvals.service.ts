@@ -269,7 +269,7 @@ export default class ApprovalService {
           role: review.user.roleRef.name
         }
       })),
-      status: 'Approved'
+      status: 'approved'
     })
 
     return response
@@ -335,7 +335,7 @@ export default class ApprovalService {
           role: review.user.roleRef.name
         }
       })),
-      status: 'Declined'
+      status: 'declined'
     })
 
     return request
