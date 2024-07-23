@@ -220,6 +220,7 @@ export class UserService {
       await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       await user.updateOne({
         hashRt: '',
+        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
         otpExpiresAt,
         otp
       })
