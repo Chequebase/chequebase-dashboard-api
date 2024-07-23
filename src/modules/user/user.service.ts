@@ -446,35 +446,28 @@ export class UserService {
       throw new BadRequestError('Invalid credentials');
     }
 
-    console.log({ passCode: user.passwordResetCode })
-
     const newPassword = await bcrypt.hash(password, 12);
     await user.updateOne({
       password: newPassword,
     })
 
-    console.log({ newPassword })
-
     const params = this.getEmailParams(user.email)
 
-    console.log({ params })
-    const Message = {
-      Body: {
-        Text: {
-          Charset: "UTF-8",
-          Data: `Password Reset Successful`
-        }
-      },
-      Subject: {
-        Charset: 'UTF-8',
-        Data: 'Password Reset Successful'
-      }
-    }
+    // const Message = {
+    //   Body: {
+    //     Text: {
+    //       Charset: "UTF-8",
+    //       Data: `Password Reset Successful`
+    //     }
+    //   },
+    //   Subject: {
+    //     Charset: 'UTF-8',
+    //     Data: 'Password Reset Successful'
+    //   }
+    // }
 
-    params.Message = Message;
-    await this.emailService.sendEmail(params);
-
-    console.log({ paramss: params })
+    // params.Message = Message;
+    // await this.emailService.sendEmail(params);
     
     return { message: 'success' };
   }
