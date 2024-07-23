@@ -447,9 +447,8 @@ export class UserService {
     }
 
     const newPassword = await bcrypt.hash(password, 12);
-    user.updateOne({
+    await user.updateOne({
       password: newPassword,
-      rememberMe: new Date().getTime()
     })
 
     const params = this.getEmailParams(user.email)
