@@ -446,12 +446,18 @@ export class UserService {
       throw new BadRequestError('Invalid credentials');
     }
 
+    console.log({ passCode: user.passwordResetCode })
+
     const newPassword = await bcrypt.hash(password, 12);
     await user.updateOne({
       password: newPassword,
     })
 
+    console.log({ newPassword })
+
     const params = this.getEmailParams(user.email)
+
+    console.log({ params })
     const Message = {
       Body: {
         Text: {
@@ -467,6 +473,8 @@ export class UserService {
 
     params.Message = Message;
     await this.emailService.sendEmail(params);
+
+    console.log({ paramss: params })
     
     return { message: 'success' };
   }
