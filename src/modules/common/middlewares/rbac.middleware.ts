@@ -1,16 +1,17 @@
-import { Action, UnauthorizedError } from 'routing-controllers'
+import { Action, UnauthorizedError } from "routing-controllers";
 import jwt from "jsonwebtoken";
-import { getEnvOrThrow } from '../utils';
-import Logger from '../utils/logger';
-import User, { KycStatus, UserStatus } from '@/models/user.model';
-import { IOrganization } from '@/models/organization.model';
+import { getEnvOrThrow } from "../utils";
+import Logger from "../utils/logger";
+import User, { KycStatus, UserStatus } from "@/models/user.model";
+import { IOrganization } from "@/models/organization.model";
+import { log } from "logfmt";
 
-const logger = new Logger('rbac')
+const logger = new Logger("rbac");
 
-const secretKey = getEnvOrThrow('ACCESS_TOKEN_SECRET');
+const secretKey = getEnvOrThrow("ACCESS_TOKEN_SECRET");
 export const CurrentUser = async (requestAction: Action) => {
-  return requestAction.request.auth
-}
+  return requestAction.request.auth;
+};
 
 export const verifyToken = (token: string, secret = secretKey) => {
   try {
@@ -21,49 +22,61 @@ export const verifyToken = (token: string, secret = secretKey) => {
 
     return decodedToken;
   } catch (error: any) {
-    logger.error('error validating token', { error: error.message, component: "jwt" });
+    logger.error("error validating token", {
+      error: error.message,
+      component: "jwt",
+    });
     throw new UnauthorizedError("Unauthorized!");
   }
-}
+};
 
 export const RBAC = async (requestAction: Action, actions: string[] = []) => {
-  const token = requestAction.request.headers['authorization']?.split('Bearer ')?.pop()
-  const decodedToken = verifyToken(token)
+  const token = requestAction.request.headers["authorization"]
+    ?.split("Bearer ")
+    ?.pop();
+  const decodedToken = verifyToken(token);
   if (!decodedToken) {
-    throw new UnauthorizedError('Unauthorized')
+    throw new UnauthorizedError("Unauthorized");
   }
 
   const user = await User.findById(decodedToken.sub)
-    .populate<{ organization: IOrganization }>('organization')
+    .populate<{ organization: IOrganization }>("organization")
     .populate({
-      path: 'roleRef', select: 'name type permissions',
-      populate: { path: 'permissions', select: 'actions name' }
-    })
+      path: "roleRef",
+      select: "name type permissions",
+      populate: { path: "permissions", select: "actions name" },
+    });
 
-  if (!user || user.status === UserStatus.DELETED || user.status === UserStatus.DISABLED) {
-    throw new UnauthorizedError('Unauthorized')
+  if (
+    !user ||
+    user.status === UserStatus.DELETED ||
+    user.status === UserStatus.DISABLED
+  ) {
+    throw new UnauthorizedError("Unauthorized");
   }
 
   if (user?.organization.status === KycStatus.BLOCKED) {
-    throw new UnauthorizedError('Can Not Log In At This Time')
+    throw new UnauthorizedError("Can Not Log In At This Time");
   }
 
+  const isOwner =
+    user?.roleRef?.name === "owner" && user?.roleRef?.type === "default";
   requestAction.request.auth = Object.assign(decodedToken, {
     roleRef: user?.roleRef,
-    isOwner: user?.roleRef?.name === 'owner' && user?.roleRef?.type === 'default'
-  })
- 
-  if (!actions.length) {
+    isOwner,
+  });
+
+  if (!actions.length || isOwner) {
     return true;
   }
 
   if (!user.roleRef) {
-    return actions.includes(user.role)
+    return actions.includes(user.role);
   }
- 
-  let userActions = user.roleRef?.permissions?.flatMap((p: any) => p.actions)
 
-  return actions.some((role) => userActions.includes(role)) ||
-    (user.id === user.organization.admin) ||
-    user.roleRef.name === 'owner';
-}
+  let userActions = user.roleRef?.permissions?.flatMap((p: any) => p.actions);
+
+  const isAllowed = actions.some((action) => userActions.includes(action));
+  console.log({ isAllowed, userActions });
+  return isAllowed;
+};
