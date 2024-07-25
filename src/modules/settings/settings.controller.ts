@@ -1,49 +1,77 @@
-import { CreatePinDto } from './dto/create-pin.dto';
-import { ChangeForgotCurrentPinDto, ChangePinDto, ForgotCurrentPinDto } from './dto/change-pin.dto';
-import { Service } from 'typedi';
-import { Authorized, Body, CurrentUser, ForbiddenError, Get, JsonController, Param, Post } from 'routing-controllers';
-import { AuthUser } from '../common/interfaces/auth-user';
-import { SettingsService } from './settings.service';
-import { ERole } from '../user/dto/user.dto';
+import { CreatePinDto } from "./dto/create-pin.dto";
+import {
+  ChangeForgotCurrentPinDto,
+  ChangePinDto,
+  ForgotCurrentPinDto,
+} from "./dto/change-pin.dto";
+import { Service } from "typedi";
+import {
+  Authorized,
+  Body,
+  CurrentUser,
+  ForbiddenError,
+  Get,
+  JsonController,
+  Param,
+  Post,
+} from "routing-controllers";
+import { AuthUser } from "../common/interfaces/auth-user";
+import { SettingsService } from "./settings.service";
+import { ERole } from "../user/dto/user.dto";
 
 @Service()
-@JsonController('/settings', { transformResponse: false })
+@JsonController("/settings", { transformResponse: false })
 export default class SettingsController {
-  constructor (private readonly settingsService: SettingsService) { }
+  constructor(private readonly settingsService: SettingsService) {}
 
   @Authorized()
-  @Post('/create-pin')
+  @Post("/create-pin")
   createPin(@CurrentUser() auth: AuthUser, @Body() createPinDto: CreatePinDto) {
     return this.settingsService.createPin(auth.userId, createPinDto);
   }
 
-  @Authorized(ERole.Owner)
-  @Post('/change-pin')
-  async changePin(@CurrentUser() auth: AuthUser, @Body() changePinDto: ChangePinDto) {
+  @Authorized()
+  @Post("/change-pin")
+  async changePin(
+    @CurrentUser() auth: AuthUser,
+    @Body() changePinDto: ChangePinDto
+  ) {
     return this.settingsService.changePin(auth.userId, changePinDto);
   }
 
-  @Authorized(ERole.Owner)
-  @Post('/forgot-pin')
-  async forgotPin(@CurrentUser() auth: AuthUser, @Body() forgotCurrentPinDto: ForgotCurrentPinDto) {
-    return this.settingsService.forgotCurrentPin(auth.userId, forgotCurrentPinDto);
+  @Authorized()
+  @Post("/forgot-pin")
+  async forgotPin(
+    @CurrentUser() auth: AuthUser,
+    @Body() forgotCurrentPinDto: ForgotCurrentPinDto
+  ) {
+    return this.settingsService.forgotCurrentPin(
+      auth.userId,
+      forgotCurrentPinDto
+    );
   }
 
-  @Authorized(ERole.Owner)
-  @Post('/change-forgot-pin')
-  async changeForgotPin(@CurrentUser() auth: AuthUser, @Body() changeForgotCurrentPinDto: ChangeForgotCurrentPinDto) {
-    return this.settingsService.changeForgotCurrentPin(auth.userId, changeForgotCurrentPinDto);
+  @Authorized()
+  @Post("/change-forgot-pin")
+  async changeForgotPin(
+    @CurrentUser() auth: AuthUser,
+    @Body() changeForgotCurrentPinDto: ChangeForgotCurrentPinDto
+  ) {
+    return this.settingsService.changeForgotCurrentPin(
+      auth.userId,
+      changeForgotCurrentPinDto
+    );
   }
 
-  @Get('/permissions')
+  @Get("/permissions")
   @Authorized()
   getPermissions(@CurrentUser() auth: AuthUser) {
-    return this.settingsService.getPermissions(auth.userId)
+    return this.settingsService.getPermissions(auth.userId);
   }
 
-  @Get('/:role/users')
+  @Get("/:role/users")
   @Authorized()
-  getRoleUsers(@CurrentUser() auth: AuthUser,  @Param('role') role: string,) {
-    return this.settingsService.getUsersByRole(auth, role)
+  getRoleUsers(@CurrentUser() auth: AuthUser, @Param("role") role: string) {
+    return this.settingsService.getUsersByRole(auth, role);
   }
 }
