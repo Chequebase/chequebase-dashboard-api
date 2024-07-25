@@ -4,7 +4,6 @@ import { getEnvOrThrow } from "../utils";
 import Logger from "../utils/logger";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import { IOrganization } from "@/models/organization.model";
-import { log } from "logfmt";
 
 const logger = new Logger("rbac");
 
@@ -77,6 +76,6 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
   let userActions = user.roleRef?.permissions?.flatMap((p: any) => p.actions);
 
   const isAllowed = actions.some((action) => userActions.includes(action));
-  console.log({ isAllowed, userActions });
+  console.log({ isAllowed, userActions, actions });
   return isAllowed;
 };
