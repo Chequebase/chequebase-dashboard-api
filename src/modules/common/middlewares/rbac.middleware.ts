@@ -76,6 +76,5 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
   let userActions = user.roleRef?.permissions?.flatMap((p: any) => p.actions);
 
   const isAllowed = actions.some((action) => userActions.includes(action));
-  console.log({ isAllowed, userActions, actions });
   return isAllowed;
 };
