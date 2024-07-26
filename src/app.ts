@@ -1,27 +1,28 @@
-import { validationMetadatasToSchemas } from 'class-validator-jsonschema'
-import basicAuth from 'express-basic-auth'
-import express, { Request, Response } from "express";
-import { RoutingControllersOptions, getMetadataArgsStorage, useContainer, useExpressServer } from "routing-controllers";
-import helmet from "helmet";
-import { routingControllersToSpec } from 'routing-controllers-openapi'
-import * as swaggerUiExpress from 'swagger-ui-express'
-import hpp from "hpp";
+import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
 import cors from "cors";
+import express, { Request, Response } from "express";
+import basicAuth from 'express-basic-auth';
+import helmet from "helmet";
+import hpp from "hpp";
+import { RoutingControllersOptions, getMetadataArgsStorage, useContainer, useExpressServer } from "routing-controllers";
+import { routingControllersToSpec } from 'routing-controllers-openapi';
+import * as swaggerUiExpress from 'swagger-ui-express';
 import Container from "typedi";
+import ApprovalsController from './modules/approvals/approvals.controller';
+import LogController from './modules/audit-logs/logs.controller';
+import BanksphereController from './modules/banksphere/banksphere.controller';
+import BillingController from "./modules/billing/plan.controller";
+import BudgetController from './modules/budget/budget.controller';
 import apiRequestLogger from "./modules/common/middlewares/api-request-logger";
 import { ExceptionFilter } from "./modules/common/middlewares/exception-filter.middleware";
 import { CurrentUser, RBAC } from "./modules/common/middlewares/rbac.middleware";
-import UserController  from "./modules/user/user.controller";
 import OrganizationsController from "./modules/organization/organization.controller";
+import { OverviewController } from './modules/overview/overview.controller';
+import PeopleController from './modules/people/people.controller';
+import SettingsController from './modules/settings/settings.controller';
+import UserController from "./modules/user/user.controller";
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
-import BillingController from "./modules/billing/plan.controller";
-import BudgetController from './modules/budget/budget.controller';
-import { OverviewController } from './modules/overview/overview.controller';
-import SettingsController from './modules/settings/settings.controller';
-import BanksphereController from './modules/banksphere/banksphere.controller';
-import PeopleController from './modules/people/people.controller';
-import ApprovalsController from './modules/approvals/approvals.controller';
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
@@ -54,7 +55,8 @@ const rcOptions: RoutingControllersOptions = {
     SettingsController,
     PeopleController,
     ApprovalsController,
-    BanksphereController
+    BanksphereController,
+    LogController
   ],
   middlewares: [ExceptionFilter],
   interceptors: [],
