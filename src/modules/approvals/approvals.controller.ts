@@ -1,6 +1,6 @@
 import { LogAction } from "@/models/logs.model";
 import { EPermission } from "@/models/role-permission.model";
-import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Post, Put, QueryParams, UseAfter } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Post, Put, QueryParams, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import { logAuditTrail } from "../common/audit-logs/logs";
 import { AuthUser } from "../common/interfaces/auth-user";
@@ -14,14 +14,14 @@ export default class ApprovalsController {
 
   @Post('/rules')
   @Authorized(EPermission.ApprovalsCreate)
-  @UseAfter(logAuditTrail(LogAction.CREATE_APPROVAL_WORKFLOW))
+  @UseBefore(logAuditTrail(LogAction.CREATE_APPROVAL_WORKFLOW))
   createRule(@CurrentUser() auth: AuthUser, @Body() dto: CreateRule) {
     return this.approvalService.createApprovalRule(auth, dto)
   }
 
   @Put('/rules/:id')
   @Authorized(EPermission.ApprovalsCreate)
-  @UseAfter(logAuditTrail(LogAction.UPDATE_APPROVAL_WORKFLOW))
+  @UseBefore(logAuditTrail(LogAction.UPDATE_APPROVAL_WORKFLOW))
   updateRule(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateRule) {
     return this.approvalService.updateApprovalRule(auth.orgId, id, dto)
   }
@@ -34,7 +34,7 @@ export default class ApprovalsController {
 
   @Delete('/rules/:id')
   @Authorized(EPermission.ApprovalsCreate)
-  @UseAfter(logAuditTrail(LogAction.DELETE_APPROVAL_WORKFLOW))
+  @UseBefore(logAuditTrail(LogAction.DELETE_APPROVAL_WORKFLOW))
   deleteRule(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.approvalService.deleteRule(auth.orgId, id)
   }
@@ -47,21 +47,21 @@ export default class ApprovalsController {
 
   @Post('/requests/:id/approve')
   @Authorized(EPermission.ApprovalsApprove)
-  @UseAfter(logAuditTrail(LogAction.APPROVE_APPROVAL_WORKFLOW_REQUEST))
+  @UseBefore(logAuditTrail(LogAction.APPROVE_APPROVAL_WORKFLOW_REQUEST))
   approveApprovalRequest(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: ApproveApprovalRequestBody) {
     return this.approvalService.approveApprovalRequests(auth, id, dto)
   }
 
   @Post('/requests/:id/decline')
   @Authorized(EPermission.ApprovalsDecline)
-  @UseAfter(logAuditTrail(LogAction.DECLINE_APPROVAL_WORKFLOW_REQUEST))
+  @UseBefore(logAuditTrail(LogAction.DECLINE_APPROVAL_WORKFLOW_REQUEST))
   declineApprovalRequest(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: DeclineRequest) {
     return this.approvalService.declineApprovalRequest(auth, id, dto)
   }
 
   @Post('/requests/:id/reminder')
   @Authorized()
-  @UseAfter(logAuditTrail(LogAction.SEND_APPROVAL_WORKFLOW_REMINDER))
+  @UseBefore(logAuditTrail(LogAction.SEND_APPROVAL_WORKFLOW_REMINDER))
   sendRequestReminder(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.approvalService.sendRequestReminder(auth, id)
   }

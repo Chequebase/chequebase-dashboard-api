@@ -73,14 +73,9 @@ export default class LogService {
           _id: 1,
           organization: 1,
           user: 1,
-          ip: 1,
           action: 1,
-          method: 1,
-          details: 1,
           url: 1,
-          statusCode: 1,
           createdAt: 1,
-          updatedAt: 1,
           userDetails: 1,
           organizationDetails: 1
         }

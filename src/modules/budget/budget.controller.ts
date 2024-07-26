@@ -4,7 +4,7 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { Request } from 'express';
 import multer from "multer";
-import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseAfter, UseBefore } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Patch, Post, Put, QueryParams, Req, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import { logAuditTrail } from "../common/audit-logs/logs";
 import { AuthUser } from "../common/interfaces/auth-user";
@@ -83,7 +83,7 @@ export default class BudgetController {
 
   @Post('/')
   @Authorized()
-  @UseAfter(logAuditTrail(LogAction.CREATE_BUDGET))
+  @UseBefore(logAuditTrail(LogAction.CREATE_BUDGET))
   createBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
     return this.budgetService.requestBudget(auth, dto)
   }
@@ -120,21 +120,21 @@ export default class BudgetController {
 
   @Post('/policies')
   @Authorized(EPermission.PolicyEdit)
-  @UseAfter(logAuditTrail(LogAction.CREATE_BUDGET_POLICY))
+  @UseBefore(logAuditTrail(LogAction.CREATE_BUDGET_POLICY))
   createPolicy(@CurrentUser() auth: AuthUser, @Body() dto: CreatePolicy) {
     return this.policyService.createPolicy(auth, dto)
   }
 
   @Put('/policies/:id')
   @Authorized(EPermission.PolicyEdit)
-  @UseAfter(logAuditTrail(LogAction.EDIT_BUDGET_POLICY))
+  @UseBefore(logAuditTrail(LogAction.EDIT_BUDGET_POLICY))
   updatePolicy(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: updatePolicy) {
     return this.policyService.updatePolicy(auth, id, dto)
   }
 
   @Delete('/policies/:id')
   @Authorized(EPermission.PolicyEdit)
-  @UseAfter(logAuditTrail(LogAction.DELETE_BUDGET_POLICY))
+  @UseBefore(logAuditTrail(LogAction.DELETE_BUDGET_POLICY))
   deletePolicy(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.policyService.deletePolicy(auth, id)
   }
@@ -165,7 +165,7 @@ export default class BudgetController {
 
   @Post('/transfer')
   @Authorized()
-  @UseAfter(logAuditTrail(LogAction.CREATE_BUDGET_TRANSFER))
+  @UseBefore(logAuditTrail(LogAction.CREATE_BUDGET_TRANSFER))
   createTransferBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
     return this.budgetService.requestBudget(auth, dto)
   }
@@ -208,7 +208,7 @@ export default class BudgetController {
 
   @Post('/:id/fund-request')
   @Authorized()
-  @UseAfter(logAuditTrail(LogAction.INITIATE_FUND_REQUEST))
+  @UseBefore(logAuditTrail(LogAction.INITIATE_FUND_REQUEST))
   initiateFundRequest(@CurrentUser() auth: AuthUser, @Param('id') budgetId: string, @Body() dto: FundRequestBody) {
     return this.budgetService.initiateFundRequest({
       userId: auth.userId,
@@ -220,21 +220,21 @@ export default class BudgetController {
 
   @Put('/:id')
   @Authorized(EPermission.BudgetCreate)
-  @UseAfter(logAuditTrail(LogAction.EDIT_BUDGET))
+  @UseBefore(logAuditTrail(LogAction.EDIT_BUDGET))
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
     return this.budgetService.editBudget(auth, id, dto)
   }
 
   @Post('/:id/extend')
   @Authorized(EPermission.BudgetExtend)
-  @UseAfter(logAuditTrail(LogAction.EXTEND_BUDGET))
+  @UseBefore(logAuditTrail(LogAction.EXTEND_BUDGET))
   extendBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: RequestBudgetExtension) {
     return this.budgetService.requestBudgetExtension(auth, id, dto)
   }
 
   @Put('/:id/cancel')
   @Authorized()
-  @UseAfter(logAuditTrail(LogAction.CANCEL_BUDGET))
+  @UseBefore(logAuditTrail(LogAction.CANCEL_BUDGET))
   cancelBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetService.cancelBudget(auth, id)
   }
@@ -253,7 +253,7 @@ export default class BudgetController {
 
   @Post('/:id/pause')
   @Authorized(EPermission.BudgetCreate)
-  @UseAfter(logAuditTrail(LogAction.PAUSE_BUDGET))
+  @UseBefore(logAuditTrail(LogAction.PAUSE_BUDGET))
   pauseBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -264,7 +264,7 @@ export default class BudgetController {
 
   @Post('/:id/close')
   @Authorized(EPermission.BudgetDelete)
-  @UseAfter(logAuditTrail(LogAction.CLOSE_BUDGET))
+  @UseBefore(logAuditTrail(LogAction.CLOSE_BUDGET))
   closeBudget(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
@@ -276,7 +276,7 @@ export default class BudgetController {
   @Post('/:id/transfer/initiate')
   @Authorized()
   @UseBefore(multer().single('invoice'))
-  @UseAfter(logAuditTrail(LogAction.INITIATE_BUDGET_TRANSFER))
+  @UseBefore(logAuditTrail(LogAction.INITIATE_BUDGET_TRANSFER))
   async initiateTransfer(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
