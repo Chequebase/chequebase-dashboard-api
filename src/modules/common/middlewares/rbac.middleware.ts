@@ -23,7 +23,7 @@ export const verifyToken = (token: string, secret = secretKey) => {
   } catch (error: any) {
     logger.error("error validating token", {
       error: error.message,
-      component: "jwt",
+      component: 'jwt',
     });
     throw new UnauthorizedError("Unauthorized!");
   }
