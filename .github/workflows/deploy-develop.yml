@@ -27,8 +27,8 @@ jobs:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           existing_bucket_name: chequebase-elb-app-deployment-develop
-          application_name: chequebase-develop
-          environment_name: chequebase-develop
+          application_name: chequebase-staging
+          environment_name: Chequebase-develop
           wait_for_environment_recovery: 60
           use_existing_version_if_available: true
           version_label: develop-${{ github.SHA }}
