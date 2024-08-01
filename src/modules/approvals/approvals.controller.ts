@@ -23,6 +23,7 @@ export default class ApprovalsController {
   @Authorized(EPermission.ApprovalsCreate)
   @UseBefore(logAuditTrail(LogAction.UPDATE_APPROVAL_WORKFLOW))
   updateRule(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateRule) {
+    console.log('Test')
     return this.approvalService.updateApprovalRule(auth.orgId, id, dto)
   }
 
