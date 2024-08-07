@@ -1,37 +1,37 @@
-import dayjs from "dayjs";
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
-import { BadRequestError, NotFoundError } from "routing-controllers";
-import { Service } from "typedi";
-import * as fastCsv from 'fast-csv';
-import { ObjectId } from 'mongodb'
-import { createId } from '@paralleldrive/cuid2'
-import Organization from "@/models/organization.model";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
-import Wallet from "@/models/wallet.model";
 import BaseWallet from "@/models/base-wallet.model";
+import Budget, { BudgetStatus } from "@/models/budget.model";
+import Counterparty from "@/models/counterparty.model";
+import Organization from "@/models/organization.model";
+import User from "@/models/user.model";
 import VirtualAccount from "@/models/virtual-account.model";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
-import { VirtualAccountService } from "../virtual-account/virtual-account.service";
-import QueryFilter from "../common/utils/query-filter";
-import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
-import Counterparty from "@/models/counterparty.model";
-import { cdb } from "../common/mongoose";
-import { ChargeWallet } from "./interfaces/wallet.interface";
-import numeral from "numeral";
-import { AuthUser } from "../common/interfaces/auth-user";
-import User from "@/models/user.model";
-import { ERole } from "../user/dto/user.dto";
-import Budget, { BudgetStatus } from "@/models/budget.model";
+import Wallet from "@/models/wallet.model";
 import { walletQueue } from "@/queues";
+import { createId } from '@paralleldrive/cuid2';
+import dayjs from "dayjs";
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
+import * as fastCsv from 'fast-csv';
+import { ObjectId } from 'mongodb';
+import numeral from "numeral";
+import { BadRequestError, NotFoundError } from "routing-controllers";
+import { Service } from "typedi";
+import { AuthUser } from "../common/interfaces/auth-user";
+import { cdb } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
+import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
+import QueryFilter from "../common/utils/query-filter";
+import { ERole } from "../user/dto/user.dto";
+import { VirtualAccountService } from "../virtual-account/virtual-account.service";
+import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { ChargeWallet } from "./interfaces/wallet.interface";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
 @Service()
 export default class WalletService {
-  constructor (private virtualAccountService: VirtualAccountService, private slackService: SlackNotificationService) { }
+  constructor(private virtualAccountService: VirtualAccountService, private slackService: SlackNotificationService) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()
@@ -115,7 +115,9 @@ export default class WalletService {
       identity: {
         type: 'bvn',
         number: organization.owners[0]?.bvn,
-      }
+      },
+      phone: organization.phone,
+      rcNumber: organization.rcNumber
     })
 
     const wallet = await Wallet.create({
@@ -160,7 +162,7 @@ export default class WalletService {
         select: 'accountNumber bankName bankCode name'
       })
       .lean()
-    
+
     return wallets
   }
 
@@ -175,7 +177,7 @@ export default class WalletService {
     if (!wallet) {
       return null
     }
-    
+
     return wallet
   }
 
@@ -231,7 +233,7 @@ export default class WalletService {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()
       })
-    
+
     if (query.search) {
       const search = escapeRegExp(query.search)
       filter.set('$or', [{ reference: { $regex: search } }])
@@ -311,7 +313,7 @@ export default class WalletService {
     const filter = query.wallet ? { _id: query.wallet } : { primary: true }
     const wallet = await Wallet.exists({ ...filter, organization: orgId })
     if (!wallet) throw new BadRequestError('No transaction found for organization')
-    
+
     await walletQueue.add('sendAccountStatement', {
       orgId,
       walletId: wallet._id,

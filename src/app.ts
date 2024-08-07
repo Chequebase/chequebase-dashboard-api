@@ -19,6 +19,7 @@ import { CurrentUser, RBAC } from "./modules/common/middlewares/rbac.middleware"
 import OrganizationsController from "./modules/organization/organization.controller";
 import { OverviewController } from './modules/overview/overview.controller';
 import PeopleController from './modules/people/people.controller';
+import ProviderController from './modules/select-providers/providers.controller';
 import SettingsController from './modules/settings/settings.controller';
 import UserController from "./modules/user/user.controller";
 import WalletController from "./modules/wallet/wallet.controller";
@@ -56,7 +57,8 @@ const rcOptions: RoutingControllersOptions = {
     PeopleController,
     ApprovalsController,
     BanksphereController,
-    LogController
+    LogController,
+    ProviderController
   ],
   middlewares: [ExceptionFilter],
   interceptors: [],
