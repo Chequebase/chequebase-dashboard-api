@@ -27,7 +27,7 @@ import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
 
 const MongoSessionsStore = mongoSessionStore(expressSession);
-const store = new MongoSessionsStore({ uri: process.env.DB_URI || '', collection: 'Sessions' })
+const store = new MongoSessionsStore({ uri: process.env.DB_URI || '', collection: 'sessions' })
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
 const app = express();
