@@ -996,10 +996,6 @@ export default class BudgetService {
     }
 
     const rule = await ApprovalRule.findOne({ organization: orgId, workflowType: WorkflowType.FundRequest })
-    if (!rule) {
-      throw new BadRequestError('Unable to request funding, contact admin')
-    }
-
     if (type === 'expense' && (budget.status !== 'pending' || !budget.approvedDate)) {
       throw new BadRequestError("Budget is not valid for expense funding request")
     }
@@ -1020,7 +1016,7 @@ export default class BudgetService {
     }
 
     // we want to immediately fund budget if the amount is available in wallet
-    if (!approvalRequired) {
+    if (!approvalRequired || !rule) {
       await cdb.transaction(async (session) => {
         const wallet = await Wallet.findOneAndUpdate(
           {

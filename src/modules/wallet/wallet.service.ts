@@ -349,7 +349,7 @@ export default class WalletService {
     const entry = await this.getWalletEntry(orgId, transactionId);
     const slackMssage = `:warning: Reported Transaction :warning: \n\n
       *Message*: ${message}
-      *Tx*: ${JSON.stringify(entry)}
+      *TxID*: ${entry._id}
     `;
     await this.slackService.sendMessage(AllowedSlackWebhooks.reportTransaction, slackMssage);
     return 'sucesss';

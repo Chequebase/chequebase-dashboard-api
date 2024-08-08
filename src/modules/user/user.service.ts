@@ -175,6 +175,9 @@ export class UserService {
     ])
 
 
+    const message = `${data.businessName}, with email: ${data.email} just signed up`;
+    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
+
     const isOwner = user.role === ERole.Owner
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
     this.emailService.sendVerifyEmail(data.email, {
