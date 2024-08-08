@@ -1,4 +1,6 @@
 import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
+import expressSession from 'express-session';
+import mongoSessionStore from 'connect-mongodb-session';
 import cors from "cors";
 import express, { Request, Response } from "express";
 import basicAuth from 'express-basic-auth';
@@ -24,9 +26,21 @@ import UserController from "./modules/user/user.controller";
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
 
+const MongoSessionsStore = mongoSessionStore(expressSession);
+const store = new MongoSessionsStore({ uri: process.env.DB_URI || '', collection: 'Sessions' })
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
 const app = express();
+
+app.use(expressSession({
+  secret: 'secret-key',
+  resave: false,
+  store: store,
+  saveUninitialized: false,
+
+  cookie: { maxAge: 60000 } // session timeout of 60 seconds
+}));
+
 app.use(hpp());
 app.set("trust proxy", true);
 app.use(helmet());
