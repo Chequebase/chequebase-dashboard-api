@@ -326,23 +326,23 @@ export class UserService {
     return { tokens, userId: user.id }
   }
 
-  async refreshToken(userId: string, token: string, clientId: string) {
-    const user = await User.findById(userId)
-    if (!user) {
-      throw new UnauthorizedError('Wrong token!');
-    }
-
-    const organization = await Organization.findById(user.organization);
-    if (!organization) {
-      throw new UnauthorizedError(`User Organization not found`);
-    }
-
+  async refreshToken(token: string, clientId: string) {
     const session = await Session
     .findOne({ device: clientId, token, revokedAt: { $exists: false } })
     .populate("user");
 
     const error = new ForbiddenError("Invalid token!");
     if (!session) throw error;
+
+    const user = await User.findById(session.user);
+    if (!user) {
+      throw new UnauthorizedError(`User not found`);
+    }
+
+    const organization = await Organization.findById(user.organization);
+    if (!organization) {
+      throw new UnauthorizedError(`User Organization not found`);
+    }
 
     let shouldAuthenticate = false;
 

@@ -119,12 +119,8 @@ export default class UserController {
 
   @Post("/refresh")
   async refreshToken(@HeaderParam("Authorization") authHeader: string, @Body() body: { clientId: string }) {
-    const refreshToken = authHeader?.split("Bearer ")?.pop()!;
-    const auth = verifyToken(
-      refreshToken,
-      getEnvOrThrow("REFRESH_TOKEN_SECRET")
-    ) as AuthUser;
-    return this.userService.refreshToken(auth.userId, refreshToken!, body.clientId);
+    const sessionToken = authHeader?.split("Bearer ")?.pop()!;
+    return this.userService.refreshToken(sessionToken!, body.clientId);
   }
 
   @Post("/resend-email")
