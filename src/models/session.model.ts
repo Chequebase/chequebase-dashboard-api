@@ -1,53 +1,52 @@
-// import { cdb } from '@/modules/common/mongoose';
-// import { ObjectId } from 'mongodb';
-// import mongoose, { Schema } from 'mongoose';
-// import aggregatePaginate from 'mongoose-aggregate-paginate-v2';
-// import mongoosePaginate from 'mongoose-paginate-v2';
+import mongoose, { Schema, Model, Document, Types } from "mongoose";
+import { uid } from "rand-token";
 
-// export interface ISession {
-//   _id: ObjectId;
-//   user: ObjectId;
-//   token: string;
-//   ip: string;
-//   userAgent: string;
-//   expiresAt: Date;
-//   createdAt: Date;
-//   updatedAt: Date;
-// }
+export interface ISession {
+  user: Types.ObjectId
+  device: Types.ObjectId
+  token: string;
+  revokedReason: "logout" | "expired";
+  revokedAt: Date;
+  expiresAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-// interface SessionModel extends
-//   mongoose.PaginateModel<ISession>,
-//   mongoose.AggregatePaginateModel<ISession> { }
+export interface ISessionDocument extends ISession, Document {}
 
-// const sessionSchema = new Schema<ISession>({
-//   user: {
-//     type: Schema.Types.ObjectId,
-//     ref: 'User',
-//     required: true,
-//   },
-//   token: {
-//     type: String,
-//     required: true,
-//     unique: true,
-//   },
-//   ip: {
-//     type: String,
-//     required: true,
-//   },
-//   userAgent: {
-//     type: String,
-//     required: true,
-//   },
-//   expiresAt: {
-//     type: Date,
-//     required: true,
-//   },
-// }, { timestamps: true });
+export interface ISessionModel extends Model<ISessionDocument> {}
 
-// sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index to automatically remove expired sessions
-// sessionSchema.plugin(aggregatePaginate);
-// sessionSchema.plugin(mongoosePaginate);
+export const SessionSchema = new Schema(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    device: {
+      type: Schema.Types.ObjectId,
+      ref: "Device",
+      required: true,
+    },
+    token: {
+      type: String,
+      default: () => uid(256),
+    },
+    expiresAt: {
+      type: Date,
+      default: () => {
+        const date = new Date();
+        date.setDate(date.getDate() + 30);
+        return date;
+      },
+    },
+    revokedAt: Date,
+    revokedReason: {
+      type: String,
+      enum: ["logout", "expired"],
+    },
+  },
+  { timestamps: true }
+);
 
-// const Session = cdb.model<ISession, SessionModel>('Session', sessionSchema);
-
-// export default Session;
+export default mongoose.model<ISessionDocument>("Session", SessionSchema);

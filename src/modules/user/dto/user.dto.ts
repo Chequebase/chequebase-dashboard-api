@@ -39,6 +39,9 @@ export class LoginDto {
   email: string;
 
   @IsString()
+  clientId: string;
+
+  @IsString()
   @MinLength(6)
   password: string;
 
@@ -87,6 +90,9 @@ export class PasswordResetDto {
 export class OtpDto {
   @IsEmail()
   email: string
+
+  @IsString()
+  clientId: string
 
   @IsString()
   otp: string

@@ -6,7 +6,9 @@ import EmailService from "@/modules/common/email.service";
 import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization, { IOrganization } from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
-import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
+import Device from "@/models/device.model";
+import Session from "@/models/session.model";
+import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
 import { LoginDto, ERole, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
@@ -219,8 +221,8 @@ export class UserService {
         otp = 123456
       }
     if (user.rememberMe && user.rememberMe > new Date().getTime()) {
-      const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
-      await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+      const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, data.clientId);
+      // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       await user.updateOne({
         hashRt: '',
         rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
@@ -318,13 +320,13 @@ export class UserService {
       throw new UnauthorizedError(`Invalid Otp`);
     }
 
-    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
-    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, data.clientId);
+    // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     return { tokens, userId: user.id }
   }
 
-  async refreshToken(userId: string, rt: string) {
+  async refreshToken(userId: string, token: string, clientId: string) {
     const user = await User.findById(userId)
     if (!user) {
       throw new UnauthorizedError('Wrong token!');
@@ -335,15 +337,36 @@ export class UserService {
       throw new UnauthorizedError(`User Organization not found`);
     }
 
-    const isRefreshTokenMatch = await compare(rt, user.hashRt);
-    if (!isRefreshTokenMatch) {
-      throw new UnauthorizedError('Wrong token!');
+    const session = await Session
+    .findOne({ device: clientId, token, revokedAt: { $exists: false } })
+    .populate("user");
+
+    const error = new ForbiddenError("Invalid token!");
+    if (!session) throw error;
+
+    let shouldAuthenticate = false;
+
+    if (session.expiresAt < new Date()) {
+      await Session.updateOne({ _id: session.id }, {
+        revokedAt: new Date(),
+        revokedReason: "expired"
+      })
+
+      error.message = "Token expired!";
+    } else {
+      shouldAuthenticate = true;
+
+      const newExp = new Date();
+      newExp.setDate(newExp.getDate() + 30);
+
+      await Session.updateOne({ _id: session.id }, {
+        expiresAt: newExp
+      })
     }
 
-    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
-    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
-
-    return tokens;
+    if (shouldAuthenticate)
+      return await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
+    else throw error;
   }
 
   async resendEmail(data: ResendEmailDto) {
@@ -492,11 +515,21 @@ export class UserService {
     })
   }
 
-  async logout(userId: string, req: Request) {
-    await User.updateOne({ _id: userId }, {
-      hashRt: ''
-    })
-    return { message: 'logout out' }
+  async logout(userId: string, clientId: string) {
+    const sessions = await Session.find({
+      device: clientId,
+      user: userId,
+      revokedAt: { $exists: false },
+    });
+
+    sessions.forEach(async (s) => {
+      s.revokedAt = new Date();
+      s.revokedReason = "logout";
+
+      await s.save();
+    });
+
+    return { message: 'Successfully logged out.' }
   }
 
   async getProfile(userId: string) {
@@ -544,6 +577,35 @@ export class UserService {
       refresh_token: jwt.sign(payload, refreshSecret, { expiresIn: refreshExpiresIn })
     }
   }
+
+  private async getCredentials(user: { userId: string, email: string, orgId: string, role: string }, clientId: string) {
+    let deviceId = 'client_id';
+    if (clientId) {
+      const device = await Device.findById(clientId);
+      deviceId = device?.id
+      if (!deviceId) {
+        const newDevice = await Device.create({
+          id: clientId
+        });
+        deviceId = newDevice.id
+      }
+    }
+
+    const session = await Session.create({
+      user: user.userId,
+      device: deviceId,           
+    });
+
+    return {
+      clientId: deviceId,
+      accessToken: (await this.getTokens(user)).access_token,
+      session: {
+        token: session.token,
+        expiresAt: session.expiresAt,
+      },
+    };
+  }
+
 
   getEmailParams(email: string) {
     return {

@@ -36,7 +36,7 @@ app.use(expressSession({
   secret: 'secret-key',
   resave: false,
   store: store,
-  saveUninitialized: false,
+  saveUninitialized: true,
 
   cookie: { maxAge: 60000 } // session timeout of 60 seconds
 }));
