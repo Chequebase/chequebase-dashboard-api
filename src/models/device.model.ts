@@ -12,7 +12,7 @@ export interface IDeviceDocument extends IDevice, Document {}
 export interface IDeviceModel extends Model<IDeviceDocument> {}
 
 const DeviceSchema = new Schema(
-  { client: String },
+  { clientId: String },
   { timestamps: true }
 );
 
