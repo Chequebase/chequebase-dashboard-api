@@ -209,6 +209,9 @@ export class UserService {
     if (!organization) {
       throw new UnauthorizedError(`User Organization not found`);
     }
+
+    const device = await Device.findOne({ clientId: data.clientId });
+
     if (!await compare(data.password, user.password)) {
       throw new UnauthorizedError('Wrong login credentials!')
     }
@@ -220,7 +223,7 @@ export class UserService {
       if (whiteListDevEmails.includes(user.email)) {
         otp = 123456
       }
-    if (user.rememberMe && user.rememberMe > new Date().getTime()) {
+    if ((user.rememberMe && user.rememberMe > new Date().getTime()) && !!device?.id) {
       const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, data.clientId);
       // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       await user.updateOne({
