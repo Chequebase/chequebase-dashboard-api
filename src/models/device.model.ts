@@ -1,4 +1,5 @@
-import mongoose, { Schema, Model, Document } from "mongoose";
+import { Schema, Model, Document } from "mongoose";
+import { cdb } from "@/modules/common/mongoose";
 
 export interface IDevice {
   clientId: string;
@@ -12,7 +13,7 @@ export interface IDeviceModel extends Model<IDeviceDocument> {}
 
 const DeviceSchema = new Schema(
   { client: String },
-  { timestamps: true, collection: 'devices' }
+  { timestamps: true }
 );
 
-export default mongoose.model<IDeviceDocument>("Device", DeviceSchema);
+export default cdb.model<IDeviceDocument>("Device", DeviceSchema);

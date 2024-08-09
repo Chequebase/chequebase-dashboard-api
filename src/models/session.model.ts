@@ -1,4 +1,5 @@
-import mongoose, { Schema, Model, Document, Types } from "mongoose";
+import { Schema, Model, Document, Types } from "mongoose";
+import { cdb } from "@/modules/common/mongoose";
 import { uid } from "rand-token";
 
 export interface ISession {
@@ -49,4 +50,4 @@ export const SessionSchema = new Schema(
   { timestamps: true }
 );
 
-export default mongoose.model<ISessionDocument>("Session", SessionSchema);
+export default cdb.model<ISessionDocument>("Session", SessionSchema);
