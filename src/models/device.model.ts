@@ -12,7 +12,7 @@ export interface IDeviceModel extends Model<IDeviceDocument> {}
 
 const DeviceSchema = new Schema(
   { client: String },
-  { timestamps: true }
+  { timestamps: true, collection: 'devices' }
 );
 
 export default mongoose.model<IDeviceDocument>("Device", DeviceSchema);
