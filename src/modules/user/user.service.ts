@@ -581,11 +581,11 @@ export class UserService {
   private async getCredentials(user: { userId: string, email: string, orgId: string, role: string }, clientId: string) {
     let deviceId = 'client_id';
     if (clientId) {
-      const device = await Device.findById(clientId);
+      const device = await Device.findOne({ clientId });
       deviceId = device?.id
       if (!deviceId) {
         const newDevice = await Device.create({
-          id: clientId
+          clientId
         });
         deviceId = newDevice.id
       }
