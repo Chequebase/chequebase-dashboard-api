@@ -4,7 +4,7 @@ import { uid } from "rand-token";
 
 export interface ISession {
   user: Types.ObjectId
-  device: Types.ObjectId
+  device: string
   token: string;
   revokedReason: "logout" | "expired";
   revokedAt: Date;
@@ -25,8 +25,7 @@ export const SessionSchema = new Schema(
       required: true,
     },
     device: {
-      type: Schema.Types.ObjectId,
-      ref: "Device",
+      type: String,
       required: true,
     },
     token: {
