@@ -328,8 +328,7 @@ export class UserService {
 
   async refreshToken(token: string, clientId: string) {
     const session = await Session
-    .findOne({ device: clientId, token, revokedAt: { $exists: false } })
-    .populate("user");
+    .findOne({ device: clientId, token, revokedAt: { $exists: false } });
 
     const error = new ForbiddenError("Invalid token!");
     if (!session) throw error;
