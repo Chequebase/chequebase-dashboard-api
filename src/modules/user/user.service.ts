@@ -364,7 +364,8 @@ export class UserService {
       shouldAuthenticate = true;
 
       const newExp = new Date();
-      newExp.setDate(newExp.getSeconds() + 60);
+      const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
+      newExp.setDate(newExp.getSeconds() + refreshExpiresIn);
 
       await Session.updateOne({ _id: session.id }, {
         expiresAt: newExp

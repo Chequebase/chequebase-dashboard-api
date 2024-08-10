@@ -1,5 +1,6 @@
 import { Schema, Model, Document, Types } from "mongoose";
 import { cdb } from "@/modules/common/mongoose";
+import { getEnvOrThrow } from "@/modules/common/utils";
 
 export interface ISession {
   user: Types.ObjectId
@@ -35,7 +36,8 @@ export const SessionSchema = new Schema(
       type: Date,
       default: () => {
         const date = new Date();
-        date.setDate(date.getSeconds() + 60);
+        const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
+        date.setDate(date.getSeconds() + refreshExpiresIn);
         return date;
       },
     },
