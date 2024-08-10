@@ -355,7 +355,7 @@ export class UserService {
     }
 
     const decodedToken = jwt.decode(token)
-    console.log({ token: (decodedToken as JwtPayload).exp })
+    console.log({ token: (decodedToken as JwtPayload).exp, date: Date.now() })
     if (decodedToken && ((decodedToken as JwtPayload).exp || 1) * 1000 < Date.now()) {
       return await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
     } else {
