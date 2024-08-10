@@ -35,7 +35,7 @@ export const SessionSchema = new Schema(
       type: Date,
       default: () => {
         const date = new Date();
-        date.setDate(date.getDate() + 30);
+        date.setDate(date.getSeconds() + 60);
         return date;
       },
     },
