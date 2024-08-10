@@ -30,6 +30,8 @@ import { verifyToken } from "../common/middlewares/rbac.middleware";
 const logger = new Logger('user-service')
 const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
 
+const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
+
 @Service()
 export class UserService {
   constructor (
@@ -352,7 +354,7 @@ export class UserService {
       throw new UnauthorizedError(`User Organization not found`);
     }
 
-    const decodedToken = verifyToken(token);
+    const decodedToken = verifyToken(token, refreshSecret);
 
     if (!decodedToken) {
       await session.updateOne({
