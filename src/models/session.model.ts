@@ -1,6 +1,5 @@
 import { Schema, Model, Document, Types } from "mongoose";
 import { cdb } from "@/modules/common/mongoose";
-import { uid } from "rand-token";
 
 export interface ISession {
   user: Types.ObjectId
@@ -36,7 +35,7 @@ export const SessionSchema = new Schema(
       type: Date,
       default: () => {
         const date = new Date();
-        date.setDate(date.getSeconds() + 30);
+        date.setDate(date.getDate() + 30);
         return date;
       },
     },

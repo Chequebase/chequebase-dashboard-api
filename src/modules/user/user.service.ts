@@ -330,8 +330,13 @@ export class UserService {
   }
 
   async refreshToken(token: string, clientId: string) {
+    const device = await Device.findOne({ clientId });
+
+    const notFoundError = new NotFoundError('Device not found');
+    if (!device?.id) throw notFoundError;
+
     const session = await Session
-    .findOne({ device: clientId, token, revokedAt: { $exists: false } });
+    .findOne({ device: device.id, token, revokedAt: { $exists: false } });
 
     const error = new ForbiddenError("Invalid token!");
     if (!session) throw error;
