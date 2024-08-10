@@ -413,7 +413,7 @@ export class UserService {
     return { message: 'success' };
   }
 
-  async verifyEmail(email: string, verificationCode: string) {
+  async verifyEmail(email: string, verificationCode: string, clientId: string) {
     const $regex = new RegExp(`^${escapeRegExp(email)}$`, "i");
     const user = await User.findOne({ email: { $regex } })
     if (!user) {
@@ -438,8 +438,8 @@ export class UserService {
       status: UserStatus.ACTIVE
     })
 
-    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
-    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
+    // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     return { tokens, userId: user.id }
   }
@@ -593,17 +593,18 @@ export class UserService {
       }
     }
 
-    const session = await Session.create({
+    const tokens = await this.getTokens(user);
+    await Session.create({
       user: user.userId,
-      device: deviceId,           
+      device: deviceId,
+      token: tokens.refresh_token          
     });
 
     return {
       clientId: deviceId,
-      accessToken: (await this.getTokens(user)).access_token,
+      accessToken: tokens.access_token,
       session: {
-        token: session.token,
-        expiresAt: session.expiresAt,
+        token: tokens.refresh_token,
       },
     };
   }
@@ -722,14 +723,14 @@ export class UserService {
     })
 
     await UserInvite.deleteOne({ _id: invite._id })
-    const tokens = await this.getTokens({
+    const tokens = await this.getCredentials({
       userId: user.id,
       email: user.email,
       orgId: user.organization.toString(),
       role: user.role
-    });
+    }, data.clientId);
   
-    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
     return { tokens, userId: user.id }

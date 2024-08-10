@@ -30,13 +30,13 @@ export const SessionSchema = new Schema(
     },
     token: {
       type: String,
-      default: () => uid(256),
+      required: true,
     },
     expiresAt: {
       type: Date,
       default: () => {
         const date = new Date();
-        date.setDate(date.getMinutes() + 10);
+        date.setDate(date.getSeconds() + 30);
         return date;
       },
     },

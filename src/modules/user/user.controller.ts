@@ -133,7 +133,7 @@ export default class UserController {
     if (!query.code) {
       throw new BadRequestError("Missing verification code");
     }
-    return this.userService.verifyEmail(query.email, query.code);
+    return this.userService.verifyEmail(query.email, query.code, query.clientId);
   }
 
   @Post("/forgot-password")

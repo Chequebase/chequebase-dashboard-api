@@ -53,6 +53,9 @@ export class VerifyEmailDto {
   @IsString()
   code: string;
 
+  @IsString()
+  clientId: string;
+
   @IsEmail()
   email: string
 }
@@ -129,6 +132,10 @@ export class AddEmployeeDto {
   @IsString()
   @IsNotEmpty()
   phone: string
+
+  @IsString()
+  @IsNotEmpty()
+  clientId: string
 
   @IsString()
   @IsNotEmpty()
