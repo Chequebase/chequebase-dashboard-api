@@ -15,7 +15,6 @@ export const CurrentUser = async (requestAction: Action) => {
 export const verifyToken = (token: string, secret = secretKey) => {
   try {
     const decodedToken = jwt.verify(token, secret);
-    console.log({ decodedToken })
     if (!decodedToken) {
       throw new UnauthorizedError("Unauthorized!");
     }

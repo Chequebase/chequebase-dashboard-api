@@ -1,6 +1,6 @@
 import { Service } from "typedi";
 import dayjs from 'dayjs'
-import jwt from 'jsonwebtoken'
+import jwt, { JwtPayload } from 'jsonwebtoken'
 import bcrypt, { compare } from 'bcryptjs';
 import EmailService from "@/modules/common/email.service";
 import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
@@ -354,9 +354,10 @@ export class UserService {
       throw new UnauthorizedError(`User Organization not found`);
     }
 
-    const decodedToken = verifyToken(token, refreshSecret);
-
-    if (!decodedToken) {
+    const decodedToken = jwt.decode(token)
+    if (decodedToken && ((decodedToken as JwtPayload).exp || 1) * 1000 < Date.now()) {
+      return await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
+    } else {
       await session.updateOne({
         revokedAt: new Date(),
         revokedReason: "expired"
@@ -364,8 +365,6 @@ export class UserService {
 
       error.message = "Token expired!";
       throw error;
-    } else {
-      return await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
     }
   }
 
