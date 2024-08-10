@@ -516,8 +516,12 @@ export class UserService {
   }
 
   async logout(userId: string, clientId: string) {
+    const device = await Device.findOne({ clientId });
+
+    const notFoundError = new NotFoundError('Device not found');
+    if (!device?.id) throw notFoundError;
     const sessions = await Session.find({
-      device: clientId,
+      device: device.id,
       user: userId,
       revokedAt: { $exists: false },
     });
@@ -590,6 +594,18 @@ export class UserService {
         deviceId = newDevice.id
       }
     }
+
+    const sessions = await Session.find({
+      user: user.userId,
+      revokedAt: { $exists: false },
+    });
+
+    const sessionIds = sessions.map(x => x.id);
+
+    await Session.updateMany({ _id: { $in: sessionIds } }, {
+      revokedAt: new Date(),
+      revokedReason: "logout"
+    })
 
     const tokens = await this.getTokens(user);
     await Session.create({
