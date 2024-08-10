@@ -355,7 +355,7 @@ export class UserService {
     const decodedToken = verifyToken(token);
 
     if (!decodedToken) {
-      await Session.updateOne({ _id: session.id }, {
+      await session.updateOne({
         revokedAt: new Date(),
         revokedReason: "expired"
       })

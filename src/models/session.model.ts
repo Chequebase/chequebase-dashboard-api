@@ -1,6 +1,5 @@
 import { Schema, Model, Document, Types } from "mongoose";
 import { cdb } from "@/modules/common/mongoose";
-import { getEnvOrThrow } from "@/modules/common/utils";
 
 export interface ISession {
   user: Types.ObjectId
@@ -34,14 +33,10 @@ export const SessionSchema = new Schema(
     },
     expiresAt: {
       type: Date,
-      default: () => {
-        const date = new Date();
-        const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
-        date.setDate(date.getSeconds() + refreshExpiresIn);
-        return date;
-      },
     },
-    revokedAt: Date,
+    revokedAt: {
+      type: Date,
+    },
     revokedReason: {
       type: String,
       enum: ["logout", "expired"],
