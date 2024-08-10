@@ -25,6 +25,7 @@ import { ServiceUnavailableError } from "../common/utils/service-errors";
 import UserInvite from "@/models/user-invite.model";
 import ApprovalService from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
+import { verifyToken } from "../common/middlewares/rbac.middleware";
 
 const logger = new Logger('user-service')
 const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
@@ -351,30 +352,19 @@ export class UserService {
       throw new UnauthorizedError(`User Organization not found`);
     }
 
-    let shouldAuthenticate = false;
+    const decodedToken = verifyToken(token);
 
-    if (session.expiresAt < new Date()) {
+    if (!decodedToken) {
       await Session.updateOne({ _id: session.id }, {
         revokedAt: new Date(),
         revokedReason: "expired"
       })
 
       error.message = "Token expired!";
+      throw error;
     } else {
-      shouldAuthenticate = true;
-
-      const newExp = new Date();
-      const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
-      newExp.setDate(newExp.getSeconds() + refreshExpiresIn);
-
-      await Session.updateOne({ _id: session.id }, {
-        expiresAt: newExp
-      })
-    }
-
-    if (shouldAuthenticate)
       return await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
-    else throw error;
+    }
   }
 
   async resendEmail(data: ResendEmailDto) {
