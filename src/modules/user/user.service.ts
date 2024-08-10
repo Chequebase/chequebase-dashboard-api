@@ -529,12 +529,12 @@ export class UserService {
       revokedAt: { $exists: false },
     });
 
-    sessions.forEach(async (s) => {
-      s.revokedAt = new Date();
-      s.revokedReason = "logout";
+    const sessionIds = sessions.map(x => x.id);
 
-      await s.save();
-    });
+    await Session.updateMany({ _id: { $in: sessionIds } }, {
+      revokedAt: new Date(),
+      revokedReason: "logout"
+    })
 
     return { message: 'Successfully logged out.' }
   }
