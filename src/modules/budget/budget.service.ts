@@ -996,6 +996,12 @@ export default class BudgetService {
     }
 
     const rule = await ApprovalRule.findOne({ organization: orgId, workflowType: WorkflowType.FundRequest })
+    let noRuleApprovalRequired = false
+    if (rule) {
+      const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
+      noRuleApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(data.userId))
+    }
+
     if (type === 'expense' && (budget.status !== 'pending' || !budget.approvedDate)) {
       throw new BadRequestError("Budget is not valid for expense funding request")
     }
@@ -1016,7 +1022,7 @@ export default class BudgetService {
     }
 
     // we want to immediately fund budget if the amount is available in wallet
-    if (!approvalRequired || !rule) {
+    if (!approvalRequired || noRuleApprovalRequired || !rule) {
       await cdb.transaction(async (session) => {
         const wallet = await Wallet.findOneAndUpdate(
           {
@@ -1074,7 +1080,7 @@ export default class BudgetService {
       }
     }
     
-    rule!.reviewers.forEach(reviewer => {
+    rule.reviewers.forEach(reviewer => {
       this.emailService.sendFundRequestApprovalRequest(reviewer.email, {
         amount: formatMoney(amount),
         currency: budget!.currency,
