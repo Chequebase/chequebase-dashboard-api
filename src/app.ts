@@ -27,6 +27,7 @@ import WebhookController from "./modules/webhook/webhook.controller";
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
 const app = express();
+
 app.use(hpp());
 app.set("trust proxy", true);
 app.use(helmet());
