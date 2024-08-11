@@ -87,7 +87,8 @@ export default class LogService {
 
     const result = await Logs.aggregatePaginate(Logs.aggregate(pipeline), {
       page: Number(query.page),
-      limit: query.limit
+      limit: query.limit,
+      lean: true,
     })
 
     return result;
