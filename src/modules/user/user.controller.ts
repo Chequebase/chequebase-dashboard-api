@@ -118,13 +118,9 @@ export default class UserController {
   }
 
   @Post("/refresh")
-  async refreshToken(@HeaderParam("Authorization") authHeader: string) {
-    const refreshToken = authHeader?.split("Bearer ")?.pop()!;
-    const auth = verifyToken(
-      refreshToken,
-      getEnvOrThrow("REFRESH_TOKEN_SECRET")
-    ) as AuthUser;
-    return this.userService.refreshToken(auth.userId, refreshToken!);
+  async refreshToken(@HeaderParam("Authorization") authHeader: string, @Body() body: { clientId: string }) {
+    const sessionToken = authHeader?.split("Bearer ")?.pop()!;
+    return this.userService.refreshToken(sessionToken!, body.clientId);
   }
 
   @Post("/resend-email")
@@ -137,7 +133,7 @@ export default class UserController {
     if (!query.code) {
       throw new BadRequestError("Missing verification code");
     }
-    return this.userService.verifyEmail(query.email, query.code);
+    return this.userService.verifyEmail(query.email, query.code, query.clientId);
   }
 
   @Post("/forgot-password")
@@ -156,8 +152,8 @@ export default class UserController {
 
   @Post("/logout")
   @Authorized()
-  logout(@CurrentUser() auth: AuthUser, @Req() req: Request) {
-    return this.userService.logout(auth.userId, req);
+  logout(@CurrentUser() auth: AuthUser, @Body() body: { clientId: string }) {
+    return this.userService.logout(auth.userId, body.clientId);
   }
 
   @Get("/profile")
