@@ -6,29 +6,29 @@ import { GetAuditTrailLogs } from "./dto/logs.dto";
 
 @Service()
 export default class LogService {
-  async getAuditTrailLogs(organization: string, data: GetAuditTrailLogs) {
+  async getAuditTrailLogs(organization: string, query: GetAuditTrailLogs) {
     const match: PipelineStage.Match = {
       $match: {
         organization: new mongoose.Types.ObjectId(organization)
       }
     }
 
-    if (data.user) {
-      match.$match.user = new mongoose.Types.ObjectId(data.user)
+    if (query.user) {
+      match.$match.user = new mongoose.Types.ObjectId(query.user)
     }
 
-    if (data.action) {
-      match.$match.action = data.action
+    if (query.action) {
+      match.$match.action = query.action
     }
 
-    if (data.statusCode) {
-      match.$match.statusCode = data.statusCode
+    if (query.statusCode) {
+      match.$match.statusCode = query.statusCode
     }
 
-    if (data.from && data.to) {
+    if (query.from && query.to) {
       match.$match.createdAt = {
-        $gte: new Date(data.from),
-        $lte: new Date(data.to)
+        $gte: new Date(query.from),
+        $lte: new Date(query.to)
       }
     }
 
@@ -85,12 +85,13 @@ export default class LogService {
       }
     ]
 
-    const options = {
-      page: data.page || 1,
-      limit: 10
-    }
+    const result = await Logs.aggregatePaginate(Logs.aggregate(pipeline), {
+      page: Number(query.page),
+      limit: query.limit,
+      lean: true,
+    })
 
-    return (await Logs.aggregatePaginate(Logs.aggregate(pipeline), options)).docs;
+    return result;
   }
 
   async getSingleAuditTrailLog(logId: string, organization: string) {

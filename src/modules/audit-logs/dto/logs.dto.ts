@@ -1,5 +1,5 @@
 import { LogAction } from "@/models/logs.model";
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
+import { IsDateString, IsEnum, IsInt, IsOptional, IsPositive, IsString, Min } from "class-validator";
 
 export class GetAuditTrailLogs {
   @IsString()
@@ -22,6 +22,12 @@ export class GetAuditTrailLogs {
   @IsOptional()
   to?: string;
 
-  @IsNumber()
-  page: number;
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  limit = 10;
 }
