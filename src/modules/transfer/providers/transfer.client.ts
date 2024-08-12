@@ -23,7 +23,8 @@ export interface InitiateTransferResult {
 }
 
 export enum TransferClientName {
-  Anchor = 'anchor'
+  Anchor = 'anchor',
+  SarePay = 'sarepay'
 }
 
 export abstract class TransferClient {

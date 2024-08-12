@@ -10,20 +10,23 @@ export interface CreateVirtualAccountData {
   identity: {
     type: 'bvn',
     number: string
-  }
+  },
+  phone?: string;
+  rcNumber?: string;
 }
 
 export interface CreateVirtualAccountResult {
   accountName: string
   accountNumber: string
   bankCode: string
-  bankName:string
+  bankName: string
   provider: string
 }
 
 export enum VirtualAccountClientName {
   Anchor = 'anchor',
   Paystack = 'paystack',
+  SarePay = 'sarepay'
 }
 
 export abstract class VirtualAccountClient {
