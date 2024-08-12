@@ -1,12 +1,14 @@
 import { Service } from "typedi";
 import dayjs from 'dayjs'
-import jwt from 'jsonwebtoken'
+import jwt, { JwtPayload } from 'jsonwebtoken'
 import bcrypt, { compare } from 'bcryptjs';
 import EmailService from "@/modules/common/email.service";
 import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization, { IOrganization } from "@/models/organization.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
-import { BadRequestError, NotFoundError, UnauthorizedError } from "routing-controllers";
+import Device from "@/models/device.model";
+import Session from "@/models/session.model";
+import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
 import { LoginDto, ERole, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import Logger from "../common/utils/logger";
@@ -23,9 +25,12 @@ import { ServiceUnavailableError } from "../common/utils/service-errors";
 import UserInvite from "@/models/user-invite.model";
 import ApprovalService from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
+import { verifyToken } from "../common/middlewares/rbac.middleware";
 
 const logger = new Logger('user-service')
 const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
+
+const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
 
 @Service()
 export class UserService {
@@ -175,6 +180,9 @@ export class UserService {
     ])
 
 
+    const message = `${data.businessName}, with email: ${data.email} just signed up`;
+    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
+
     const isOwner = user.role === ERole.Owner
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
     this.emailService.sendVerifyEmail(data.email, {
@@ -204,6 +212,9 @@ export class UserService {
     if (!organization) {
       throw new UnauthorizedError(`User Organization not found`);
     }
+
+    const device = await Device.findOne({ clientId: data.clientId });
+
     if (!await compare(data.password, user.password)) {
       throw new UnauthorizedError('Wrong login credentials!')
     }
@@ -215,9 +226,9 @@ export class UserService {
       if (whiteListDevEmails.includes(user.email)) {
         otp = 123456
       }
-    if (user.rememberMe && user.rememberMe > new Date().getTime()) {
-      const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
-      await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    if ((user.rememberMe && user.rememberMe > new Date().getTime()) && !!device?.id) {
+      const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, data.clientId);
+      // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       await user.updateOne({
         hashRt: '',
         rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
@@ -315,16 +326,27 @@ export class UserService {
       throw new UnauthorizedError(`Invalid Otp`);
     }
 
-    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
-    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, data.clientId);
+    // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     return { tokens, userId: user.id }
   }
 
-  async refreshToken(userId: string, rt: string) {
-    const user = await User.findById(userId)
+  async refreshToken(token: string, clientId: string) {
+    const device = await Device.findOne({ clientId });
+
+    const notFoundError = new NotFoundError('Device not found');
+    if (!device?.id) throw notFoundError;
+
+    const session = await Session
+    .findOne({ device: device.id, token, revokedAt: { $exists: false } });
+
+    const error = new ForbiddenError("Invalid token!");
+    if (!session) throw error;
+
+    const user = await User.findById(session.user);
     if (!user) {
-      throw new UnauthorizedError('Wrong token!');
+      throw new UnauthorizedError(`User not found`);
     }
 
     const organization = await Organization.findById(user.organization);
@@ -332,15 +354,19 @@ export class UserService {
       throw new UnauthorizedError(`User Organization not found`);
     }
 
-    const isRefreshTokenMatch = await compare(rt, user.hashRt);
-    if (!isRefreshTokenMatch) {
-      throw new UnauthorizedError('Wrong token!');
+    const decodedToken = jwt.decode(token)
+    console.log({ token: (decodedToken as JwtPayload).exp, date: Date.now(), check: ((decodedToken as JwtPayload).exp || 1) * 1000 < Date.now() })
+    if (decodedToken && ((decodedToken as JwtPayload).exp || 1) * 1000 > Date.now()) {
+      return await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
+    } else {
+      await session.updateOne({
+        revokedAt: new Date(),
+        revokedReason: "expired"
+      })
+
+      error.message = "Token expired!";
+      throw error;
     }
-
-    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
-    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
-
-    return tokens;
   }
 
   async resendEmail(data: ResendEmailDto) {
@@ -385,7 +411,7 @@ export class UserService {
     return { message: 'success' };
   }
 
-  async verifyEmail(email: string, verificationCode: string) {
+  async verifyEmail(email: string, verificationCode: string, clientId: string) {
     const $regex = new RegExp(`^${escapeRegExp(email)}$`, "i");
     const user = await User.findOne({ email: { $regex } })
     if (!user) {
@@ -410,8 +436,8 @@ export class UserService {
       status: UserStatus.ACTIVE
     })
 
-    const tokens = await this.getTokens({ userId: user.id, email: user.email, orgId: organization.id, role: user.role });
-    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
+    // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     return { tokens, userId: user.id }
   }
@@ -489,11 +515,25 @@ export class UserService {
     })
   }
 
-  async logout(userId: string, req: Request) {
-    await User.updateOne({ _id: userId }, {
-      hashRt: ''
+  async logout(userId: string, clientId: string) {
+    const device = await Device.findOne({ clientId });
+
+    const notFoundError = new NotFoundError('Device not found');
+    if (!device?.id) throw notFoundError;
+    const sessions = await Session.find({
+      device: device.id,
+      user: userId,
+      revokedAt: { $exists: false },
+    });
+
+    const sessionIds = sessions.map(x => x.id);
+
+    await Session.updateMany({ _id: { $in: sessionIds } }, {
+      revokedAt: new Date(),
+      revokedReason: "logout"
     })
-    return { message: 'logout out' }
+
+    return { message: 'Successfully logged out.' }
   }
 
   async getProfile(userId: string) {
@@ -541,6 +581,48 @@ export class UserService {
       refresh_token: jwt.sign(payload, refreshSecret, { expiresIn: refreshExpiresIn })
     }
   }
+
+  private async getCredentials(user: { userId: string, email: string, orgId: string, role: string }, clientId: string) {
+    let deviceId = 'client_id';
+    if (clientId) {
+      const device = await Device.findOne({ clientId });
+      deviceId = device?.id
+      if (!deviceId) {
+        const newDevice = await Device.create({
+          clientId
+        });
+        deviceId = newDevice.id
+      }
+    }
+
+    const sessions = await Session.find({
+      user: user.userId,
+      revokedAt: { $exists: false },
+    });
+
+    const sessionIds = sessions.map(x => x.id);
+
+    await Session.updateMany({ _id: { $in: sessionIds } }, {
+      revokedAt: new Date(),
+      revokedReason: "logout"
+    })
+
+    const tokens = await this.getTokens(user);
+    await Session.create({
+      user: user.userId,
+      device: deviceId,
+      token: tokens.refresh_token          
+    });
+
+    return {
+      clientId: deviceId,
+      accessToken: tokens.access_token,
+      session: {
+        token: tokens.refresh_token,
+      },
+    };
+  }
+
 
   getEmailParams(email: string) {
     return {
@@ -655,14 +737,14 @@ export class UserService {
     })
 
     await UserInvite.deleteOne({ _id: invite._id })
-    const tokens = await this.getTokens({
+    const tokens = await this.getCredentials({
       userId: user.id,
       email: user.email,
       orgId: user.organization.toString(),
       role: user.role
-    });
+    }, data.clientId);
   
-    await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+    // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
     return { tokens, userId: user.id }

@@ -39,6 +39,9 @@ export class LoginDto {
   email: string;
 
   @IsString()
+  clientId: string;
+
+  @IsString()
   @MinLength(6)
   password: string;
 
@@ -49,6 +52,9 @@ export class LoginDto {
 export class VerifyEmailDto {
   @IsString()
   code: string;
+
+  @IsString()
+  clientId: string;
 
   @IsEmail()
   email: string
@@ -89,6 +95,9 @@ export class OtpDto {
   email: string
 
   @IsString()
+  clientId: string
+
+  @IsString()
   otp: string
 }
 
@@ -123,6 +132,10 @@ export class AddEmployeeDto {
   @IsString()
   @IsNotEmpty()
   phone: string
+
+  @IsString()
+  @IsNotEmpty()
+  clientId: string
 
   @IsString()
   @IsNotEmpty()

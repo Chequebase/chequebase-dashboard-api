@@ -3,7 +3,7 @@ name: Deploy to Staging environment
 on:
   workflow_dispatch:
   push:
-    branches: [develop]
+    branches: [staging]
 jobs:
   deploy:
     runs-on: ubuntu-latest

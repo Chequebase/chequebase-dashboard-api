@@ -2,7 +2,7 @@ import Role, { RoleType } from "@/models/role.model";
 import { Service } from "typedi";
 import { CreateRoleDto } from "./dto/role.dto";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import User from "@/models/user.model";
+import User, { UserStatus } from "@/models/user.model";
 import RolePermission from "@/models/role-permission.model";
 
 @Service()
@@ -19,7 +19,7 @@ export class RoleService {
       .lean()
     
     const populatedRoles = await Promise.all(roles.map(async r => {
-      const members = await User.find({ organization: orgId, roleRef: r._id })
+      const members = await User.find({ organization: orgId, roleRef: r._id, status: { $nin: [UserStatus.DELETED, UserStatus.DISABLED] } })
         .select('firstName lastName avatar').limit(3).lean()
       return Object.assign(r, { members })
     }))
@@ -50,7 +50,7 @@ export class RoleService {
   }
 
   async deleteRole(orgId: string, roleId: string) {
-    const inUse = await User.exists({ organization: orgId, roleRef: roleId });
+    const inUse = await User.exists({ organization: orgId, roleRef: roleId, status: { $nin: [UserStatus.DELETED, UserStatus.DISABLED] } });
     if (inUse) {
       throw new BadRequestError('Cannot delete a role that is still in use')
     }
