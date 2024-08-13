@@ -194,7 +194,7 @@ export class UserService {
     return { message: "User created, check your email for verification link" };
   }
 
-  async login(data: LoginDto) {
+  async login(data: LoginDto, clientId: string) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i")
     const user = await User.findOne({
       email: { $regex },
@@ -213,7 +213,7 @@ export class UserService {
       throw new UnauthorizedError(`User Organization not found`);
     }
 
-    const device = await Device.findOne({ clientId: data.clientId });
+    const device = await Device.findOne({ clientId });
 
     if (!await compare(data.password, user.password)) {
       throw new UnauthorizedError('Wrong login credentials!')
@@ -227,7 +227,7 @@ export class UserService {
         otp = 123456
       }
     if ((user.rememberMe && user.rememberMe > new Date().getTime()) && !!device?.id) {
-      const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, data.clientId);
+      const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
       // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       await user.updateOne({
         hashRt: '',
@@ -305,7 +305,7 @@ export class UserService {
     return { message: 'OTP sent!' };
   }
 
-  async verifyOtp(data: OtpDto) {
+  async verifyOtp(data: OtpDto, clientId: string) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const user = await User.findOne({ email: { $regex } })
     if (!user) {
@@ -326,7 +326,7 @@ export class UserService {
       throw new UnauthorizedError(`Invalid Otp`);
     }
 
-    const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, data.clientId);
+    const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
     // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     return { tokens, userId: user.id }
@@ -686,7 +686,7 @@ export class UserService {
     return { message: 'Invite sent successfully' };
   }
 
-  async acceptInvite(data: AddEmployeeDto) {
+  async acceptInvite(data: AddEmployeeDto, clientId: string) {
     const { code, firstName, lastName, phone, password } = data
     const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).populate('roleRef').lean()
     if (!invite) {
@@ -742,7 +742,7 @@ export class UserService {
       email: user.email,
       orgId: user.organization.toString(),
       role: user.role
-    }, data.clientId);
+    }, clientId);
   
     // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
