@@ -71,7 +71,12 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
     device: { $ne: currentDevice.id },
     revokedAt: { $exists: false },
   });
-  if (currentSessions.length > 0) throw new ForbiddenError('Currently logged in to another device');
+  if (currentSessions.length > 0) {
+    await User.updateOne({ _id: user.id }, {
+      rememberMe: false,
+    })
+    throw new ForbiddenError('Currently logged in to another device');
+  }
 
   const isOwner =
     user?.roleRef?.name === "owner" && user?.roleRef?.type === "default";
