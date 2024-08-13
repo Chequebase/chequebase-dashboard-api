@@ -157,7 +157,7 @@ export default class BudgetController {
     return this.budgetTransferService.updateRecipient(auth, id, dto)
   }
 
-  @Delete('/categories/:id')
+  @Delete('/recipients/:id')
   @Authorized()
   deleteRecipient(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetTransferService.deleteRecipient(auth, id)
