@@ -65,25 +65,13 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
   const currentDevice = await Device.findOne({ clientId });
 
   if (!currentDevice) throw new NotFoundError('Device Not Found');
+
   const currentSessions = await Session.find({
-    user: user.id,
-    device: currentDevice.id,
-    revokedAt: { $exists: false },
-  });
-
-  if (currentSessions.length > 0) throw new ForbiddenError('Currently logged in to another device');
-
-  const sessions = await Session.find({
     user: user.id,
     device: { $ne: currentDevice.id },
     revokedAt: { $exists: false },
   });
-  const sessionIds = sessions.map(x => x.id);
-
-  await Session.updateMany({ _id: { $in: sessionIds } }, {
-    revokedAt: new Date(),
-    revokedReason: "logout"
-  })
+  if (currentSessions.length > 0) throw new ForbiddenError('Currently logged in to another device');
 
   const isOwner =
     user?.roleRef?.name === "owner" && user?.roleRef?.type === "default";
