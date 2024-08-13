@@ -103,7 +103,7 @@ export default class UserController {
   }
 
   @Post("/login")
-  login(@Body() loginDto: LoginDto, clientId: string) {
+  login(@Body() loginDto: LoginDto, @HeaderParam("client-id") clientId: string) {
     return this.userService.login(loginDto, clientId);
   }
 
@@ -113,13 +113,14 @@ export default class UserController {
   }
 
   @Post("/verify-otp")
-  verifyOtp(@Body() verifyOtpDto: OtpDto, @HeaderParam("clientId") clientId: string) {
+  verifyOtp(@Body() verifyOtpDto: OtpDto, @HeaderParam("client-id") clientId: string) {
     return this.userService.verifyOtp(verifyOtpDto, clientId);
   }
 
   @Post("/refresh")
-  async refreshToken(@HeaderParam("Authorization") authHeader: string, @HeaderParam("clientId") clientId: string) {
+  async refreshToken(@HeaderParam("Authorization") authHeader: string, @HeaderParam("client-id") clientId: string) {
     const sessionToken = authHeader?.split("Bearer ")?.pop()!;
+    console.log({ clientId })
     return this.userService.refreshToken(sessionToken!, clientId);
   }
 
@@ -129,7 +130,7 @@ export default class UserController {
   }
 
   @Get("/verify-email")
-  verifyEmail(@QueryParams() query: VerifyEmailDto, @HeaderParam("clientId") clientId: string) {
+  verifyEmail(@QueryParams() query: VerifyEmailDto, @HeaderParam("client-id") clientId: string) {
     if (!query.code) {
       throw new BadRequestError("Missing verification code");
     }
@@ -152,7 +153,7 @@ export default class UserController {
 
   @Post("/logout")
   @Authorized()
-  logout(@CurrentUser() auth: AuthUser, @HeaderParam("clientId") clientId: string) {
+  logout(@CurrentUser() auth: AuthUser, @HeaderParam("client-id") clientId: string) {
     return this.userService.logout(auth.userId, clientId);
   }
 
@@ -191,7 +192,7 @@ export default class UserController {
 
   // @Authorized([Role.Owner, Role.Cfo, Role.Employee])
   @Post("/members/accept-invite")
-  acceptInvite(@Body() addEmployeeDto: AddEmployeeDto, @HeaderParam("clientId") clientId: string) {
+  acceptInvite(@Body() addEmployeeDto: AddEmployeeDto, @HeaderParam("client-id") clientId: string) {
     return this.userService.acceptInvite(addEmployeeDto, clientId);
   }
 
