@@ -60,7 +60,7 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
     throw new UnauthorizedError("Can Not Log In At This Time");
   }
 
-  const clientId = requestAction.request.headers?.["clientId"];
+  const clientId = requestAction.request.headers?.["client-id"];
   if (!clientId) throw new UnauthorizedError('No ClientId')
   const currentDevice = await Device.findOne({ clientId });
 
