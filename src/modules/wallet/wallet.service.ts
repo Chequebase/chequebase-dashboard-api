@@ -248,7 +248,7 @@ export default class WalletService {
     }
 
     const history = await WalletEntry.paginate(filter.object, {
-      select: 'status currency fee type reference wallet amount scope budget createdAt meta.counterparty',
+      select: 'status currency fee type reference wallet amount scope budget createdAt',
       populate: [
         { path: 'budget', select: 'name' },
         { path: 'category', select: 'name' },
