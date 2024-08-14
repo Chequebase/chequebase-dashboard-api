@@ -103,8 +103,8 @@ export default class UserController {
   }
 
   @Post("/login")
-  login(@Body() loginDto: LoginDto) {
-    return this.userService.login(loginDto);
+  login(@Body() loginDto: LoginDto, @HeaderParam("client-id") clientId: string) {
+    return this.userService.login(loginDto, clientId);
   }
 
   @Post("/resend-otp")
@@ -113,14 +113,14 @@ export default class UserController {
   }
 
   @Post("/verify-otp")
-  verifyOtp(@Body() verifyOtpDto: OtpDto) {
-    return this.userService.verifyOtp(verifyOtpDto);
+  verifyOtp(@Body() verifyOtpDto: OtpDto, @HeaderParam("client-id") clientId: string) {
+    return this.userService.verifyOtp(verifyOtpDto, clientId);
   }
 
   @Post("/refresh")
-  async refreshToken(@HeaderParam("Authorization") authHeader: string, @Body() body: { clientId: string }) {
+  async refreshToken(@HeaderParam("Authorization") authHeader: string, @HeaderParam("client-id") clientId: string) {
     const sessionToken = authHeader?.split("Bearer ")?.pop()!;
-    return this.userService.refreshToken(sessionToken!, body.clientId);
+    return this.userService.refreshToken(sessionToken!, clientId);
   }
 
   @Post("/resend-email")
@@ -129,11 +129,11 @@ export default class UserController {
   }
 
   @Get("/verify-email")
-  verifyEmail(@QueryParams() query: VerifyEmailDto) {
+  verifyEmail(@QueryParams() query: VerifyEmailDto, @HeaderParam("client-id") clientId: string) {
     if (!query.code) {
       throw new BadRequestError("Missing verification code");
     }
-    return this.userService.verifyEmail(query.email, query.code, query.clientId);
+    return this.userService.verifyEmail(query.email, query.code, clientId);
   }
 
   @Post("/forgot-password")
@@ -152,8 +152,8 @@ export default class UserController {
 
   @Post("/logout")
   @Authorized()
-  logout(@CurrentUser() auth: AuthUser, @Body() body: { clientId: string }) {
-    return this.userService.logout(auth.userId, body.clientId);
+  logout(@CurrentUser() auth: AuthUser, @HeaderParam("client-id") clientId: string) {
+    return this.userService.logout(auth.userId, clientId);
   }
 
   @Get("/profile")
@@ -191,8 +191,8 @@ export default class UserController {
 
   // @Authorized([Role.Owner, Role.Cfo, Role.Employee])
   @Post("/members/accept-invite")
-  acceptInvite(@Body() addEmployeeDto: AddEmployeeDto) {
-    return this.userService.acceptInvite(addEmployeeDto);
+  acceptInvite(@Body() addEmployeeDto: AddEmployeeDto, @HeaderParam("client-id") clientId: string) {
+    return this.userService.acceptInvite(addEmployeeDto, clientId);
   }
 
   @Authorized(EPermission.PeopleRead)

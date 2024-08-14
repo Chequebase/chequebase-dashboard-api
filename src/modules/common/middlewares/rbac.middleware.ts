@@ -1,8 +1,10 @@
-import { Action, UnauthorizedError } from "routing-controllers";
+import { Action, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
 import jwt from "jsonwebtoken";
 import { getEnvOrThrow } from "../utils";
 import Logger from "../utils/logger";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
+import Device from "@/models/device.model";
+import Session from "@/models/session.model";
 import { IOrganization } from "@/models/organization.model";
 
 const logger = new Logger("rbac");
@@ -56,6 +58,24 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
 
   if (user?.organization.status === KycStatus.BLOCKED) {
     throw new UnauthorizedError("Can Not Log In At This Time");
+  }
+
+  const clientId = requestAction.request.headers?.["client-id"];
+  if (!clientId) throw new UnauthorizedError('No ClientId')
+  const currentDevice = await Device.findOne({ clientId });
+
+  if (!currentDevice) throw new NotFoundError('Device Not Found');
+
+  const currentSessions = await Session.find({
+    user: user.id,
+    device: { $ne: currentDevice.id },
+    revokedAt: { $exists: false },
+  });
+  if (currentSessions.length > 0) {
+    await User.updateOne({ _id: user.id }, {
+      rememberMe: false,
+    })
+    throw new ForbiddenError('Currently logged in to another device');
   }
 
   const isOwner =
