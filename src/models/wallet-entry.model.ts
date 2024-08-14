@@ -115,7 +115,10 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     providerRef: { type: String },
     narration: String,
     reference: { type: String, required: true },
-    meta: Object
+    meta: {
+      type: Schema.Types.Mixed,
+      default: {},
+    }
   },
   { timestamps: true },
 );
