@@ -213,7 +213,12 @@ export class UserService {
       throw new UnauthorizedError(`User Organization not found`);
     }
 
-    const device = await Device.findOne({ clientId });
+    let device = await Device.findOne({ clientId });
+    if (!device) {
+      device = await Device.create({
+        clientId
+      });
+    }
 
     if (!await compare(data.password, user.password)) {
       throw new UnauthorizedError('Wrong login credentials!')
