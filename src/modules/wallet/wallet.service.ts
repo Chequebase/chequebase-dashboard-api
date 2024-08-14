@@ -252,7 +252,7 @@ export default class WalletService {
       populate: [
         { path: 'budget', select: 'name' },
         { path: 'category', select: 'name' },
-        { path: 'meta.counterparty' }
+        { path: 'meta.counterparty', select: 'accountName bankName' }
       ],
       sort: '-createdAt',
       page: Number(query.page),
