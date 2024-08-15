@@ -260,13 +260,10 @@ export default class WalletService {
       lean: true
     })
 
-    const docs = history.docs
-    docs.map(doc => ({
+    return { ...history, docs: history.docs.map(doc => ({
       ...doc,
       meta: { ...doc.meta, counterparty: doc.meta?.sourceAccount || doc.meta?.counterparty }
-    }));
-
-    return { ...history, docs };
+    })) };
   }
 
   async getWalletStatement(orgId: string, query: GetWalletStatementDto) {
