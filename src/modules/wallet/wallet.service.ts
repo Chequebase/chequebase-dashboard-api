@@ -248,7 +248,7 @@ export default class WalletService {
     }
 
     const history = await WalletEntry.paginate(filter.object, {
-      select: 'status currency fee type reference wallet amount scope budget meta.counterparty createdAt',
+      select: 'status currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt',
       populate: [
         { path: 'budget', select: 'name' },
         { path: 'category', select: 'name' },
@@ -260,7 +260,13 @@ export default class WalletService {
       lean: true
     })
 
-    return history
+    const docs = history.docs
+    docs.map(doc => ({
+      ...doc,
+      meta: { ...doc.meta, counterparty: doc.meta?.sourceAccount || doc.meta?.counterparty }
+    }));
+
+    return { ...history, docs };
   }
 
   async getWalletStatement(orgId: string, query: GetWalletStatementDto) {
