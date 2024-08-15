@@ -262,6 +262,7 @@ export default class WalletService {
 
     return { ...history, docs: history.docs.map(doc => ({
       ...doc,
+      // TODO: Remove sourceAccount from data returned
       meta: { ...doc.meta, counterparty: doc.meta?.sourceAccount || doc.meta?.counterparty }
     })) };
   }
