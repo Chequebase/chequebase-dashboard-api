@@ -3,6 +3,7 @@ import { Service } from 'typedi';
 import { OverviewService } from './overview.service';
 import { AuthUser } from '../common/interfaces/auth-user';
 import { GetCashflowTrendDto, GetOverviewSummaryDto, ReportSuggestionDto } from './dto/overview.dto';
+import { EPermission } from '@/models/role-permission.model';
 
 @Service()
 @JsonController('/overview', { transformResponse: false })
@@ -10,7 +11,11 @@ export class OverviewController {
   constructor(private readonly overviewService: OverviewService) { }
 
   @Get('/summary')
-  @Authorized()
+  @Authorized([EPermission.OverviewAccountBalanceRead,
+    EPermission.OverviewBudgetReportRead,
+    EPermission.OverviewBudgetRequest,
+    EPermission.OverviewBusinessReportRead
+  ])
   getDashboardSummary(@CurrentUser() auth: AuthUser, @QueryParams() query: GetOverviewSummaryDto) {
     return this.overviewService.getOverviewSummary(auth, query);
   }

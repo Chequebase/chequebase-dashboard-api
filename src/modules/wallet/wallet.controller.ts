@@ -20,13 +20,13 @@ export default class WalletController {
   }
 
   @Get('/')
-  @Authorized()
+  @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
   getWallets(@CurrentUser() auth: AuthUser) {
     return this.walletService.getWallets(auth.orgId)
   }
 
   @Get('/history')
-  @Authorized()
+  @Authorized(EPermission.TransactionRead)
   getWalletHistory(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletEntriesDto) {
     return this.walletService.getWalletEntries(auth, query)
   }
@@ -69,13 +69,13 @@ export default class WalletController {
   }
   
   @Get('/history/:id')
-  @Authorized()
+  @Authorized(EPermission.TransactionRead)
   getWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWalletEntry(auth.orgId, id)
   }
 
   @Post('/report-transaction')
-  @Authorized()
+  @Authorized(EPermission.TransactionRead)
   reportTransaction(@CurrentUser() auth: AuthUser, @Body() dto: ReportTransactionDto) {
     return this.walletService.reportTransactionToSlack(auth.orgId, dto)
   }
