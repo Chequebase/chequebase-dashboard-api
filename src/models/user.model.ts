@@ -54,6 +54,7 @@ export interface IUser {
   otpExpiresAt: number
   resentOptCount: number
   otpResentAt: number
+  setDefualtApprovalWorkflow: boolean
   otp: string
   pin: string
   createdAt: Date;
@@ -102,6 +103,7 @@ const userSchema = new Schema<IUser>(
     avatar: String,
     resentOptCount: Number,
     otpResentAt: Number,
+    setDefualtApprovalWorkflow: Boolean,
     status: {
       type: String,
       enum: Object.values(UserStatus)

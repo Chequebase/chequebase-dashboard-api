@@ -32,6 +32,11 @@ export default class ApprovalService {
 
   async createApprovalRule(auth: AuthUser, data: CreateRule) {
     // TODO: limit reviewer count based on plan
+    const user = await User.findOne({ _id: auth.userId, organization: auth.orgId })
+    if (!user?.setDefualtApprovalWorkflow) {
+      await User.updateOne({ _id: auth.userId }, { setDefualtApprovalWorkflow: true })
+    }
+
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
     const nameExists = await ApprovalRule.exists({
       organization: auth.orgId,
@@ -77,7 +82,12 @@ export default class ApprovalService {
     return rule
   }
 
-  async updateApprovalRule(orgId: string, ruleId: string, data: UpdateRule) {
+  async updateApprovalRule(auth: AuthUser, ruleId: string, data: UpdateRule) {
+    const { userId, orgId } = auth;
+    const user = await User.findOne({ _id: userId, organization: orgId })
+    if (!user?.setDefualtApprovalWorkflow) {
+      await User.updateOne({ _id: userId }, { setDefualtApprovalWorkflow: true })
+    }
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
     const nameExists = await ApprovalRule.exists({
       _id: { $ne: ruleId },
@@ -102,7 +112,12 @@ export default class ApprovalService {
     return rule
   }
 
-  async getRules(orgId: string, query: GetRulesQuery) {
+  async getRules(auth: AuthUser, query: GetRulesQuery) {
+    const { userId, orgId } = auth;
+    const user = await User.findOne({ _id: userId, organization: orgId })
+    if (!user?.setDefualtApprovalWorkflow) {
+      await User.updateOne({ _id: userId }, { setDefualtApprovalWorkflow: true })
+    }
     const filter = new QueryFilter({ organization: orgId })
       .set('approvalType', query.approvalType)
       .set('workflowType', query.workflowType)
