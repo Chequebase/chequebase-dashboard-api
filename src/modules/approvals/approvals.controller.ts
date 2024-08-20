@@ -23,14 +23,13 @@ export default class ApprovalsController {
   @Authorized(EPermission.ApprovalsCreate)
   @UseBefore(logAuditTrail(LogAction.UPDATE_APPROVAL_WORKFLOW))
   updateRule(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateRule) {
-    console.log('Test')
-    return this.approvalService.updateApprovalRule(auth.orgId, id, dto)
+    return this.approvalService.updateApprovalRule(auth, id, dto)
   }
 
   @Get('/rules')
   @Authorized(EPermission.ApprovalsRead)
   getRules(@CurrentUser() auth: AuthUser, @QueryParams() dto: GetRulesQuery) {
-    return this.approvalService.getRules(auth.orgId, dto)
+    return this.approvalService.getRules(auth, dto)
   }
 
   @Delete('/rules/:id')

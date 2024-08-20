@@ -82,7 +82,7 @@ export default class BudgetController {
   }
 
   @Post('/')
-  @Authorized()
+  @Authorized(EPermission.BudgetCreate)
   @UseBefore(logAuditTrail(LogAction.CREATE_BUDGET))
   createBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
     return this.budgetService.requestBudget(auth, dto)
@@ -164,7 +164,7 @@ export default class BudgetController {
   }
 
   @Post('/transfer')
-  @Authorized()
+  @Authorized(EPermission.WalletTransfer)
   @UseBefore(logAuditTrail(LogAction.CREATE_BUDGET_TRANSFER))
   createTransferBudget(@CurrentUser() auth: AuthUser, @Body() dto: CreateBudgetDto) {
     return this.budgetService.requestBudget(auth, dto)
@@ -183,7 +183,7 @@ export default class BudgetController {
   }
 
   @Get('/transfer-fee')
-  @Authorized()
+  @Authorized(EPermission.WalletTransfer)
   getTransactionFee(@CurrentUser() auth: AuthUser, @QueryParams() query: GetTransferFee) {
     return this.budgetTransferService.getTransferFee(auth.orgId, query)
   }
@@ -201,13 +201,13 @@ export default class BudgetController {
   }
 
   @Get('/balances')
-  @Authorized()
+  @Authorized(EPermission.BudgetRead)
   getBalances(@CurrentUser() auth: AuthUser) {
     return this.budgetService.getBalances(auth)
   }
 
   @Post('/:id/fund-request')
-  @Authorized()
+  @Authorized(EPermission.BudgetFund)
   @UseBefore(logAuditTrail(LogAction.INITIATE_FUND_REQUEST))
   initiateFundRequest(@CurrentUser() auth: AuthUser, @Param('id') budgetId: string, @Body() dto: FundRequestBody) {
     return this.budgetService.initiateFundRequest({
@@ -240,13 +240,13 @@ export default class BudgetController {
   }
 
   @Get('/:id')
-  @Authorized()
+  @Authorized(EPermission.BudgetRead)
   getBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetService.getBudget(auth, id)
   }
 
   @Get('/:id/policies')
-  @Authorized()
+  @Authorized(EPermission.PolicyRead)
   getBudgetPolicies(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetService.getBudgetPolicies(auth, id)
   }
