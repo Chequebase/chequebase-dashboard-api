@@ -1,50 +1,115 @@
 import { Service } from "typedi"
 import { BadRequestError, NotFoundError } from "routing-controllers"
-import { ObjectId } from 'mongodb'
 import dayjs from "dayjs"
 import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
 import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
-import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource } from "./dto/budget-transfer.dto"
+import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource } from "../budget/dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import { IWallet } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
-import Budget, { BudgetStatus } from "@/models/budget.model"
+import Budget from "@/models/budget.model"
 import Wallet from "@/models/wallet.model"
 import { TransferService } from "../transfer/transfer.service"
 import { TransferClientName } from "../transfer/providers/transfer.client"
 import { AnchorService } from "../common/anchor.service"
-import { ApproveTransfer, CreateTransferRecord, RunSecurityCheck } from "./interfaces/budget-transfer.interface"
 import User, { KycStatus } from "@/models/user.model"
-import { ERole } from "../user/dto/user.dto"
 import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
-import Organization, { IOrganization } from "@/models/organization.model"
+import Organization from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
 import Logger from "../common/utils/logger"
-import { IProject } from "@/models/project.model"
 import Bank from "@/models/bank.model"
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model"
 import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model"
 import { S3Service } from "../common/aws/s3.service"
 import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
-import { BudgetPolicyService } from "./budget-policy.service"
 import EmailService from "../common/email.service"
+import { IVirtualAccount } from "@/models/virtual-account.model";
+import { ChargeWallet } from "./interfaces/wallet.interface";
+
+export interface CreateTransferRecord {
+  auth: { orgId: string; userId: string }
+  wallet: IWallet
+  counterparty: ICounterparty
+  data: ApproveTransfer
+  amountToDeduct: number
+  fee: number
+  provider: string
+}
+
+export interface RunSecurityCheck {
+  auth: { orgId: string; userId: string }
+  wallet: any
+  amountToDeduct: number
+  data: ApproveTransfer
+}
+
+export interface ApproveTransfer {
+  wallet: string
+  amount: number
+  bankCode: string
+  accountNumber: string
+  auth: AuthUser
+  category: string
+}
 
 const logger = new Logger('budget-transfer-service')
 
 @Service()
-export class BudgetTransferService {
+export class WalletTransferService {
   constructor (
     private transferService: TransferService,
     private s3Service: S3Service,
     private anchorService: AnchorService,
-    private budgetPolicyService: BudgetPolicyService,
     private emailService: EmailService
   ) { }
+
+  private async chargeWallet(orgId: string, data: ChargeWallet) {
+    const reference = createId()
+    const { amount, narration, currency } = data
+
+    let entry: IWalletEntry
+    await cdb.transaction(async (session) => {
+      const wallet = await Wallet.findOneAndUpdate(
+        { organization: orgId, currency, balance: { $gte: amount } },
+        { $inc: { balance: -amount, ledgerBalance: -amount } },
+        { session, new: true }
+      )
+
+      if (!wallet) {
+        throw new BadRequestError("Insufficient funds")
+      }
+
+      const [entry] = await WalletEntry.create([{
+        organization: orgId,
+        wallet: wallet._id,
+        initiatedBy: data.initiatedBy,
+        currency: wallet.currency,
+        type: WalletEntryType.Debit,
+        ledgerBalanceBefore: numeral(wallet.ledgerBalance).add(amount).value(),
+        ledgerBalanceAfter: wallet.ledgerBalance,
+        balanceBefore: numeral(wallet.balance).add(amount).value(),
+        balanceAfter: wallet.balance,
+        amount,
+        scope: data.scope,
+        paymentMethod: 'wallet',
+        provider: 'wallet',
+        providerRef: reference,
+        narration: narration,
+        reference,
+        meta: data.meta,
+        status: WalletEntryStatus.Successful,
+      }], { session })
+
+      await wallet.updateOne({ walletEntry: entry._id }, { session })
+    }, transactionOpts)
+
+    return entry!
+  }
 
   private async calcTransferFee(orgId: string, amount: number, currency: string) {
     const org = await Organization.findById(orgId)
@@ -65,7 +130,7 @@ export class BudgetTransferService {
     const flatAmount = fee?.flatAmount?.[currency.toUpperCase()]
 
     if (typeof flatAmount !== 'number') {
-      logger.error('budget transfer fee not found', { orgId, amount, currency })
+      logger.error('transfer fee not found', { orgId, amount, currency })
       throw new ServiceUnavailableError('Unable to complete transfer at the moment, please try again')
     }
 
@@ -87,76 +152,21 @@ export class BudgetTransferService {
   }
 
   private async createTransferRecord(payload: CreateTransferRecord) {
-    let { auth, data, amountToDeduct } = payload
+    let { auth, amountToDeduct } = payload
 
-    let entry: IWalletEntry
-    await cdb.transaction(async (session) => {
-      let budget = await Budget.findOneAndUpdate({
-        _id: payload.budget._id,
-        status: BudgetStatus.Active,
-        balance: { $gte: amountToDeduct }
-      }, {
-        $inc: {
-          amountUsed: amountToDeduct,
-          balance: -amountToDeduct
-        }
-      }, { new: true, session })
-        .populate<{ wallet: IWallet }>('wallet')
-        .populate<{ project: IProject }>({ path: 'project', select: 'balance' })
-
-      if (!budget) {
-        throw new BadRequestError("Insufficient funds")
-      }
-
-      [entry] = await WalletEntry.create([{
-        organization: auth.orgId,
-        status: WalletEntryStatus.Pending,
-        budget: budget._id,
-        currency: budget.currency,
-        wallet: budget.wallet._id,
-        project: budget.project?._id,
-        amount: data.amount,
-        fee: payload.fee,
+    try {
+      return await this.chargeWallet(payload.auth.orgId, {
+        amount: amountToDeduct,
+        narration: 'wallet transfer',
+        scope: WalletEntryScope.WalletTransfer,
+        currency: 'NGN',
         initiatedBy: auth.userId,
-        ledgerBalanceAfter: budget.wallet.ledgerBalance,
-        ledgerBalanceBefore: budget.wallet.ledgerBalance,
-        balanceBefore: budget.wallet.balance,
-        balanceAfter: budget.wallet.balance,
-        scope: WalletEntryScope.BudgetTransfer,
-        type: WalletEntryType.Debit,
-        narration: 'Budget Transfer',
-        paymentMethod: 'transfer',
-        reference: `bt_${createId()}`,
-        provider: payload.provider,
-        meta: {
-          counterparty: payload.counterparty._id,
-          budgetBalanceAfter: budget.balance,
-          projectBalanceAfter: budget.project?.balance
-        }
-      }], { session })
-    }, transactionOpts)
-
-    return entry!
-  }
-
-  private async reverseBudgetDebit(entry: IWalletEntry, transferResponse: any) {
-    const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
-    await cdb.transaction(async (session) => {
-      await WalletEntry.updateOne({ _id: entry._id }, {
-        $set: {
-          gatewayResponse: transferResponse?.gatewayResponse,
-          status: WalletEntryStatus.Failed
-        },
-        $inc: {
-          'meta.budgetBalanceAfter': reverseAmount
-        }
-      }, { session })
-
-      await Budget.updateOne({ _id: entry.budget }, {
-        $inc: { amountUsed: -reverseAmount, balance: reverseAmount }
-      }, { session })
-
-    }, transactionOpts)
+      })
+    } catch (err) {
+      throw new BadRequestError(
+        `Unable to charge wallet`
+        )
+    }
   }
 
   private async runTransferWindowCheck(payload: RunSecurityCheck) {
@@ -179,94 +189,42 @@ export class BudgetTransferService {
     return true
   }
 
-  private async runBeneficiaryCheck(payload: RunSecurityCheck) {
-    const { budget, auth, data } = payload
-    const user = await User.findById(auth.userId).lean()
-    if (!user) {
-      throw new BadRequestError('User not found')
-    }
-
-    if (user.role === ERole.Owner) {
-      return true
-    }
-
-    const beneficiary = budget.beneficiaries.find((b: any) => b.user.equals(auth.userId))
-    if (!beneficiary) {
-      throw new BadRequestError('You do not have the necessary permissions to allocate funds from this budget')
-    }
-
-    const allocation = beneficiary.allocation
-    // has no allocation
-    if (typeof allocation === 'undefined' || allocation === null) return true
-
-    const filter = {
-      budget: new ObjectId(budget._id),
-      initiatedBy: new ObjectId(auth.userId),
-      status: { $ne: WalletEntryStatus.Failed }
-    }
-
-    const [entries] = await WalletEntry.aggregate()
-      .match(filter)
-      .group({ _id: null, totalSpent: { $sum: '$amount' } })
-
-    const amount = Number(entries?.totalSpent || 0) + data.amount
-    console.log({ amount, totalSpent: Number(entries?.totalSpent || 0 ), allocation})
-    if (amount >= allocation) {
-      throw new BadRequestError("You've exhuasted your allocation limit for this budget")
-    }
-  }
-
   private async runSecurityChecks(payload: RunSecurityCheck) {
-    const { budget, amountToDeduct } = payload
-    if (budget.status !== BudgetStatus.Active) {
-      throw new BadRequestError("Budget is not active")
-    }
+    const { wallet, amountToDeduct } = payload
 
-    if (budget.paused) {
-      throw new BadRequestError("Budget is paused")
-    }
+    await this.runTransferWindowCheck(payload)
 
-    if (budget.project && budget.project.paused) {
-      throw new BadRequestError("Project is paused")
-    }
-
-    if (budget.expiry && dayjs().isAfter(budget.expiry, 'day')) {
-      throw new BadRequestError('Budget is expired')
-    }
-
-    await Promise.all([
-      this.runBeneficiaryCheck(payload),
-      this.runTransferWindowCheck(payload),
-    ])
-
-    if (budget.balance < amountToDeduct) {
+    if (wallet.balance < amountToDeduct) {
       throw new BadRequestError(
-        'Insufficient funds: Budget available balance is less than the requested transfer amount'
+        'Insufficient funds: Wallet available balance is less than the requested transfer amount'
       )
     }
 
     return true
   }
 
-  async initiateTransfer(auth: AuthUser, budgetId: string, data: InitiateTransferDto) {
+  async initiateTransfer(auth: AuthUser, walletId: string, data: InitiateTransferDto) {
     const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
     if (!validPin) {
       throw new BadRequestError('Invalid pin')
     }
     
-    const budget = await Budget.findOne({ _id: budgetId, organization: auth.orgId })
-      .populate<{ organization: IOrganization }>('organization')
-      .populate('beneficiaries.user', 'firstName lastName avatar')
-    if (!budget) {
-      throw new NotFoundError('Budget does not exist')
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
     }
-    const organization = budget.organization
+    const organization = wallet.organization
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new NotFoundError('User does not exist')
     }
 
-    if (organization.status === KycStatus.NO_DEBIT) {
+    const org = await Organization.findById(organization.toString())
+    if (!org) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
       throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
     }
 
@@ -278,18 +236,6 @@ export class BudgetTransferService {
     if (!category) {
       throw new NotFoundError('Category does not exist')
     }
-
-    // check expense policies
-    const policyCheckData = {
-      ...data,
-      user: auth.userId,
-      dayOfWeek: new Date().getDay(),
-      budget: budgetId
-    }
-    await Promise.all([
-      this.budgetPolicyService.checkCalendarPolicy(policyCheckData),
-      this.budgetPolicyService.checkSpendLimitPolicy(policyCheckData),
-    ])
 
     const rules = await ApprovalRule.find({
       organization: auth.orgId,
@@ -311,7 +257,7 @@ export class BudgetTransferService {
       }, { upsert: true })
     }
 
-    const rule = rules.find(r => r.budget?.equals(budgetId)) || rules[0]
+    const rule = rules[0]
     let noApprovalRequired = !rule
     if (rule) {
       const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
@@ -323,27 +269,20 @@ export class BudgetTransferService {
         accountNumber: data.accountNumber,
         amount: data.amount,
         bankCode: data.bankCode,
-        budget: budgetId,
-        userId: auth.userId,
+        wallet: wallet._id.toString(),
+        auth,
         category: data.category
       })
     }
 
     let invoiceUrl
     if (data.invoice) {
-      const key = `transaction-invoice/${budgetId}/${createId()}`;
+      const key = `transaction-invoice/${walletId}/${createId()}`;
       invoiceUrl = await this.s3Service.uploadObject(
         getEnvOrThrow('AVATAR_BUCKET_NAME'),
         key,
         data.invoice
       );
-    } else {
-      await this.budgetPolicyService.checkInvoicePolicy({
-        user: auth.userId,
-        budget: budgetId,
-        bankCode: data.bankCode,
-        accountNumber: data.accountNumber
-      })
     }
 
     if (!resolveRes){
@@ -362,7 +301,7 @@ export class BudgetTransferService {
         status: user.equals(auth.userId) ? 'approved' : 'pending'
       })),
       properties: {
-        budget: budget._id,
+        wallet: wallet._id,
         transaction: {
           accountName: resolveRes.accountName,
           accountNumber: data.accountNumber,
@@ -374,12 +313,13 @@ export class BudgetTransferService {
         }
       }
     })
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
 
     rule!.reviewers.forEach(reviewer => {
       this.emailService.sendTransactionApprovalRequest(reviewer.email, {
         amount: formatMoney(data.amount),
-        currency: budget.currency,
-        budget: budget.name,
+        currency: wallet.currency,
+        wallet: virtualAccount.name,
         employeeName: reviewer.firstName,
         link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
         requester: {
@@ -387,11 +327,6 @@ export class BudgetTransferService {
           avatar: user.avatar
         },
         workflowType: toTitleCase(request.workflowType),
-        beneficiaries: budget.beneficiaries.map((b: any) => ({
-          avatar: b.user.avatar,
-          firstName: b.user.firstName,
-          lastName: b.user.lastName
-        })),
         category: category.name,
         recipient: resolveRes.accountName,
         recipientBank: resolveRes.bankName,
@@ -406,20 +341,19 @@ export class BudgetTransferService {
   }
 
   async approveTransfer(data: ApproveTransfer) {
-    const budget = await Budget.findById(data.budget)
-      .populate('project')
-    if (!budget) {
-      throw new NotFoundError('Budget does not exist')
+    const wallet = await this.getWallet(data.auth.orgId, data.wallet)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
     }
 
-    const orgId = budget.organization.toString()
-    const fee = await this.calcTransferFee(orgId, data.amount, budget.currency)
+    const orgId = wallet.organization.toString()
+    const fee = await this.calcTransferFee(orgId, data.amount, wallet.currency)
     const provider = TransferClientName.Anchor // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
     const payload = {
-      auth: { userId: data.userId, orgId },
+      auth: { userId: data.auth.userId, orgId },
       category: data.category,
-      budget, data,
+      wallet, data,
       provider, fee,
       amountToDeduct
     }
@@ -432,7 +366,7 @@ export class BudgetTransferService {
       reference: entry.reference,
       amount: data.amount,
       counterparty,
-      currency: budget.currency,
+      currency: wallet.currency,
       narration: entry.narration,
       provider
     })
@@ -441,10 +375,6 @@ export class BudgetTransferService {
       await WalletEntry.updateOne({ _id: entry._id }, {
         providerRef: transferResponse.providerRef
       })
-    }
-
-    if (transferResponse.status === 'failed') {
-      await this.reverseBudgetDebit(entry, transferResponse)
     }
 
     return {
@@ -479,6 +409,21 @@ export class BudgetTransferService {
     const transferFee = await this.calcTransferFee(orgId, data.amount, currency)
 
     return { transferFee }
+  }
+
+  async getWallet(orgId: string, walletId?: string) {
+    const filter = walletId ? { _id: walletId } : { primary: true }
+    let wallet = await Wallet.findOne({ organization: orgId, ...filter })
+      .populate({
+        path: 'virtualAccounts',
+        select: 'accountNumber bankName bankCode name'
+      })
+      .lean()
+    if (!wallet) {
+      return null
+    }
+
+    return wallet
   }
 
   async getBanks() {

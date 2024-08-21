@@ -244,9 +244,10 @@ export interface SendTransactionApprovalRequest {
   amount: string
   recipient: string
   recipientBank: string
-  budget: string
+  budget?: string
+  wallet?: string
   category: string
-  beneficiaries: { avatar: string }[]
+  beneficiaries?: { avatar: string }[]
   link: string
 }
 

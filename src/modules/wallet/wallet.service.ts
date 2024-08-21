@@ -4,7 +4,7 @@ import Counterparty from "@/models/counterparty.model";
 import Organization from "@/models/organization.model";
 import User from "@/models/user.model";
 import VirtualAccount from "@/models/virtual-account.model";
-import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 import Wallet from "@/models/wallet.model";
 import { walletQueue } from "@/queues";
 import { createId } from '@paralleldrive/cuid2';
@@ -37,6 +37,7 @@ export default class WalletService {
     const reference = createId()
     const { amount, narration, currency } = data
 
+    let entry: IWalletEntry
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
         { organization: orgId, currency, balance: { $gte: amount } },
@@ -72,10 +73,7 @@ export default class WalletService {
       await wallet.updateOne({ walletEntry: entry._id }, { session })
     }, transactionOpts)
 
-    return {
-      status: 'successful',
-      message: 'Payment successful'
-    }
+    return entry!
   }
 
   async createWallet(data: CreateWalletDto) {

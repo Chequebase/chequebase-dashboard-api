@@ -19,6 +19,7 @@ export enum WalletEntryScope {
   PlanSubscription = 'plan_subscription',
   WalletFunding = 'wallet_funding',
   BudgetTransfer = 'budget_transfer',
+  WalletTransfer = 'wallet_transfer',
   BudgetFunding = 'budget_funding',
   BudgetClosure = 'budget_closure',
   ProjectFunding = 'project_funding',
