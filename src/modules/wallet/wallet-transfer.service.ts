@@ -155,13 +155,15 @@ export class WalletTransferService {
     let { auth, amountToDeduct } = payload
 
     try {
-      return await this.chargeWallet(payload.auth.orgId, {
+      const result = await this.chargeWallet(payload.auth.orgId, {
         amount: amountToDeduct,
         narration: 'wallet transfer',
         scope: WalletEntryScope.WalletTransfer,
         currency: 'NGN',
         initiatedBy: auth.userId,
       })
+      console.log({ result })
+      return result;
     } catch (err) {
       throw new BadRequestError(
         `Unable to charge wallet`
