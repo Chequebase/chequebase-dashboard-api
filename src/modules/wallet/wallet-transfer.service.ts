@@ -30,6 +30,7 @@ import { UserService } from "../user/user.service"
 import EmailService from "../common/email.service"
 import { IVirtualAccount } from "@/models/virtual-account.model";
 import { ChargeWallet } from "./interfaces/wallet.interface";
+import WalletService from "./wallet.service";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -65,7 +66,7 @@ export class WalletTransferService {
     private transferService: TransferService,
     private s3Service: S3Service,
     private anchorService: AnchorService,
-    private emailService: EmailService
+    private emailService: EmailService,
   ) { }
 
   private async chargeWallet(orgId: string, data: ChargeWallet) {
@@ -84,7 +85,7 @@ export class WalletTransferService {
         throw new BadRequestError("Insufficient funds")
       }
 
-      const [entry] = await WalletEntry.create([{
+    [entry] = await WalletEntry.create([{
         organization: orgId,
         wallet: wallet._id,
         initiatedBy: data.initiatedBy,
@@ -107,6 +108,7 @@ export class WalletTransferService {
 
       await wallet.updateOne({ walletEntry: entry._id }, { session })
     }, transactionOpts)
+    console.log({ entry })
 
     return entry!
   }
@@ -155,7 +157,7 @@ export class WalletTransferService {
     let { auth, amountToDeduct } = payload
 
     try {
-      const result = await this.chargeWallet(payload.auth.orgId, {
+      const result = await WalletService.chargeWallet(payload.auth.orgId, {
         amount: amountToDeduct,
         narration: 'wallet transfer',
         scope: WalletEntryScope.WalletTransfer,

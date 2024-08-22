@@ -49,7 +49,7 @@ export default class WalletService {
         throw new BadRequestError("Insufficient funds")
       }
 
-      const [entry] = await WalletEntry.create([{
+      [entry] = await WalletEntry.create([{
         organization: orgId,
         wallet: wallet._id,
         initiatedBy: data.initiatedBy,
