@@ -120,7 +120,6 @@ export default class UserController {
   @Post("/refresh")
   async refreshToken(@HeaderParam("Authorization") authHeader: string, @HeaderParam("client-id") clientId: string) {
     const sessionToken = authHeader?.split("Bearer ")?.pop()!;
-    console.log({ clientId })
     return this.userService.refreshToken(sessionToken!, clientId);
   }
 

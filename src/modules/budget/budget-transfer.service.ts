@@ -210,7 +210,6 @@ export class BudgetTransferService {
       .group({ _id: null, totalSpent: { $sum: '$amount' } })
 
     const amount = Number(entries?.totalSpent || 0) + data.amount
-    console.log({ amount, totalSpent: Number(entries?.totalSpent || 0 ), allocation})
     if (amount >= allocation) {
       throw new BadRequestError("You've exhuasted your allocation limit for this budget")
     }

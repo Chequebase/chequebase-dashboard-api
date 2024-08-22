@@ -114,12 +114,11 @@ export class WalletTransferService {
     try {
       const result = await WalletService.chargeWallet(payload.auth.orgId, {
         amount: amountToDeduct,
-        narration: 'wallet transfer',
+        narration: 'Wallet transfer',
         scope: WalletEntryScope.WalletTransfer,
         currency: 'NGN',
         initiatedBy: auth.userId,
       })
-      console.log({ result })
       return result;
     } catch (err) {
       throw new BadRequestError(
