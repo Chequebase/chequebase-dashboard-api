@@ -29,7 +29,6 @@ import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
 import EmailService from "../common/email.service"
 import { IVirtualAccount } from "@/models/virtual-account.model";
-import { ChargeWallet } from "./interfaces/wallet.interface";
 import WalletService from "./wallet.service";
 
 export interface CreateTransferRecord {
@@ -68,50 +67,6 @@ export class WalletTransferService {
     private anchorService: AnchorService,
     private emailService: EmailService,
   ) { }
-
-  private async chargeWallet(orgId: string, data: ChargeWallet) {
-    const reference = createId()
-    const { amount, narration, currency } = data
-
-    let entry: IWalletEntry
-    await cdb.transaction(async (session) => {
-      const wallet = await Wallet.findOneAndUpdate(
-        { organization: orgId, currency, balance: { $gte: amount } },
-        { $inc: { balance: -amount, ledgerBalance: -amount } },
-        { session, new: true }
-      )
-
-      if (!wallet) {
-        throw new BadRequestError("Insufficient funds")
-      }
-
-    [entry] = await WalletEntry.create([{
-        organization: orgId,
-        wallet: wallet._id,
-        initiatedBy: data.initiatedBy,
-        currency: wallet.currency,
-        type: WalletEntryType.Debit,
-        ledgerBalanceBefore: numeral(wallet.ledgerBalance).add(amount).value(),
-        ledgerBalanceAfter: wallet.ledgerBalance,
-        balanceBefore: numeral(wallet.balance).add(amount).value(),
-        balanceAfter: wallet.balance,
-        amount,
-        scope: data.scope,
-        paymentMethod: 'wallet',
-        provider: 'wallet',
-        providerRef: reference,
-        narration: narration,
-        reference,
-        meta: data.meta,
-        status: WalletEntryStatus.Successful,
-      }], { session })
-
-      await wallet.updateOne({ walletEntry: entry._id }, { session })
-    }, transactionOpts)
-    console.log({ entry })
-
-    return entry!
-  }
 
   private async calcTransferFee(orgId: string, amount: number, currency: string) {
     const org = await Organization.findById(orgId)
