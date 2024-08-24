@@ -72,13 +72,13 @@ export class BudgetTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string) {
+  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
     let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
       organization: auth.orgId,
-      user: auth.userId,
       accountNumber,
-      bankCode
+      bankCode,
+      isRecipient
     }, {
       accountName: resolveRes.accountName,
       bankName: resolveRes.bankName,
@@ -411,7 +411,7 @@ export class BudgetTransferService {
     }
 
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber)
+    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber, true)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
@@ -518,15 +518,15 @@ export class BudgetTransferService {
   }
 
   async getRecipients(auth:AuthUser ) {
-    return Counterparty.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
+    return Counterparty.find({ organization: auth.orgId, isRecipient: true }).lean()
   }
 
   async createRecipient(auth: AuthUser, data: CreateRecipient) {
-    return this.getCounterparty(auth, data.bankCode, data.accountNumber);
+    return this.getCounterparty(auth, data.bankCode, data.accountNumber, true);
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
-    const recipient = await Counterparty.findOne({ _id: id, user: auth.userId, organization: auth.orgId, isRecipient: true })
+    const recipient = await Counterparty.findOne({ _id: id, organization: auth.orgId, isRecipient: true })
     if (!recipient) {
       throw new BadRequestError("Recipient not found")
     }
@@ -544,7 +544,7 @@ export class BudgetTransferService {
 
   async deleteRecipient(auth: AuthUser, id: string) {
     const recipient = await Counterparty.findOneAndUpdate(
-      { _id: id, organization: auth.orgId, user: auth.userId, isRecipient: true },
+      { _id: id, organization: auth.orgId, isRecipient: true },
       { isRecipient: false }
     )
 

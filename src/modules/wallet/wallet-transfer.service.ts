@@ -94,13 +94,13 @@ export class WalletTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string) {
+  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
     let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
       organization: auth.orgId,
-      user: auth.userId,
       accountNumber,
-      bankCode
+      bankCode,
+      isRecipient
     }, {
       accountName: resolveRes.accountName,
       bankName: resolveRes.bankName,
@@ -307,7 +307,7 @@ export class WalletTransferService {
     }
 
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber)
+    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber, true)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
