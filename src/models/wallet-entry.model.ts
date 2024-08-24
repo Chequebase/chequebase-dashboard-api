@@ -55,6 +55,7 @@ export interface IWalletEntry {
   reference: string
   status: WalletEntryStatus
   category: any
+  invoiceUrl?: string
   meta: { [key: string]: any }
   createdAt: Date;
   updatedAt: Date;
@@ -116,6 +117,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     providerRef: { type: String },
     narration: String,
     reference: { type: String, required: true },
+    invoiceUrl: String,
     meta: {
       type: Schema.Types.Mixed,
       default: {},

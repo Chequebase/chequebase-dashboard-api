@@ -128,6 +128,7 @@ export class BudgetTransferService {
         paymentMethod: 'transfer',
         reference: `bt_${createId()}`,
         provider: payload.provider,
+        invoiceUrl: data.invoiceUrl,
         meta: {
           counterparty: payload.counterparty._id,
           budgetBalanceAfter: budget.balance,
@@ -317,17 +318,6 @@ export class BudgetTransferService {
       noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
     }
 
-    if (noApprovalRequired) {
-      return this.approveTransfer({
-        accountNumber: data.accountNumber,
-        amount: data.amount,
-        bankCode: data.bankCode,
-        budget: budgetId,
-        userId: auth.userId,
-        category: data.category
-      })
-    }
-
     let invoiceUrl
     if (data.invoice) {
       const key = `budget/${budgetId}/${createId()}`;
@@ -342,6 +332,18 @@ export class BudgetTransferService {
         budget: budgetId,
         bankCode: data.bankCode,
         accountNumber: data.accountNumber
+      })
+    }
+
+    if (noApprovalRequired) {
+      return this.approveTransfer({
+        accountNumber: data.accountNumber,
+        amount: data.amount,
+        bankCode: data.bankCode,
+        budget: budgetId,
+        userId: auth.userId,
+        category: data.category,
+        invoiceUrl
       })
     }
 
@@ -420,7 +422,7 @@ export class BudgetTransferService {
       category: data.category,
       budget, data,
       provider, fee,
-      amountToDeduct
+      amountToDeduct, invoiceUrl: data.invoiceUrl
     }
 
     await this.runSecurityChecks(payload)

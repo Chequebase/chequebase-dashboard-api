@@ -54,6 +54,7 @@ export interface ApproveTransfer {
   accountNumber: string
   auth: AuthUser
   category: string
+  invoiceUrl?: string
 }
 
 const logger = new Logger('wallet-transfer-service')
@@ -117,6 +118,7 @@ export class WalletTransferService {
         scope: WalletEntryScope.WalletTransfer,
         currency: 'NGN',
         initiatedBy: auth.userId,
+        invoiceUrl: payload.data.invoiceUrl,
         meta: {
             counterparty: payload.counterparty._id
         }
@@ -224,17 +226,6 @@ export class WalletTransferService {
       noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
     }
 
-    if (noApprovalRequired) {
-      return this.approveTransfer({
-        accountNumber: data.accountNumber,
-        amount: data.amount,
-        bankCode: data.bankCode,
-        wallet: wallet._id.toString(),
-        auth,
-        category: data.category
-      })
-    }
-
     let invoiceUrl
     if (data.invoice) {
       const key = `wallet/${walletId}/${createId()}`;
@@ -243,6 +234,18 @@ export class WalletTransferService {
         key,
         data.invoice
       );
+    }
+
+    if (noApprovalRequired) {
+      return this.approveTransfer({
+        accountNumber: data.accountNumber,
+        amount: data.amount,
+        bankCode: data.bankCode,
+        wallet: wallet._id.toString(),
+        auth,
+        category: data.category,
+        invoiceUrl
+      })
     }
 
     if (!resolveRes){
@@ -315,7 +318,7 @@ export class WalletTransferService {
       category: data.category,
       wallet, data,
       provider, fee,
-      amountToDeduct
+      amountToDeduct, invoiceUrl: data.invoiceUrl
     }
 
     await this.runSecurityChecks(payload)

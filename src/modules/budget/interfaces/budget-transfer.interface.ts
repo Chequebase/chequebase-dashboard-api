@@ -25,4 +25,5 @@ export interface ApproveTransfer {
   accountNumber: string
   userId: string
   category: string
+  invoiceUrl?: string
 }

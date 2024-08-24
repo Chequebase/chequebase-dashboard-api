@@ -61,6 +61,7 @@ export default class WalletService {
         balanceAfter: wallet.balance,
         amount,
         scope: data.scope,
+        invoiceUrl: data.invoiceUrl,
         paymentMethod: 'wallet',
         provider: 'wallet',
         providerRef: reference,
@@ -247,7 +248,7 @@ export default class WalletService {
     }
 
     const history = await WalletEntry.paginate(filter.object, {
-      select: 'status currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt',
+      select: 'status currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl',
       populate: [
         { path: 'budget', select: 'name' },
         { path: 'category', select: 'name' },
