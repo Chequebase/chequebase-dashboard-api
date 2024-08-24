@@ -27,6 +27,11 @@ export class BudgetPolicyService {
       }
     }
 
+    const user = await User.findOne({ _id: auth.userId, organization: auth.orgId })
+    if (!user?.setInitialPolicies) {
+      await User.updateOne({ _id: auth.userId }, { setInitialPolicies: true })
+    }
+
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
     const nameExists = await BudgetPolicy.exists({
       organization: auth.orgId,
@@ -90,6 +95,10 @@ export class BudgetPolicyService {
   }
 
   async getPolicies(auth: AuthUser, data: GetPolicies) {
+    const user = await User.findOne({ _id: auth.userId, organization: auth.orgId })
+    if (!user?.setInitialPolicies) {
+      await User.updateOne({ _id: auth.userId }, { setInitialPolicies: true })
+    }
     const filter = new QueryFilter({ organization: auth.orgId })
       .set('budget', data.budget)
       .set('department', data.department)
