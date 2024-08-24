@@ -542,7 +542,7 @@ export class UserService {
 
   async getProfile(userId: string) {
     const user = await User.findById(userId)
-      .select('firstName lastName avatar email emailVerified manager role KYBStatus createdAt organization pin phone')
+      .select('firstName lastName avatar email emailVerified manager role KYBStatus createdAt organization pin phone setDefualtApprovalWorkflow setInitialPolicies')
       .populate('manager', 'firstName lastName avatar')
       .populate({
         path: 'organization', select: 'subscription',
