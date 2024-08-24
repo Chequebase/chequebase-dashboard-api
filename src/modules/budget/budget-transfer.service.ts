@@ -6,7 +6,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
 import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
-import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource } from "./dto/budget-transfer.dto"
+import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource, CreateRecipient } from "./dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import { IWallet } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
@@ -72,10 +72,11 @@ export class BudgetTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(orgId: string, bankCode: string, accountNumber: string) {
+  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
     let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
-      organization: orgId,
+      organization: auth.orgId,
+      user: auth.userId,
       accountNumber,
       bankCode
     }, {
@@ -297,20 +298,6 @@ export class BudgetTransferService {
       amount: { $lte: data.amount }
     })
 
-    let resolveRes: any
-    if (data.saveRecipient) {
-      resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
-      await Counterparty.findOneAndUpdate({
-        organization: auth.orgId,
-        bankCode: data.bankCode,
-        accountNumber: data.accountNumber,
-      }, {
-        isRecipient: true,
-        accountName: resolveRes.accountName,
-        bankName: resolveRes.bankName,
-      }, { upsert: true })
-    }
-
     const rule = rules.find(r => r.budget?.equals(budgetId)) || rules[0]
     let noApprovalRequired = !rule
     if (rule) {
@@ -341,15 +328,13 @@ export class BudgetTransferService {
         amount: data.amount,
         bankCode: data.bankCode,
         budget: budgetId,
-        userId: auth.userId,
+        auth,
         category: data.category,
         invoiceUrl
       })
     }
 
-    if (!resolveRes){
-      resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
-    }
+    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
 
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
@@ -418,7 +403,7 @@ export class BudgetTransferService {
     const provider = TransferClientName.Anchor // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
     const payload = {
-      auth: { userId: data.userId, orgId },
+      auth: { userId: data.auth.userId, orgId },
       category: data.category,
       budget, data,
       provider, fee,
@@ -426,7 +411,7 @@ export class BudgetTransferService {
     }
 
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber)
+    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
@@ -534,6 +519,10 @@ export class BudgetTransferService {
 
   async getRecipients(auth:AuthUser ) {
     return Counterparty.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
+  }
+
+  async createRecipient(auth: AuthUser, data: CreateRecipient) {
+    return this.getCounterparty(auth, data.bankCode, data.accountNumber);
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {

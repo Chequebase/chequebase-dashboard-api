@@ -19,11 +19,6 @@ export class InitiateTransferDto {
 
   invoice?: Buffer
 
-  @IsBoolean()
-  @IsOptional()
-  @Transform((v) => v.value === 'true')
-  saveRecipient = false
-
   @IsString()
   category: string
 
@@ -52,6 +47,14 @@ export class GetTransferFee {
 }
 
 export class UpdateRecipient {
+  @IsString()
+  bankCode: string
+
+  @IsString()
+  accountNumber: string
+}
+
+export class CreateRecipient {
   @IsString()
   bankCode: string
 

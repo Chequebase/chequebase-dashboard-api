@@ -94,10 +94,11 @@ export class WalletTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(orgId: string, bankCode: string, accountNumber: string) {
+  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
     let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
-      organization: orgId,
+      organization: auth.orgId,
+      user: auth.userId,
       accountNumber,
       bankCode
     }, {
@@ -205,20 +206,6 @@ export class WalletTransferService {
       amount: { $lte: data.amount }
     })
 
-    let resolveRes: any
-    if (data.saveRecipient) {
-      resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
-      await Counterparty.findOneAndUpdate({
-        organization: auth.orgId,
-        bankCode: data.bankCode,
-        accountNumber: data.accountNumber,
-      }, {
-        isRecipient: true,
-        accountName: resolveRes.accountName,
-        bankName: resolveRes.bankName,
-      }, { upsert: true })
-    }
-
     const rule = rules[0]
     let noApprovalRequired = !rule
     if (rule) {
@@ -248,9 +235,7 @@ export class WalletTransferService {
       })
     }
 
-    if (!resolveRes){
-      resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
-    }
+    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
 
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
@@ -322,7 +307,7 @@ export class WalletTransferService {
     }
 
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber)
+    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
