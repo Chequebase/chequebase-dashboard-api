@@ -221,7 +221,8 @@ export default class WalletService {
         $in: [
           WalletEntryScope.PlanSubscription,
           WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer
+          WalletEntryScope.BudgetTransfer,
+          WalletEntryScope.WalletTransfer
         ]
       })
       .set('budget', query.budget)
