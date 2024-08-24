@@ -330,9 +330,9 @@ export class BudgetTransferService {
 
     let invoiceUrl
     if (data.invoice) {
-      const key = `transaction-invoice/${budgetId}/${createId()}`;
+      const key = `budget/${budgetId}/${createId()}`;
       invoiceUrl = await this.s3Service.uploadObject(
-        getEnvOrThrow('AVATAR_BUCKET_NAME'),
+        getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
         key,
         data.invoice
       );

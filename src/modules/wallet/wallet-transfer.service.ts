@@ -237,9 +237,9 @@ export class WalletTransferService {
 
     let invoiceUrl
     if (data.invoice) {
-      const key = `transaction-invoice/${walletId}/${createId()}`;
+      const key = `wallet/${walletId}/${createId()}`;
       invoiceUrl = await this.s3Service.uploadObject(
-        getEnvOrThrow('AVATAR_BUCKET_NAME'),
+        getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
         key,
         data.invoice
       );
