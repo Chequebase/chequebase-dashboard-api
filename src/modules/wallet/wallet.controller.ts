@@ -1,5 +1,6 @@
 import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, Req, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
+import { Request } from "express";
 import WalletService from "./wallet.service";
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
@@ -7,11 +8,18 @@ import { PassThrough } from "stream";
 import { Response } from "express";
 import publicApiGuard from "../common/guards/public-api.guard";
 import { EPermission } from "@/models/role-permission.model";
+import { logAuditTrail } from "../common/audit-logs/logs";
+import multer from "multer";
+import { LogAction } from "@/models/logs.model";
+import { InitiateTransferDto } from "../budget/dto/budget-transfer.dto";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
+import { WalletTransferService } from "./wallet-transfer.service";
 
 @Service()
 @JsonController('/wallet', { transformResponse: false })
 export default class WalletController {
-  constructor (private walletService: WalletService) { }
+  constructor (private walletService: WalletService, private walletTransferService: WalletTransferService) { }
   
   @Post('/')
   @UseBefore(publicApiGuard)
@@ -78,5 +86,24 @@ export default class WalletController {
   @Authorized(EPermission.TransactionRead)
   reportTransaction(@CurrentUser() auth: AuthUser, @Body() dto: ReportTransactionDto) {
     return this.walletService.reportTransactionToSlack(auth.orgId, dto)
+  }
+
+  @Post('/:id/transfer/initiate')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(multer().single('invoice'))
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async initiateTransfer(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const file = req.file as any
+    const dto = plainToInstance(InitiateTransferDto, { invoice: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) {
+      throw { errors }
+    }
+
+    return this.walletTransferService.initiateTransfer(auth, id, dto)
   }
 }

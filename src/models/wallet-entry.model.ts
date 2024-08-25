@@ -19,6 +19,7 @@ export enum WalletEntryScope {
   PlanSubscription = 'plan_subscription',
   WalletFunding = 'wallet_funding',
   BudgetTransfer = 'budget_transfer',
+  WalletTransfer = 'wallet_transfer',
   BudgetFunding = 'budget_funding',
   BudgetClosure = 'budget_closure',
   ProjectFunding = 'project_funding',
@@ -54,6 +55,7 @@ export interface IWalletEntry {
   reference: string
   status: WalletEntryStatus
   category: any
+  invoiceUrl?: string
   meta: { [key: string]: any }
   createdAt: Date;
   updatedAt: Date;
@@ -115,6 +117,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     providerRef: { type: String },
     narration: String,
     reference: { type: String, required: true },
+    invoiceUrl: String,
     meta: {
       type: Schema.Types.Mixed,
       default: {},

@@ -1,6 +1,10 @@
 import { Transform } from "class-transformer";
 import { IsBoolean, IsInt, IsOptional, IsString, Length } from "class-validator";
 
+export const enum IPaymentSource {
+  WALLET = 'wallet',
+  BUDGET = 'budget'
+}
 export class InitiateTransferDto {
   @IsInt()
   @Transform((n) => Number(n.value))
@@ -14,11 +18,6 @@ export class InitiateTransferDto {
   bankCode: string
 
   invoice?: Buffer
-
-  @IsBoolean()
-  @IsOptional()
-  @Transform((v) => v.value === 'true')
-  saveRecipient = false
 
   @IsString()
   category: string
@@ -41,10 +40,21 @@ export class GetTransferFee {
   amount: number
 
   @IsString()
-  budget: string
+  paymentSource: IPaymentSource
+
+  @IsString()
+  paymentSourceId: string
 }
 
 export class UpdateRecipient {
+  @IsString()
+  bankCode: string
+
+  @IsString()
+  accountNumber: string
+}
+
+export class CreateRecipient {
   @IsString()
   bankCode: string
 

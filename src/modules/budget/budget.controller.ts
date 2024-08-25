@@ -12,7 +12,7 @@ import { BudgetPolicyService } from "./budget-policy.service";
 import { BudgetTransferService } from "./budget-transfer.service";
 import BudgetService from "./budget.service";
 import { CreatePolicy, GetPolicies, updatePolicy } from "./dto/budget-policy.dto";
-import { CheckTransferPolicyDto, GetTransferFee, InitiateTransferDto, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto";
+import { CheckTransferPolicyDto, CreateRecipient, GetTransferFee, InitiateTransferDto, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto";
 import { CloseBudgetBodyDto, CreateBudgetDto, CreateTransferCategory, EditBudgetDto, FundRequestBody, GetBudgetsDto, PauseBudgetBodyDto, RequestBudgetExtension } from "./dto/budget.dto";
 import { AddSubBudgets, CloseProjectBodyDto, CreateProjectDto, GetProjectsDto, PauseProjectDto } from "./dto/project.dto";
 import { ProjectService } from "./project.service";
@@ -143,6 +143,12 @@ export default class BudgetController {
   @Authorized()
   checkTransferPolicy(@CurrentUser() auth: AuthUser, @Body() dto: CheckTransferPolicyDto) {
     return this.policyService.checkTransferPolicy(auth.userId, dto)
+  }
+
+  @Post('/recipients')
+  @Authorized()
+  createRecipient(@CurrentUser() auth: AuthUser, @Body() dto: CreateRecipient) {
+    return this.budgetTransferService.createRecipient(auth, dto)
   }
 
   @Get('/recipients')
