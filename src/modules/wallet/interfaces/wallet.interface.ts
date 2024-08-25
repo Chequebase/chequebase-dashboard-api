@@ -7,5 +7,6 @@ export interface ChargeWallet {
   currency: string
   scope: WalletEntryScope
   initiatedBy?: string | Types.ObjectId
+  invoiceUrl?: string
   meta?: { [key: string]: any }
 }

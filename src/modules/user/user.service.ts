@@ -360,7 +360,6 @@ export class UserService {
     }
 
     const decodedToken = jwt.decode(token)
-    console.log({ token: (decodedToken as JwtPayload).exp, date: Date.now(), check: ((decodedToken as JwtPayload).exp || 1) * 1000 < Date.now() })
     if (decodedToken && ((decodedToken as JwtPayload).exp || 1) * 1000 > Date.now()) {
       return await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
     } else {
@@ -543,7 +542,7 @@ export class UserService {
 
   async getProfile(userId: string) {
     const user = await User.findById(userId)
-      .select('firstName lastName avatar email emailVerified manager role KYBStatus createdAt organization pin phone')
+      .select('firstName lastName avatar email emailVerified manager role KYBStatus createdAt organization pin phone setDefualtApprovalWorkflow setInitialPolicies')
       .populate('manager', 'firstName lastName avatar')
       .populate({
         path: 'organization', select: 'subscription',

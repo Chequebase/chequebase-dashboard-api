@@ -14,6 +14,7 @@ export enum LogAction {
   PAUSE_BUDGET = 'Pause Budget',
   CLOSE_BUDGET = 'Close Budget',
   INITIATE_BUDGET_TRANSFER = 'Initiate Budget Transfer',
+  INITIATE_TRANSFER = 'Initiate Transfer',
   CREATE_BUDGET_POLICY = 'Create Budget Policy',
   EDIT_BUDGET_POLICY = 'Edit Budget Policy',
   DELETE_BUDGET_POLICY = 'Delete Budget Policy',
