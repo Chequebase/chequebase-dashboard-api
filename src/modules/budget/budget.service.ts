@@ -742,7 +742,6 @@ export default class BudgetService {
     }
     
     if (!isOwner) {
-      filter.set('createdBy', new ObjectId(auth.userId))
       filter.set('beneficiaries.user', new ObjectId(auth.userId))
     } else {
       if (query.createdByUser) filter.set('createdBy', new ObjectId(auth.userId))
