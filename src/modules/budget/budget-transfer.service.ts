@@ -5,7 +5,7 @@ import dayjs from "dayjs"
 import { createId } from "@paralleldrive/cuid2"
 import { cdb } from "../common/mongoose"
 import numeral from "numeral"
-import { AuthUser } from "../common/interfaces/auth-user"
+import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user"
 import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource, CreateRecipient } from "./dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import { IWallet } from "@/models/wallet.model"
@@ -183,12 +183,12 @@ export class BudgetTransferService {
 
   private async runBeneficiaryCheck(payload: RunSecurityCheck) {
     const { budget, auth, data } = payload
-    const user = await User.findById(auth.userId).lean()
+    const user = await User.findById(auth.userId).populate('roleRef').lean()
     if (!user) {
       throw new BadRequestError('User not found')
     }
 
-    if (user.role === ERole.Owner) {
+    if (ParentOwnershipGetAll.includes(user.roleRef.name)) {
       return true
     }
 

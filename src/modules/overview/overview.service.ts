@@ -7,10 +7,9 @@ import WalletEntry, { WalletEntryScope, WalletEntryStatus } from '@/models/walle
 import { getPercentageDiff } from '../common/utils';
 import { getDates, getPrevFromAndTo } from '../common/utils/date';
 import { GetCashflowTrendDto, GetOverviewSummaryDto, ReportSuggestionDto } from './dto/overview.dto';
-import { AuthUser } from '../common/interfaces/auth-user';
+import { AuthUser, ParentOwnershipGetAll } from '../common/interfaces/auth-user';
 import User, { IUser } from '@/models/user.model';
 import { BadRequestError } from 'routing-controllers';
-import { ERole } from '../user/dto/user.dto';
 import Project, { ProjectStatus } from '@/models/project.model';
 import { AllowedSlackWebhooks, SlackNotificationService } from '../common/slack/slackNotification.service';
 
@@ -21,7 +20,7 @@ export class OverviewService {
   constructor (private slackService: SlackNotificationService) { }
 
   private async getWalletBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
-    if (user.role !== ERole.Owner) {
+    if (!ParentOwnershipGetAll.includes(user.roleRef.name)) {
       return { value: null, percentageDiff: null }
     }
 
@@ -65,7 +64,7 @@ export class OverviewService {
   }
 
   private async getBudgetBalanceSummary(user: IUser, query: GetOverviewSummaryDto) {
-    const isOwner = user.role === ERole.Owner
+    const isOwner = ParentOwnershipGetAll.includes(user.roleRef.name)
     const { from, to, prevFrom, prevTo } = getPrevFromAndTo(query.from, query.to)
     const filter: any = {
       organization: user.organization,
@@ -147,12 +146,13 @@ export class OverviewService {
         $in: [
           WalletEntryScope.PlanSubscription,
           WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer
+          WalletEntryScope.BudgetTransfer,
+          WalletEntryScope.WalletTransfer
         ]
       },
     }
 
-    if (user.role !== ERole.Owner) {
+    if (!ParentOwnershipGetAll.includes(user.roleRef.name)) {
       filter.initiatedBy = user._id
       filter.scope.$in = [WalletEntryScope.BudgetTransfer]
     }
@@ -173,7 +173,7 @@ export class OverviewService {
   }
 
   async getOverviewSummary(auth: AuthUser, query: GetOverviewSummaryDto) {
-    const user = await User.findById(auth.userId).lean()
+    const user = await User.findById(auth.userId).populate('roleRef').lean()
     if (!user) throw new BadRequestError("User not found")
 
     const [accountBalance, budgetBalance, totalSpend] = await Promise.all([
@@ -191,12 +191,12 @@ export class OverviewService {
   }
 
   async cashflowTrend(auth: AuthUser, query: GetCashflowTrendDto) {
-    const user = await User.findById(auth.userId)
+    const user = await User.findById(auth.userId).populate('roleRef')
     if (!user) throw new BadRequestError('User not found')
 
     const userId = new ObjectId(auth.userId)
-    const isOwner = user.role === ERole.Owner
-    const ownerExpenseScopes = [WalletEntryScope.PlanSubscription, WalletEntryScope.BudgetTransfer]
+    const isOwner = ParentOwnershipGetAll.includes(user.roleRef.name)
+    const ownerExpenseScopes = [WalletEntryScope.PlanSubscription, WalletEntryScope.BudgetTransfer, WalletEntryScope.WalletTransfer]
     const ownerIncomeScopes = [WalletEntryScope.WalletFunding]
     const employeeExpenseScopes = [WalletEntryScope.BudgetTransfer]
     const employeeIncomeScopes = [WalletEntryScope.BudgetFunding]

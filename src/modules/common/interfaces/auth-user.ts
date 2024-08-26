@@ -16,3 +16,5 @@ export type AuthUser = {
     }[]
   }
 };
+
+export const ParentOwnershipGetAll = ['owner', 'administrator']
