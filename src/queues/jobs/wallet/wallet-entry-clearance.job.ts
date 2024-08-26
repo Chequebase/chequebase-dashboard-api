@@ -62,7 +62,12 @@ async function addWalletEntriesForClearance(job: Job) {
   const logger = new Logger(addWalletEntriesForClearance.name)
   const filter = {
     status: WalletEntryStatus.Pending,
-    scope: WalletEntryScope.BudgetTransfer,
+    scope: {
+      $in: [
+        WalletEntryScope.BudgetTransfer,
+        WalletEntryScope.WalletTransfer
+      ]
+    },
     createdAt: { $lte: dayjs().subtract(1, 'hour').toDate() },
   }
 

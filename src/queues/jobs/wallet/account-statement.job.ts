@@ -57,7 +57,8 @@ async function sendAccountStatement(job: Job<WalletInflowData>) {
         $in: [
           WalletEntryScope.PlanSubscription,
           WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer
+          WalletEntryScope.BudgetTransfer,
+          WalletEntryScope.WalletTransfer
         ]
       },
       createdAt: {

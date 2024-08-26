@@ -16,12 +16,11 @@ import { ObjectId } from 'mongodb';
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
-import { AuthUser } from "../common/interfaces/auth-user";
+import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
 import { cdb } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
-import { ERole } from "../user/dto/user.dto";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
@@ -208,7 +207,7 @@ export default class WalletService {
   }
 
   async getWalletEntries(auth: AuthUser, query: GetWalletEntriesDto) {
-    const user = await User.findById(auth.userId).select('role').lean()
+    const user = await User.findById(auth.userId).populate('roleRef').lean()
     if (!user) {
       throw new BadRequestError("User not found")
     }
@@ -228,12 +227,14 @@ export default class WalletService {
       })
       .set('budget', query.budget)
       .set('project', query.project)
-      .set('initiatedBy', user.role === ERole.Owner ? query.beneficiary : user._id)
       .set('createdAt', {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()
       })
 
+    if (!ParentOwnershipGetAll.includes(user.roleRef.name)) {
+      filter.set('initiatedBy', user._id)
+    }
     if (query.search) {
       const search = escapeRegExp(query.search)
       filter.set('$or', [{ reference: { $regex: search } }])
@@ -274,7 +275,8 @@ export default class WalletService {
         $in: [
           WalletEntryScope.PlanSubscription,
           WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer
+          WalletEntryScope.BudgetTransfer,
+          WalletEntryScope.WalletTransfer
         ]
       },
       createdAt: {

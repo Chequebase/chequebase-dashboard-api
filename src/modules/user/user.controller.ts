@@ -28,7 +28,6 @@ import {
   RegisterDto,
   ResendEmailDto,
   ResendOtpDto,
-  ERole,
   UpdateEmployeeDto,
   VerifyEmailDto,
   UpdateProfileDto,
@@ -37,7 +36,6 @@ import {
 import { UserService } from "./user.service";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { Service } from "typedi";
-import { verifyToken } from "@/modules/common/middlewares/rbac.middleware";
 import { getEnvOrThrow } from "@/modules/common/utils";
 import multer from "multer";
 import { Request, Response } from "express";
