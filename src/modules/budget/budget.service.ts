@@ -149,7 +149,7 @@ export default class BudgetService {
       .populate('reviewers', 'email firstName')
     
     const beneficiaries = data.beneficiaries?.length ?
-      [...data.beneficiaries.filter(x => x.user !== auth.userId), { user: auth.userId, allocation: data.amount }] :
+      [...data.beneficiaries.filter(x => x.user !== auth.userId), { user: auth.userId }] :
       [{ user: auth.userId, allocation: data.amount }]
 
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i");
