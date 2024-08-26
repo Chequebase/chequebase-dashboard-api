@@ -17,7 +17,6 @@ import {
 } from "routing-controllers";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { SettingsService } from "./settings.service";
-import { ERole } from "../user/dto/user.dto";
 
 @Service()
 @JsonController("/settings", { transformResponse: false })

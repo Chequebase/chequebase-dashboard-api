@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb'
 import { createId } from "@paralleldrive/cuid2";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import { AuthUser } from "../common/interfaces/auth-user";
+import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
 import { BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto, FundBudget, FundBudgetSource, FundRequestBody } from "./dto/budget.dto";
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model";
 import Wallet, { IWallet } from "@/models/wallet.model";
@@ -149,7 +149,7 @@ export default class BudgetService {
       .populate('reviewers', 'email firstName')
     
     const beneficiaries = data.beneficiaries?.length ?
-      data.beneficiaries :
+      [...data.beneficiaries.filter(x => x.user !== auth.userId), { user: auth.userId, allocation: data.amount }] :
       [{ user: auth.userId, allocation: data.amount }]
 
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i");
@@ -727,12 +727,12 @@ export default class BudgetService {
 
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
     query.status ??= BudgetStatus.Active
-    const user = await User.findById(auth.userId).lean()
+    const user = await User.findById(auth.userId).populate('roleRef').lean()
     if (!user) {
       throw new BadRequestError("User not found")
     }
 
-    const isOwner = user.role === ERole.Owner || auth.isOwner
+    const isOwner = (ParentOwnershipGetAll.includes(user.roleRef.name)) || auth.isOwner
     const filter = new QueryFilter({ organization: new ObjectId(auth.orgId) })
       .set('paused', query.paused)
       .set('project', { $exists: false })
@@ -742,6 +742,7 @@ export default class BudgetService {
     }
     
     if (!isOwner) {
+      filter.set('createdBy', new ObjectId(auth.userId))
       filter.set('beneficiaries.user', new ObjectId(auth.userId))
     } else {
       if (query.createdByUser) filter.set('createdBy', new ObjectId(auth.userId))
@@ -881,12 +882,12 @@ export default class BudgetService {
 
   async getBudget(auth: AuthUser, id: string) {
     const filter: any = { _id: new ObjectId(id), organization: new ObjectId(auth.orgId) }
-    const user = await User.findById(auth.userId).lean()
+    const user = await User.findById(auth.userId).populate('roleRef').lean()
     if (!user) {
       throw new BadRequestError("User not found")
     }
 
-    if (user.role !== ERole.Owner || !auth?.isOwner) {
+    if (!ParentOwnershipGetAll.includes(user.roleRef.name) || !auth?.isOwner) {
       filter['beneficiaries.user'] = new ObjectId(auth.userId)
     }
 

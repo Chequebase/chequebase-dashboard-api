@@ -177,7 +177,7 @@ export default class BudgetController {
   }
 
   @Get('/')
-  @Authorized()
+  @Authorized(EPermission.BudgetRead)
   getBudgets(@CurrentUser() auth: AuthUser, @QueryParams() dto: GetBudgetsDto) {
     return this.budgetService.getBudgets(auth, dto)
   }

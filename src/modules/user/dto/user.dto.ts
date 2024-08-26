@@ -3,7 +3,7 @@ import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum,
 
 export enum ERole {
   Owner = 'owner',
-  Cfo = 'cfo',
+  Administrator = 'administrator',
   Employee = 'employee'
 }
 
