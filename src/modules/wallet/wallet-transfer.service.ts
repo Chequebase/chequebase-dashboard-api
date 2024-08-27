@@ -53,6 +53,7 @@ export interface ApproveTransfer {
   bankCode: string
   accountNumber: string
   auth: AuthUser
+  requester: string
   category: string
   invoiceUrl?: string
 }
@@ -230,6 +231,7 @@ export class WalletTransferService {
         bankCode: data.bankCode,
         wallet: wallet._id.toString(),
         auth,
+        requester: auth.userId,
         category: data.category,
         invoiceUrl
       })
