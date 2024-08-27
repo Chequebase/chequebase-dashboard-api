@@ -118,7 +118,7 @@ export class BudgetTransferService {
         project: budget.project?._id,
         amount: data.amount,
         fee: payload.fee,
-        initiatedBy: auth.userId,
+        initiatedBy: payload.data.requester,
         ledgerBalanceAfter: budget.wallet.ledgerBalance,
         ledgerBalanceBefore: budget.wallet.ledgerBalance,
         balanceBefore: budget.wallet.balance,
@@ -329,6 +329,7 @@ export class BudgetTransferService {
         bankCode: data.bankCode,
         budget: budgetId,
         auth,
+        requester: auth.userId,
         category: data.category,
         invoiceUrl
       })
@@ -407,6 +408,7 @@ export class BudgetTransferService {
       category: data.category,
       budget, data,
       provider, fee,
+      requester: data.requester,
       amountToDeduct, invoiceUrl: data.invoiceUrl
     }
 
