@@ -25,6 +25,7 @@ export interface ApproveTransfer {
   bankCode: string
   accountNumber: string
   auth: AuthUser
+  requester: string,
   category: string
   invoiceUrl?: string
 }

@@ -248,6 +248,7 @@ export default class ApprovalService {
           bankCode: trnx.bankCode,
           budget: props.budget._id,
           auth,
+          requester: request.requester._id,
           category: trnx.category
         })
         break;
