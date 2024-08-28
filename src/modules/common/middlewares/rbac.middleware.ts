@@ -61,21 +61,24 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
   }
 
   const clientId = requestAction.request.headers?.["client-id"];
+  const apiKey = requestAction.request.headers?.["source-app"];
   if (!clientId) throw new UnauthorizedError('No ClientId')
   const currentDevice = await Device.findOne({ clientId });
 
-  if (!currentDevice) throw new NotFoundError('Device Not Found');
+  if (apiKey !== 'banksphere') {
+    if (!currentDevice) throw new NotFoundError('Device Not Found');
 
-  const currentSessions = await Session.find({
-    user: user.id,
-    device: { $ne: currentDevice.id },
-    revokedAt: { $exists: false },
-  });
-  if (currentSessions.length > 0) {
-    await User.updateOne({ _id: user.id }, {
-      rememberMe: false,
-    })
-    throw new ForbiddenError('Currently logged in to another device');
+    const currentSessions = await Session.find({
+      user: user.id,
+      device: { $ne: currentDevice?.id },
+      revokedAt: { $exists: false },
+    });
+    if (currentSessions.length > 0) {
+      await User.updateOne({ _id: user.id }, {
+        rememberMe: false,
+      })
+      throw new ForbiddenError('Currently logged in to another device');
+    }
   }
 
   const isOwner =
