@@ -19,6 +19,8 @@ export class InitiateTransferDto {
 
   invoice?: Buffer
 
+  fileExt?: string
+
   @IsString()
   category: string
 

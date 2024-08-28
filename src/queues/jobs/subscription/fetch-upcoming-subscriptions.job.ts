@@ -16,14 +16,14 @@ const logger = new Logger('fetch-upcoming-subscriptions.job')
 
 async function fetchUpcomingSubscriptions() {
   try {
-    const in3days = dayjs().tz().add(3, 'days').format('YYYY-MM-DD')
+    const in10days = dayjs().tz().add(10, 'days').format('YYYY-MM-DD')
     const in1Week = dayjs().tz().add(1, 'week').format('YYYY-MM-DD')
     const trialFilter = {
       status: SubscriptionStatus.Active,
       $expr: {
         $eq: [
           { $dateToString: { format: "%Y-%m-%d", date: "$renewAt", timezone: 'Africa/Lagos' } },
-          in3days
+          in10days
         ],
       },
       trial: true,
