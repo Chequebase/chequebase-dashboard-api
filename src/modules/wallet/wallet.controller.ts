@@ -104,9 +104,7 @@ export default class WalletController {
     @Req() req: Request,
   ) {
     const file = req.file as any
-    console.log({ extension: file.mimetype })
-    console.log({ ext: file.mimetype.toLowerCase().trim().split('/')[1] })
-    const dto = plainToInstance(InitiateTransferDto, { invoice: file?.buffer, ...req.body })
+    const dto = plainToInstance(InitiateTransferDto, { fileExt: file.mimetype.toLowerCase().trim().split('/')[1], invoice: file?.buffer, ...req.body })
     const errors = await validate(dto)
     if (errors.length) {
       throw { errors }
