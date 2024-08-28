@@ -879,7 +879,8 @@ export class UserService {
     if (!user) {
       throw new NotFoundError("User not found");
     }
-    const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}`;
+    const fileExt = file.mimetype.toLowerCase().trim().split('/')[1]
+    const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}.${fileExt || 'pdf'}`;
     const url = await this.s3Service.uploadObject(
       getEnvOrThrow('AVATAR_BUCKET_NAME'),
       key,

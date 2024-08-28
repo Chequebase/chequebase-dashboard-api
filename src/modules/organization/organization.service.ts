@@ -135,7 +135,8 @@ export class OrganizationsService {
     const documents = organization?.documents || {};
     if (organization.admin) {
       await Promise.all(files.map(async (file) => {
-        const key = `documents/${organization.id}/${file.fieldname}`;
+        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
+        const key = `documents/${organization.id}/${file.fieldname}.${fileExt || 'pdf'}`;
         const url = await this.s3Service.uploadObject(
           getEnvOrThrow('KYB_BUCKET_NAME'),
           key,

@@ -289,7 +289,7 @@ export default class BudgetController {
     @Req() req: Request,
   ) {
     const file = req.file as any
-    const dto = plainToInstance(InitiateTransferDto, { invoice: file?.buffer, ...req.body })
+    const dto = plainToInstance(InitiateTransferDto, { fileExt: file.mimetype.toLowerCase().trim().split('/')[1], invoice: file?.buffer, ...req.body })
     const errors = await validate(dto)
     if (errors.length) {
       throw { errors }

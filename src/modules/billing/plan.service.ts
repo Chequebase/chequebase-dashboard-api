@@ -225,8 +225,8 @@ export class PlanService {
 
     const sub = organization?.subscription
     const currentSub = sub ? sub.object as ISubscription : undefined
-    // 5 days trial for first timers
-    let days = currentSub ? months * 30 : 5
+    // 14 days trial for first timers
+    let days = currentSub ? months * 30 : 14
     let startedAt = new Date()
     let endingAt = dayjs(startedAt).add(days, 'days').toDate()
     const oldPlanId = currentSub ? currentSub?.plan?.toString() : undefined
