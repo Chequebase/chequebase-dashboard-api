@@ -23,6 +23,7 @@ export enum EPermission {
   ApprovalsDecline = 'approvals:decline',
   PolicyEdit = 'policy:edit',
   PolicyRead = 'policy:read',
+  BudgetPolicyRead = 'budget_policy:read',
   PeopleCreate = 'people:create',
   PeopleRead = 'people:read',
   LicenseRead = 'license:read',

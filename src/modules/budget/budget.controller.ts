@@ -252,7 +252,7 @@ export default class BudgetController {
   }
 
   @Get('/:id/policies')
-  @Authorized(EPermission.PolicyRead)
+  @Authorized(EPermission.BudgetPolicyRead)
   getBudgetPolicies(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.budgetService.getBudgetPolicies(auth, id)
   }
