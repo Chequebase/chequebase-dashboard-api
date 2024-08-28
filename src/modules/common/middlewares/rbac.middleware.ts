@@ -62,10 +62,10 @@ export const RBAC = async (requestAction: Action, actions: string[] = []) => {
 
   const clientId = requestAction.request.headers?.["client-id"];
   const apiKey = requestAction.request.headers?.["source-app"];
-  if (!clientId) throw new UnauthorizedError('No ClientId')
-  const currentDevice = await Device.findOne({ clientId });
 
   if (apiKey !== 'banksphere') {
+    if (!clientId) throw new UnauthorizedError('No ClientId')
+    const currentDevice = await Device.findOne({ clientId });
     if (!currentDevice) throw new NotFoundError('Device Not Found');
 
     const currentSessions = await Session.find({
