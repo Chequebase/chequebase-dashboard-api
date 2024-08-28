@@ -111,11 +111,11 @@ export class WalletTransferService {
   }
 
   private async createTransferRecord(payload: CreateTransferRecord) {
-    let { auth, amountToDeduct } = payload
+    let { auth, data: { amount } } = payload
 
     try {
       const result = await WalletService.chargeWallet(payload.auth.orgId, {
-        amount: amountToDeduct,
+        amount,
         narration: 'Wallet transfer',
         scope: WalletEntryScope.WalletTransfer,
         currency: 'NGN',
