@@ -16,6 +16,12 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { WalletTransferService } from "./wallet-transfer.service";
 
+const whitelist = [
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp'
+]
 @Service()
 @JsonController('/wallet', { transformResponse: false })
 export default class WalletController {
@@ -98,6 +104,8 @@ export default class WalletController {
     @Req() req: Request,
   ) {
     const file = req.file as any
+    console.log({ extension: file.mimetype })
+    console.log({ ext: file.mimetype.toLowerCase().trim().split('/')[1] })
     const dto = plainToInstance(InitiateTransferDto, { invoice: file?.buffer, ...req.body })
     const errors = await validate(dto)
     if (errors.length) {
