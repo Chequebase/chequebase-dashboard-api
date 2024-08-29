@@ -67,10 +67,13 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
       throw new BadRequestError('Virtual account not found')
     }
 
+    // Anchor inflow fee
+    let inflowFee = Math.min(amount * 0.005, 20000);
+    const creditedAmount = amount - inflowFee;
     const wallet = virtualAccount.wallet
     const organization = virtualAccount.organization
-    const balanceAfter = numeral(wallet.balance).add(amount).value()!
-    const ledgerBalanceAfter = numeral(wallet.ledgerBalance).add(amount).value()!
+    const balanceAfter = numeral(wallet.balance).add(creditedAmount).value()!
+    const ledgerBalanceAfter = numeral(wallet.ledgerBalance).add(creditedAmount).value()!
 
     await cdb.transaction(async (session) => {
       const [entry] = await WalletEntry.create([{
@@ -79,7 +82,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         currency,
         reference,
         gatewayResponse,
-        amount,
+        amount: creditedAmount,
         paymentMethod: data.paymentMethod,
         scope: WalletEntryScope.WalletFunding,
         narration,
@@ -98,7 +101,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
 
       await Wallet.updateOne({ _id: virtualAccount.wallet }, {
         $set: { walletEntry: entry._id },
-        $inc: { ledgerBalance: Number(amount), balance: Number(amount) }
+        $inc: { ledgerBalance: Number(creditedAmount), balance: Number(creditedAmount) }
       },{ session } )
     }, transactionOpts)
 
@@ -109,7 +112,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
       bankName: data.sourceAccount.bankName,
       beneficiaryName: data.sourceAccount.accountName,
       businessName: organization.businessName,
-      amount: formatMoney(data.amount),
+      amount: formatMoney(creditedAmount),
       transactionDate: date,
       currency: data.currency,
       transactionTime: time,
