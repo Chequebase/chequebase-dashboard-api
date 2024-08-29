@@ -69,9 +69,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
 
     // Anchor inflow fee
     let inflowFee = Math.min(amount * 0.005, 20000);
-    console.log({ inflowFee })
     const creditedAmount = amount - inflowFee;
-    console.log({ creditedAmount })
     const wallet = virtualAccount.wallet
     const organization = virtualAccount.organization
     const balanceAfter = numeral(wallet.balance).add(creditedAmount).value()!
