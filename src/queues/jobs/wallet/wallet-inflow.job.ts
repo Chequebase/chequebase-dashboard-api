@@ -83,11 +83,34 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
         reference,
         gatewayResponse,
         amount: creditedAmount,
+        fee: inflowFee,
         paymentMethod: data.paymentMethod,
         scope: WalletEntryScope.WalletFunding,
         narration,
         status: WalletEntryStatus.Successful,
         type: WalletEntryType.Credit,
+        provider: virtualAccount.provider,
+        ledgerBalanceBefore: wallet.ledgerBalance,
+        ledgerBalanceAfter,
+        balanceBefore: wallet.balance,
+        balanceAfter,
+        providerRef: data.providerRef,
+        meta: {
+          sourceAccount: data.sourceAccount
+        }
+      }], { session })
+
+      await WalletEntry.create([{
+        organization: virtualAccount.organization,
+        wallet: wallet._id,
+        currency,
+        reference,
+        gatewayResponse,
+        amount: inflowFee,
+        scope: WalletEntryScope.WalletFundingFee,
+        narration: 'Interbank Inflow Charge',
+        status: WalletEntryStatus.Successful,
+        type: WalletEntryType.Debit,
         provider: virtualAccount.provider,
         ledgerBalanceBefore: wallet.ledgerBalance,
         ledgerBalanceAfter,
