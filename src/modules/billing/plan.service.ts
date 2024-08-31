@@ -19,12 +19,23 @@ import { subscriptionQueue } from '@/queues';
 import { SubscriptionPlanChange } from '@/queues/jobs/subscription/subscription-plan-change.job';
 import { transactionOpts } from '../common/utils';
 import User from '@/models/user.model';
+import { AllowedSlackWebhooks, SlackNotificationService } from '../common/slack/slackNotification.service';
+
+
+interface SubscriptionNotification {
+  status?: 'successful' | 'failed' | 'reversed'
+  organization: string
+  planChanged: boolean
+  amount: number
+  direction: 'up' | 'down'
+}
 
 const logger = new Logger('plan-service')
 const YEARLY_DISCOUNT = 0.30
 
 @Service()
 export class PlanService {
+  constructor (private slackService: SlackNotificationService) { }
   async chargeWalletForSubscription(orgId: string, data: ChargeWalletForSubscription) {
     const reference = `ps_${createId()}`
     const { plan, amount, currency } = data
@@ -269,6 +280,18 @@ export class PlanService {
       }, { session })
     }, transactionOpts)
 
+    let oldPlanAmount: number = 0
+    if (oldPlanId) {
+      const oldPlan = await SubscriptionPlan.findById(data.plan).lean()
+      oldPlanAmount = oldPlan?.amount.NGN || 0
+    }
+    const notification: SubscriptionNotification = {
+      amount: plan.amount.NGN,
+      organization: organization._id.toString(),
+      planChanged: plan.amount.NGN === oldPlanAmount,
+      direction: plan.amount.NGN < oldPlanAmount ? 'down' : 'up'
+    }
+    await this.onSubscriptionEventNotification(notification)
     const jobData: SubscriptionPlanChange = {
       orgId,
       newPlanId: plan._id.toString(),
@@ -277,5 +300,39 @@ export class PlanService {
     await subscriptionQueue.add('processSubscriptionPlanChange', jobData)
 
     return subscription!
+  }
+  async onSubscriptionEventNotification(notification: SubscriptionNotification): Promise<void> {
+    const { amount, status, organization, planChanged, direction  } = notification;
+    let topic = ':moneybag: Lets get this schmoneyyyy :moneybag'
+    let planChange = 'Same Plan'
+
+    const successTopic = ':moneybag: Lets get this schmoneyyyy :moneybag';
+    const failureTopic = ':alert: Suscription Failed! :alert:'
+    const reversed = ':alert: Subscription Reversed :alert:'
+    switch (status) {
+      case 'successful':
+        topic = successTopic
+      case 'failed':
+        topic = failureTopic
+      case 'reversed':
+        topic = reversed
+    }
+
+    if (planChanged) {
+        topic = ''
+        if (direction === 'up') {
+            planChange = ':rocket: More Funds In Our Azaaa :rocket'
+        }
+        if (direction === 'down') {
+            planChange = ':broken_heart: Chai, that one don go :broken_heart'
+        }
+    }
+  
+    const message = `${topic} \n\n
+    *Organization*: ${organization}
+    *Amount*: ${amount}
+    *Upgrade*: ${planChange}
+  `;
+    await this.slackService.sendMessage(AllowedSlackWebhooks.sales, message);
   }
 }
