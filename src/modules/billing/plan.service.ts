@@ -323,7 +323,6 @@ export class PlanService {
     }
 
     if (planChanged) {
-        topic = ''
         if (direction === 'up') {
             planChange = ':rocket: More Funds In Our Azaaa :rocket'
         }
