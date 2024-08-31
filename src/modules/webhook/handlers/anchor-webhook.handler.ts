@@ -160,7 +160,7 @@ export default class AnchorWebhookHandler {
   private async onPaymentSettledNotification(notification: WalletInflowDataNotification): Promise<void> {
     const { amount, sourceAccount: { accountName, accountNumber, bankName }, paymentMethod, reference, customerId, businessName } = notification;
     const correctAmount = +amount / 100;
-    const message = `:warning: Merchant Wallet Inflow :warning: \n\n
+    const message = `:rocket: Merchant Wallet Inflow :rocket: \n\n
       *Merchant*: ${businessName} (${customerId})
       *Reference*: ${reference}
       *Amount*: ${correctAmount}
@@ -175,15 +175,29 @@ export default class AnchorWebhookHandler {
   private async onTransferEventNotification(notification: WalletOutflowDataNotification): Promise<void> {
     const { amount, status, reference, customerId, accountName, accountNumber, bankName } = notification;
     const correctAmount = +amount / 100;
-    const message = `:warning: Merchant Wallet Outflow :warning: \n\n
-      *Merchant*: ${customerId}
-      *Reference*: ${reference}
-      *Amount*: ${correctAmount}
-      *AccountName*: ${accountName}
-      *AccountNumber*: ${accountNumber}
-      *BankName*: ${bankName}
-      *Status*: ${status}
-    `;
+
+    let topic = ':warning: Merchant Wallet Outflow :warning:'
+    const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
+    const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
+    const reversed = ':alert: Merchant Wallet Outflow Reversed :alert:'
+    switch (status) {
+      case 'successful':
+        topic = successTopic
+      case 'failed':
+        topic = failureTopic
+      case 'reversed':
+        topic = reversed
+    }
+
+    const message = `${topic} \n\n
+    *Merchant*: ${customerId}
+    *Reference*: ${reference}
+    *Amount*: ${correctAmount}
+    *AccountName*: ${accountName}
+    *AccountNumber*: ${accountNumber}
+    *BankName*: ${bankName}
+    *Status*: ${status}
+  `;
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message);
   }
 
