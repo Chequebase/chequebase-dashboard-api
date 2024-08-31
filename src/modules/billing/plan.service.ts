@@ -313,10 +313,13 @@ export class PlanService {
     switch (status) {
       case 'successful':
         topic = successTopic
+        break
       case 'failed':
         topic = failureTopic
+        break
       case 'reversed':
         topic = reversed
+        break
     }
 
     if (planChanged) {

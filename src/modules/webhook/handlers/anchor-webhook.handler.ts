@@ -183,10 +183,13 @@ export default class AnchorWebhookHandler {
     switch (status) {
       case 'successful':
         topic = successTopic
+        break
       case 'failed':
         topic = failureTopic
+        break
       case 'reversed':
         topic = reversed
+        break
     }
 
     const message = `${topic} \n\n
