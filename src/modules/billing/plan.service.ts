@@ -280,6 +280,13 @@ export class PlanService {
       }, { session })
     }, transactionOpts)
 
+    const jobData: SubscriptionPlanChange = {
+      orgId,
+      newPlanId: plan._id.toString(),
+      oldPlanId: oldPlanId
+    }
+    await subscriptionQueue.add('processSubscriptionPlanChange', jobData)
+
     let oldPlanAmount: number = 0
     if (oldPlanId) {
       const oldPlan = await SubscriptionPlan.findById(data.plan).lean()
@@ -292,12 +299,6 @@ export class PlanService {
       direction: plan.amount.NGN < oldPlanAmount ? 'down' : 'up'
     }
     await this.onSubscriptionEventNotification(notification)
-    const jobData: SubscriptionPlanChange = {
-      orgId,
-      newPlanId: plan._id.toString(),
-      oldPlanId: oldPlanId
-    }
-    await subscriptionQueue.add('processSubscriptionPlanChange', jobData)
 
     return subscription!
   }
