@@ -160,7 +160,7 @@ export default class AnchorWebhookHandler {
   private async onPaymentSettledNotification(notification: WalletInflowDataNotification): Promise<void> {
     const { amount, sourceAccount: { accountName, accountNumber, bankName }, paymentMethod, reference, customerId, businessName } = notification;
     const correctAmount = +amount / 100;
-    const message = `:warning: Merchant Wallet Inflow :warning: \n\n
+    const message = `:rocket: Merchant Wallet Inflow :rocket: \n\n
       *Merchant*: ${businessName} (${customerId})
       *Reference*: ${reference}
       *Amount*: ${correctAmount}
@@ -172,19 +172,52 @@ export default class AnchorWebhookHandler {
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.inflow, message);
   }
 
-  private async onTransferEventNotification(notification: WalletOutflowDataNotification): Promise<void> {
+  private async onTransferEventNotification(notification: WalletOutflowDataNotification): Promise<any> {
+    console.log('GOT HERE',{
+      'status': 'BLAHHHHHHH'
+    })
     const { amount, status, reference, customerId, accountName, accountNumber, bankName } = notification;
     const correctAmount = +amount / 100;
-    const message = `:warning: Merchant Wallet Outflow :warning: \n\n
-      *Merchant*: ${customerId}
-      *Reference*: ${reference}
-      *Amount*: ${correctAmount}
-      *AccountName*: ${accountName}
-      *AccountNumber*: ${accountNumber}
-      *BankName*: ${bankName}
-      *Status*: ${status}
-    `;
-    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, message);
+    const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
+    const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
+    const reversedTopic = ':alert: Merchant Wallet Outflow Reversed :alert:'
+    console.log({ status, correctAmount })
+    switch (status) {
+      case 'successful':
+        const successMessage = `${successTopic} \n\n
+        *Merchant*: ${customerId}
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
+        *AccountName*: ${accountName}
+        *AccountNumber*: ${accountNumber}
+        *BankName*: ${bankName}
+        *Status*: ${status}
+      `;
+        console.log({ successMessage })
+        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, successMessage);
+      case 'failed':
+        const failedNessage = `${failureTopic} \n\n
+        *Merchant*: ${customerId}
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
+        *AccountName*: ${accountName}
+        *AccountNumber*: ${accountNumber}
+        *BankName*: ${bankName}
+        *Status*: ${status}
+      `;
+        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, failedNessage);
+      case 'reversed':
+        const reversedMessage = `${reversedTopic} \n\n
+        *Merchant*: ${customerId}
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
+        *AccountName*: ${accountName}
+        *AccountNumber*: ${accountNumber}
+        *BankName*: ${bankName}
+        *Status*: ${status}
+      `;
+        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, reversedMessage);
+    }
   }
 
   private async onKycApprovedNotification(notification: { customerId: string, businessName: string }) {

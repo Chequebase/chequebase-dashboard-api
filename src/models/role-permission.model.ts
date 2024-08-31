@@ -9,6 +9,7 @@ export enum EPermission {
   WalletFund = 'wallet:fund',
   WalletTransfer = 'wallet:transfer',
   TransactionRead = 'transaction:read',
+  LedgerBalanceRead = 'transaction.ledger_balance:read',
   TransactionDownload = 'transaction:download',
   BudgetCreate = 'budget:create',
   BudgetRead = 'budget:read',
