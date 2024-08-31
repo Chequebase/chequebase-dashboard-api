@@ -179,6 +179,7 @@ export default class AnchorWebhookHandler {
     const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
     const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
     const reversedTopic = ':alert: Merchant Wallet Outflow Reversed :alert:'
+    console.log({ status, correctAmount })
     switch (status) {
       case 'successful':
         const successMessage = `${successTopic} \n\n
@@ -190,6 +191,7 @@ export default class AnchorWebhookHandler {
         *BankName*: ${bankName}
         *Status*: ${status}
       `;
+        console.log({ successMessage })
         return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, successMessage);
       case 'failed':
         const failedNessage = `${failureTopic} \n\n
