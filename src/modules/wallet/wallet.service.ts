@@ -241,7 +241,7 @@ export default class WalletService {
           WalletEntryScope.WalletFunding,
           WalletEntryScope.BudgetTransfer,
           WalletEntryScope.WalletTransfer,
-          WalletEntryScope.WalletFundingFee
+          // WalletEntryScope.WalletFundingFee
         ]
       })
       .set('budget', query.budget)
