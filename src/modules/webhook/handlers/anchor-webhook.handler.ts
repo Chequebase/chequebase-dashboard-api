@@ -152,8 +152,9 @@ export default class AnchorWebhookHandler {
 
     await walletQueue.add('processWalletOutflow', jobData)
     const receipient = body.included.find((x: any) => x.type === 'CounterParty')
+    const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
 
-    await this.onTransferEventNotification({ ...jobData, customerId: body.data.relationships.customer.data.id, accountName: receipient.attributes.accountName, accountNumber: receipient.attributes.accountNumber, bankName: receipient.attributes.bank.name })
+    await this.onTransferEventNotification({ ...jobData, businessName: businessCustomer.detail.businessName, customerId: body.data.relationships.customer.data.id, accountName: receipient.attributes.accountName, accountNumber: receipient.attributes.accountNumber, bankName: receipient.attributes.bank.name })
     return { message: 'transfer event queued' }
   }
 
@@ -173,10 +174,7 @@ export default class AnchorWebhookHandler {
   }
 
   private async onTransferEventNotification(notification: WalletOutflowDataNotification): Promise<any> {
-    console.log('GOT HERE',{
-      'status': 'BLAHHHHHHH'
-    })
-    const { amount, status, reference, customerId, accountName, accountNumber, bankName } = notification;
+    const { amount, status, reference, customerId, accountName, accountNumber, bankName, businessName } = notification;
     const correctAmount = +amount / 100;
     const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
     const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
@@ -185,7 +183,7 @@ export default class AnchorWebhookHandler {
     switch (status) {
       case 'successful':
         const successMessage = `${successTopic} \n\n
-        *Merchant*: ${customerId}
+        *Merchant*: ${businessName} ${customerId}
         *Reference*: ${reference}
         *Amount*: ${correctAmount}
         *AccountName*: ${accountName}
@@ -197,7 +195,7 @@ export default class AnchorWebhookHandler {
         return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, successMessage);
       case 'failed':
         const failedNessage = `${failureTopic} \n\n
-        *Merchant*: ${customerId}
+        *Merchant*: ${businessName} ${customerId}
         *Reference*: ${reference}
         *Amount*: ${correctAmount}
         *AccountName*: ${accountName}
@@ -208,7 +206,7 @@ export default class AnchorWebhookHandler {
         return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, failedNessage);
       case 'reversed':
         const reversedMessage = `${reversedTopic} \n\n
-        *Merchant*: ${customerId}
+        *Merchant*: ${businessName} ${customerId}
         *Reference*: ${reference}
         *Amount*: ${correctAmount}
         *AccountName*: ${accountName}
