@@ -37,6 +37,9 @@ export class UpdateRule {
 
   @IsArray()
   reviewers: string[]
+
+  @IsArray()
+  deletedReviewers: string[]
 }
 
 export class GetRulesQuery {

@@ -99,11 +99,13 @@ export default class ApprovalService {
       throw new BadRequestError("Approval rule with similar name already exists")
     }
 
+    // TOD: if approval for reviewer removal is required ---
     const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, {
       name: data.name,
       amount: data.amount,
       approvalType: data.approvalType,
       workflowType: data.workflowType,
+      // update this: send email to old reviewers
       reviewers: data.reviewers,
     }, { new: true })
 
