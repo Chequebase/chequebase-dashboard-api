@@ -26,6 +26,7 @@ export interface FundedWalletEmail {
 export interface TransferSuccessEmail {
   userName: string
   amount: string
+  isBudget: boolean
   accountBalance: string
   bankName: string
   budgetName: string

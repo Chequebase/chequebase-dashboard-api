@@ -106,9 +106,11 @@ async function handleSuccessful(data: WalletOutflowData) {
     const counterparty = await Counterparty.findById(entry.meta.counterparty)
     if (counterparty) {
       const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss').split(' ')
+      const isBudget = !!entry.budget
       emailService.sendTransferSuccessEmail(entry.initiatedBy.email, {
         userName: entry.initiatedBy.firstName,
-        accountBalance: formatMoney(entry.wallet.balance),
+        accountBalance: isBudget ? formatMoney(entry.budget.balance) : formatMoney(entry.wallet.balance),
+        isBudget, 
         accountNumber: counterparty.accountNumber,
         bankName: counterparty.bankName,
         beneficiaryName: counterparty.accountName,
