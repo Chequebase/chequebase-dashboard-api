@@ -74,7 +74,19 @@ export class BudgetTransferService {
 
   private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
-    let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
+    let counterparty = {
+      organization: auth.orgId,
+      accountNumber,
+      bankCode,
+      isRecipient
+    } as unknown as ICounterparty
+
+    return { ...counterparty, bankId: resolveRes.bankId }
+  }
+
+  private async saveCounterParty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
+    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    let counterparty = await Counterparty.create({
       organization: auth.orgId,
       accountNumber,
       bankCode,
@@ -82,7 +94,7 @@ export class BudgetTransferService {
     }, {
       accountName: resolveRes.accountName,
       bankName: resolveRes.bankName,
-    }, { new: true, upsert: true }).lean()
+    }, { new: true, upsert: true })
 
     return { ...counterparty, bankId: resolveRes.bankId }
   }
@@ -524,7 +536,7 @@ export class BudgetTransferService {
   }
 
   async createRecipient(auth: AuthUser, data: CreateRecipient) {
-    return this.getCounterparty(auth, data.bankCode, data.accountNumber, true);
+    return this.saveCounterParty(auth, data.bankCode, data.accountNumber, true);
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
