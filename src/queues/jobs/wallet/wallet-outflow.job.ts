@@ -29,6 +29,7 @@ export interface WalletOutflowData {
 }
 
 export interface WalletOutflowDataNotification extends WalletOutflowData  {
+  businessName: string
   customerId: string
   accountNumber: string
   accountName: string

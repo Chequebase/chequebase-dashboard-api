@@ -100,55 +100,73 @@ export default class WalletService {
       throw new BadRequestError(`Organization already has a wallet for ${baseWallet.currency}`)
     }
 
-    const walletId = new ObjectId()
-    const virtualAccountId = new ObjectId()
-    const reference = `va-${createId()}`
-    const account = await this.virtualAccountService.createAccount({
-      type: 'static',
-      email: organization.email,
-      name: organization.businessName,
-      provider: data.provider,
-      reference,
-      currency: baseWallet.currency,
-      identity: {
-        type: 'bvn',
-        number: organization.owners[0]?.bvn,
-      },
-      phone: organization.phone,
-      rcNumber: organization.rcNumber
-    })
+    try {
+      const walletId = new ObjectId()
+      const virtualAccountId = new ObjectId()
+      const reference = `va-${createId()}`
+      console.log({ payload: {
+        type: 'static',
+        email: organization.email,
+        name: organization.businessName,
+        provider: data.provider,
+        reference,
+        currency: baseWallet.currency,
+        identity: {
+          type: 'bvn',
+          number: organization.owners[0]?.bvn,
+        },
+        phone: organization.phone,
+        rcNumber: organization.rcNumber
+      }})
+      const account = await this.virtualAccountService.createAccount({
+        type: 'static',
+        email: organization.email,
+        name: organization.businessName,
+        provider: data.provider,
+        reference,
+        currency: baseWallet.currency,
+        identity: {
+          type: 'bvn',
+          number: organization.owners[0]?.bvn,
+        },
+        phone: organization.phone,
+        rcNumber: organization.rcNumber
+      })
 
-    const wallet = await Wallet.create({
-      _id: walletId,
-      organization: organization._id,
-      baseWallet: baseWallet._id,
-      currency: baseWallet.currency,
-      balance: 0,
-      primary: !wallets.length,
-      virtualAccounts: [virtualAccountId]
-    })
+      const wallet = await Wallet.create({
+        _id: walletId,
+        organization: organization._id,
+        baseWallet: baseWallet._id,
+        currency: baseWallet.currency,
+        balance: 0,
+        primary: !wallets.length,
+        virtualAccounts: [virtualAccountId]
+      })
 
-    const virtualAccount = await VirtualAccount.create({
-      _id: virtualAccountId,
-      organization: organization._id,
-      wallet: wallet._id,
-      accountNumber: account.accountNumber,
-      bankCode: account.bankCode,
-      name: account.accountName,
-      bankName: account.bankName,
-      provider: account.provider,
-    })
+      const virtualAccount = await VirtualAccount.create({
+        _id: virtualAccountId,
+        organization: organization._id,
+        wallet: wallet._id,
+        accountNumber: account.accountNumber,
+        bankCode: account.bankCode,
+        name: account.accountName,
+        bankName: account.bankName,
+        provider: account.provider,
+      })
 
-    return {
-      _id: wallet._id,
-      balance: wallet.balance,
-      currency: wallet.currency,
-      account: {
-        name: virtualAccount.name,
-        accountNumber: virtualAccount.accountNumber,
-        bankName: virtualAccount.bankName,
-        bankCode: virtualAccount.bankCode
+      return {
+        _id: wallet._id,
+        balance: wallet.balance,
+        currency: wallet.currency,
+        account: {
+          name: virtualAccount.name,
+          accountNumber: virtualAccount.accountNumber,
+          bankName: virtualAccount.bankName,
+          bankCode: virtualAccount.bankCode
+        }
       }
+    } catch (error: any) {
+      console.log(error)
     }
   }
 
@@ -223,7 +241,7 @@ export default class WalletService {
           WalletEntryScope.WalletFunding,
           WalletEntryScope.BudgetTransfer,
           WalletEntryScope.WalletTransfer,
-          WalletEntryScope.WalletFundingFee
+          // WalletEntryScope.WalletFundingFee
         ]
       })
       .set('budget', query.budget)
