@@ -1,6 +1,6 @@
 import { WalletEntryType } from "@/models/wallet-entry.model";
 import { VirtualAccountClientName } from "@/modules/virtual-account/providers/virtual-account.client";
-import { IsDateString, IsEnum, IsHexadecimal, IsInt, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsBoolean, IsDateString, IsEnum, IsHexadecimal, IsInt, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export class CreateWalletDto {
   @IsString()
@@ -46,6 +46,10 @@ export class GetWalletEntriesDto {
   @IsString()
   @IsOptional()
   budget?: string
+
+  @IsBoolean()
+  @IsOptional()
+  fromBudget?: boolean
 
   @IsString()
   @IsOptional()
