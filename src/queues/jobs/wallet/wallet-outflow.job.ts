@@ -223,6 +223,7 @@ async function handleReversed(data: WalletOutflowData) {
           provider: entry.provider,
           meta: {
             budgetBalanceAfter: budget.balance,
+            budgetBalanceBefore: numeral(budget.balance).subtract(reverseAmount).value()!,
             ...entry.toObject().meta
           }
         }], { session })

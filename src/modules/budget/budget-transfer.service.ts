@@ -145,6 +145,7 @@ export class BudgetTransferService {
         meta: {
           counterparty: payload.counterparty._id,
           budgetBalanceAfter: budget.balance,
+          budgetBalanceBefore: numeral(budget.balance).add(amountToDeduct).value()!,
           projectBalanceAfter: budget.project?.balance
         }
       }], { session })

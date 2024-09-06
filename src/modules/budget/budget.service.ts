@@ -73,7 +73,8 @@ export default class BudgetService {
         reference: createId(),
         status: WalletEntryStatus.Successful,
         meta: {
-          budgetBalanceAfter: 0
+          budgetBalanceAfter: 0,
+          budgetBalanceBefore: budget.balance,
         }
       }], { session });
 
@@ -339,7 +340,8 @@ export default class BudgetService {
         budget: props.budget._id,
         status: WalletEntryStatus.Successful,
         meta: {
-          budgetBalanceAfter: budget!.balance
+          budgetBalanceAfter: budget!.balance,
+          budgetBalanceBefore: numeral(budget!.balance).subtract(amount).value()!,
         }
       }], { session })
 
@@ -419,7 +421,8 @@ export default class BudgetService {
         reference: createId(),
         status: WalletEntryStatus.Successful,
         meta: {
-          budgetBalanceAfter: budget.balance
+          budgetBalanceAfter: budget.balance,
+          budgetBalanceBefore: numeral(budget.balance).subtract(budget.amount).value()!,
         }
       }], { session })
 
@@ -604,7 +607,8 @@ export default class BudgetService {
         reference: createId(),
         status: WalletEntryStatus.Successful,
         meta: {
-          budgetBalanceAfter: budget.balance
+          budgetBalanceAfter: budget.balance,
+          budgetBalanceBefore: numeral(budget.balance).subtract(budget.amount).value()!,
         }
       }], { session })
 
@@ -1067,7 +1071,8 @@ export default class BudgetService {
           budget: budget!._id,
           status: WalletEntryStatus.Successful,
           meta: {
-            budgetBalanceAfter: budget!.balance
+            budgetBalanceAfter: budget!.balance,
+            budgetBalanceBefore: numeral(budget!.balance).subtract(amount).value()!,
           }
         }], { session })
 
