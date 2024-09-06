@@ -47,10 +47,6 @@ export class GetWalletEntriesDto {
   @IsOptional()
   budget?: string
 
-  @IsBoolean()
-  @IsOptional()
-  fromBudget?: boolean
-
   @IsString()
   @IsOptional()
   project?: string
