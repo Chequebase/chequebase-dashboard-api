@@ -244,6 +244,12 @@ export default class WalletService {
           // WalletEntryScope.WalletFundingFee
         ]
       })
+      .set('status', {
+        $in: [
+          'successful',
+          'pending',
+        ]
+      })
       .set('budget', query.budget)
       .set('project', query.project)
       .set('createdAt', {
