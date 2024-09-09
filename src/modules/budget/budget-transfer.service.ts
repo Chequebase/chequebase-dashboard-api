@@ -78,6 +78,8 @@ export class BudgetTransferService {
       organization: auth.orgId,
       accountNumber,
       bankCode,
+      accountName: resolveRes.accountName,
+      bankName: resolveRes.bankName,
       isRecipient
     } as unknown as ICounterparty
 
@@ -349,8 +351,6 @@ export class BudgetTransferService {
     }
 
     const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
-
-    console.log({ resolveRes })
 
     const request = await ApprovalRequest.create({
       organization: auth.orgId,

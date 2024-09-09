@@ -97,15 +97,14 @@ export class WalletTransferService {
 
   private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
-    let counterparty: ICounterparty = await Counterparty.findOneAndUpdate({
+    let counterparty = {
       organization: auth.orgId,
       accountNumber,
       bankCode,
-      isRecipient
-    }, {
       accountName: resolveRes.accountName,
       bankName: resolveRes.bankName,
-    }, { new: true, upsert: true }).lean()
+      isRecipient
+    } as unknown as ICounterparty
 
     return { ...counterparty, bankId: resolveRes.bankId }
   }
