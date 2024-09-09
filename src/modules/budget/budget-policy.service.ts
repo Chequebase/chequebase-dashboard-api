@@ -10,6 +10,7 @@ import User from "@/models/user.model";
 import dayjs from "dayjs";
 import WalletEntry, { WalletEntryStatus } from "@/models/wallet-entry.model";
 import { CheckTransferPolicyDto } from "./dto/budget-transfer.dto";
+import Organization from "@/models/organization.model";
 
 @Service()
 export class BudgetPolicyService {
@@ -27,9 +28,9 @@ export class BudgetPolicyService {
       }
     }
 
-    const user = await User.findOne({ _id: auth.userId, organization: auth.orgId })
-    if (!user?.setInitialPolicies) {
-      await User.updateOne({ _id: auth.userId }, { setInitialPolicies: true })
+    const org = await Organization.findById(auth.orgId)
+    if (!org?.setInitialPolicies) {
+      await Organization.updateOne({ _id: auth.orgId }, { setInitialPolicies: true })
     }
 
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
@@ -95,9 +96,9 @@ export class BudgetPolicyService {
   }
 
   async getPolicies(auth: AuthUser, data: GetPolicies) {
-    const user = await User.findOne({ _id: auth.userId, organization: auth.orgId })
-    if (!user?.setInitialPolicies) {
-      await User.updateOne({ _id: auth.userId }, { setInitialPolicies: true })
+    const org = await Organization.findById(auth.orgId)
+    if (!org?.setInitialPolicies) {
+      await Organization.updateOne({ _id: auth.orgId }, { setInitialPolicies: true })
     }
     const filter = new QueryFilter({ organization: auth.orgId })
       .set('budget', data.budget)

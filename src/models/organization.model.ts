@@ -76,6 +76,8 @@ export interface IOrganization {
   anchorCustomerId: string
   phone: string
   postalCode: string
+  setDefualtApprovalWorkflow: boolean
+  setInitialPolicies: boolean
   regDate: string
   state: string
   owners: Shareholder[]
@@ -140,6 +142,8 @@ const organizationSchma = new Schema<IOrganization>(
     city: String,
     country: String,
     email: String,
+    setDefualtApprovalWorkflow: Boolean,
+    setInitialPolicies: Boolean,
     address: String,
     status: String,
     numberOfEmployees: String,

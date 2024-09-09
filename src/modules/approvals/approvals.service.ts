@@ -16,6 +16,7 @@ import Budget, { BudgetStatus } from "@/models/budget.model";
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import EmailService from "../common/email.service";
 import dayjs from "dayjs";
+import Organization from "@/models/organization.model";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -32,9 +33,9 @@ export default class ApprovalService {
 
   async createApprovalRule(auth: AuthUser, data: CreateRule) {
     // TODO: limit reviewer count based on plan
-    const user = await User.findOne({ _id: auth.userId, organization: auth.orgId })
-    if (!user?.setDefualtApprovalWorkflow) {
-      await User.updateOne({ _id: auth.userId }, { setDefualtApprovalWorkflow: true })
+    const org = await Organization.findById(auth.orgId)
+    if (!org?.setDefualtApprovalWorkflow) {
+      await Organization.updateOne({ _id: auth.orgId }, { setDefualtApprovalWorkflow: true })
     }
 
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
@@ -83,10 +84,10 @@ export default class ApprovalService {
   }
 
   async updateApprovalRule(auth: AuthUser, ruleId: string, data: UpdateRule) {
-    const { userId, orgId } = auth;
-    const user = await User.findOne({ _id: userId, organization: orgId })
-    if (!user?.setDefualtApprovalWorkflow) {
-      await User.updateOne({ _id: userId }, { setDefualtApprovalWorkflow: true })
+    const { orgId } = auth;
+    const org = await Organization.findById(orgId)
+    if (!org?.setDefualtApprovalWorkflow) {
+      await Organization.updateOne({ _id: orgId }, { setDefualtApprovalWorkflow: true })
     }
     const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
     const nameExists = await ApprovalRule.exists({
@@ -115,10 +116,10 @@ export default class ApprovalService {
   }
 
   async getRules(auth: AuthUser, query: GetRulesQuery) {
-    const { userId, orgId } = auth;
-    const user = await User.findOne({ _id: userId, organization: orgId })
-    if (!user?.setDefualtApprovalWorkflow) {
-      await User.updateOne({ _id: userId }, { setDefualtApprovalWorkflow: true })
+    const { orgId } = auth;
+    const org = await Organization.findById(orgId)
+    if (!org?.setDefualtApprovalWorkflow) {
+      await Organization.updateOne({ _id: orgId }, { setDefualtApprovalWorkflow: true })
     }
     const filter = new QueryFilter({ organization: orgId })
       .set('approvalType', query.approvalType)
