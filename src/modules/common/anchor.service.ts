@@ -49,9 +49,12 @@ export class AnchorService {
 
   async resolveAccountNumber(accountNumber: string, bankCode: string) {
     const url = `/api/v1/payments/verify-account/${bankCode}/${accountNumber}`
+    console.log({ url })
     try {
       const res = await this.http.get(url)
+      console.log({ res })
       const data = res.data.data.attributes
+      console.log({ data })
 
       return {
         accountName: data.accountName,
@@ -61,6 +64,7 @@ export class AnchorService {
         bankCode: data.bank.nipCode
       }
     } catch (err: any) {
+      console.log({ err })
       this.logger.error('error resolving account number', {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify({ accountNumber, bankCode }),
