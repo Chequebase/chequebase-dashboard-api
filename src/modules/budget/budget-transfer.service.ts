@@ -350,6 +350,8 @@ export class BudgetTransferService {
 
     const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
 
+    console.log({ resolveRes })
+
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: rule.workflowType,
