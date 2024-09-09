@@ -78,6 +78,8 @@ export class BudgetTransferService {
       organization: auth.orgId,
       accountNumber,
       bankCode,
+      accountName: resolveRes.accountName,
+      bankName: resolveRes.bankName,
       isRecipient
     } as unknown as ICounterparty
 
