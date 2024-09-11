@@ -1,4 +1,4 @@
-import { cdb } from '@/modules/common/mongoose';
+import { cdb, isValidObjectId } from '@/modules/common/mongoose';
 import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
@@ -129,6 +129,14 @@ const walletEntrySchema = new Schema<IWalletEntry>(
 
 walletEntrySchema.plugin(aggregatePaginate);
 walletEntrySchema.plugin(mongoosePaginate);
+
+walletEntrySchema.post('find', async function(docs) {
+  for (const doc of docs) {
+    if (isValidObjectId(doc?.meta?.counterparty?._id)) {
+      await doc.populate({ path: 'meta.counterparty', model: 'Counterparty' })
+    }
+  }
+})
 
 const WalletEntry = cdb.model<IWalletEntry, WalletEntryModel>('WalletEntry', walletEntrySchema);
 
