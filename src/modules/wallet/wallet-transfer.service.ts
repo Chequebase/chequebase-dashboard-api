@@ -1,20 +1,21 @@
 import { Service } from "typedi"
 import { BadRequestError, NotFoundError } from "routing-controllers"
 import dayjs from "dayjs"
+import { cdb } from "../common/mongoose"
 import { createId } from "@paralleldrive/cuid2"
 import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource } from "../budget/dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import { IWallet } from "@/models/wallet.model"
-import WalletEntry, { WalletEntryScope, WalletEntryStatus } from "@/models/wallet-entry.model"
+import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget from "@/models/budget.model"
 import Wallet from "@/models/wallet.model"
 import { TransferService } from "../transfer/transfer.service"
 import { TransferClientName } from "../transfer/providers/transfer.client"
 import { AnchorService } from "../common/anchor.service"
 import User, { KycStatus } from "@/models/user.model"
-import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase } from "../common/utils"
+import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
 import Organization from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
@@ -110,26 +111,45 @@ export class WalletTransferService {
   }
 
   private async createTransferRecord(payload: CreateTransferRecord) {
-    let { auth, data: { amount } } = payload
+    let { auth, data, wallet, amountToDeduct } = payload
 
-    try {
-      const result = await WalletService.chargeWallet(payload.auth.orgId, {
-        amount,
-        narration: 'Wallet transfer',
+    let entry: IWalletEntry
+    await cdb.transaction(async (session) => {
+      const fetchedWallet = await Wallet.findOneAndUpdate(
+        { organization: auth.orgId, currency: wallet.currency, balance: { $gte: amountToDeduct } },
+        { $inc: { balance: -amountToDeduct, ledgerBalance: -amountToDeduct } },
+        { session, new: true }
+      )
+
+      if (!fetchedWallet) {
+        throw new BadRequestError("Insufficient funds")
+      }
+      [entry] = await WalletEntry.create([{
+        organization: auth.orgId,
+        status: WalletEntryStatus.Pending,
+        currency: fetchedWallet.currency,
+        wallet: fetchedWallet._id,
+        amount: data.amount,
+        fee: payload.fee,
+        initiatedBy: payload.data.requester,
+        ledgerBalanceAfter: fetchedWallet.ledgerBalance,
+        ledgerBalanceBefore: fetchedWallet.ledgerBalance,
+        balanceBefore: fetchedWallet.balance,
+        balanceAfter: fetchedWallet.balance,
         scope: WalletEntryScope.WalletTransfer,
-        currency: 'NGN',
-        initiatedBy: auth.userId,
-        invoiceUrl: payload.data.invoiceUrl,
+        type: WalletEntryType.Debit,
+        narration: 'Wallet Transfer',
+        paymentMethod: 'transfer',
+        reference: `wt_${createId()}`,
+        provider: payload.provider,
+        invoiceUrl: data.invoiceUrl,
         meta: {
-            counterparty: payload.counterparty._id
+          counterparty: payload.counterparty._id,
         }
-      })
-      return result;
-    } catch (err) {
-      throw new BadRequestError(
-        `Unable to charge wallet`
-        )
-    }
+      }], { session })
+    }, transactionOpts)
+
+    return entry!
   }
 
   private async runTransferWindowCheck(payload: RunSecurityCheck) {
