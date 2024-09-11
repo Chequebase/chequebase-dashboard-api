@@ -144,7 +144,7 @@ export class WalletTransferService {
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
         meta: {
-          counterparty: payload.counterparty._id,
+          counterparty: payload.counterparty,
         }
       }], { session })
     }, transactionOpts)

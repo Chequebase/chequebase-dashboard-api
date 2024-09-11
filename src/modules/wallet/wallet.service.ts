@@ -17,7 +17,7 @@ import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
-import { cdb } from "../common/mongoose";
+import { cdb, isValidObjectId } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
@@ -375,7 +375,7 @@ export default class WalletService {
     }
 
     if (entry.meta.counterparty) {
-      entry.meta.counterparty = await Counterparty.findById(entry.meta.counterparty).lean()
+      entry.meta.counterparty = isValidObjectId(entry.meta.counterparty) ? await Counterparty.findById(entry.meta.counterparty).lean() : entry.meta.counterparty
     }
 
     return entry

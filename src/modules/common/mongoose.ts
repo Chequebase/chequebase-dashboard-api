@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 
 if (!process.env.DB_URI) {
   throw new Error("Database uri is missing");
@@ -15,4 +15,4 @@ cdb.once("open", function () {
   process.stdout.write("MongoDB database connection to chequebase successful\n");
 });
 
-export { cdb };
+export { cdb, isValidObjectId };
