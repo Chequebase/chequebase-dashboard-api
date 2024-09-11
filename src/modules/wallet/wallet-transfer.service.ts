@@ -36,6 +36,7 @@ export interface CreateTransferRecord {
   wallet: IWallet
   counterparty: ICounterparty
   data: ApproveTransfer
+  category: string
   amountToDeduct: number
   fee: number
   provider: string
@@ -111,7 +112,7 @@ export class WalletTransferService {
   }
 
   private async createTransferRecord(payload: CreateTransferRecord) {
-    let { auth, data, wallet, amountToDeduct } = payload
+    let { auth, data, wallet, amountToDeduct, category } = payload
 
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
@@ -143,6 +144,7 @@ export class WalletTransferService {
         reference: `wt_${createId()}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
+        category: data.category,
         meta: {
           counterparty: payload.counterparty,
         }

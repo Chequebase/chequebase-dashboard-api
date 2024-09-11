@@ -102,7 +102,7 @@ export class BudgetTransferService {
   }
 
   private async createTransferRecord(payload: CreateTransferRecord) {
-    let { auth, data, amountToDeduct } = payload
+    let { auth, data, amountToDeduct, category } = payload
 
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
@@ -144,6 +144,7 @@ export class BudgetTransferService {
         reference: `bt_${createId()}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
+        category: data.category,
         meta: {
           counterparty: payload.counterparty,
           budgetBalanceAfter: budget.balance,

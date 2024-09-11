@@ -6,6 +6,7 @@ export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
   budget: IBudget
   counterparty: ICounterparty
+  category: string
   data: ApproveTransfer
   amountToDeduct: number
   fee: number
