@@ -281,7 +281,7 @@ export default class WalletService {
       populate: [
         { path: 'budget', select: 'name' },
         { path: 'category', select: 'name' },
-        { path: 'meta.counterparty', model: 'Counterparty' }
+        { path: 'meta.counterparty', model: 'Counterparty', match: { "_id": { $exists: true } } }
       ],
       sort: '-createdAt',
       page: Number(query.page),
