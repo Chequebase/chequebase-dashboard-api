@@ -145,7 +145,7 @@ export class BudgetTransferService {
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
         meta: {
-          counterparty: payload.counterparty._id,
+          counterparty: payload.counterparty,
           budgetBalanceAfter: budget.balance,
           budgetBalanceBefore: numeral(budget.balance).add(amountToDeduct).value()!,
           projectBalanceAfter: budget.project?.balance
