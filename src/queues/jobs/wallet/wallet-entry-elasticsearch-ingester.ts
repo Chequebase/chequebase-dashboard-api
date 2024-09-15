@@ -110,7 +110,7 @@ async function processWalletEntryToElasticsearch(job: Job) {
 async function addWalletEntriesForIngestionToElastic(job: Job) {
   const logger = new Logger(addWalletEntriesForIngestionToElastic.name)
 
-  const walletEntries = await WalletEntry.find({ createdAt: { $lte: dayjs().subtract(5, 'minute').toDate() } })
+  const walletEntries = await WalletEntry.find({ createdAt: { $gte: dayjs().subtract(5, 'minute').toDate() } })
       .populate({ path: 'budget', model: Budget })
       .populate({ path: 'category', model: TransferCategory })
       .populate({ path: 'initiatedBy', model: User });
