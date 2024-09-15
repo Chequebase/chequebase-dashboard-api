@@ -17,6 +17,7 @@ import processRequiredDocuments from './jobs/organization/processRequiredDocumen
 import processKycApproved from './jobs/organization/processKycApproved';
 import processKycRejected from './jobs/organization/processKycRejected';
 import processFundBudget from './jobs/budget/fund-budget.job';
+import { addWalletEntriesForIngestionToElastic, processWalletEntryToElasticsearch } from './jobs/wallet/wallet-entry-elasticsearch-ingester';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -36,6 +37,11 @@ function setupQueues() {
     walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
     walletQueue.add('addWalletEntriesForClearance', null, {
       repeat: { cron: '0  * * * *', tz } // every hour
+    })
+    walletQueue.process('processWalletEntryToElasticsearch', 5, processWalletEntryToElasticsearch)
+    walletQueue.process('addWalletEntriesForIngestionToElastic', addWalletEntriesForIngestionToElastic)
+    walletQueue.add('addWalletEntriesForIngestionToElastic', null, {
+      repeat: { cron: '*/5  * * * *', tz }
     })
     
     budgetQueue.process('processFundBudget', processFundBudget)
