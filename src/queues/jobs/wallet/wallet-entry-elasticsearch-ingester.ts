@@ -12,6 +12,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from "@/modules/common
 const slackService = new SlackNotificationService();
 
 export interface ITransactionAnalytics {
+    transactionId: string;
     type: string;
     initiatedBy?: string;
     organization: string;
@@ -75,6 +76,7 @@ function transformWalletEntry(walletEntry: IWalletEntry): ITransactionAnalytics 
       ...extractBudgetMeta(walletEntry),
       ...extractCategoryMeta(walletEntry),
       ...extractIntiatedByMeta(walletEntry),
+      transactionId: walletEntry._id.toString(),
       type: walletEntry.type,
       organization: walletEntry.organization.toString(),
       status: walletEntry.status,

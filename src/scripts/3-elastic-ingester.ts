@@ -49,6 +49,7 @@ function transformWalletEntry(walletEntry: IWalletEntry): ITransactionAnalytics 
       ...extractBudgetMeta(walletEntry),
       ...extractCategoryMeta(walletEntry),
       ...extractIntiatedByMeta(walletEntry),
+      transactionId: walletEntry._id.toString(),
       type: walletEntry.type,
       organization: walletEntry.organization.toString(),
       status: walletEntry.status,
@@ -66,6 +67,7 @@ function transformWalletEntry(walletEntry: IWalletEntry): ITransactionAnalytics 
   async function indexToElasticSearch(data: ITransactionAnalytics) {
     try {
       await ElasticSearchClient.index({
+        id: data.transactionId,
         index: 'transaction-analytics-staging',
         body: data,
       });
