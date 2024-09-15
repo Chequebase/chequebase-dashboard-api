@@ -125,7 +125,6 @@ async function addWalletEntriesForIngestionToElastic(job: Job) {
 
   const slackMssage = `:rocket: Indexing to ElasticSearch Queued For - transaction-analytics :rocket: \n\n
     *Number of Txs indexed*: ${walletEntries.length}
-    *TransactionIds*: ${walletEntries.map(x => x.id)}
   `;
   await slackService.sendMessage(AllowedSlackWebhooks.analytics, slackMssage)
 
