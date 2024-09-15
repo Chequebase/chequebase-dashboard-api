@@ -50,6 +50,7 @@ function transformWalletEntry(walletEntry: IWalletEntry): ITransactionAnalytics 
       ...extractCategoryMeta(walletEntry),
       ...extractIntiatedByMeta(walletEntry),
       type: walletEntry.type,
+      organization: walletEntry.organization.toString(),
       status: walletEntry.status,
       amount: walletEntry.amount,
       balanceBefore: walletEntry.balanceBefore,

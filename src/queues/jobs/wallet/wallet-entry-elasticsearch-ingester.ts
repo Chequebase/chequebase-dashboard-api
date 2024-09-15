@@ -14,6 +14,7 @@ const slackService = new SlackNotificationService();
 export interface ITransactionAnalytics {
     type: string;
     initiatedBy?: string;
+    organization: string;
     status: string;
     amount: number;
     balanceBefore: number;
@@ -75,6 +76,7 @@ function transformWalletEntry(walletEntry: IWalletEntry): ITransactionAnalytics 
       ...extractCategoryMeta(walletEntry),
       ...extractIntiatedByMeta(walletEntry),
       type: walletEntry.type,
+      organization: walletEntry.organization.toString(),
       status: walletEntry.status,
       amount: walletEntry.amount,
       balanceBefore: walletEntry.balanceBefore,
