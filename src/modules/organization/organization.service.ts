@@ -78,6 +78,7 @@ export class OrganizationsService {
       const owners: any[] = organization?.owners || []
       const ownerId = kycDto?.id || uuid()
       const existingOwnerIndex = owners.findIndex((x) => x.id === ownerId);
+      console.log({ kycDto })
       const modifiedTitles = kycDto.title.map((t: string) => {
         if (t === 'Shareholder') return 'DIRECTOR'
         return t.toUpperCase()
@@ -88,17 +89,15 @@ export class OrganizationsService {
         owners.push({ ...kycDto, id: ownerId, title: modifiedTitles });
       }
 
-      if (kycDto.director) {
-        await Promise.all(files.map(async (file) => {
-          const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
-          const key = `documents/${organization.id}/directors/${file.fieldname}.${fileExt || 'pdf'}`;
-          const url = await this.s3Service.uploadObject(
-            getEnvOrThrow('KYB_BUCKET_NAME'),
-            key,
-            file.buffer
-          );
-        }))
-      }
+      await Promise.all(files.map(async (file) => {
+        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
+        const key = `documents/${organization.id}/directors/${file.fieldname}.${fileExt || 'pdf'}`;
+        const url = await this.s3Service.uploadObject(
+          getEnvOrThrow('KYB_BUCKET_NAME'),
+          key,
+          file.buffer
+        );
+      }))
 
       await organization.updateOne({
         owners,
