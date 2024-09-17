@@ -29,7 +29,8 @@ export default class OrganizationsController {
   @Patch('/update-owner-info')
   async updateOwnerInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: OwnerDto, @Req() req: Request) {
     const files = req.files as any[] || []
-    return this.organizationsService.updateOwnerInfo(auth.orgId, kycDto, files);
+    const dto = plainToInstance(OwnerDto, kycDto)
+    return this.organizationsService.updateOwnerInfo(auth.orgId, dto, files);
   }
 
   @Authorized(ERole.Owner)
