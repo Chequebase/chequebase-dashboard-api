@@ -25,16 +25,11 @@ export default class OrganizationsController {
 
   // make this form data
   @Authorized(ERole.Owner)
-  @UseBefore(multer().single('director'))
+  @UseBefore(multer().any())
   @Patch('/update-owner-info')
   async updateOwnerInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: OwnerDto, @Req() req: Request) {
-    const file = req.file as any
-    const dto = plainToInstance(OwnerDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', director: file?.buffer, ...req.body })
-    const errors = await validate(dto)
-    if (errors.length) {
-      throw { errors }
-    }
-    return this.organizationsService.updateOwnerInfo(auth.orgId, kycDto);
+    const files = req.files as any[] || []
+    return this.organizationsService.updateOwnerInfo(auth.orgId, kycDto, files);
   }
 
   @Authorized(ERole.Owner)

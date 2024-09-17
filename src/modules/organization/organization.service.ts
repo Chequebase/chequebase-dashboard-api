@@ -68,7 +68,7 @@ export class OrganizationsService {
     throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
   }
 
-  async updateOwnerInfo(id: string, kycDto: OwnerDto) {
+  async updateOwnerInfo(id: string, kycDto: OwnerDto, files: any[]) {
     const organization = await Organization.findById(id)
     if (!organization) {
       throw new NotFoundError(`Organization with id ${id} not found`)
@@ -89,12 +89,15 @@ export class OrganizationsService {
       }
 
       if (kycDto.director) {
-        const key = `documents/${organization.id}/director.${kycDto.fileExt || 'pdf'}`;
-        await this.s3Service.uploadObject(
-          getEnvOrThrow('KYB_BUCKET_NAME'),
-          key,
-          kycDto.director
-        );
+        await Promise.all(files.map(async (file) => {
+          const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
+          const key = `documents/${organization.id}/directors/${file.fieldname}.${fileExt || 'pdf'}`;
+          const url = await this.s3Service.uploadObject(
+            getEnvOrThrow('KYB_BUCKET_NAME'),
+            key,
+            file.buffer
+          );
+        }))
       }
 
       await organization.updateOne({
