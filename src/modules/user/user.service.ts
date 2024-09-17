@@ -23,7 +23,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/
 import Role, { RoleType } from "@/models/role.model";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import UserInvite from "@/models/user-invite.model";
-import ApprovalService from "../approvals/approvals.service";
+import { ApprovalService } from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 import { verifyToken } from "../common/middlewares/rbac.middleware";
 
@@ -165,23 +165,19 @@ export class UserService {
       firstName: data.firstName,
       lastName: data.lastName
     });
-    console.log({ user })
 
     const organization = await Organization.create({
       businessName: data.businessName,
       admin: user._id,
       email: data.email
     })
-    console.log({ organization })
     await user.updateOne({ organization: organization._id })
 
-    await this.approvalService.createDefaultApprovalRules(organization.id, user.id)
-    await this.budgetTnxService.createDefaultCategories(organization.id)
     // create default approval rules
-    // await Promise.all([
-    //   this.approvalService.createDefaultApprovalRules(organization.id, user.id),
-    //   this.budgetTnxService.createDefaultCategories(organization.id)
-    // ])
+    await Promise.all([
+      this.approvalService.createDefaultApprovalRules(organization.id, user.id),
+      this.budgetTnxService.createDefaultCategories(organization.id)
+    ])
 
 
     const message = `${data.businessName}, with email: ${data.email} just signed up`;

@@ -4,7 +4,7 @@ import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Post
 import { Service } from "typedi";
 import { logAuditTrail } from "../common/audit-logs/logs";
 import { AuthUser } from "../common/interfaces/auth-user";
-import ApprovalService from "./approvals.service";
+import { ApprovalService } from "./approvals.service";
 import { ApproveApprovalRequestBody, CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
 
 @Service()

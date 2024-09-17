@@ -21,7 +21,9 @@ export default class OrganizationsController {
     return this.organizationsService.updateCompanyInfo(auth.orgId, kycDto);
   }
 
+  // make this form data
   @Authorized(ERole.Owner)
+  @UseBefore(multer().single('id'))
   @Patch('/update-owner-info')
   updateOwnerInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: OwnerDto) {
     return this.organizationsService.updateOwnerInfo(auth.orgId, kycDto);

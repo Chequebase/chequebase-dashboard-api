@@ -24,7 +24,7 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 @Service()
-export default class ApprovalService {
+export class ApprovalService {
   constructor (
     private budgetService: BudgetService,
     private budgetTnxService: BudgetTransferService,
