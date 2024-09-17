@@ -65,7 +65,7 @@ export class OwnerDto {
   email: string
   @IsOptional()
   @IsArray()
-  title: string[]
+  title: string
   @IsString()
   country: string
   @IsString()
@@ -87,7 +87,7 @@ export class OwnerDto {
   id?: string
   @IsNumber()
   @IsOptional()
-  percentOwned?: number
+  percentOwned?: string
 }
 
 export class UpdateOwnerDto {

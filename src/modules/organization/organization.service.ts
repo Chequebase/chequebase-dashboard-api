@@ -79,14 +79,16 @@ export class OrganizationsService {
       const ownerId = kycDto?.id || uuid()
       const existingOwnerIndex = owners.findIndex((x) => x.id === ownerId);
       console.log({ kycDto })
-      const modifiedTitles = kycDto.title.map((t: string) => {
+      const titles = JSON.parse(kycDto.title)
+      const percentOwned = Number(kycDto.percentOwned || 0)
+      const modifiedTitles = titles.map((t: string) => {
         if (t === 'Shareholder') return 'DIRECTOR'
         return t.toUpperCase()
       })
       if (existingOwnerIndex !== -1) {
-        owners[existingOwnerIndex] = { ...kycDto, id: ownerId, title: modifiedTitles };
+        owners[existingOwnerIndex] = { ...kycDto, percentOwned, id: ownerId, title: modifiedTitles };
       } else {
-        owners.push({ ...kycDto, id: ownerId, title: modifiedTitles });
+        owners.push({ ...kycDto, percentOwned, id: ownerId, title: modifiedTitles });
       }
 
       await Promise.all(files.map(async (file) => {
