@@ -88,6 +88,8 @@ export class OwnerDto {
   @IsNumber()
   @IsOptional()
   percentOwned?: number
+  director?: Buffer
+  fileExt?: string
 }
 
 export class UpdateOwnerDto {

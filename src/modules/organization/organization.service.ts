@@ -88,6 +88,15 @@ export class OrganizationsService {
         owners.push({ ...kycDto, id: ownerId, title: modifiedTitles });
       }
 
+      if (kycDto.director) {
+        const key = `documents/${organization.id}/director.${kycDto.fileExt || 'pdf'}`;
+        await this.s3Service.uploadObject(
+          getEnvOrThrow('KYB_BUCKET_NAME'),
+          key,
+          kycDto.director
+        );
+      }
+
       await organization.updateOne({
         owners,
         status: KycStatus.OWNER_INFO_SUBMITTED
