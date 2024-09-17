@@ -27,9 +27,9 @@ export default class OrganizationsController {
   @Authorized(ERole.Owner)
   @UseBefore(multer().any())
   @Patch('/update-owner-info')
-  async updateOwnerInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: OwnerDto, @Req() req: Request) {
+  async updateOwnerInfo(@CurrentUser() auth: AuthUser, @Req() req: Request) {
     const files = req.files as any[] || []
-    const dto = plainToInstance(OwnerDto, kycDto)
+    const dto = plainToInstance(OwnerDto, req.body)
     return this.organizationsService.updateOwnerInfo(auth.orgId, dto, files);
   }
 
