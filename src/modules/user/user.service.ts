@@ -5,6 +5,7 @@ import bcrypt, { compare } from 'bcryptjs';
 import EmailService from "@/modules/common/email.service";
 import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
 import Organization, { IOrganization } from "@/models/organization.model";
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import User, { KycStatus, UserStatus } from "@/models/user.model";
 import Device from "@/models/device.model";
 import Session from "@/models/session.model";
@@ -26,6 +27,7 @@ import UserInvite from "@/models/user-invite.model";
 import { ApprovalService } from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 import { verifyToken } from "../common/middlewares/rbac.middleware";
+import TransferCategory from "@/models/transfer-category";
 
 const logger = new Logger('user-service')
 const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
@@ -174,9 +176,47 @@ export class UserService {
     await user.updateOne({ organization: organization._id })
 
     // create default approval rules
+    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
     await Promise.all([
-      this.approvalService.createDefaultApprovalRules(organization.id, user.id),
-      this.budgetTnxService.createDefaultCategories(organization.id)
+      ApprovalRule.create([
+        {
+          name: 'Transaction Rule',
+          amount: 0,
+          approvalType: ApprovalType.Everyone,
+          createdBy: user.id,
+          workflowType: WorkflowType.Transaction,
+          organization: organization.id,
+          reviewers: [user.id],
+        },
+        {
+          name: 'Expense Rule',
+          amount: 0,
+          approvalType: ApprovalType.Everyone,
+          createdBy: user.id,
+          workflowType: WorkflowType.Expense,
+          organization: organization.id,
+          reviewers: [user.id],
+        },
+        {
+          name: 'Budget Extension Rule',
+          amount: 0,
+          approvalType: ApprovalType.Everyone,
+          createdBy: user.id,
+          workflowType: WorkflowType.BudgetExtension,
+          organization: organization.id,
+          reviewers: [user.id],
+        },
+        {
+          name: 'Fund Request',
+          amount: 0,
+          approvalType: ApprovalType.Anyone,
+          createdBy: user.id,
+          workflowType: WorkflowType.FundRequest,
+          organization: organization.id,
+          reviewers: [user.id],
+        }
+      ]),
+      TransferCategory.create(cats.map(name => ({ name, organization: organization.id, type: 'default' })))
     ])
 
 
