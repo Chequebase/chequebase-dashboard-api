@@ -96,7 +96,7 @@ async function processWalletEntryToElasticsearch(job: Job) {
   logger.log('handling entry ingestion', { entry })
     try {
       await ElasticSearchClient.index({
-        index: 'transaction-analytics-staging',
+        index: `transaction-analytics-${process.env.ENV === 'Production' ? 'prod' : 'staging'}`,
         body: entry,
       });
       return { message: 'entry ingested to elastic' }
