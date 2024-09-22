@@ -146,8 +146,6 @@ export default class WalletService {
         reference: depositAccRef,
       })
 
-      console.log({ depositAccount })
-
       const wallet = await Wallet.create({
         _id: walletId,
         organization: organization._id,

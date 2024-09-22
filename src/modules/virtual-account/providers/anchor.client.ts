@@ -115,6 +115,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     try {
       const res = await this.http.get(`/api/v1/virtual-nubans/${accountId}`)
       const details = res.data.data.attributes
+      console.log({ details })
 
       return {
         accountName: details.accountName,
@@ -155,6 +156,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       console.log({ data: res.data.data })
 
       const virtualAccountId = res.data.data.relationships.virtualNubans[0].data.id;
+      console.log({ virtualAccountId })
       const virtualAccount = await this.getVirtualAccount(virtualAccountId);
       console.log({ virtualAccount })
       return {
