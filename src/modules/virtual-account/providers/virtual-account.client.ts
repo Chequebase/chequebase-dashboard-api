@@ -53,5 +53,5 @@ export abstract class VirtualAccountClient {
 }
 
 export abstract class DepositAccountClient {
-  abstract createDepositAccount(payload: CreateDepositAccountData): Promise<CreateVirtualAccountResult>;
+  abstract createDepositAccount(payload: CreateDepositAccountData): Promise<any>;
 }
