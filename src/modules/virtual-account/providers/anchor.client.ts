@@ -113,7 +113,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
 
   async getVirtualAccount(accountId: string): Promise<CreateVirtualAccountResult> {
     try {
-      const res = await this.http.post(`/api/v1/virtual-nubans/${accountId}`)
+      const res = await this.http.get(`/api/v1/virtual-nubans/${accountId}`)
       const details = res.data.data.attributes
 
       return {
