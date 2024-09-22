@@ -166,7 +166,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
   async getDepositAccount(accountId: string): Promise<CreateDepositAccountResult> {
     try {
       const res = await this.http.get(`/api/v1/accounts/${accountId}?include=VirtualNuban`)
-      console.log({ res: res.data.included })
+      console.log({ res: res.data })
       const details = res.data.included[0].attributes
 
       return {
