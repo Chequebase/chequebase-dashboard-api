@@ -18,7 +18,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     }
   })
 
-  async createStaticVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult> {
+  async createStaticVirtualAccount(payload: CreateVirtualAccountData, depositAccount: string = getEnvOrThrow('ANCHOR_DEPOSIT_ACCOUNT')): Promise<CreateVirtualAccountResult> {
     const data = {
       type: 'VirtualNuban',
       metadata: payload.metadata,
@@ -36,7 +36,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       relationships: {
         settlementAccount: {
           data: {
-            id: getEnvOrThrow('ANCHOR_DEPOSIT_ACCOUNT'),
+            id: depositAccount || getEnvOrThrow('ANCHOR_DEPOSIT_ACCOUNT'),
             type: 'DepositAccount'
           }
         }
@@ -134,7 +134,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     }
   }
 
-  async createDepositAccount(payload: CreateDepositAccountData): Promise<CreateDepositAccountResult> {
+  async createDepositAccount(payload: CreateDepositAccountData): Promise<string> {
     const data = {
       type: payload.accountType,
       attributes: {
@@ -146,29 +146,13 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
             id: payload.customerId,
             type: payload.customerType
           }
-        },
-        virtualNuban: {
-          type: 'VirtualNuban'
         }
       }
     }
 
     try {
       const res = await this.http.post('/api/v1/accounts', { data })
-      const id = res.data.data.id
-      console.log({ data: res.data.data })
-
-      const virtualAccountId = res.data.data.relationships.virtualNubans;
-      console.log({ virtualAccountId })
-      const virtualAccount = await this.getVirtualAccount('virtualAccountId');
-      console.log({ virtualAccount })
-      return {
-        id,
-        accountName: virtualAccount.accountName,
-        accountNumber: virtualAccount.accountNumber,
-        bankCode: virtualAccount.bankCode,
-        bankName: virtualAccount.bankName,
-      }
+      return res.data.data.id
     } catch (err: any) {
       this.logger.error('error creating deposit account', {
         reason: JSON.stringify(err.response?.data || err?.message),
@@ -176,7 +160,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
         status: err.response.status
       });
 
-      throw new ServiceUnavailableError('Unable to create virtual account');
+      throw new ServiceUnavailableError('Unable to create deposit account');
     }
   }
 }

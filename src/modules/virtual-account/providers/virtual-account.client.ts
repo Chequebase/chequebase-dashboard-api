@@ -48,7 +48,7 @@ export enum VirtualAccountClientName {
 
 export abstract class VirtualAccountClient {
   abstract currencies: string[]
-  abstract createStaticVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult>;
+  abstract createStaticVirtualAccount(payload: CreateVirtualAccountData, depositAccount?: string): Promise<CreateVirtualAccountResult>;
   abstract createDynamicVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult>;
 }
 
