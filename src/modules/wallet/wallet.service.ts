@@ -133,6 +133,7 @@ export default class WalletService {
       })
 
       const account = await this.depositAccountService.getAccount(depositAccountId, VirtualAccountClientName.Anchor, baseWallet.currency)
+      console.log({ account })
 
       const wallet = await Wallet.create({
         _id: walletId,
