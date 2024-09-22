@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { getEnvOrThrow } from "@/modules/common/utils";
-import { CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountClient, VirtualAccountClientName } from "./virtual-account.client";
+import { CreateDepositAccountData, CreateDepositAccountResult, CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountClient, VirtualAccountClientName } from "./virtual-account.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 
@@ -102,6 +102,45 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       }
     } catch (err: any) {
       this.logger.error('error creating virtual account', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        payload: JSON.stringify(payload),
+        status: err.response.status
+      });
+
+      throw new ServiceUnavailableError('Unable to create virtual account');
+    }
+  }
+
+  async createDepositAccount(payload: CreateDepositAccountData): Promise<CreateDepositAccountResult> {
+    const data = {
+      type: payload.accountType,
+      attributes: {
+        productName: payload.productName
+      },
+      relationships: {
+        customer: {
+          data: {
+            id: payload.customerId,
+            type: payload.customerType
+          }
+        }
+      }
+    }
+
+    try {
+      const res = await this.http.post('/api/v1/accounts', { data })
+      const details = res.data.data.attributes
+      const id = res.data.data.id
+
+      return {
+        id,
+        accountName: details.accountName,
+        accountNumber: details.accountNumber,
+        bankCode: details.bank.nipCode,
+        bankName: details.bank.name,
+      }
+    } catch (err: any) {
+      this.logger.error('error creating deposit account', {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
         status: err.response.status

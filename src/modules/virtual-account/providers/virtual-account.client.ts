@@ -15,12 +15,29 @@ export interface CreateVirtualAccountData {
   rcNumber?: string;
 }
 
+export interface CreateDepositAccountData {
+  accountType: string
+  customerType: string
+  productName: string
+  customerId: string
+  provider: string
+  reference: string
+}
+
 export interface CreateVirtualAccountResult {
   accountName: string
   accountNumber: string
   bankCode: string
   bankName: string
   provider: string
+}
+
+export interface CreateDepositAccountResult {
+  id: string
+  accountName: string
+  accountNumber: string
+  bankCode: string
+  bankName: string
 }
 
 export enum VirtualAccountClientName {
@@ -33,4 +50,8 @@ export abstract class VirtualAccountClient {
   abstract currencies: string[]
   abstract createStaticVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult>;
   abstract createDynamicVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult>;
+}
+
+export abstract class DepositAccountClient {
+  abstract createDepositAccount(payload: CreateDepositAccountData): Promise<CreateVirtualAccountResult>;
 }

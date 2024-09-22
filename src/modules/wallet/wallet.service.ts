@@ -24,13 +24,14 @@ import QueryFilter from "../common/utils/query-filter";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
+import { DepositAccountService } from "../virtual-account/deposit-account";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
 @Service()
 export default class WalletService {
-  constructor(private virtualAccountService: VirtualAccountService, private slackService: SlackNotificationService) { }
+  constructor(private virtualAccountService: VirtualAccountService, private depositAccountService: DepositAccountService, private slackService: SlackNotificationService) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()
@@ -133,6 +134,20 @@ export default class WalletService {
         rcNumber: organization.rcNumber
       })
 
+
+      const depositAccRef = `da-${createId()}`
+
+      const depositAccount = await this.depositAccountService.createAccount({
+        accountType: 'DepositAccount',
+        customerType: 'BusinessCustomer',
+        productName: 'CURRENT',
+        customerId: organization.anchorCustomerId,
+        provider: data.provider,
+        reference: depositAccRef,
+      })
+
+      console.log({ depositAccount })
+
       const wallet = await Wallet.create({
         _id: walletId,
         organization: organization._id,
@@ -143,27 +158,29 @@ export default class WalletService {
         virtualAccounts: [virtualAccountId]
       })
 
-      const virtualAccount = await VirtualAccount.create({
-        _id: virtualAccountId,
-        organization: organization._id,
-        wallet: wallet._id,
-        accountNumber: account.accountNumber,
-        bankCode: account.bankCode,
-        name: account.accountName,
-        bankName: account.bankName,
-        provider: account.provider,
-      })
+      // const virtualAccount = await VirtualAccount.create({
+      //   _id: virtualAccountId,
+      //   organization: organization._id,
+      //   wallet: wallet._id,
+      //   accountNumber: account.accountNumber,
+      //   bankCode: account.bankCode,
+      //   name: account.accountName,
+      //   bankName: account.bankName,
+      //   provider: account.provider,
+      // })
+
+      // await Organization.updateOne(organization._id, { depositAccount: depositAccount }).lean()
 
       return {
         _id: wallet._id,
-        balance: wallet.balance,
-        currency: wallet.currency,
-        account: {
-          name: virtualAccount.name,
-          accountNumber: virtualAccount.accountNumber,
-          bankName: virtualAccount.bankName,
-          bankCode: virtualAccount.bankCode
-        }
+        // balance: wallet.balance,
+        // currency: wallet.currency,
+        // account: {
+        //   name: virtualAccount.name,
+        //   accountNumber: virtualAccount.accountNumber,
+        //   bankName: virtualAccount.bankName,
+        //   bankCode: virtualAccount.bankCode
+        // }
       }
     } catch (error: any) {
       console.log(error)

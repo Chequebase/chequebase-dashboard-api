@@ -1,13 +1,20 @@
 import 'module-alias/register'
-process.env.DB_URI = 'mongodb+srv://chequebase:XEamP9X0FpVeDggv@cluster0.cx1ni.mongodb.net/chequebase-staging?retryWrites=true&w=majority'
-// process.env.DB_URI = 'mongodb+srv://chequebase:vhe3eOqqCol7YFWn@chequebase-prod.9t1nwt8.mongodb.net/chequebase?retryWrites=true&w=majority'
+import { Client } from '@elastic/elasticsearch';
+// process.env.DB_URI = 'mongodb+srv://chequebase:XEamP9X0FpVeDggv@cluster0.cx1ni.mongodb.net/chequebase-staging?retryWrites=true&w=majority'
+process.env.DB_URI = 'mongodb+srv://chequebase:vhe3eOqqCol7YFWn@chequebase-prod.9t1nwt8.mongodb.net/chequebase?retryWrites=true&w=majority'
 import WalletEntry, { IWalletEntry, WalletEntryScope } from '@/models/wallet-entry.model';
 import TransferCategory, { ITransferCategory } from '@/models/transfer-category';
 import Budget, { IBudget } from '@/models/budget.model';
 import User, { IUser } from '@/models/user.model';
 import { ITransactionAnalytics } from '@/queues/jobs/wallet/wallet-entry-elasticsearch-ingester';
-import { ElasticSearchClient } from '@/modules/common/elasticsearch';
+// import { ElasticSearchClient } from '@/modules/common/elasticsearch';
 
+const ElasticSearchClient = new Client({
+  node: 'https://c1735ed079cf42e796a17b4bd65d1dd3.eu-central-1.aws.cloud.es.io:443',
+  auth: {
+      apiKey: 'cmhOYzhaRUJyUVNjWW9nMlhmVkE6akpCM0N3dUlSZ09ZcnN2SGJUMmdYQQ=='
+  }
+});
 function extractBudgetMeta(walletEntry: IWalletEntry) {
     if (walletEntry.budget) {
         const budgetData = walletEntry.budget as unknown as IBudget;
@@ -68,7 +75,7 @@ function transformWalletEntry(walletEntry: IWalletEntry): ITransactionAnalytics 
     try {
       await ElasticSearchClient.index({
         id: data.transactionId,
-        index: 'transaction-analytics-staging',
+        index: 'transaction-analytics-prod',
         body: data,
       });
     } catch (error) {

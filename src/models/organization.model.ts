@@ -74,6 +74,7 @@ export interface IOrganization {
   numberOfEmployees: string
   documents: { [key: string]: string }
   anchorCustomerId: string
+  depositAccount: string
   phone: string
   postalCode: string
   setDefualtApprovalWorkflow: boolean
@@ -147,6 +148,7 @@ const organizationSchma = new Schema<IOrganization>(
     address: String,
     status: String,
     numberOfEmployees: String,
+    depositAccount: String,
     documents: Object,
     phone: String,
     postalCode: String,

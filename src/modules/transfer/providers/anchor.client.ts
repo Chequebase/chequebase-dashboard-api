@@ -81,7 +81,7 @@ export class AnchorTransferClient implements TransferClient {
         account: {
           data: {
             type: "DepositAccount",
-            id: getEnvOrThrow('ANCHOR_DEPOSIT_ACCOUNT')
+            id: payload.depositAcc
           }
         },
         counterParty: {

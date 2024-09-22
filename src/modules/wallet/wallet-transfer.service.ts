@@ -318,6 +318,11 @@ export class WalletTransferService {
     }
 
     const orgId = wallet.organization.toString()
+    const organization = await Organization.findById(orgId);
+
+    if (!organization) {
+      throw new NotFoundError('Organization does not exist')
+    }
     const fee = await this.calcTransferFee(orgId, data.amount, wallet.currency)
     const provider = TransferClientName.Anchor // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
@@ -339,6 +344,7 @@ export class WalletTransferService {
       counterparty,
       currency: wallet.currency,
       narration: entry.narration,
+      depositAcc: organization.depositAccount,
       provider
     })
 
