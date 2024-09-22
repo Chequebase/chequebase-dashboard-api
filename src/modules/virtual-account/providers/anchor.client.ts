@@ -151,18 +151,18 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
 
     try {
       const res = await this.http.post('/api/v1/accounts', { data })
-      const details = res.data.data.attributes
       const id = res.data.data.id
       console.log({ data: res.data.data })
 
-      // const virtualAccountId = res.data.data.relationships.virtualNubans.data.id;
-      // const virtualAccount = await this.getVirtualAccount(virtualAccountId);
+      const virtualAccountId = res.data.data.relationships.virtualNubans[0].data.id;
+      const virtualAccount = await this.getVirtualAccount(virtualAccountId);
+      console.log({ virtualAccount })
       return {
         id,
-        accountName: details.accountName,
-        accountNumber: details.accountNumber,
-        bankCode: details.bank.nipCode,
-        bankName: details.bank.name,
+        accountName: virtualAccount.accountName,
+        accountNumber: virtualAccount.accountNumber,
+        bankCode: virtualAccount.bankCode,
+        bankName: virtualAccount.bankName,
       }
     } catch (err: any) {
       this.logger.error('error creating deposit account', {
