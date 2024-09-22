@@ -167,7 +167,7 @@ export default class WalletService {
         provider: account.provider,
       })
 
-      await Organization.updateOne(organization._id, { depositAccount: depositAccountId }).lean()
+      await Organization.updateOne({ _id: organization._id }, { depositAccount: depositAccountId }).lean()
 
       return {
         _id: wallet._id,
