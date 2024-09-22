@@ -132,6 +132,7 @@ export default class WalletService {
         reference: depositAccRef,
       })
 
+      await new Promise(resolve => setTimeout(resolve, 2000));
       const account = await this.depositAccountService.getAccount(depositAccountId, VirtualAccountClientName.Anchor, baseWallet.currency)
       console.log({ account })
 
