@@ -111,6 +111,28 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     }
   }
 
+  async getVirtualAccount(accountId: string): Promise<CreateVirtualAccountResult> {
+    try {
+      const res = await this.http.post(`/api/v1/virtual-nubans/${accountId}`)
+      const details = res.data.data.attributes
+
+      return {
+        accountName: details.accountName,
+        accountNumber: details.accountNumber,
+        bankCode: details.bank.nipCode,
+        bankName: details.bank.name,
+        provider: VirtualAccountClientName.Anchor,
+      }
+    } catch (err: any) {
+      this.logger.error('error getting virtual account', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        status: err.response.status
+      });
+
+      throw new ServiceUnavailableError('Unable to create virtual account');
+    }
+  }
+
   async createDepositAccount(payload: CreateDepositAccountData): Promise<CreateDepositAccountResult> {
     const data = {
       type: payload.accountType,
@@ -131,7 +153,10 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       const res = await this.http.post('/api/v1/accounts', { data })
       const details = res.data.data.attributes
       const id = res.data.data.id
+      console.log({ data: res.data.data })
 
+      // const virtualAccountId = res.data.data.relationships.virtualNubans.data.id;
+      // const virtualAccount = await this.getVirtualAccount(virtualAccountId);
       return {
         id,
         accountName: details.accountName,
