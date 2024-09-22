@@ -155,9 +155,9 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       const id = res.data.data.id
       console.log({ data: res.data.data })
 
-      const virtualAccountId = res.data.data.relationships.virtualNubans[0].data.id;
+      const virtualAccountId = res.data.data.relationships.virtualNubans;
       console.log({ virtualAccountId })
-      const virtualAccount = await this.getVirtualAccount(virtualAccountId);
+      const virtualAccount = await this.getVirtualAccount('virtualAccountId');
       console.log({ virtualAccount })
       return {
         id,
