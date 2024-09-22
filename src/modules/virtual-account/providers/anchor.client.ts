@@ -115,7 +115,6 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     try {
       const res = await this.http.get(`/api/v1/virtual-nubans/${accountId}`)
       const details = res.data.data.attributes
-      console.log({ details })
 
       return {
         accountName: details.accountName,
@@ -161,6 +160,28 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       });
 
       throw new ServiceUnavailableError('Unable to create deposit account');
+    }
+  }
+
+  async getDepositAccount(accountId: string): Promise<CreateDepositAccountResult> {
+    try {
+      const res = await this.http.get(`/api/v1/accounts/${accountId}`, { params: { include: 'VirtualNuban' } })
+      const details = res.data.included[0].attributes
+
+      return {
+        id: res.data.data.id,
+        accountName: details.accountName,
+        accountNumber: details.accountNumber,
+        bankCode: details.bank.nipCode,
+        bankName: details.bank.name,
+      }
+    } catch (err: any) {
+      this.logger.error('error getting deposit account', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        status: err.response.status
+      });
+
+      throw new ServiceUnavailableError('Unable to get deposit account');
     }
   }
 }

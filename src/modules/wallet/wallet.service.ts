@@ -25,6 +25,7 @@ import { VirtualAccountService } from "../virtual-account/virtual-account.servic
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
 import { DepositAccountService } from "../virtual-account/deposit-account";
+import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -105,20 +106,20 @@ export default class WalletService {
       const walletId = new ObjectId()
       const virtualAccountId = new ObjectId()
       const reference = `va-${createId()}`
-      console.log({ payload: {
-        type: 'static',
-        email: organization.email,
-        name: organization.businessName,
-        provider: data.provider,
-        reference,
-        currency: baseWallet.currency,
-        identity: {
-          type: 'bvn',
-          number: organization.owners[0]?.bvn,
-        },
-        phone: organization.phone,
-        rcNumber: organization.rcNumber
-      }})
+      // console.log({ payload: {
+      //   type: 'static',
+      //   email: organization.email,
+      //   name: organization.businessName,
+      //   provider: data.provider,
+      //   reference,
+      //   currency: baseWallet.currency,
+      //   identity: {
+      //     type: 'bvn',
+      //     number: organization.owners[0]?.bvn,
+      //   },
+      //   phone: organization.phone,
+      //   rcNumber: organization.rcNumber
+      // }})
 
       const depositAccRef = `da-${createId()}`
 
@@ -131,20 +132,7 @@ export default class WalletService {
         reference: depositAccRef,
       })
 
-      const account = await this.virtualAccountService.createAccount({
-        type: 'static',
-        email: organization.email,
-        name: organization.businessName,
-        provider: data.provider,
-        reference,
-        currency: baseWallet.currency,
-        identity: {
-          type: 'bvn',
-          number: organization.owners[0]?.bvn,
-        },
-        phone: organization.phone,
-        rcNumber: organization.rcNumber
-      }, depositAccountId)
+      const account = await this.depositAccountService.getAccount(depositAccountId, VirtualAccountClientName.Anchor, baseWallet.currency)
 
       const wallet = await Wallet.create({
         _id: walletId,
@@ -164,7 +152,7 @@ export default class WalletService {
         bankCode: account.bankCode,
         name: account.accountName,
         bankName: account.bankName,
-        provider: account.provider,
+        provider: VirtualAccountClientName.Anchor,
       })
 
       await Organization.updateOne({ _id: organization._id }, { depositAccount: depositAccountId }).lean()

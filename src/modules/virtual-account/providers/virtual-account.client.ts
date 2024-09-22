@@ -53,5 +53,7 @@ export abstract class VirtualAccountClient {
 }
 
 export abstract class DepositAccountClient {
-  abstract createDepositAccount(payload: CreateDepositAccountData): Promise<any>;
+  abstract currencies: string[]
+  abstract getDepositAccount(id: string): Promise<CreateDepositAccountResult>;
+  abstract createDepositAccount(payload: CreateDepositAccountData): Promise<string>;
 }
