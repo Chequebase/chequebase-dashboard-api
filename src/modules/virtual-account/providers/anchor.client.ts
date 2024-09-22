@@ -146,6 +146,9 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
             id: payload.customerId,
             type: payload.customerType
           }
+        },
+        virtualNuban: {
+          type: 'VirtualNuban'
         }
       }
     }
