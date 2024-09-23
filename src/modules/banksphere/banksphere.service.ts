@@ -613,4 +613,16 @@ export class BanksphereService {
 
     return { message: 'Team Member deleted' }
   }
+
+  async deleteAccount(id: string) {
+    const org = await Organization.findById(id);
+    if (!org) {
+      throw new NotFoundError('Org not found');
+    }
+
+    await Organization.deleteOne({ _id: id })
+    await User.deleteOne({ _id: org.admin, organization: id })
+
+    return { message: 'Organization deleted' }
+  }
 }

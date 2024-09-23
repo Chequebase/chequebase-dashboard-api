@@ -152,4 +152,11 @@ export default class BanksphereController {
   deleteTeamMember(@Param('id') id: string) {
     return this.banksphereService.deleteTeamMember(id);
   }
+
+  @UseBefore(publicApiGuard)
+  @Authorized(BanksphereRole.Admin)
+  @Delete('/accounts/:id')
+  deleteAccount(@Param('id') id: string) {
+    return this.banksphereService.deleteAccount(id);
+  }
 }
