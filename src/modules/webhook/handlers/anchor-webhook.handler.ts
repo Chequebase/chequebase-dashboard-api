@@ -148,6 +148,11 @@ export default class AnchorWebhookHandler {
     const transferId = body.data.relationships.transfer.data.id
     const verifyResponse = await this.anchorTransferClient.verifyTransferById(transferId)
 
+    const entryExists = await WalletEntry.exists({ reference: verifyResponse.reference })
+    if (entryExists) {
+      throw new BadRequestError('Duplicate payment')
+    }
+
     const jobData: WalletOutflowData = {
       amount: verifyResponse.amount,
       currency: verifyResponse.currency,
