@@ -20,11 +20,6 @@ export default class AnchorWebhookHandler {
   private async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
 
-    const entryExists = await WalletEntry.exists({ reference: payment.paymentId })
-    if (entryExists) {
-      return { message: "entry exists" }
-    }
-
     const jobData: WalletInflowData = {
       amount: payment.amount,
       accountNumber: payment.virtualNuban.accountNumber,
@@ -148,10 +143,6 @@ export default class AnchorWebhookHandler {
     const transferId = body.data.relationships.transfer.data.id
     const verifyResponse = await this.anchorTransferClient.verifyTransferById(transferId)
 
-    const entryExists = await WalletEntry.exists({ reference: verifyResponse.reference })
-    if (entryExists) {
-      return { message: "entry exists" }
-    }
 
     const jobData: WalletOutflowData = {
       amount: verifyResponse.amount,

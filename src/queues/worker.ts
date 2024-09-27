@@ -31,8 +31,8 @@ function setupQueues() {
     organizationQueue.process('processKycRejected', processKycRejected)
 
     walletQueue.process('sendAccountStatement', sendAccountStatement)
-    walletQueue.process('processWalletInflow', 5, processWalletInflow)
-    walletQueue.process('processWalletOutflow', 5, processWalletOutflow)
+    walletQueue.process('processWalletInflow', 1, processWalletInflow)
+    walletQueue.process('processWalletOutflow', 1, processWalletOutflow)
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
     walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
     walletQueue.add('addWalletEntriesForClearance', null, {
