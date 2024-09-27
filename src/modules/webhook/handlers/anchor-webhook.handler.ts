@@ -22,7 +22,7 @@ export default class AnchorWebhookHandler {
 
     const entryExists = await WalletEntry.exists({ reference: payment.paymentId })
     if (entryExists) {
-      throw new BadRequestError('Duplicate payment')
+      return { message: "entry exists" }
     }
 
     const jobData: WalletInflowData = {
@@ -150,7 +150,7 @@ export default class AnchorWebhookHandler {
 
     const entryExists = await WalletEntry.exists({ reference: verifyResponse.reference })
     if (entryExists) {
-      throw new BadRequestError('Duplicate payment')
+      return { message: "entry exists" }
     }
 
     const jobData: WalletOutflowData = {
