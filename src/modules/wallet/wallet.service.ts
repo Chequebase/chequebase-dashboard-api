@@ -32,7 +32,7 @@ dayjs.extend(timezone)
 
 @Service()
 export default class WalletService {
-  constructor(private virtualAccountService: VirtualAccountService, private depositAccountService: DepositAccountService, private slackService: SlackNotificationService) { }
+  constructor(private depositAccountService: DepositAccountService, private slackService: SlackNotificationService) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()

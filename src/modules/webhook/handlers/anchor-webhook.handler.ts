@@ -6,9 +6,10 @@ import { WalletInflowData, WalletInflowDataNotification } from "@/queues/jobs/wa
 import { WalletOutflowData, WalletOutflowDataNotification } from "@/queues/jobs/wallet/wallet-outflow.job";
 import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
-import { UnauthorizedError } from 'routing-controllers';
+import { BadRequestError, UnauthorizedError } from 'routing-controllers';
 import { RequiredDocumentsJobData, KYCProviderData } from '@/queues/jobs/organization/processRequiredDocuments';
 import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common/slack/slackNotification.service';
+import WalletEntry from '@/models/wallet-entry.model';
 
 @Service()
 export default class AnchorWebhookHandler {
@@ -18,6 +19,11 @@ export default class AnchorWebhookHandler {
 
   private async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
+
+    const entryExists = await WalletEntry.exists({ reference: payment.paymentId })
+    if (entryExists) {
+      throw new BadRequestError('Duplicate payment')
+    }
 
     const jobData: WalletInflowData = {
       amount: payment.amount,
