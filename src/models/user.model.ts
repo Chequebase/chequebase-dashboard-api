@@ -3,9 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
-import { IOrganization } from './organization.model';
 import { IDepartment } from './department.model';
-import { IRole } from './role.model';
 
 export enum KycStatus {
   NOT_STARTED = "not started",
@@ -28,34 +26,44 @@ export enum UserStatus {
   DISABLED = 'disabled'
 }
 
+export enum EmploymentType {
+  Fulltime = "full_time",
+  PartTime = "part_time",
+  Contract = "contract",
+}
+
 export interface IUser {
-  _id: ObjectId
-  firstName: string
-  lastName: string
+  _id: ObjectId;
+  firstName: string;
+  lastName: string;
   email: string;
   emailVerified: boolean;
+  taxId: string;
+  employmentType: EmploymentType;
+  employmentDate: Date;
+  salary: any
   password: string;
-  organization: any
-  departments: ObjectId[] | IDepartment[]
-  manager: any
-  roleRef: any
-  role: string
-  rememberMe: number
-  status: UserStatus
-  KYBStatus: KycStatus
-  hashRt: string
-  emailVerifyCode: string
-  avatar: string
-  passwordResetCode: string
-  forgotPinCode: string
-  inviteCode: string
-  inviteSentAt: number
-  phone: string
-  otpExpiresAt: number
-  resentOptCount: number
-  otpResentAt: number
-  otp: string
-  pin: string
+  organization: any;
+  departments: ObjectId[] | IDepartment[];
+  manager: any;
+  roleRef: any;
+  role: string;
+  rememberMe: number;
+  status: UserStatus;
+  KYBStatus: KycStatus;
+  hashRt: string;
+  emailVerifyCode: string;
+  avatar: string;
+  passwordResetCode: string;
+  forgotPinCode: string;
+  inviteCode: string;
+  inviteSentAt: number;
+  phone: string;
+  otpExpiresAt: number;
+  resentOptCount: number;
+  otpResentAt: number;
+  otp: string;
+  pin: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,25 +78,35 @@ const userSchema = new Schema<IUser>(
     lastName: String,
     email: { type: String, required: true, unique: true },
     emailVerified: { type: Boolean, default: false },
+    taxId: String,
+    employmentType: {
+      type: String,
+      default: EmploymentType.Fulltime,
+      enum: Object.values(EmploymentType),
+    },
+    employmentDate: Date,
     password: { type: String, select: false },
     organization: {
       type: Schema.Types.ObjectId,
-      ref: 'Organization'
+      ref: "Organization",
     },
     manager: {
       type: Schema.Types.ObjectId,
-      ref: 'User'
+      ref: "User",
     },
-    departments: [{
-      type: Schema.Types.ObjectId,
-      ref: 'Department'
-    }],
+    departments: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Department",
+      },
+    ],
+    salary: { type: mongoose.Schema.Types.ObjectId, ref: 'Salary' },
     rememberMe: Number,
     pin: { type: String, select: false },
     role: String,
     roleRef: {
       type: Schema.Types.ObjectId,
-      ref: 'Role'
+      ref: "Role",
     },
     KYBStatus: String,
     hashRt: String,
@@ -104,11 +122,11 @@ const userSchema = new Schema<IUser>(
     otpResentAt: Number,
     status: {
       type: String,
-      enum: Object.values(UserStatus)
+      enum: Object.values(UserStatus),
     },
     forgotPinCode: String,
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 userSchema.plugin(aggregatePaginate);
