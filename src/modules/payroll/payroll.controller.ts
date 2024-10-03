@@ -1,16 +1,18 @@
 import { EPermission } from "@/models/role-permission.model";
 import {
   Authorized,
+  Body,
   CurrentUser,
   Get,
   JsonController,
   Param,
+  Put,
   QueryParams,
 } from "routing-controllers";
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { PayrollService } from "./payroll.service";
-import { GetHistoryDto } from "./dto/payroll.dto";
+import { GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
 
 @Service()
 @JsonController("/payroll", { transformResponse: false })
@@ -45,6 +47,18 @@ export default class PayrollController {
   @Authorized(EPermission.PayrollRead)
   history(@CurrentUser() auth: AuthUser, @QueryParams() query: GetHistoryDto) {
     return this.payrollService.history(auth.orgId, query);
+  }
+
+  @Get("/setting")
+  @Authorized(EPermission.PayrollRead)
+  getPayrollSetting(@CurrentUser() auth: AuthUser) {
+    return this.payrollService.getPayrollSetting(auth.orgId);
+  }
+
+  @Put("/setting")
+  @Authorized(EPermission.PayrollEdit)
+  updatePayrollSetting(@CurrentUser() auth: AuthUser, @Body() body: UpdatePayrollSettingDto) {
+    return this.payrollService.updatePayrollSetting(auth.orgId, body);
   }
 
   @Get("/:id")

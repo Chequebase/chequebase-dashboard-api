@@ -11,7 +11,7 @@ import PayrollWallet from "@/models/payroll/payroll-wallet.model";
 import PayrollPayout, {
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
-import { GetHistoryDto } from "./dto/payroll.dto";
+import { GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
 
 @Service()
 export class PayrollService {
@@ -19,7 +19,7 @@ export class PayrollService {
     // TODO: complete this
     return {
       amount: 0,
-      deductions: 0,
+      deductions: { value: 0, increase: 0 },
       settled: 0,
       processing: 0,
     };
@@ -152,10 +152,11 @@ export class PayrollService {
       balance: {
         amount: wallet?.balance || 0,
         currency: wallet?.currency || "NGN",
+        increase: 0,
       },
       // TODO: confirm this
-      deductions: 0,
-      nextRunDeductions: 0,
+      deductions: { value: 0, increase: 0 },
+      nextRunDeductions: { value: 0, increase: 0 },
       nextRunDate,
     };
   }
@@ -266,5 +267,24 @@ export class PayrollService {
     ]);
 
     return { stats, payouts };
+  }
+
+  async getPayrollSetting(orgId: string) {
+    let setting = await PayrollSetting.findOne({ organization: orgId });
+    if (!setting) {
+      setting = await PayrollSetting.create({ organization: orgId });
+    }
+
+    return setting;
+  }
+
+  async updatePayrollSetting(orgId: string, payload: UpdatePayrollSettingDto) {
+    const setting = await PayrollSetting.findOneAndUpdate(
+      { organization: orgId },
+      { deductions: payload.deductions, schedule: payload.schedule },
+      { new: true }
+    ).lean();
+
+    return setting;
   }
 }

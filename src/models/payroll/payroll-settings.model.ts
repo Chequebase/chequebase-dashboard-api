@@ -15,7 +15,6 @@ export interface IPayrollSetting {
   deductions: Array<{
     name: string;
     percentage: number;
-    isActive: boolean;
   }>;
   schedule: {
     mode: PayrollScheduleMode;
