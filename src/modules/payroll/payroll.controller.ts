@@ -4,10 +4,12 @@ import {
   CurrentUser,
   Get,
   JsonController,
+  QueryParams,
 } from "routing-controllers";
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { PayrollService } from "./payroll.service";
+import { GetHistoryDto } from "./dto/payroll.dto";
 
 @Service()
 @JsonController("/payroll", { transformResponse: false })
@@ -36,5 +38,11 @@ export default class PayrollController {
   @Authorized(EPermission.PayrollRead)
   metrics(@CurrentUser() auth: AuthUser) {
     return this.payrollService.payrollMetrics(auth.orgId);
+  }
+
+  @Get("/overview/history")
+  @Authorized(EPermission.PayrollRead)
+  history(@CurrentUser() auth: AuthUser, @QueryParams() query: GetHistoryDto) {
+    return this.payrollService.history(auth.orgId, query);
   }
 }

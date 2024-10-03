@@ -19,8 +19,7 @@ export interface IPayrollSetting {
   }>;
   schedule: {
     mode: PayrollScheduleMode;
-    fixedDay?: number;
-    lastBusinessDay: boolean;
+    dayOfMonth?: number;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -46,7 +45,7 @@ const PayrollSettingSchema = new Schema<IPayrollSetting>(
     schedule: {
       mode: {
         type: String,
-        default: PayrollScheduleMode.Fixed,
+        default: PayrollScheduleMode.LastBusinessDay,
         enum: Object.values(PayrollScheduleMode),
       },
     },
@@ -57,9 +56,9 @@ const PayrollSettingSchema = new Schema<IPayrollSetting>(
 PayrollSettingSchema.plugin(aggregatePaginate);
 PayrollSettingSchema.plugin(mongoosePaginate);
 
-const Payroll = cdb.model<IPayrollSetting, PayrollSettingModel>(
+const PayrollSetting = cdb.model<IPayrollSetting, PayrollSettingModel>(
   "PayrollSetting",
   PayrollSettingSchema
 );
 
-export default Payroll;
+export default PayrollSetting;
