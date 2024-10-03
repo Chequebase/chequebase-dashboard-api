@@ -34,7 +34,7 @@ export interface IPayrollPayout {
     bankName: string;
   };
   salaryBreakdown: {
-    allowances: {
+    earnings: {
       name: string;
       amount: number;
     }[];
@@ -66,7 +66,7 @@ const PayrollpayoutSchema = new Schema<IPayrollPayout>(
       required: true,
     },
     salaryBreakdown: {
-      allowances: [
+      earnings: [
         {
           name: String,
           amount: Number,

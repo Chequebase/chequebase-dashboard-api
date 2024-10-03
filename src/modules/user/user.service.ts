@@ -28,6 +28,7 @@ import { ApprovalService } from "../approvals/approvals.service";
 import { BudgetTransferService } from "../budget/budget-transfer.service";
 import { verifyToken } from "../common/middlewares/rbac.middleware";
 import TransferCategory from "@/models/transfer-category";
+import { EPermission } from "@/models/role-permission.model";
 
 const logger = new Logger('user-service')
 const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
@@ -795,6 +796,17 @@ export class UserService {
   }
 
   async getMembers(auth: AuthUser, query: GetMembersQueryDto) {
+    const payrollRead = auth.roleRef.permissions.some(r => r.actions.includes(EPermission.PayrollRead))
+    const populate = [
+      { path: "roleRef", select: "name description type" },
+      { path: "manager", select: "firstName lastName avatar" },
+    ];
+    if (payrollRead) {
+      populate.push({
+        path: "salary",
+        select: "netAmount grossAmount earnings bank deductions currency",
+      });
+    }
     const users = await User.paginate({
       organization: auth.orgId,
       _id: { $ne: auth.userId },
@@ -803,11 +815,8 @@ export class UserService {
       page: Number(query.page),
       limit: query.limit,
       lean: true,
-      populate: [
-        { path: 'roleRef', select: 'name description type' },
-        { path: 'manager', select: 'firstName lastName avatar' },
-      ],
-      select: 'firstName manager lastName email emailVerified role KYBStatus status avatar phone'
+      populate,
+      select: 'firstName employmentDate employementType salary manager lastName email emailVerified role KYBStatus status avatar phone'
     })
     
     return users
