@@ -1,4 +1,4 @@
-import { ObjectId } from "mongodb";
+import { ObjectID, ObjectId } from "mongodb";
 import { Service } from "typedi";
 import User from "@/models/user.model";
 import Payroll from "@/models/payroll/payroll.model";
@@ -8,11 +8,23 @@ import PayrollSetting, {
 } from "@/models/payroll/payroll-settings.model";
 import { getLastBusinessDay } from "../common/utils";
 import PayrollWallet from "@/models/payroll/payroll-wallet.model";
-import { PayrollPayoutStatus } from "@/models/payroll/payroll-payout.model";
+import PayrollPayout, {
+  PayrollPayoutStatus,
+} from "@/models/payroll/payroll-payout.model";
 import { GetHistoryDto } from "./dto/payroll.dto";
 
 @Service()
 export class PayrollService {
+  private async getPayrollStats(payrollId: string) {
+    // TODO: complete this
+    return {
+      amount: 0,
+      deductions: 0,
+      settled: 0,
+      processing: 0,
+    };
+  }
+
   private async getNextPayrollRunDate(orgId: string) {
     let payrollSetting = await PayrollSetting.findOne({ organization: orgId });
     if (!payrollSetting) {
@@ -206,5 +218,53 @@ export class PayrollService {
     });
 
     return result;
+  }
+
+  async payrollDetails(orgId: string, payrollId: string) {
+    const payoutsAggr = PayrollPayout.aggregate()
+      .match({
+        organization: new ObjectId(orgId),
+        payroll: new ObjectId(payrollId),
+      })
+      .lookup({
+        from: "users",
+        let: { userId: "$user" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$$user", "$_id"] } } },
+          {
+            $lookup: {
+              from: "departments",
+              foreignField: "_id",
+              localField: "departments",
+              as: "departments",
+            },
+          },
+          {
+            $project: {
+              firstName: 1,
+              lastName: 1,
+              employementType: 1,
+              departments: { name: 1 },
+            },
+          },
+        ],
+        as: "user",
+      })
+      .unwind("$user")
+      .project({
+        user: 1,
+        bank: 1,
+        status: 1,
+        currency: 1,
+        netSalary: "$salaryBreakdown.netAmount",
+        grossSalary: "$salaryBreakdown.grossAmount",
+      });
+
+    const [payouts, stats] = await Promise.all([
+      payoutsAggr,
+      this.getPayrollStats(payrollId),
+    ]);
+
+    return { stats, payouts };
   }
 }

@@ -34,6 +34,8 @@ export interface IPayrollPayout {
     bankName: string;
   };
   salaryBreakdown: {
+    netAmount: number
+    grossAmount: number
     earnings: {
       name: string;
       amount: number;
@@ -53,7 +55,7 @@ interface PayrollPayoutModel
   extends mongoose.PaginateModel<IPayrollPayout>,
     mongoose.AggregatePaginateModel<IPayrollPayout> {}
 
-const PayrollpayoutSchema = new Schema<IPayrollPayout>(
+const PayrollPayoutSchema = new Schema<IPayrollPayout>(
   {
     organization: {
       type: mongoose.Schema.Types.ObjectId,
@@ -66,6 +68,9 @@ const PayrollpayoutSchema = new Schema<IPayrollPayout>(
       required: true,
     },
     salaryBreakdown: {
+      netAmount: Number,
+      grossAmount: Number,
+      currency: String,
       earnings: [
         {
           name: String,
@@ -107,12 +112,12 @@ const PayrollpayoutSchema = new Schema<IPayrollPayout>(
   { timestamps: true }
 );
 
-PayrollpayoutSchema.plugin(aggregatePaginate);
-PayrollpayoutSchema.plugin(mongoosePaginate);
+PayrollPayoutSchema.plugin(aggregatePaginate);
+PayrollPayoutSchema.plugin(mongoosePaginate);
 
 const PayrollPayout = cdb.model<IPayrollPayout, PayrollPayoutModel>(
   "PayrollPayout",
-  PayrollpayoutSchema
+  PayrollPayoutSchema
 );
 
 export default PayrollPayout;
