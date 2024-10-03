@@ -7,6 +7,7 @@ import {
   JsonController,
   Param,
   Put,
+  QueryParam,
   QueryParams,
 } from "routing-controllers";
 import { Service } from "typedi";
@@ -65,5 +66,15 @@ export default class PayrollController {
   @Authorized(EPermission.PayrollRead)
   payrollDetails(@CurrentUser() auth: AuthUser, @Param("id") id: string) {
     return this.payrollService.payrollDetails(auth.orgId, id);
+  }
+
+  @Get("/employee-payouts/:user")
+  @Authorized(EPermission.PayrollRead)
+  getEmployeePayouts(
+    @CurrentUser() auth: AuthUser,
+    @Param("user") user: string,
+    @QueryParam('page', { required: true }) page: number
+  ) {
+    return this.payrollService.getEmployeePayouts(auth.orgId, user, page);
   }
 }

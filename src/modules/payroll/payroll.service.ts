@@ -287,4 +287,14 @@ export class PayrollService {
 
     return setting;
   }
+
+  async getEmployeePayouts(orgId: string, userId: string, page: number) {
+    const filter = { organization: orgId, user: userId };
+    return PayrollPayout.paginate(filter, {
+      select: "date amount currency status",
+      lean: true,
+      limit: 12,
+      page: Number(page || 1),
+    });
+  }
 }
