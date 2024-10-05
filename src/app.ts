@@ -1,4 +1,5 @@
 import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
+// import fs from 'fs';
 import cors from "cors";
 import express, { Request, Response } from "express";
 import basicAuth from 'express-basic-auth';
@@ -79,6 +80,9 @@ const storage = getMetadataArgsStorage()
 const spec = routingControllersToSpec(storage, rcOptions, {
   components: { schemas },
 })
+
+// const json = JSON.stringify(spec);
+// fs.writeFileSync('api-spec.json', json, 'utf8');
 
 app.use('/docs',
   basicAuth({
