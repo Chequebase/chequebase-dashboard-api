@@ -16,7 +16,6 @@ export interface CreateVirtualAccountData {
 }
 
 export interface CreateDepositAccountData {
-  accountType: string
   customerType: string
   productName: string
   customerId: string

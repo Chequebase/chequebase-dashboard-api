@@ -135,19 +135,19 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
 
   async createDepositAccount(payload: CreateDepositAccountData): Promise<string> {
     const data = {
-      type: payload.accountType,
+      type: "DepositAccount",
       attributes: {
-        productName: payload.productName
+        productName: payload.productName,
       },
       relationships: {
         customer: {
           data: {
             id: payload.customerId,
-            type: payload.customerType
-          }
-        }
-      }
-    }
+            type: payload.customerType,
+          },
+        },
+      },
+    };
 
     try {
       const res = await this.http.post('/api/v1/accounts', { data })

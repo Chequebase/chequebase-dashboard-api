@@ -12,9 +12,16 @@ import PayrollPayout, {
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
 import { GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
+import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
+import { DepositAccountService } from "../virtual-account/deposit-account";
+import { createId } from "@paralleldrive/cuid2";
+import Organization from "@/models/organization.model";
+import { BadRequestError } from "routing-controllers";
 
 @Service()
 export class PayrollService {
+  constructor(private depositAccountService: DepositAccountService) {}
+
   private async getPayrollStats(payrollId: string) {
     // TODO: complete this
     return {
@@ -296,5 +303,57 @@ export class PayrollService {
       limit: 12,
       page: Number(page || 1),
     });
+  }
+
+  async getPayrollWallet(orgId: string) {
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      throw new BadRequestError("Organization not found");
+    }
+
+    let wallet = await PayrollWallet.findOne({ organization: orgId });
+    if (!wallet) {
+      const depositAccRef = `da-${createId()}`;
+      const depositAccountId = await this.depositAccountService.createAccount({
+        customerType: "BusinessCustomer",
+        productName: "CURRENT",
+        customerId: org.anchorCustomerId,
+        provider: VirtualAccountClientName.Anchor,
+        reference: depositAccRef,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const account = await this.depositAccountService.getAccount(
+        depositAccountId,
+        VirtualAccountClientName.Anchor,
+        "NGN"
+      );
+
+      wallet = await PayrollWallet.create({
+        organization: orgId,
+        currency: "NGN",
+        balance: 0,
+        virtualAccount: {
+          accountNumber: account.accountNumber,
+          bankCode: account.bankCode,
+          name: account.accountName,
+          bankName: account.bankName,
+          accountId: depositAccountId,
+          provider: VirtualAccountClientName.Anchor,
+        },
+      });
+    }
+
+    return {
+      balance: wallet.balance,
+      currency: wallet.currency,
+      account: {
+        name: wallet.virtualAccount.name,
+        accountNumber: wallet.virtualAccount.accountNumber,
+        bankCode: wallet.virtualAccount.bankCode,
+        bankName: wallet.virtualAccount.bankName,
+      },
+    };
   }
 }

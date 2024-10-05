@@ -58,8 +58,17 @@ export default class PayrollController {
 
   @Put("/setting")
   @Authorized(EPermission.PayrollEdit)
-  updatePayrollSetting(@CurrentUser() auth: AuthUser, @Body() body: UpdatePayrollSettingDto) {
+  updatePayrollSetting(
+    @CurrentUser() auth: AuthUser,
+    @Body() body: UpdatePayrollSettingDto
+  ) {
     return this.payrollService.updatePayrollSetting(auth.orgId, body);
+  }
+
+  @Get("/wallet")
+  @Authorized(EPermission.PayrollRead)
+  getWallet(@CurrentUser() auth: AuthUser,) {
+    return this.payrollService.getPayrollWallet(auth.orgId);
   }
 
   @Get("/:id")
@@ -73,7 +82,7 @@ export default class PayrollController {
   getEmployeePayouts(
     @CurrentUser() auth: AuthUser,
     @Param("user") user: string,
-    @QueryParam('page', { required: true }) page: number
+    @QueryParam("page", { required: true }) page: number
   ) {
     return this.payrollService.getEmployeePayouts(auth.orgId, user, page);
   }

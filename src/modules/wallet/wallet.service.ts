@@ -124,7 +124,6 @@ export default class WalletService {
       const depositAccRef = `da-${createId()}`
 
       const depositAccountId = await this.depositAccountService.createAccount({
-        accountType: 'DepositAccount',
         customerType: 'BusinessCustomer',
         productName: 'CURRENT',
         customerId: organization.anchorCustomerId,

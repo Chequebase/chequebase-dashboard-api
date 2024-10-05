@@ -11,7 +11,9 @@ export interface IPayrollWallet {
     name: string;
     bankCode: string;
     bankName: string;
+    accountNumber: string;
     provider: string;
+    accountId: string;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -31,6 +33,7 @@ const PayrollWalletSchema = new Schema<IPayrollWallet>(
       bankCode: String,
       bankName: String,
       provider: String,
+      accountId: String
     },
   },
   { timestamps: true }
