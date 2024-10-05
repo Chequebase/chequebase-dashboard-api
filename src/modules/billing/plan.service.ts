@@ -143,7 +143,7 @@ export class PlanService {
   }
 
   async initiateSubscription(auth: AuthUser, data: InitiateSubscriptionDto) {
-    data.paymentMethod ||= BillingMethod.Wallet
+    data.paymentMethod = data.paymentMethod || BillingMethod.Wallet
 
     const org = await Organization.findById(auth.orgId)
       .populate({

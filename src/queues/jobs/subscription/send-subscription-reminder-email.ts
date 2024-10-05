@@ -10,7 +10,7 @@ const emailService = Container.get(EmailService)
 async function sendSubscriptionReminderEmail(job: Job) {
   const subscription = job.data.subscription
   const admin = subscription.organization.admin
-  admin.firstName ||= admin.email.split('@')[0]
+  admin.firstName = admin.firstName|| admin.email.split('@')[0]
   const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/settings/license`
 
   try {

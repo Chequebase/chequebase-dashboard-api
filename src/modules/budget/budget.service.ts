@@ -732,7 +732,7 @@ export default class BudgetService {
   }
 
   async getBudgets(auth: AuthUser, query: GetBudgetsDto) {
-    query.status ??= BudgetStatus.Active
+    query.status = query.status ??  BudgetStatus.Active
     const user = await User.findById(auth.userId).populate('roleRef').lean()
     if (!user) {
       throw new BadRequestError("User not found")
