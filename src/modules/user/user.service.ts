@@ -176,50 +176,10 @@ export class UserService {
     })
     await user.updateOne({ organization: organization._id })
 
-    // create default approval rules
-    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
     await Promise.all([
-      ApprovalRule.create([
-        {
-          name: 'Transaction Rule',
-          amount: 0,
-          approvalType: ApprovalType.Everyone,
-          createdBy: user.id,
-          workflowType: WorkflowType.Transaction,
-          organization: organization.id,
-          reviewers: [user.id],
-        },
-        {
-          name: 'Expense Rule',
-          amount: 0,
-          approvalType: ApprovalType.Everyone,
-          createdBy: user.id,
-          workflowType: WorkflowType.Expense,
-          organization: organization.id,
-          reviewers: [user.id],
-        },
-        {
-          name: 'Budget Extension Rule',
-          amount: 0,
-          approvalType: ApprovalType.Everyone,
-          createdBy: user.id,
-          workflowType: WorkflowType.BudgetExtension,
-          organization: organization.id,
-          reviewers: [user.id],
-        },
-        {
-          name: 'Fund Request',
-          amount: 0,
-          approvalType: ApprovalType.Anyone,
-          createdBy: user.id,
-          workflowType: WorkflowType.FundRequest,
-          organization: organization.id,
-          reviewers: [user.id],
-        }
-      ]),
-      TransferCategory.create(cats.map(name => ({ name, organization: organization.id, type: 'default' })))
-    ])
-
+      this.approvalService.createDefaultApprovalRules(organization.id, user.id),
+      this.budgetTnxService.createDefaultCategories(organization.id)
+    ]);
 
     const message = `${data.businessName}, with email: ${data.email} just signed up`;
     this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)

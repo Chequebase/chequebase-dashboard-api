@@ -51,8 +51,8 @@ const isBusinessDay = (date: dayjs.Dayjs): boolean => {
   return day !== 0 && day !== 6; // 0 = Sunday, 6 = Saturday
 };
 
-export function getLastBusinessDay (year: number, month: number) {
-  let lastDay = dayjs(new Date(year, month + 1, 0)).tz('Africa/Lagos'); // Last day of the month
+export function getLastBusinessDay(year: number, month: number) {
+  let lastDay = dayjs(new Date(year, month + 1, 0)).tz("Africa/Lagos"); // Last day of the month
   while (!isBusinessDay(lastDay)) {
     lastDay = lastDay.subtract(1, "day");
   }

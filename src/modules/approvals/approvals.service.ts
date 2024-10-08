@@ -17,6 +17,7 @@ import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule
 import EmailService from "../common/email.service";
 import dayjs from "dayjs";
 import Organization from "@/models/organization.model";
+import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -255,6 +256,15 @@ export class ApprovalService {
           category: trnx.category
         })
         break;
+      case WorkflowType.Payroll:
+        await Payroll.updateOne(
+          { _id: request.properties.payroll },
+          { approvalStatus: PayrollApprovalStatus.Approved }
+        );
+        response = {
+          status: PayrollApprovalStatus.Approved,
+          approvalRequired: false,
+        };
       default:
         logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })
         throw new BadRequestError("Something went wrong")
@@ -336,6 +346,10 @@ export class ApprovalService {
       await Budget.updateOne({ _id: request.properties.budget }, {
         fundRequestApprovalRequest: null
       })
+    } else if (request.workflowType === WorkflowType.Payroll) {
+      await Payroll.updateOne({ _id: request.properties.payroll }, {
+        $set: { approvalStatus: PayrollApprovalStatus.Rejected }
+      })
     }
 
     const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
@@ -361,9 +375,9 @@ export class ApprovalService {
   }
 
   async createDefaultApprovalRules(orgId: string, userId: string) {
-    await ApprovalRule.create([
+    const rules = [
       {
-        name: 'Transaction Rule',
+        name: "Transaction Rule",
         amount: 0,
         approvalType: ApprovalType.Everyone,
         createdBy: userId,
@@ -372,7 +386,7 @@ export class ApprovalService {
         reviewers: [userId],
       },
       {
-        name: 'Expense Rule',
+        name: "Expense Rule",
         amount: 0,
         approvalType: ApprovalType.Everyone,
         createdBy: userId,
@@ -381,7 +395,7 @@ export class ApprovalService {
         reviewers: [userId],
       },
       {
-        name: 'Budget Extension Rule',
+        name: "Budget Extension Rule",
         amount: 0,
         approvalType: ApprovalType.Everyone,
         createdBy: userId,
@@ -390,15 +404,26 @@ export class ApprovalService {
         reviewers: [userId],
       },
       {
-        name: 'Fund Request',
+        name: "Fund Request",
         amount: 0,
         approvalType: ApprovalType.Anyone,
         createdBy: userId,
         workflowType: WorkflowType.FundRequest,
         organization: orgId,
         reviewers: [userId],
-      }
-    ])
+      },
+      {
+        name: "Payroll",
+        amount: 0,
+        approvalType: ApprovalType.Anyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Payroll,
+        organization: orgId,
+        reviewers: [userId],
+      },
+    ];
+    
+    return ApprovalRule.create(rules)
   }
 
   async sendRequestReminder(auth: AuthUser, requestId: string) {

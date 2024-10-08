@@ -6,6 +6,7 @@ import {
   Get,
   JsonController,
   Param,
+  Post,
   Put,
   QueryParam,
   QueryParams,
@@ -85,5 +86,11 @@ export default class PayrollController {
     @QueryParam("page", { required: true }) page: number
   ) {
     return this.payrollService.getEmployeePayouts(auth.orgId, user, page);
+  }
+
+  @Post("/")
+  @Authorized(EPermission.PayrollEdit)
+  createPayrollRun(@CurrentUser() auth: AuthUser) {
+    return this.payrollService.initiatePayrollRun(auth);
   }
 }

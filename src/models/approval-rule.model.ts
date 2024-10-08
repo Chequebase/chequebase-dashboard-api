@@ -9,6 +9,7 @@ export enum WorkflowType {
   Expense = 'expense',
   BudgetExtension = 'budget_extension',
   FundRequest = 'fund_request',
+  Payroll = 'payroll',
 }
 
 export enum ApprovalType {

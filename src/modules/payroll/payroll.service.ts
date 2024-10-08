@@ -1,14 +1,18 @@
 import { ObjectID, ObjectId } from "mongodb";
 import { Service } from "typedi";
-import User from "@/models/user.model";
-import Payroll from "@/models/payroll/payroll.model";
+import User, { UserStatus } from "@/models/user.model";
+import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
 import dayjs from "dayjs";
 import PayrollSetting, {
+  IPayrollSetting,
   PayrollScheduleMode,
 } from "@/models/payroll/payroll-settings.model";
 import { getLastBusinessDay } from "../common/utils";
 import PayrollWallet from "@/models/payroll/payroll-wallet.model";
 import PayrollPayout, {
+  IPayrollPayout,
+  PayrollPayoutCurrency,
+  PayrollPayoutProvider,
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
 import { GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
@@ -17,10 +21,37 @@ import { DepositAccountService } from "../virtual-account/deposit-account";
 import { createId } from "@paralleldrive/cuid2";
 import Organization from "@/models/organization.model";
 import { BadRequestError } from "routing-controllers";
+import { ISalary } from "@/models/payroll/salary.model";
+import numeral from "numeral";
+import ApprovalRule, {
+  WorkflowType,
+  ApprovalType,
+} from "@/models/approval-rule.model";
+import { AuthUser } from "../common/interfaces/auth-user";
+import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model";
 
 @Service()
 export class PayrollService {
   constructor(private depositAccountService: DepositAccountService) {}
+  private calculateSalary(salary: ISalary, settings: IPayrollSetting) {
+    const gross = salary.earnings.reduce((acc, e) => acc + e.amount, 0);
+    const deductions = settings.deductions
+      .concat(salary.deductions)
+      .reduce((acc, deduction) => {
+        acc[deduction.name] =
+          numeral(gross).multiply(deduction.percentage).divide(100).value() ||
+          0;
+        return acc;
+      }, {} as Record<string, number>);
+
+    const net = gross - Object.values(deductions).reduce((a, b) => a + b, 0);
+
+    return {
+      net,
+      deductions,
+      gross,
+    };
+  }
 
   private async getPayrollStats(payrollId: string) {
     // TODO: complete this
@@ -39,23 +70,23 @@ export class PayrollService {
     }
 
     const tz = "Africa/Lagos";
-    const { mode, dayOfMonth: fixedDay } = payrollSetting.schedule;
+    const { mode, dayOfMonth } = payrollSetting.schedule;
 
     const today = dayjs().tz(tz);
     const month = today.month();
     const year = today.year();
 
-    if (mode === PayrollScheduleMode.Fixed && fixedDay) {
-      let fixedRunDate = dayjs(new Date(year, month, fixedDay)).tz(tz);
-      if (today.isAfter(fixedRunDate)) {
-        fixedRunDate = dayjs(new Date(year, month + 1, fixedDay)).tz(tz);
+    if (mode === PayrollScheduleMode.Fixed && dayOfMonth) {
+      let fixedRunDate = dayjs(new Date(year, month, dayOfMonth)).tz(tz);
+      if (today.isAfter(fixedRunDate, "day")) {
+        fixedRunDate = dayjs(new Date(year, month + 1, dayOfMonth)).tz(tz);
       }
 
       return fixedRunDate.toDate();
     }
 
     let lastRunDate = getLastBusinessDay(year, month);
-    if (today.isAfter(lastRunDate)) {
+    if (today.isAfter(lastRunDate, "day")) {
       lastRunDate = getLastBusinessDay(year, month + 1);
     }
 
@@ -354,6 +385,116 @@ export class PayrollService {
         bankCode: wallet.virtualAccount.bankCode,
         bankName: wallet.virtualAccount.bankName,
       },
+    };
+  }
+
+  async initiatePayrollRun(auth: AuthUser) {
+    const { userId, orgId } = auth;
+    const nextRunDate = await this.getNextPayrollRunDate(orgId);
+    const pendingPayroll = await Payroll.findOne({
+      organization: orgId,
+      $or: [
+        { approvalStatus: PayrollApprovalStatus.Pending },
+        { date: nextRunDate, approvalStatus: PayrollApprovalStatus.Approved },
+      ],
+    });
+    if (pendingPayroll) {
+      throw new BadRequestError(
+        "A unprocessed payroll already exists for this organization. Please complete the pending payroll before creating a new one."
+      );
+    }
+
+    let [wallet, setting] = await Promise.all([
+      PayrollWallet.findOne({ organization: orgId }),
+      PayrollSetting.findOne({ organization: orgId }),
+    ]);
+
+    if (!wallet) {
+      throw new BadRequestError("Wallet is currently not available");
+    }
+    if (!setting) {
+      setting = await PayrollSetting.create({ organization: orgId });
+    }
+
+    const users = await User.find({
+      organization: orgId,
+      salary: { $exists: true },
+      status: UserStatus.ACTIVE,
+    }).populate("salary");
+
+    const salaries = users.map((user) =>
+      this.calculateSalary(user.salary, setting)
+    );
+    const totalNet = salaries.reduce((acc, salary) => acc + salary.net, 0);
+
+    if (totalNet > wallet.balance) {
+      throw new BadRequestError(
+        "Insufficient fund to process payroll run. Please keep your payroll account(s) funded at least 24 hours before your next run date"
+      );
+    }
+
+    const rule = await ApprovalRule.findOne({
+      organization: orgId,
+      workflowType: WorkflowType.Payroll,
+    }).populate("reviewers", "email firstName");
+
+    let noApprovalRequired = !rule;
+    if (rule) {
+      const requiredReviews =
+        rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length;
+      noApprovalRequired =
+        requiredReviews === 1 && rule.reviewers.some((r) => r.equals(userId));
+    }
+
+    const payroll = await Payroll.create({
+      organization: orgId,
+      date: nextRunDate,
+      approvalStatus: noApprovalRequired
+        ? PayrollApprovalStatus.Approved
+        : PayrollApprovalStatus.Pending,
+    });
+
+    const promises = []
+    if (!noApprovalRequired) {
+      promises.push(ApprovalRequest.create({
+        organization: auth.orgId,
+        workflowType: WorkflowType.Payroll,
+        approvalType: rule!.approvalType,
+        requester: auth.userId,
+        approvalRule: rule!._id,
+        priority: ApprovalRequestPriority.High,
+        reviews: rule!.reviewers.map((user) => ({
+          user,
+          status: user.equals(auth.userId) ? "approved" : "pending",
+        })),
+        properties: { payroll: payroll._id },
+      }))
+    }
+
+    promises.push(PayrollPayout.create(
+      users.map((user, index) => ({
+        payroll: payroll._id,
+        organization: orgId,
+        user: user._id,
+        status: PayrollPayoutStatus.Pending,
+        amount: salaries[index],
+        currency: user.salary.currency,
+        provider: PayrollPayoutProvider.Anchor,
+        bank: user.salary.bank,
+        salaryBreakdown: {
+          netAmount: salaries[index].net,
+          grossAmount: salaries[index].gross,
+          earnings: user.salary.earnings,
+          deductions: user.salary.deductions,
+        },
+      }))
+    ));
+
+    await Promise.all(promises)
+
+    return {
+      message: "Payroll created successfully",
+      payroll: payroll._id,
     };
   }
 }
