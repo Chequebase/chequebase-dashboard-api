@@ -225,7 +225,7 @@ export default class BudgetController {
   }
 
   @Put('/:id')
-  @Authorized(EPermission.BudgetCreate)
+  @Authorized(EPermission.BudgetEdit)
   @UseBefore(logAuditTrail(LogAction.EDIT_BUDGET))
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
     return this.budgetService.editBudget(auth, id, dto)

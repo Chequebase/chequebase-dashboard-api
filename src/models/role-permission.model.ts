@@ -13,6 +13,7 @@ export enum EPermission {
   TransactionDownload = 'transaction:download',
   BudgetCreate = 'budget:create',
   BudgetRead = 'budget:read',
+  BudgetEdit = 'budget:edit',
   BudgetDelete = 'budget:delete',
   BudgetFreeze = 'budget:freeze',
   BudgetExtend = 'budget:extend',
