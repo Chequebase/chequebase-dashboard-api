@@ -3,6 +3,7 @@ import mongoose, { Schema } from "mongoose";
 import { ObjectId } from "mongodb";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
+import { TransferClientName } from "@/modules/transfer/providers/transfer.client";
 
 export enum PayrollPayoutStatus {
   Pending = "pending",
@@ -11,8 +12,9 @@ export enum PayrollPayoutStatus {
   Failed = "failed",
 }
 
-export enum PayrollPayoutProvider {
-  Anchor = "anchor",
+export enum DeductionCategory {
+  Organization = "organization",
+  Employee = "employee",
 }
 
 export enum PayrollPayoutCurrency {
@@ -21,30 +23,34 @@ export enum PayrollPayoutCurrency {
 
 export interface IPayrollPayout {
   _id: ObjectId;
+  id: string;
   organization: any;
   user: any;
   status: PayrollPayoutStatus;
   amount: number;
   currency: PayrollPayoutCurrency;
-  provider: PayrollPayoutProvider;
+  provider: TransferClientName;
   bank: {
     accountName: string;
     accountNumber: string;
     bankCode: string;
     bankName: string;
+    bankId: string;
   };
   salaryBreakdown: {
-    netAmount: number
-    grossAmount: number
+    netAmount: number;
+    grossAmount: number;
     earnings: {
       name: string;
       amount: number;
     }[];
     deductions: {
       name: string;
+      category: DeductionCategory;
       percentage: number;
     }[];
   };
+  wallet: any;
   payroll: any;
   meta: Record<string, any>;
   createdAt: Date;
@@ -57,10 +63,12 @@ interface PayrollPayoutModel
 
 const PayrollPayoutSchema = new Schema<IPayrollPayout>(
   {
+    id: { type: String, required: true, index: true },
     organization: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true,
+      index: true,
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -80,6 +88,7 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
       deductions: [
         {
           name: String,
+          category: { type: String, enum: Object.values(DeductionCategory)},
           percentage: Number,
         },
       ],
@@ -91,7 +100,7 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
     },
     provider: {
       type: String,
-      enum: Object.values(PayrollPayoutProvider),
+      enum: Object.values(TransferClientName),
       required: true,
     },
     amount: { type: Number, required: true },
@@ -101,10 +110,17 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
       accountNumber: String,
       bankCode: String,
       bankName: String,
+      bankId: String,
     },
     payroll: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Payroll",
+      required: true,
+      index: true,
+    },
+    wallet: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Wallet",
       required: true,
     },
     meta: Object,

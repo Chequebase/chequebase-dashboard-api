@@ -1,4 +1,4 @@
-import { ObjectID, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { Service } from "typedi";
 import User, { UserStatus } from "@/models/user.model";
 import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
@@ -8,32 +8,50 @@ import PayrollSetting, {
   PayrollScheduleMode,
 } from "@/models/payroll/payroll-settings.model";
 import { getLastBusinessDay } from "../common/utils";
-import PayrollWallet from "@/models/payroll/payroll-wallet.model";
 import PayrollPayout, {
-  IPayrollPayout,
-  PayrollPayoutCurrency,
-  PayrollPayoutProvider,
+  DeductionCategory,
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
-import { GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
+import { AddSalaryBankAccountDto, AddSalaryDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import { DepositAccountService } from "../virtual-account/deposit-account";
 import { createId } from "@paralleldrive/cuid2";
 import Organization from "@/models/organization.model";
-import { BadRequestError } from "routing-controllers";
-import { ISalary } from "@/models/payroll/salary.model";
+import { BadRequestError, NotFoundError } from "routing-controllers";
+import Salary, { ISalary } from "@/models/payroll/salary.model";
 import numeral from "numeral";
 import ApprovalRule, {
   WorkflowType,
   ApprovalType,
 } from "@/models/approval-rule.model";
 import { AuthUser } from "../common/interfaces/auth-user";
-import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model";
+import ApprovalRequest, {
+  ApprovalRequestPriority,
+} from "@/models/approval-request.model";
+import Wallet, { WalletType } from "@/models/wallet.model";
+import BaseWallet from "@/models/base-wallet.model";
+import VirtualAccount, {
+  IVirtualAccount,
+} from "@/models/virtual-account.model";
+import { payrollQueue } from "@/queues";
+import { IProcessPayroll } from "@/queues/jobs/payroll/process-payout.job";
+import { TransferClientName } from "../transfer/providers/transfer.client";
+import { AnchorService } from "../common/anchor.service";
 
 @Service()
 export class PayrollService {
-  constructor(private depositAccountService: DepositAccountService) {}
-  private calculateSalary(salary: ISalary, settings: IPayrollSetting) {
+  constructor(
+    private depositAccountService: DepositAccountService,
+    private anchorService: AnchorService
+  ) {}
+
+  private calculateSalary(
+    salary: {
+      earnings: ISalary["earnings"];
+      deductions: ISalary["deductions"];
+    },
+    settings: IPayrollSetting
+  ) {
     const gross = salary.earnings.reduce((acc, e) => acc + e.amount, 0);
     const deductions = settings.deductions
       .concat(salary.deductions)
@@ -183,7 +201,11 @@ export class PayrollService {
   async payrollMetrics(orgId: string) {
     const [nextRunDate, wallet] = await Promise.all([
       this.getNextPayrollRunDate(orgId),
-      PayrollWallet.findOne({ organization: orgId }),
+      Wallet.findOne({
+        organization: orgId,
+        type: WalletType.Payroll,
+        currency: "NGN",
+      }),
     ]);
 
     return {
@@ -201,7 +223,10 @@ export class PayrollService {
 
   async history(orgId: string, query: GetHistoryDto) {
     const aggregate = Payroll.aggregate()
-      .match({ organization: new ObjectId(orgId) })
+      .match({
+        organization: new ObjectId(orgId),
+        approvalStatus: { $ne: PayrollApprovalStatus.Rejected },
+      })
       .lookup({
         from: "payrollpayouts",
         localField: "_id",
@@ -342,48 +367,79 @@ export class PayrollService {
       throw new BadRequestError("Organization not found");
     }
 
-    let wallet = await PayrollWallet.findOne({ organization: orgId });
-    if (!wallet) {
-      const depositAccRef = `da-${createId()}`;
-      const depositAccountId = await this.depositAccountService.createAccount({
-        customerType: "BusinessCustomer",
-        productName: "CURRENT",
-        customerId: org.anchorCustomerId,
-        provider: VirtualAccountClientName.Anchor,
-        reference: depositAccRef,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const account = await this.depositAccountService.getAccount(
-        depositAccountId,
-        VirtualAccountClientName.Anchor,
-        "NGN"
-      );
-
-      wallet = await PayrollWallet.create({
-        organization: orgId,
-        currency: "NGN",
-        balance: 0,
-        virtualAccount: {
-          accountNumber: account.accountNumber,
-          bankCode: account.bankCode,
-          name: account.accountName,
-          bankName: account.bankName,
-          accountId: depositAccountId,
-          provider: VirtualAccountClientName.Anchor,
+    let existingWallet = await Wallet.findOne({
+      organization: orgId,
+      type: WalletType.Payroll,
+    }).populate<IVirtualAccount>("virtualAccounts");
+    if (existingWallet) {
+      const virtualAccount = existingWallet
+        .virtualAccounts[0] as IVirtualAccount;
+      return {
+        balance: existingWallet.balance,
+        currency: existingWallet.currency,
+        account: {
+          name: virtualAccount.name,
+          accountNumber: virtualAccount.accountNumber,
+          bankCode: virtualAccount.bankCode,
+          bankName: virtualAccount.bankName,
         },
-      });
+      };
     }
+
+    const baseWallet = await BaseWallet.findOne({ currency: "NGN" });
+    if (!baseWallet) {
+      throw new NotFoundError("Base wallet not found");
+    }
+
+    const depositAccRef = `da-${createId()}`;
+    const depositAccountId = await this.depositAccountService.createAccount({
+      customerType: "BusinessCustomer",
+      productName: "CURRENT",
+      customerId: org.anchorCustomerId,
+      provider: VirtualAccountClientName.Anchor,
+      reference: depositAccRef,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const account = await this.depositAccountService.getAccount(
+      depositAccountId,
+      VirtualAccountClientName.Anchor,
+      "NGN"
+    );
+    const walletId = new ObjectId();
+    const virtualAccountId = new ObjectId();
+
+    const wallet = await Wallet.create({
+      _id: walletId,
+      organization: orgId,
+      baseWallet: baseWallet._id,
+      currency: baseWallet.currency,
+      balance: 0,
+      primary: false,
+      virtualAccounts: [virtualAccountId],
+    });
+
+    const virtualAccount = await VirtualAccount.create({
+      _id: virtualAccountId,
+      organization: orgId,
+      wallet: wallet._id,
+      accountNumber: account.accountNumber,
+      bankCode: account.bankCode,
+      name: account.accountName,
+      bankName: account.bankName,
+      provider: VirtualAccountClientName.Anchor,
+      externalRef: depositAccountId,
+    });
 
     return {
       balance: wallet.balance,
       currency: wallet.currency,
       account: {
-        name: wallet.virtualAccount.name,
-        accountNumber: wallet.virtualAccount.accountNumber,
-        bankCode: wallet.virtualAccount.bankCode,
-        bankName: wallet.virtualAccount.bankName,
+        name: virtualAccount.name,
+        accountNumber: virtualAccount.accountNumber,
+        bankCode: virtualAccount.bankCode,
+        bankName: virtualAccount.bankName,
       },
     };
   }
@@ -405,7 +461,7 @@ export class PayrollService {
     }
 
     let [wallet, setting] = await Promise.all([
-      PayrollWallet.findOne({ organization: orgId }),
+      Wallet.findOne({ organization: orgId, type: WalletType.Payroll }),
       PayrollSetting.findOne({ organization: orgId }),
     ]);
 
@@ -448,53 +504,196 @@ export class PayrollService {
 
     const payroll = await Payroll.create({
       organization: orgId,
+      wallet: wallet._id,
       date: nextRunDate,
       approvalStatus: noApprovalRequired
         ? PayrollApprovalStatus.Approved
         : PayrollApprovalStatus.Pending,
     });
 
-    const promises = []
+    const promises = [];
     if (!noApprovalRequired) {
-      promises.push(ApprovalRequest.create({
-        organization: auth.orgId,
-        workflowType: WorkflowType.Payroll,
-        approvalType: rule!.approvalType,
-        requester: auth.userId,
-        approvalRule: rule!._id,
-        priority: ApprovalRequestPriority.High,
-        reviews: rule!.reviewers.map((user) => ({
-          user,
-          status: user.equals(auth.userId) ? "approved" : "pending",
-        })),
-        properties: { payroll: payroll._id },
-      }))
+      promises.push(
+        ApprovalRequest.create({
+          organization: auth.orgId,
+          workflowType: WorkflowType.Payroll,
+          approvalType: rule!.approvalType,
+          requester: auth.userId,
+          approvalRule: rule!._id,
+          priority: ApprovalRequestPriority.High,
+          reviews: rule!.reviewers.map((user) => ({
+            user,
+            status: user.equals(auth.userId) ? "approved" : "pending",
+          })),
+          properties: { payroll: payroll._id },
+        })
+      );
     }
+    const orgDeductions = setting.deductions.map((d) => ({
+      ...d,
+      category: DeductionCategory.Organization,
+    }));
+    promises.push(
+      PayrollPayout.create(
+        users.map((user, index) => ({
+          id: `po_${createId()}`,
+          payroll: payroll._id,
+          organization: orgId,
+          wallet: wallet._id,
+          user: user._id,
+          status: PayrollPayoutStatus.Pending,
+          amount: salaries[index],
+          currency: user.salary.currency,
+          provider: TransferClientName.Anchor,
+          bank: user.salary.bank,
+          salaryBreakdown: {
+            netAmount: salaries[index].net,
+            grossAmount: salaries[index].gross,
+            earnings: user.salary.earnings,
+            deductions: user.salary.deductions
+              .map((d: any) => ({ ...d, category: DeductionCategory.Employee }))
+              .concat(orgDeductions),
+          },
+        }))
+      )
+    );
 
-    promises.push(PayrollPayout.create(
-      users.map((user, index) => ({
-        payroll: payroll._id,
-        organization: orgId,
-        user: user._id,
-        status: PayrollPayoutStatus.Pending,
-        amount: salaries[index],
-        currency: user.salary.currency,
-        provider: PayrollPayoutProvider.Anchor,
-        bank: user.salary.bank,
-        salaryBreakdown: {
-          netAmount: salaries[index].net,
-          grossAmount: salaries[index].gross,
-          earnings: user.salary.earnings,
-          deductions: user.salary.deductions,
-        },
-      }))
-    ));
-
-    await Promise.all(promises)
+    await Promise.all(promises);
 
     return {
       message: "Payroll created successfully",
       payroll: payroll._id,
     };
+  }
+
+  async processPayroll(auth: AuthUser, id: string) {
+    const payroll = await Payroll.findOne({
+      _id: id,
+      organization: auth.orgId,
+    });
+    if (!payroll) {
+      throw new BadRequestError("Payroll run not found");
+    }
+
+    if (payroll.approvalStatus !== PayrollApprovalStatus.Approved) {
+      throw new BadRequestError("Payroll must be approved");
+    }
+
+    const wallet = await Wallet.findOne({
+      organization: auth.orgId,
+      type: WalletType.Payroll,
+    });
+    if (!wallet) {
+      throw new BadRequestError("Wallet does not exist");
+    }
+
+    const [aggregatedPayout] = await PayrollPayout.aggregate()
+      .match({
+        payroll: payroll._id,
+        status: {
+          $in: [PayrollPayoutStatus.Pending, PayrollPayoutStatus.Failed],
+        },
+      })
+      .group({
+        _id: null,
+        payouts: { $push: "$_id" },
+        totalAmount: { $sum: "$amount" },
+      });
+    const totalAmount = aggregatedPayout?.totalAmount ?? 0;
+
+    if (!aggregatedPayout?.payouts?.length) {
+      throw new BadRequestError("No pending/failed payments currently");
+    }
+
+    if (totalAmount > wallet.balance) {
+      throw new BadRequestError(
+        "Insufficient fund to process payroll run. Please keep your payroll account(s) funded at least 24 hours before your next run date"
+      );
+    }
+
+    await payrollQueue.add("processPayroll", {
+      payroll: payroll._id.toString(),
+      wallet: wallet._id.toString(),
+      orgId: auth.orgId,
+      initiatedBy: auth.userId,
+    } as IProcessPayroll);
+
+    return { message: "Payroll payments are processing" };
+  }
+
+  async addSalaryBankAccount(orgId: string, payload: AddSalaryBankAccountDto) {
+    const user = await User.findOne({
+      _id: payload.userId,
+      organization: orgId,
+    });
+    if (!user) {
+      throw new BadRequestError("User does not exist");
+    }
+
+    const result = await this.anchorService.resolveAccountNumber(
+      payload.accountNumber,
+      payload.bankCode
+    );
+    const bank: ISalary["bank"] = {
+      accountName: result.accountName,
+      accountNumber: result.accountNumber,
+      bankCode: result.bankCode,
+      bankId: result.bankId,
+      bankName: result.bankName,
+    };
+
+    let salary = null;
+    if (!user.salary) {
+      salary = await Salary.create({
+        organization: orgId,
+        user: payload.userId,
+        bank,
+        currency: "NGN",
+      });
+      user.salary = salary._id;
+      await user.save();
+    } else {
+      salary = await Salary.findOneAndUpdate({ _id: user.salary }, { bank });
+    }
+
+    return bank;
+  }
+
+  async setSalary(orgId: string, payload: AddSalaryDto) {
+    const user = await User.findOne({
+      _id: payload.userId,
+      organization: orgId,
+    });
+    if (!user) {
+      throw new BadRequestError("User does not exist");
+    }
+
+    const payrollSetting = await PayrollSetting.findOne({
+      organization: orgId,
+    });
+    if (!payrollSetting) {
+      throw new BadRequestError('Invalid payroll setting')
+    }
+
+    let salary = null
+    if (!user.salary) {
+      salary = await Salary.create({
+        organization: orgId,
+        user: payload.userId,
+        deductions: payload.deductions,
+        earnings: payload.earnings,
+        currency: "NGN",
+      });
+      user.salary = salary._id;
+      await user.save();
+    } else {
+      salary = await Salary.findOneAndUpdate(
+        { _id: user.salary },
+        { deductions: payload.deductions, earnings: payload.earnings },
+        { new: true }
+      );
+    }
+
+    return salary;
   }
 }

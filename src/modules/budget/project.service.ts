@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb'
 import numeral from "numeral"
 import { createId } from "@paralleldrive/cuid2"
 import Project, { IProject, ProjectStatus } from "@/models/project.model"
-import Wallet, { IWallet } from "@/models/wallet.model"
+import Wallet, { IWallet, WalletType } from "@/models/wallet.model"
 import { BadRequestError, NotFoundError } from "routing-controllers"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { cdb } from "../common/mongoose"
@@ -194,6 +194,7 @@ export class ProjectService {
       const wallet = await Wallet.findOne({
         organization: auth.orgId,
         currency: data.currency,
+        type: WalletType.General,
         balance: { $gte: data.amount }
       }).session(session)
 

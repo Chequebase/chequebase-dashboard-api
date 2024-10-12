@@ -14,7 +14,8 @@ import {
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { PayrollService } from "./payroll.service";
-import { GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
+import { AddSalaryDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
+import { AddSalaryBankAccountDto } from './dto/payroll.dto';
 
 @Service()
 @JsonController("/payroll", { transformResponse: false })
@@ -68,7 +69,7 @@ export default class PayrollController {
 
   @Get("/wallet")
   @Authorized(EPermission.PayrollRead)
-  getWallet(@CurrentUser() auth: AuthUser,) {
+  getWallet(@CurrentUser() auth: AuthUser) {
     return this.payrollService.getPayrollWallet(auth.orgId);
   }
 
@@ -92,5 +93,23 @@ export default class PayrollController {
   @Authorized(EPermission.PayrollEdit)
   createPayrollRun(@CurrentUser() auth: AuthUser) {
     return this.payrollService.initiatePayrollRun(auth);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Post("/add-salary-bank-account")
+  addSalaryBankAccount(
+    @CurrentUser() auth: AuthUser,
+    @Body() body: AddSalaryBankAccountDto
+  ) {
+    return this.payrollService.addSalaryBankAccount(auth.orgId, body);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Post("/set-salary")
+  setSalary(
+    @CurrentUser() auth: AuthUser,
+    @Body() body: AddSalaryDto
+  ) {
+    return this.payrollService.setSalary(auth.orgId, body);
   }
 }

@@ -46,7 +46,7 @@ export class BudgetTransferService {
     private emailService: EmailService
   ) { }
 
-  private async calcTransferFee(orgId: string, amount: number, currency: string) {
+  async calcTransferFee(orgId: string, amount: number, currency: string) {
     const org = await Organization.findById(orgId)
       .select('subscription')
       .populate({

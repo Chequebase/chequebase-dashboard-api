@@ -7,7 +7,7 @@ import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource } from "../budget/dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
-import { IWallet } from "@/models/wallet.model"
+import { IWallet, WalletType } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget from "@/models/budget.model"
 import Wallet from "@/models/wallet.model"
@@ -117,7 +117,10 @@ export class WalletTransferService {
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
       const fetchedWallet = await Wallet.findOneAndUpdate(
-        { organization: auth.orgId, currency: wallet.currency, balance: { $gte: amountToDeduct } },
+        {
+          _id: wallet._id,
+          balance: { $gte: amountToDeduct }
+        },
         { $inc: { balance: -amountToDeduct, ledgerBalance: -amountToDeduct } },
         { session, new: true }
       )
@@ -388,7 +391,7 @@ export class WalletTransferService {
     return { transferFee }
   }
 
-  async getWallet(orgId: string, walletId?: string) {
+  async getWallet(orgId: string, walletId: string) {
     const filter = walletId ? { _id: walletId } : { primary: true }
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
       .populate({

@@ -3,15 +3,16 @@ import { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 
 export interface IVirtualAccount {
-  organization: ObjectId
-  wallet: ObjectId
-  accountNumber: string
-  name: string
-  bankCode: string
-  bankName: string
-  provider: string
-  createdAt: Date
-  updatedAt: Date
+  organization: ObjectId;
+  wallet: ObjectId;
+  accountNumber: string;
+  name: string;
+  bankCode: string;
+  bankName: string;
+  provider: string;
+  externalRef: string
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const virtualAccountSchema = new Schema<IVirtualAccount>(
@@ -19,20 +20,21 @@ const virtualAccountSchema = new Schema<IVirtualAccount>(
     organization: {
       type: Schema.Types.ObjectId,
       required: true,
-      ref: 'Organization'
+      ref: "Organization",
     },
     wallet: {
       type: Schema.Types.ObjectId,
       required: true,
-      ref: 'Wallet'
+      ref: "Wallet",
     },
     accountNumber: { type: String, required: true },
     name: { type: String, required: true },
     bankCode: { type: String, required: true },
     bankName: { type: String, required: true },
-    provider: { type: String, required: true }
+    provider: { type: String, required: true },
+    externalRef: String
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 const VirtualAccount = cdb.model<IVirtualAccount>('VirtualAccount', virtualAccountSchema);

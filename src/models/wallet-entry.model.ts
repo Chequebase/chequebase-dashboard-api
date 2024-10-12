@@ -39,7 +39,6 @@ export interface IWalletEntry {
   budget?: ObjectId;
   project?: ObjectId;
   wallet: ObjectId;
-  payrollWallet?: ObjectId
   initiatedBy: ObjectId;
   currency: string;
   type: WalletEntryType;
@@ -96,10 +95,6 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     wallet: {
       type: Schema.Types.ObjectId,
       ref: "Wallet",
-    },
-    payrollWallet: {
-      type: Schema.Types.ObjectId,
-      ref: "PayrollWallet",
     },
     status: {
       type: String,

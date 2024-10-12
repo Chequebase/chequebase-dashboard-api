@@ -12,7 +12,7 @@ import Organization, { BillingMethod } from '@/models/organization.model';
 import { ActivatePlan, ChargeWalletForSubscription } from './interfaces/plan.interface';
 import PaymentIntent, { IntentType, PaymentIntentStatus } from '@/models/payment-intent.model';
 import { cdb } from '../common/mongoose';
-import Wallet from '@/models/wallet.model';
+import Wallet, { WalletType } from '@/models/wallet.model';
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from '@/models/wallet-entry.model';
 import Subscription, { ISubscription, SubscriptionStatus } from '@/models/subscription.model';
 import { subscriptionQueue } from '@/queues';
@@ -49,7 +49,12 @@ export class PlanService {
 
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
-        { organization: orgId, currency, balance: { $gte: amount } },
+        {
+          organization: orgId,
+          currency,
+          type: WalletType.General,
+          balance: { $gte: amount }
+        },
         { $inc: { balance: -amount, ledgerBalance: -amount } },
         { session, new: true }
       )

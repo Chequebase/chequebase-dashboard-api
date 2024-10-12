@@ -1,6 +1,6 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue } from '.';
+import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue, payrollQueue } from '.';
 import processWalletInflow from './jobs/wallet/wallet-inflow.job';
 import processWalletOutflow from './jobs/wallet/wallet-outflow.job';
 import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance.job';
@@ -18,6 +18,7 @@ import processKycApproved from './jobs/organization/processKycApproved';
 import processKycRejected from './jobs/organization/processKycRejected';
 import processFundBudget from './jobs/budget/fund-budget.job';
 import { addWalletEntriesForIngestionToElastic, processWalletEntryToElasticsearch } from './jobs/wallet/wallet-entry-elasticsearch-ingester';
+import processPayroll from './jobs/payroll/process-payout.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -69,6 +70,8 @@ function setupQueues() {
     subscriptionQueue.add('fetchUpcomingSubscriptions', null, {
       repeat: { cron: '0 8 * * *', tz }  // every day at 8am 
     })
+
+    payrollQueue.process('processPayout', processPayroll)
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message

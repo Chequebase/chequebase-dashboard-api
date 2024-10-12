@@ -229,6 +229,9 @@ export class PeopleService {
       throw new BadRequestError('User not found')
     }
 
+    if(data.employmentDate) update.employmentDate = data.employmentDate
+    if(data.employmentType) update.employmentType = data.employmentType
+
     if (data.manager) {
       if (data.manager === userId) {
         throw new BadRequestError("Employee and manager cannot be the same user")

@@ -5,9 +5,9 @@ import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum PayrollApprovalStatus {
-  Pending = 'pending',
-  Approved = 'approved',
-  Rejected = 'rejected',
+  Pending = "pending",
+  Approved = "approved",
+  Rejected = "rejected",
 }
 
 export interface IPayroll {
@@ -15,6 +15,7 @@ export interface IPayroll {
   organization: any;
   date: Date;
   approvalStatus: PayrollApprovalStatus;
+  wallet: any;
   // TODO: add more properties
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +37,11 @@ const PayrollSchema = new Schema<IPayroll>(
       enum: Object.values(PayrollApprovalStatus),
       default: PayrollApprovalStatus.Pending,
     },
+    wallet: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Wallet",
+      required: true,
+    },
     date: { type: Date, required: true },
   },
   { timestamps: true }
@@ -44,9 +50,6 @@ const PayrollSchema = new Schema<IPayroll>(
 PayrollSchema.plugin(aggregatePaginate);
 PayrollSchema.plugin(mongoosePaginate);
 
-const Payroll = cdb.model<IPayroll, PayrollModel>(
-  "Payroll",
-  PayrollSchema
-);
+const Payroll = cdb.model<IPayroll, PayrollModel>("Payroll", PayrollSchema);
 
 export default Payroll;

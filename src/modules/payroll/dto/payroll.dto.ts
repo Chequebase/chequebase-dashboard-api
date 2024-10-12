@@ -30,6 +30,16 @@ class Deduction {
   percentage: number;
 }
 
+class Earning {
+  @IsString({ message: "Earning name must be a string." })
+  @MinLength(1, { message: "Earning name must not be empty." })
+  name: string;
+
+  @IsNumber({}, { message: "Earning amount must be a number." })
+  @Min(200_00, { message: "Earning percentage must be at least 200" })
+  amount: number;
+}
+
 class Schedule {
   @IsEnum(PayrollScheduleMode, {
     message: `Schedule mode must be one of: ${Object.values(
@@ -47,7 +57,6 @@ class Schedule {
 
 export class UpdatePayrollSettingDto {
   @IsArray({ message: "Deductions must be an array." })
-  @ArrayMinSize(1, { message: "There must be at least one deduction." })
   @ValidateNested({ each: true })
   @Type(() => Deduction)
   deductions: Deduction[];
@@ -55,4 +64,31 @@ export class UpdatePayrollSettingDto {
   @ValidateNested()
   @Type(() => Schedule)
   schedule: Schedule;
+}
+
+export class AddSalaryBankAccountDto {
+  @IsString()
+  userId: string;
+
+  @IsString()
+  bankCode: string;
+
+  @IsString()
+  accountNumber: string;
+}
+
+export class AddSalaryDto {
+  @IsString()
+  userId: string;
+  
+  @IsArray({ message: "Deductions must be an array." })
+  @ValidateNested({ each: true })
+  @Type(() => Deduction)
+  deductions: Deduction[];
+
+  @IsArray({ message: "Earning must be an array." })
+  @ArrayMinSize(1, { message: "There must be at least one earning." })
+  @ValidateNested({ each: true })
+  @Type(() => Earning)
+  earnings: Earning[];
 }

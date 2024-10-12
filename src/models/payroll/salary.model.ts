@@ -13,6 +13,7 @@ export interface ISalary {
     accountNumber: string;
     bankCode: string;
     bankName: string;
+    bankId: string
   };
   earnings: {
     name: string;
@@ -22,9 +23,7 @@ export interface ISalary {
     name: string;
     percentage: number;
   }[];
-  netAmount: number
-  grossAmount: number
-  currency: string
+  currency: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +49,7 @@ const SalarySchema = new Schema<ISalary>(
       accountNumber: String,
       bankCode: String,
       bankName: String,
+      bankId: String
     },
     earnings: [
       {
@@ -63,8 +63,6 @@ const SalarySchema = new Schema<ISalary>(
         percentage: Number,
       },
     ],
-    netAmount: { type: Number, required: true },
-    grossAmount: { type: Number, required: true },
     currency: { type: String, required: true },
   },
   { timestamps: true }

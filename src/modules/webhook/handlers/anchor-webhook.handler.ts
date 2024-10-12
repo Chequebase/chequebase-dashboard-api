@@ -143,7 +143,6 @@ export default class AnchorWebhookHandler {
     const transferId = body.data.relationships.transfer.data.id
     const verifyResponse = await this.anchorTransferClient.verifyTransferById(transferId)
 
-
     const jobData: WalletOutflowData = {
       amount: verifyResponse.amount,
       currency: verifyResponse.currency,

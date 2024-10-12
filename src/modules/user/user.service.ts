@@ -1,34 +1,30 @@
-import { Service } from "typedi";
-import dayjs from 'dayjs'
-import jwt, { JwtPayload } from 'jsonwebtoken'
-import bcrypt, { compare } from 'bcryptjs';
-import EmailService from "@/modules/common/email.service";
-import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
-import Organization, { IOrganization } from "@/models/organization.model";
-import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
-import User, { KycStatus, UserStatus } from "@/models/user.model";
 import Device from "@/models/device.model";
-import Session from "@/models/session.model";
-import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, ERole, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
-import { AuthUser } from "@/modules/common/interfaces/auth-user";
-import Logger from "../common/utils/logger";
-import { createId } from "@paralleldrive/cuid2";
-import { PlanUsageService } from "../billing/plan-usage.service";
-import WalletService from "../wallet/wallet.service";
-import { WalletEntryScope } from "@/models/wallet-entry.model";
-import { S3Service } from "../common/aws/s3.service";
-import { Request } from "express";
+import Organization, { IOrganization } from "@/models/organization.model";
 import PreRegisterUser from "@/models/pre-register.model";
-import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
-import Role, { RoleType } from "@/models/role.model";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
-import UserInvite from "@/models/user-invite.model";
-import { ApprovalService } from "../approvals/approvals.service";
-import { BudgetTransferService } from "../budget/budget-transfer.service";
-import { verifyToken } from "../common/middlewares/rbac.middleware";
-import TransferCategory from "@/models/transfer-category";
 import { EPermission } from "@/models/role-permission.model";
+import Role, { RoleType } from "@/models/role.model";
+import Session from "@/models/session.model";
+import UserInvite from "@/models/user-invite.model";
+import User, { KycStatus, UserStatus } from "@/models/user.model";
+import { WalletEntryScope } from "@/models/wallet-entry.model";
+import { WalletType } from "@/models/wallet.model";
+import EmailService from "@/modules/common/email.service";
+import { AuthUser } from "@/modules/common/interfaces/auth-user";
+import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
+import { createId } from "@paralleldrive/cuid2";
+import bcrypt, { compare } from 'bcryptjs';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
+import { Service } from "typedi";
+import { ApprovalService } from "../approvals/approvals.service";
+import { PlanUsageService } from "../billing/plan-usage.service";
+import { BudgetTransferService } from "../budget/budget-transfer.service";
+import { S3Service } from "../common/aws/s3.service";
+import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
+import Logger from "../common/utils/logger";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
+import WalletService from "../wallet/wallet.service";
+import { AddEmployeeDto, CreateEmployeeDto, ERole, GetMembersQueryDto, LoginDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
 
 const logger = new Logger('user-service')
 const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
@@ -100,6 +96,7 @@ export class UserService {
       try {
         await WalletService.chargeWallet(invite.organization, {
           amount,
+          walletType: WalletType.General,
           narration: 'Reactivate organization user',
           scope: WalletEntryScope.PlanSubscription,
           currency: 'NGN',
@@ -658,6 +655,7 @@ export class UserService {
       try {
         await WalletService.chargeWallet(orgId, {
           amount: usage.feature.costPerUnit.NGN,
+          walletType: WalletType.General,
           narration: 'Add organization user',
           scope: WalletEntryScope.PlanSubscription,
           currency: 'NGN',
@@ -709,6 +707,7 @@ export class UserService {
       try {
         await WalletService.chargeWallet(invite.organization, {
           amount: usage.feature.costPerUnit.NGN,
+          walletType: WalletType.General,
           narration: 'Add organization user',
           scope: WalletEntryScope.PlanSubscription,
           currency: 'NGN',

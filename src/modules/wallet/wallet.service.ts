@@ -36,12 +36,17 @@ export default class WalletService {
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()
-    const { amount, narration, currency } = data
+    const { amount, narration, currency, walletType } = data
 
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
-        { organization: orgId, currency, balance: { $gte: amount } },
+        {
+          organization: orgId,
+          currency,
+          type: walletType,
+          balance: { $gte: amount }
+        },
         { $inc: { balance: -amount, ledgerBalance: -amount } },
         { session, new: true }
       )
@@ -98,7 +103,7 @@ export default class WalletService {
       baseWallet: baseWallet._id
     })
 
-    if (wallets.some((w) => w.baseWallet.equals(baseWallet._id))) {
+    if (wallets.some((w) => w.type === data.walletType && w.baseWallet.equals(baseWallet._id))) {
       throw new BadRequestError(`Organization already has a wallet for ${baseWallet.currency}`)
     }
 
@@ -153,7 +158,8 @@ export default class WalletService {
         name: account.accountName,
         bankName: account.bankName,
         provider: VirtualAccountClientName.Anchor,
-      })
+        externalRef: depositAccountId,
+      });
 
       await Organization.updateOne({ _id: organization._id }, { depositAccount: depositAccountId }).lean()
 

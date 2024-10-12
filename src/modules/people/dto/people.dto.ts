@@ -1,5 +1,6 @@
+import { EmploymentType } from "@/models/user.model";
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsEmail, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsEmail, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
 
 export class CreateDepartmentDto {
   @IsString()
@@ -65,6 +66,14 @@ export class EditEmployeeDto  {
   @IsString()
   @IsOptional()
   role: string
+
+  @IsOptional()
+  @IsEnum(EmploymentType)
+  employmentType: string
+
+  @IsString()
+  @IsOptional()
+  employmentDate: string
 }
 
 export class GetDepartmentDto {
