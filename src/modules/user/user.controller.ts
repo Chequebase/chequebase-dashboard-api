@@ -202,13 +202,13 @@ export default class UserController {
     return this.userService.getMembers(auth, query);
   }
 
-  @Authorized(EPermission.PeopleCreate)
+  @Authorized(EPermission.BudgetEdit)
   @Get("/members/all")
   getUnpaginatedMembers(@CurrentUser() auth: AuthUser) {
     return this.userService.getUnpaginatedMembers(auth);
   }
 
-  @Authorized(EPermission.PeopleCreate)
+  @Authorized(EPermission.PeopleRead)
   @Get("/members/:id")
   getMember(@Param("id") id: string, @CurrentUser() auth: AuthUser) {
     return this.userService.getMember(id, auth.orgId);
