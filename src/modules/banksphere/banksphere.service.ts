@@ -23,6 +23,7 @@ import { Duplex } from 'stream';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { WalletType } from '@/models/wallet.model';
 
 
 @Service()
@@ -253,7 +254,10 @@ export class BanksphereService {
         await Organization.updateOne({ _id: organization._id }, { status: KycStatus.APPROVED })
         // TODO: hard coding base wallet for now
         // TODO: check if anchor is verified first
-        await this.walletService.createWallet({ baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.Anchor, organization: accountId })
+        await this.walletService.createWallet({
+          baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.Anchor, organization: accountId,
+          walletType: WalletType.General
+        })
         this.emailService.sendKYCApprovedEmail(admin.email, {
           loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
           businessName: organization.businessName
