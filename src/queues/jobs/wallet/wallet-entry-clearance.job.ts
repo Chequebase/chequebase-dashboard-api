@@ -65,7 +65,8 @@ async function addWalletEntriesForClearance(job: Job) {
     scope: {
       $in: [
         WalletEntryScope.BudgetTransfer,
-        WalletEntryScope.WalletTransfer
+        WalletEntryScope.WalletTransfer,
+        WalletEntryScope.PayrollPayout
       ]
     },
     createdAt: { $lte: dayjs().subtract(1, 'hour').toDate() },

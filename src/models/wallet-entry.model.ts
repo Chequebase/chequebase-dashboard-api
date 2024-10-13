@@ -1,4 +1,4 @@
-import { cdb, isValidObjectId } from '@/modules/common/mongoose';
+import { cdb } from '@/modules/common/mongoose';
 import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
@@ -35,11 +35,12 @@ interface WalletEntryModel extends
 
 export interface IWalletEntry {
   _id: ObjectId;
-  organization: ObjectId;
-  budget?: ObjectId;
-  project?: ObjectId;
-  wallet: ObjectId;
-  initiatedBy: ObjectId;
+  organization: any;
+  budget?: any;
+  project?: any;
+  wallet: any
+  payrollPayout: any
+  initiatedBy: any;
   currency: string;
   type: WalletEntryType;
   balanceBefore: number;
@@ -83,6 +84,10 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     budget: {
       type: Schema.Types.ObjectId,
       ref: "Budget",
+    },
+    payrollPayout: {
+      type: Schema.Types.ObjectId,
+      ref: "PayrollPayout",
     },
     project: {
       type: Schema.Types.ObjectId,

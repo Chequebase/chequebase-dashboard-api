@@ -596,7 +596,6 @@ export class PayrollService {
       })
       .group({
         _id: null,
-        payouts: { $push: "$_id" },
         totalAmount: { $sum: "$amount" },
       });
     const totalAmount = aggregatedPayout?.totalAmount ?? 0;

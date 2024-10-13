@@ -39,7 +39,7 @@ const transferService = Container.get(TransferService);
 
 async function processPayroll(job: Job<IProcessPayroll>) {
   const data = job.data;
-  const { orgId, initiatedBy, wallet, payroll } = data;
+  const { orgId, initiatedBy, payroll } = data;
 
   try {
     const payouts = await PayrollPayout.find({
@@ -118,6 +118,7 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
           balanceBefore: wallet.balance,
           balanceAfter: numeral(wallet.balance).add(amountToDeduct).value(),
           scope: WalletEntryScope.PayrollPayout,
+          payrollPayout: payout._id,
           type: WalletEntryType.Debit,
           narration: "Payroll Transfer",
           paymentMethod: "transfer",
