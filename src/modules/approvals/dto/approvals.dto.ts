@@ -3,9 +3,6 @@ import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, isString, IsString, Min 
 
 export class CreateRule {
   @IsString()
-  name: string;
-
-  @IsString()
   @IsOptional()
   budget: string;
   

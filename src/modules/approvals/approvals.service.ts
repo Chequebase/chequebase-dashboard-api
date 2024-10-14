@@ -39,16 +39,6 @@ export class ApprovalService {
       await Organization.updateOne({ _id: auth.orgId }, { setDefualtApprovalWorkflow: true })
     }
 
-    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
-    const nameExists = await ApprovalRule.exists({
-      organization: auth.orgId,
-      name: { $regex }
-    })
-
-    if (nameExists) {
-      throw new BadRequestError("Approval rule with similar name already exists")
-    }
-
     let rule = await ApprovalRule.findOne({
       organization: auth.orgId,
       workflowType: data.workflowType,
@@ -71,7 +61,6 @@ export class ApprovalService {
     }
 
     rule = await ApprovalRule.create({
-      name: data.name,
       organization: auth.orgId,
       createdBy: auth.userId,
       budget: data.budget,
@@ -181,6 +170,7 @@ export class ApprovalService {
           path: 'requester', select: 'firstName lastName avatar',
           populate: { path: 'roleRef', select: 'name' }
         },
+        { path: 'properties.payroll' },
         { path: 'properties.budget', select: 'name amount description createdAt expiry' },
         { path: 'properties.budgetBeneficiaries.user', select: 'firstName lastName avatar' },
         { path: 'properties.transaction.category', select: 'name' },

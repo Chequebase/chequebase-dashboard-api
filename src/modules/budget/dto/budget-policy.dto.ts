@@ -5,9 +5,6 @@ export class CreatePolicy {
   @IsEnum(PolicyType)
   type: string
 
-  @IsString()
-  name: string
-
   @IsEnum(SpendPeriod)
   @IsOptional()
   spendPeriod: string

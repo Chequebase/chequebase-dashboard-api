@@ -482,6 +482,7 @@ export class PayrollService {
       this.calculateSalary(user.salary, setting)
     );
     const totalNet = salaries.reduce((acc, salary) => acc + salary.net, 0);
+    const totalGross = salaries.reduce((acc, salary) => acc + salary.gross, 0);
 
     if (totalNet > wallet.balance) {
       throw new BadRequestError(
@@ -506,6 +507,9 @@ export class PayrollService {
       organization: orgId,
       wallet: wallet._id,
       date: nextRunDate,
+      totalNetAmount: totalNet,
+      totalGrossAmount: totalGross,
+      totalEmployees: users.length,
       approvalStatus: noApprovalRequired
         ? PayrollApprovalStatus.Approved
         : PayrollApprovalStatus.Pending,
