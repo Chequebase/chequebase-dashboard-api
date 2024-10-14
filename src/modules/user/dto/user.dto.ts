@@ -172,10 +172,14 @@ export class GetMembersQueryDto {
   @IsOptional()
   @IsString()
   status: string;
+
+  @IsOptional()
+  @IsBoolean()
+  notOwner: boolean;
 }
 
 export class GetAllMembersQueryDto {
   @IsOptional()
   @IsBoolean()
-  not: boolean;
+  notOwner: boolean;
 }

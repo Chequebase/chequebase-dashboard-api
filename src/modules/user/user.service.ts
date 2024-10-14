@@ -766,10 +766,12 @@ export class UserService {
         select: "netAmount grossAmount earnings bank deductions currency",
       });
     }
+    const isOwnerQuery = query.notOwner ? 'owner' : 'empty'
     const users = await User.paginate({
       organization: auth.orgId,
       _id: { $ne: auth.userId },
-      status: query.status
+      status: query.status,
+      role: { $ne: isOwnerQuery }
     }, {
       page: Number(query.page),
       limit: query.limit,
@@ -782,7 +784,7 @@ export class UserService {
   }
 
   async getUnpaginatedMembers(auth: AuthUser, query: GetAllMembersQueryDto) {
-    const isOwnerQuery = query.not ? 'owner' : 'empty'
+    const isOwnerQuery = query.notOwner ? 'owner' : 'empty'
     const users = await User.find({
       organization: auth.orgId,
       status: { $ne: UserStatus.DELETED },
