@@ -177,5 +177,5 @@ export class GetMembersQueryDto {
 export class GetAllMembersQueryDto {
   @IsOptional()
   @IsBoolean()
-  notOwner: boolean;
+  not: boolean;
 }

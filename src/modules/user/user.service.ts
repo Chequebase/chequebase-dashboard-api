@@ -782,7 +782,7 @@ export class UserService {
   }
 
   async getUnpaginatedMembers(auth: AuthUser, query: GetAllMembersQueryDto) {
-    const isOwnerQuery = query.notOwner ? 'owner' : 'empty'
+    const isOwnerQuery = query.not ? 'owner' : 'empty'
     const users = await User.find({
       organization: auth.orgId,
       status: { $ne: UserStatus.DELETED },
