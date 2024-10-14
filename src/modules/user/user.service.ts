@@ -787,12 +787,9 @@ export class UserService {
       status: { $ne: UserStatus.DELETED },
     }).select('firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone')
     .populate({
-      path: 'manager', select: 'firstName lastName email avatar',
-      populate: { 
-        path: 'roleRef', 
-        select: 'name type',
-        match: query.role ? { name: query.role } : {} // Filter by role name if provided
-      }
+      path: 'roleRef', 
+      select: 'name type',
+      match: query.role ? { name: query.role } : {} // Filter by role name if provided
     }).lean()
     
     return users
