@@ -32,6 +32,7 @@ import {
   VerifyEmailDto,
   UpdateProfileDto,
   PreRegisterDto,
+  GetAllMembersQueryDto,
 } from "./dto/user.dto";
 import { UserService } from "./user.service";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
@@ -204,8 +205,8 @@ export default class UserController {
 
   @Authorized(EPermission.BudgetEdit)
   @Get("/members/all")
-  getUnpaginatedMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: { role: string }) {
-    return this.userService.getUnpaginatedMembers(auth, { role: query.role });
+  getUnpaginatedMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: GetAllMembersQueryDto) {
+    return this.userService.getUnpaginatedMembers(auth, query);
   }
 
   @Authorized(EPermission.PeopleRead)

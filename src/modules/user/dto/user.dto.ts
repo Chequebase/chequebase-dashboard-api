@@ -173,3 +173,9 @@ export class GetMembersQueryDto {
   @IsString()
   status: string;
 }
+
+export class GetAllMembersQueryDto {
+  @IsOptional()
+  @IsString()
+  role: string;
+}

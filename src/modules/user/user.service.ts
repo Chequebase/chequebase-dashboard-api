@@ -24,7 +24,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/
 import Logger from "../common/utils/logger";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import WalletService from "../wallet/wallet.service";
-import { AddEmployeeDto, CreateEmployeeDto, ERole, GetMembersQueryDto, LoginDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
+import { AddEmployeeDto, CreateEmployeeDto, ERole, GetAllMembersQueryDto, GetMembersQueryDto, LoginDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
 
 const logger = new Logger('user-service')
 const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
@@ -781,7 +781,7 @@ export class UserService {
     return users
   }
 
-  async getUnpaginatedMembers(auth: AuthUser, query: { role?: string }) {
+  async getUnpaginatedMembers(auth: AuthUser, query: GetAllMembersQueryDto) {
     const users = await User.find({
       organization: auth.orgId,
       status: { $ne: UserStatus.DELETED },
