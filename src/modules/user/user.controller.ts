@@ -204,8 +204,8 @@ export default class UserController {
 
   @Authorized(EPermission.BudgetEdit)
   @Get("/members/all")
-  getUnpaginatedMembers(@CurrentUser() auth: AuthUser) {
-    return this.userService.getUnpaginatedMembers(auth);
+  getUnpaginatedMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: { role: string }) {
+    return this.userService.getUnpaginatedMembers(auth, { role: query.role });
   }
 
   @Authorized(EPermission.PeopleRead)
