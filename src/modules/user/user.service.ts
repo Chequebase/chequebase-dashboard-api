@@ -782,15 +782,12 @@ export class UserService {
   }
 
   async getUnpaginatedMembers(auth: AuthUser, query: GetAllMembersQueryDto) {
+    const isOwnerQuery = query.notOwner ? 'owner' : 'empty'
     const users = await User.find({
       organization: auth.orgId,
       status: { $ne: UserStatus.DELETED },
+      role: { $ne: isOwnerQuery }
     }).select('firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone')
-    .populate({
-      path: 'roleRef', 
-      select: 'name type',
-      match: query.role ? { name: query.role } : {} // Filter by role name if provided
-    }).lean()
     
     return users
   }

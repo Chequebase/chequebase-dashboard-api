@@ -1,5 +1,5 @@
 import { UserStatus } from '@/models/user.model';
-import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum, IsInt, Min } from 'class-validator';
+import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum, IsInt, Min, IsBoolean } from 'class-validator';
 
 export enum ERole {
   Owner = 'owner',
@@ -176,6 +176,6 @@ export class GetMembersQueryDto {
 
 export class GetAllMembersQueryDto {
   @IsOptional()
-  @IsString()
-  role: string;
+  @IsBoolean()
+  notOwner: boolean;
 }
