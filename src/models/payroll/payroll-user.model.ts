@@ -7,6 +7,7 @@ import { EmploymentType } from "../user.model";
 
 export interface IPayrollUser {
   _id: ObjectId;
+  organization: any
   firstName: string;
   lastName: string;
   phoneNumber: string;
@@ -24,6 +25,11 @@ interface PayrollUserModel
 
 const PayrollUserSchema = new Schema<IPayrollUser>(
   {
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+    },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     phoneNumber: { type: String, required: true },

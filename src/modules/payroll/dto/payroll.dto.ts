@@ -1,9 +1,13 @@
 import { PayrollScheduleMode } from "@/models/payroll/payroll-settings.model";
+import { EmploymentType } from "@/models/user.model";
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
+  IsDate,
+  IsDefined,
   IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -91,8 +95,6 @@ export class AddSalaryBankAccountDto {
   accountNumber: string;
 }
 
-
-
 export class AddSalaryDto {
   @IsString()
   userId: string;
@@ -107,6 +109,48 @@ export class AddSalaryDto {
   deductions: Deduction[];
 
   @IsArray({ message: "Earning must be an array." })
+  @ArrayMinSize(1, { message: "There must be at least one earning." })
+  @ValidateNested({ each: true })
+  @Type(() => Earning)
+  earnings: Earning[];
+}
+
+export class AddPayrollUserDto {
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  phoneNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  email?: string;
+
+  @IsDate()
+  @IsNotEmpty()
+  employmentDate: Date;
+
+  @IsEnum(EmploymentType)
+  employmentType: string;
+
+  @IsString()
+  bankCode: string;
+
+  @IsString()
+  accountNumber: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => Deduction)
+  deductions: Deduction[];
+
+  @IsArray()
   @ArrayMinSize(1, { message: "There must be at least one earning." })
   @ValidateNested({ each: true })
   @Type(() => Earning)

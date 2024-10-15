@@ -13,10 +13,10 @@ import PayrollPayout, {
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
 import {
+  AddPayrollUserDto,
   AddSalaryBankAccountDto,
   AddSalaryDto,
   GetHistoryDto,
-  GetPayrollUserQuery,
   PayrollEmployeeEntity,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
@@ -67,7 +67,7 @@ export class PayrollService {
         deductions: {},
         gross: 0,
       };
-    
+
     const gross = salary.earnings.reduce((acc, e) => acc + e.amount, 0);
     const deductions = settings.deductions
       .concat(salary.deductions)
@@ -488,8 +488,8 @@ export class PayrollService {
       setting = await PayrollSetting.create({ organization: orgId });
     }
 
-    let users = await this.getPayrollUsers(orgId)
-    users = users.filter((u) => u.salary)
+    let users = await this.getPayrollUsers(orgId);
+    users = users.filter((u) => u.salary && u.salary.netAmount);
 
     const totalNet = users.reduce((acc, salary) => acc + salary.net, 0);
     const totalGross = users.reduce((acc, salary) => acc + salary.gross, 0);
@@ -554,8 +554,10 @@ export class PayrollService {
           payroll: payroll._id,
           organization: orgId,
           wallet: wallet._id,
-          user: user.entity === PayrollEmployeeEntity.Internal ? user._id : null,
-          payrollUser: user.entity === PayrollEmployeeEntity.External ? user._id : null,
+          user:
+            user.entity === PayrollEmployeeEntity.Internal ? user._id : null,
+          payrollUser:
+            user.entity === PayrollEmployeeEntity.External ? user._id : null,
           status: PayrollPayoutStatus.Pending,
           amount: user.salary.net,
           currency: user.salary.currency,
@@ -648,7 +650,6 @@ export class PayrollService {
       throw new BadRequestError("User does not exist");
     }
 
-
     const result = await this.anchorService.resolveAccountNumber(
       payload.accountNumber,
       payload.bankCode
@@ -686,7 +687,7 @@ export class PayrollService {
     } else {
       user = await PayrollUser.findOne(filter);
     }
-    
+
     if (!user) {
       throw new BadRequestError("User does not exist");
     }
@@ -760,11 +761,64 @@ export class PayrollService {
         salary: {
           ...user.salary,
           netAmount: salaryInfo.net,
-          grossAmount: salaryInfo.gross
-        }
-      }
-    })
+          grossAmount: salaryInfo.gross,
+        },
+      };
+    });
 
     return users;
+  }
+
+  async addPayrollUser(orgId: string, payload: AddPayrollUserDto) {
+    const exists = await PayrollUser.findOne({
+      organization: orgId,
+      phoneNumber: payload.phoneNumber,
+    });
+    if (exists) {
+      throw new BadRequestError(
+        `User with phone number (${payload.phoneNumber}) already exists on this organization`
+      );
+    }
+
+    const result = await this.anchorService.resolveAccountNumber(
+      payload.accountNumber,
+      payload.bankCode
+    );
+    const bank: ISalary["bank"] = {
+      accountName: result.accountName,
+      accountNumber: result.accountNumber,
+      bankCode: result.bankCode,
+      bankId: result.bankId,
+      bankName: result.bankName,
+    };
+
+    const salaryId = new ObjectId();
+    const userId = new ObjectId();
+    await Promise.all([
+      PayrollUser.create({
+        _id: userId,
+        organization: orgId,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        phoneNumber: payload.phoneNumber,
+        email: payload.email,
+        employmentDate: payload.employmentDate,
+        employmentType: payload.employmentType,
+        salary: salaryId,
+      }),
+      Salary.create({
+        _id: salaryId,
+        organization: orgId,
+        user: userId,
+        deductions: payload.deductions,
+        earnings: payload.earnings,
+        currency: "NGN",
+        bank,
+      }),
+    ]);
+
+    return {
+      message: 'Payroll user added',
+    }
   }
 }

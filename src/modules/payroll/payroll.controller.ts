@@ -14,7 +14,7 @@ import {
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { PayrollService } from "./payroll.service";
-import { AddSalaryDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
+import { AddPayrollUserDto, AddSalaryDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
 import { AddSalaryBankAccountDto } from './dto/payroll.dto';
 
 @Service()
@@ -114,5 +114,14 @@ export default class PayrollController {
   @Get("/employees")
   getEmployees(@CurrentUser() auth: AuthUser) {
     return this.payrollService.getPayrollUsers(auth.orgId);
+  }
+
+  @Authorized(EPermission.PayrollRead)
+  @Post("/payroll-user/add")
+  addExternalPayrollUser(
+    @CurrentUser() auth: AuthUser,
+    dto: AddPayrollUserDto
+  ) {
+    return this.payrollService.addPayrollUser(auth.orgId, dto);
   }
 }
