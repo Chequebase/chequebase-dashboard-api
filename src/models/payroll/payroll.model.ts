@@ -19,7 +19,6 @@ export interface IPayroll {
   totalGrossAmount: number;
   totalEmployees: number
   wallet: any;
-  // TODO: add more properties
   createdAt: Date;
   updatedAt: Date;
 }

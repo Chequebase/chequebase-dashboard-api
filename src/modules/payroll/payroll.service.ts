@@ -96,27 +96,29 @@ export class PayrollService {
       },
     });
     if (!currentPayroll) {
-      throw new BadRequestError("Payroll not found")
+      throw new BadRequestError("Payroll not found");
     }
 
     const previousPayroll = await Payroll.findOne({
       organization: orgId,
       approvalStatus: PayrollApprovalStatus.Approved,
-      date: { $lte: currentPayroll.date },
+      date: { $lt: currentPayroll.date },
     }).sort("-createdAt");
 
     const [payoutStats] = await PayrollPayout.aggregate()
       .match({ organization: orgId, payroll: new ObjectId(payrollId) })
-      .group({ _id: '$status', count: { $sum: 1 } })
-    
+      .group({ _id: "$status", count: { $sum: 1 } });
+
     return {
       amount: getPercentageDiff(
         previousPayroll?.totalNetAmount,
         currentPayroll.totalNetAmount
       ),
       deductions: getPercentageDiff(
-        previousPayroll ? previousPayroll.totalNetAmount - previousPayroll.totalGrossAmount : undefined,
-        currentPayroll.totalNetAmount - currentPayroll.totalGrossAmount
+        previousPayroll
+          ? previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount
+          : undefined,
+        currentPayroll.totalGrossAmount - currentPayroll.totalNetAmount
       ),
       settled:
         payoutStats?.find((p: any) => p._id === PayrollPayoutStatus.Settled)
@@ -248,24 +250,45 @@ export class PayrollService {
   }
 
   async payrollMetrics(orgId: string) {
-    const [nextRunDate, wallet] = await Promise.all([
-      this.getNextPayrollRunDate(orgId),
-      Wallet.findOne({
-        organization: orgId,
-        type: WalletType.Payroll,
-        currency: "NGN",
-      }),
-    ]);
+    let [nextRunDate, wallet, users, previousPayroll, currentPayroll] =
+      await Promise.all([
+        this.getNextPayrollRunDate(orgId),
+        Wallet.findOne({
+          organization: orgId,
+          type: WalletType.Payroll,
+          currency: "NGN",
+        }),
+        this.getPayrollUsers(orgId),
+        Payroll.findOne({
+          organization: orgId,
+          date: { $lt: dayjs().startOf("month").toDate() },
+        }).sort("-createdAt"),
+        Payroll.findOne({
+          organization: orgId,
+          date: { $gte: dayjs().startOf("month").toDate() },
+        }),
+      ]);
+
+    users = users.filter((u) => u.salary && u.salary.netAmount);
+    const totalNet =
+      currentPayroll?.totalNetAmount ||
+      users.reduce((acc, salary) => acc + salary.net, 0);
+    const totalGross =
+      currentPayroll?.totalGrossAmount ||
+      users.reduce((acc, salary) => acc + salary.gross, 0);
 
     return {
       balance: {
         amount: wallet?.balance || 0,
         currency: wallet?.currency || "NGN",
-        increase: null,
       },
-      // TODO: confirm this
-      deductions: { value: 0, increase: 0 },
-      nextRunDeductions: { value: 0, increase: 0 },
+      nextRunNet: getPercentageDiff(previousPayroll?.totalNetAmount, totalNet),
+      nextRunDeductions: getPercentageDiff(
+        previousPayroll
+          ? previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount
+          : undefined,
+        totalGross - totalNet
+      ),
       nextRunDate,
     };
   }
@@ -851,7 +874,7 @@ export class PayrollService {
     ]);
 
     return {
-      message: 'Payroll user added',
-    }
+      message: "Payroll user added",
+    };
   }
 }
