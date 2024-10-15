@@ -7,7 +7,7 @@ import PayrollSetting, {
   IPayrollSetting,
   PayrollScheduleMode,
 } from "@/models/payroll/payroll-settings.model";
-import { getLastBusinessDay } from "../common/utils";
+import { getLastBusinessDay, getPercentageDiff } from "../common/utils";
 import PayrollPayout, {
   DeductionCategory,
   PayrollPayoutStatus,
@@ -87,13 +87,46 @@ export class PayrollService {
     };
   }
 
-  private async getPayrollStats(payrollId: string) {
-    // TODO: complete this
+  private async getPayrollStats(orgId: string, payrollId: string) {
+    const currentPayroll = await Payroll.findOne({
+      _id: payrollId,
+      organization: orgId,
+      approvalStatus: {
+        $in: [PayrollApprovalStatus.Pending, PayrollApprovalStatus.Approved],
+      },
+    });
+    if (!currentPayroll) {
+      throw new BadRequestError("Payroll not found")
+    }
+
+    const previousPayroll = await Payroll.findOne({
+      organization: orgId,
+      approvalStatus: PayrollApprovalStatus.Approved,
+      date: { $lte: currentPayroll.date },
+    }).sort("-createdAt");
+
+    const [payoutStats] = await PayrollPayout.aggregate()
+      .match({ organization: orgId, payroll: new ObjectId(payrollId) })
+      .group({ _id: '$status', count: { $sum: 1 } })
+    
     return {
-      amount: 0,
-      deductions: { value: 0, increase: 0 },
-      settled: 0,
-      processing: 0,
+      amount: getPercentageDiff(
+        previousPayroll?.totalNetAmount,
+        currentPayroll.totalNetAmount
+      ),
+      deductions: getPercentageDiff(
+        previousPayroll ? previousPayroll.totalNetAmount - previousPayroll.totalGrossAmount : undefined,
+        currentPayroll.totalNetAmount - currentPayroll.totalGrossAmount
+      ),
+      settled:
+        payoutStats?.find((p: any) => p._id === PayrollPayoutStatus.Settled)
+          ?.count || 0,
+      processing:
+        payoutStats?.find((p: any) => p._id === PayrollPayoutStatus.Processing)
+          ?.count || 0,
+      failed:
+        payoutStats?.find((p: any) => p._id === PayrollPayoutStatus.Failed)
+          ?.count || 0,
     };
   }
 
@@ -228,7 +261,7 @@ export class PayrollService {
       balance: {
         amount: wallet?.balance || 0,
         currency: wallet?.currency || "NGN",
-        increase: 0,
+        increase: null,
       },
       // TODO: confirm this
       deductions: { value: 0, increase: 0 },
@@ -342,7 +375,7 @@ export class PayrollService {
 
     const [payouts, stats] = await Promise.all([
       payoutsAggr,
-      this.getPayrollStats(payrollId),
+      this.getPayrollStats(orgId, payrollId),
     ]);
 
     return { stats, payouts };

@@ -15,6 +15,9 @@ export interface IPayroll {
   organization: any;
   date: Date;
   approvalStatus: PayrollApprovalStatus;
+  totalNetAmount: number;
+  totalGrossAmount: number;
+  totalEmployees: number
   wallet: any;
   // TODO: add more properties
   createdAt: Date;
@@ -42,6 +45,9 @@ const PayrollSchema = new Schema<IPayroll>(
       ref: "Wallet",
       required: true,
     },
+    totalEmployees: Number, 
+    totalGrossAmount: Number,
+    totalNetAmount: Number,
     date: { type: Date, required: true },
   },
   { timestamps: true }
