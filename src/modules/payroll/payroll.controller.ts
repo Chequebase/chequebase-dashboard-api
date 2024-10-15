@@ -106,10 +106,13 @@ export default class PayrollController {
 
   @Authorized(EPermission.PayrollEdit)
   @Post("/set-salary")
-  setSalary(
-    @CurrentUser() auth: AuthUser,
-    @Body() body: AddSalaryDto
-  ) {
+  setSalary(@CurrentUser() auth: AuthUser, @Body() body: AddSalaryDto) {
     return this.payrollService.setSalary(auth.orgId, body);
+  }
+
+  @Authorized(EPermission.PayrollRead)
+  @Get("/employees")
+  getEmployees(@CurrentUser() auth: AuthUser) {
+    return this.payrollService.getPayrollUsers(auth.orgId);
   }
 }

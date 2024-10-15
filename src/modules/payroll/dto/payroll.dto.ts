@@ -19,6 +19,11 @@ export class GetHistoryDto {
   page: number;
 }
 
+export class GetPayrollUserQuery {
+  @IsNumber()
+  page: number;
+}
+
 class Deduction {
   @IsString({ message: "Deduction name must be a string." })
   @MinLength(1, { message: "Deduction name must not be empty." })
@@ -66,9 +71,18 @@ export class UpdatePayrollSettingDto {
   schedule: Schedule;
 }
 
+export enum PayrollEmployeeEntity {
+  Internal = "internal",
+  External = "external",
+}
+
 export class AddSalaryBankAccountDto {
   @IsString()
   userId: string;
+
+  @IsString()
+  @IsEnum(PayrollEmployeeEntity)
+  entity: PayrollEmployeeEntity;
 
   @IsString()
   bankCode: string;
@@ -77,10 +91,16 @@ export class AddSalaryBankAccountDto {
   accountNumber: string;
 }
 
+
+
 export class AddSalaryDto {
   @IsString()
   userId: string;
-  
+
+  @IsString()
+  @IsEnum(PayrollEmployeeEntity)
+  entity: PayrollEmployeeEntity;
+
   @IsArray({ message: "Deductions must be an array." })
   @ValidateNested({ each: true })
   @Type(() => Deduction)

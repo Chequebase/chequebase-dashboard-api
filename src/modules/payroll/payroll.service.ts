@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import { Service } from "typedi";
-import User, { UserStatus } from "@/models/user.model";
+import User, { IUser, UserStatus } from "@/models/user.model";
 import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
 import dayjs from "dayjs";
 import PayrollSetting, {
@@ -12,7 +12,14 @@ import PayrollPayout, {
   DeductionCategory,
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
-import { AddSalaryBankAccountDto, AddSalaryDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
+import {
+  AddSalaryBankAccountDto,
+  AddSalaryDto,
+  GetHistoryDto,
+  GetPayrollUserQuery,
+  PayrollEmployeeEntity,
+  UpdatePayrollSettingDto,
+} from "./dto/payroll.dto";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import { DepositAccountService } from "../virtual-account/deposit-account";
 import { createId } from "@paralleldrive/cuid2";
@@ -37,6 +44,8 @@ import { payrollQueue } from "@/queues";
 import { IProcessPayroll } from "@/queues/jobs/payroll/process-payout.job";
 import { TransferClientName } from "../transfer/providers/transfer.client";
 import { AnchorService } from "../common/anchor.service";
+import PayrollUser, { IPayrollUser } from "@/models/payroll/payroll-user.model";
+import { HydratedDocument } from "mongoose";
 
 @Service()
 export class PayrollService {
@@ -49,9 +58,16 @@ export class PayrollService {
     salary: {
       earnings: ISalary["earnings"];
       deductions: ISalary["deductions"];
-    },
+    } | null,
     settings: IPayrollSetting
   ) {
+    if (!salary)
+      return {
+        net: 0,
+        deductions: {},
+        gross: 0,
+      };
+    
     const gross = salary.earnings.reduce((acc, e) => acc + e.amount, 0);
     const deductions = settings.deductions
       .concat(salary.deductions)
@@ -472,17 +488,11 @@ export class PayrollService {
       setting = await PayrollSetting.create({ organization: orgId });
     }
 
-    const users = await User.find({
-      organization: orgId,
-      salary: { $exists: true },
-      status: UserStatus.ACTIVE,
-    }).populate("salary");
+    let users = await this.getPayrollUsers(orgId)
+    users = users.filter((u) => u.salary)
 
-    const salaries = users.map((user) =>
-      this.calculateSalary(user.salary, setting)
-    );
-    const totalNet = salaries.reduce((acc, salary) => acc + salary.net, 0);
-    const totalGross = salaries.reduce((acc, salary) => acc + salary.gross, 0);
+    const totalNet = users.reduce((acc, salary) => acc + salary.net, 0);
+    const totalGross = users.reduce((acc, salary) => acc + salary.gross, 0);
 
     if (totalNet > wallet.balance) {
       throw new BadRequestError(
@@ -539,20 +549,21 @@ export class PayrollService {
     }));
     promises.push(
       PayrollPayout.create(
-        users.map((user, index) => ({
+        users.map((user) => ({
           id: `po_${createId()}`,
           payroll: payroll._id,
           organization: orgId,
           wallet: wallet._id,
-          user: user._id,
+          user: user.entity === PayrollEmployeeEntity.Internal ? user._id : null,
+          payrollUser: user.entity === PayrollEmployeeEntity.External ? user._id : null,
           status: PayrollPayoutStatus.Pending,
-          amount: salaries[index],
+          amount: user.salary.net,
           currency: user.salary.currency,
           provider: TransferClientName.Anchor,
           bank: user.salary.bank,
           salaryBreakdown: {
-            netAmount: salaries[index].net,
-            grossAmount: salaries[index].gross,
+            netAmount: user.salary.net,
+            grossAmount: user.salary.gross,
             earnings: user.salary.earnings,
             deductions: user.salary.deductions
               .map((d: any) => ({ ...d, category: DeductionCategory.Employee }))
@@ -625,13 +636,18 @@ export class PayrollService {
   }
 
   async addSalaryBankAccount(orgId: string, payload: AddSalaryBankAccountDto) {
-    const user = await User.findOne({
-      _id: payload.userId,
-      organization: orgId,
-    });
+    let user: HydratedDocument<IUser | IPayrollUser> | null = null;
+    const filter = { _id: payload.userId, organization: orgId };
+    if (payload.entity === PayrollEmployeeEntity.Internal) {
+      user = await User.findOne(filter);
+    } else {
+      user = await PayrollUser.findOne(filter);
+    }
+
     if (!user) {
       throw new BadRequestError("User does not exist");
     }
+
 
     const result = await this.anchorService.resolveAccountNumber(
       payload.accountNumber,
@@ -663,22 +679,19 @@ export class PayrollService {
   }
 
   async setSalary(orgId: string, payload: AddSalaryDto) {
-    const user = await User.findOne({
-      _id: payload.userId,
-      organization: orgId,
-    });
+    let user: HydratedDocument<IUser | IPayrollUser> | null = null;
+    const filter = { _id: payload.userId, organization: orgId };
+    if (payload.entity === PayrollEmployeeEntity.Internal) {
+      user = await User.findOne(filter);
+    } else {
+      user = await PayrollUser.findOne(filter);
+    }
+    
     if (!user) {
       throw new BadRequestError("User does not exist");
     }
 
-    const payrollSetting = await PayrollSetting.findOne({
-      organization: orgId,
-    });
-    if (!payrollSetting) {
-      throw new BadRequestError('Invalid payroll setting')
-    }
-
-    let salary = null
+    let salary = null;
     if (!user.salary) {
       salary = await Salary.create({
         organization: orgId,
@@ -698,5 +711,60 @@ export class PayrollService {
     }
 
     return salary;
+  }
+
+  async getPayrollUsers(orgId: string) {
+    let users = await User.aggregate()
+      .match({
+        organization: new ObjectId(orgId),
+        status: UserStatus.ACTIVE,
+      })
+      .addFields({ entity: PayrollEmployeeEntity.Internal })
+      .unionWith({
+        coll: "payrollusers",
+        pipeline: [
+          { $match: { organization: new ObjectId(orgId) } },
+          { $addFields: { entity: PayrollEmployeeEntity.External } },
+        ],
+      })
+      .lookup({
+        from: "salaries",
+        localField: "salary",
+        foreignField: "_id",
+        as: "salary",
+      })
+      .unwind({ path: "$salary", preserveNullAndEmptyArrays: true })
+      .lookup({
+        from: "departments",
+        localField: "departments",
+        foreignField: "_id",
+        as: "departments",
+      })
+      .project({
+        firstName: 1,
+        lastName: 1,
+        employmentType: 1,
+        employmentDate: 1,
+        avatar: 1,
+        email: 1,
+        entity: 1,
+        departments: { name: 1 },
+        salary: { earnings: 1, deductions: 1, bank: 1, currency: 1 },
+      });
+
+    const setting = (await PayrollSetting.findOne({ organization: orgId }))!;
+    users = users.map((user) => {
+      const salaryInfo = this.calculateSalary(user.salary, setting);
+      return {
+        ...user,
+        salary: {
+          ...user.salary,
+          netAmount: salaryInfo.net,
+          grossAmount: salaryInfo.gross
+        }
+      }
+    })
+
+    return users;
   }
 }

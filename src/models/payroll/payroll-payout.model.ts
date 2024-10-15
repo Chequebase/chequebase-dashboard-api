@@ -26,6 +26,7 @@ export interface IPayrollPayout {
   id: string;
   organization: any;
   user: any;
+  payrollUser: any;
   status: PayrollPayoutStatus;
   amount: number;
   currency: PayrollPayoutCurrency;
@@ -73,7 +74,10 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+    },
+    payrollUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PayrollUser",
     },
     salaryBreakdown: {
       netAmount: Number,
@@ -88,7 +92,7 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
       deductions: [
         {
           name: String,
-          category: { type: String, enum: Object.values(DeductionCategory)},
+          category: { type: String, enum: Object.values(DeductionCategory) },
           percentage: Number,
         },
       ],
