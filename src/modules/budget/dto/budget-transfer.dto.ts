@@ -27,7 +27,7 @@ export class InitiateTransferDto {
   @IsString()
   pin: string
 
-  @IsBoolean()
+  @IsString()
   saveRecipient: string
 }
 
