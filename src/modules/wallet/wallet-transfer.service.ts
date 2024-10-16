@@ -57,6 +57,7 @@ export interface ApproveTransfer {
   auth: AuthUser
   requester: string
   category: string
+  saveRecipient?: boolean
   invoiceUrl?: string
 }
 
@@ -97,8 +98,11 @@ export class WalletTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
+  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    if (saveRecipient) {
+      await this.saveCounterParty(auth, bankCode, accountNumber, true)
+    }
     let counterparty = {
       organization: auth.orgId,
       accountNumber,
@@ -191,6 +195,21 @@ export class WalletTransferService {
     return true
   }
 
+  private async saveCounterParty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
+    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    let counterparty = await Counterparty.create({
+      organization: auth.orgId,
+      accountNumber,
+      bankCode,
+      isRecipient
+    }, {
+      accountName: resolveRes.accountName,
+      bankName: resolveRes.bankName,
+    }, { new: true, upsert: true })
+
+    return { ...counterparty, bankId: resolveRes.bankId }
+  }
+
   async initiateTransfer(auth: AuthUser, walletId: string, data: InitiateTransferDto) {
     const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
     if (!validPin) {
@@ -263,6 +282,9 @@ export class WalletTransferService {
 
     const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
 
+    if (data.saveRecipient) {
+      await this.saveCounterParty(auth, data.bankCode, data.accountNumber, true)
+    }
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: rule.workflowType,
@@ -338,7 +360,7 @@ export class WalletTransferService {
     }
 
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber, true)
+    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber, true, data.saveRecipient)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
