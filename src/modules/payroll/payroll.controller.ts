@@ -73,6 +73,12 @@ export default class PayrollController {
     return this.payrollService.getPayrollWallet(auth.orgId);
   }
 
+  @Authorized(EPermission.PayrollRead)
+  @Get("/employees")
+  getEmployees(@CurrentUser() auth: AuthUser) {
+    return this.payrollService.getPayrollUsers(auth.orgId);
+  }
+
   @Get("/:id")
   @Authorized(EPermission.PayrollRead)
   payrollDetails(@CurrentUser() auth: AuthUser, @Param("id") id: string) {
@@ -111,16 +117,11 @@ export default class PayrollController {
   }
 
   @Authorized(EPermission.PayrollRead)
-  @Get("/employees")
-  getEmployees(@CurrentUser() auth: AuthUser) {
-    return this.payrollService.getPayrollUsers(auth.orgId);
-  }
-
-  @Authorized(EPermission.PayrollRead)
   @Post("/payroll-user/add")
   addExternalPayrollUser(
     @CurrentUser() auth: AuthUser,
-    dto: AddPayrollUserDto
+    @Body() dto: AddPayrollUserDto
+    
   ) {
     return this.payrollService.addPayrollUser(auth.orgId, dto);
   }

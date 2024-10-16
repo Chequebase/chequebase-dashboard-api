@@ -5,6 +5,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsDate,
+  IsDateString,
   IsDefined,
   IsEnum,
   IsNotEmpty,
@@ -132,9 +133,9 @@ export class AddPayrollUserDto {
   @IsNotEmpty()
   email?: string;
 
-  @IsDate()
+  @IsDateString()
   @IsNotEmpty()
-  employmentDate: Date;
+  employmentDate: string;
 
   @IsEnum(EmploymentType)
   employmentType: string;
