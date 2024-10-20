@@ -71,13 +71,10 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
       required: true,
       index: true,
     },
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
     payrollUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PayrollUser",
+      required: true
     },
     salaryBreakdown: {
       netAmount: Number,

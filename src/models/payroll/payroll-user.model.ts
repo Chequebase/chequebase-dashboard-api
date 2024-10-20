@@ -7,16 +7,33 @@ import { EmploymentType } from "../user.model";
 
 export interface IPayrollUser {
   _id: ObjectId;
-  organization: any
+  organization: any;
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  deletedAt: Date
+  deletedAt: Date;
   email?: string;
   employmentDate: Date;
   employmentType: string;
-  salary: any;
-  user?: any
+  user?: any;
+  salary: {
+    currency: string;
+    earnings: {
+      name: string;
+      amount: number;
+    }[];
+    deductions: {
+      name: string;
+      percentage: number;
+    }[];
+  };
+  bank: {
+    accountName: string;
+    accountNumber: string;
+    bankCode: string;
+    bankName: string;
+    bankId: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +60,13 @@ const PayrollUserSchema = new Schema<IPayrollUser>(
       enum: Object.values(EmploymentType),
       required: true,
     },
+    bank: {
+      accountName: String,
+      accountNumber: String,
+      bankCode: String,
+      bankName: String,
+      bankId: String,
+    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -50,8 +74,19 @@ const PayrollUserSchema = new Schema<IPayrollUser>(
       sparse: true,
     },
     salary: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Salary",
+      currency: { type: String, required: true },
+      earnings: [
+        {
+          name: String,
+          amount: Number,
+        },
+      ],
+      deductions: [
+        {
+          name: String,
+          percentage: Number,
+        },
+      ],
     },
   },
   { timestamps: true }

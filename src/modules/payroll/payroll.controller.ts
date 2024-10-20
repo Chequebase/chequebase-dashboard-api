@@ -15,8 +15,7 @@ import {
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { PayrollService } from "./payroll.service";
-import { AddPayrollUserDto, AddSalaryDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
-import { AddSalaryBankAccountDto } from './dto/payroll.dto';
+import { AddPayrollUserDto, AddSalaryDto, EditPayrollUserDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
 
 @Service()
 @JsonController("/payroll", { transformResponse: false })
@@ -102,21 +101,6 @@ export default class PayrollController {
     return this.payrollService.initiatePayrollRun(auth);
   }
 
-  @Authorized(EPermission.PayrollEdit)
-  @Post("/add-salary-bank-account")
-  addSalaryBankAccount(
-    @CurrentUser() auth: AuthUser,
-    @Body() body: AddSalaryBankAccountDto
-  ) {
-    return this.payrollService.addSalaryBankAccount(auth.orgId, body);
-  }
-
-  @Authorized(EPermission.PayrollEdit)
-  @Post("/set-salary")
-  setSalary(@CurrentUser() auth: AuthUser, @Body() body: AddSalaryDto) {
-    return this.payrollService.setSalary(auth.orgId, body);
-  }
-
   @Authorized(EPermission.PayrollRead)
   @Post("/payroll-user/add")
   addExternalPayrollUser(
@@ -133,6 +117,16 @@ export default class PayrollController {
     @Param("id") userId: string
   ) {
     return this.payrollService.deletePayrollUser(auth.orgId, userId);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Put("/payroll-user/:id/edit")
+  editPayrollUser(
+    @CurrentUser() auth: AuthUser,
+    @Param("id") userId: string,
+    @Body() dto: EditPayrollUserDto
+  ) {
+    return this.payrollService.editPayrollUser(auth.orgId, userId, dto);
   }
 
   @Authorized(EPermission.PayrollEdit)

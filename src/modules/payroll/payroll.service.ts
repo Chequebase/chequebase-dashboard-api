@@ -17,8 +17,7 @@ import PayrollSetting, {
 } from "@/models/payroll/payroll-settings.model";
 import PayrollUser, { IPayrollUser } from "@/models/payroll/payroll-user.model";
 import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
-import Salary, { ISalary } from "@/models/payroll/salary.model";
-import User, { IUser, UserStatus } from "@/models/user.model";
+import User, { UserStatus } from "@/models/user.model";
 import VirtualAccount, {
   IVirtualAccount,
 } from "@/models/virtual-account.model";
@@ -28,7 +27,6 @@ import { IProcessPayroll } from "@/queues/jobs/payroll/process-payout.job";
 import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
 import { ObjectId } from "mongodb";
-import { HydratedDocument } from "mongoose";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
@@ -43,6 +41,7 @@ import {
   AddPayrollUserDto,
   AddSalaryBankAccountDto,
   AddSalaryDto,
+  EditPayrollUserDto,
   GetHistoryDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
@@ -135,8 +134,8 @@ export class PayrollService {
 
   private calculateSalary(
     salary: {
-      earnings: ISalary["earnings"];
-      deductions: ISalary["deductions"];
+      earnings: IPayrollUser["salary"]["earnings"];
+      deductions: IPayrollUser['salary']["deductions"];
     } | null,
     settings: IPayrollSetting
   ) {
@@ -517,7 +516,7 @@ export class PayrollService {
   }
 
   async getEmployeePayouts(orgId: string, userId: string, page: number) {
-    const filter = { organization: orgId, user: userId };
+    const filter = { organization: orgId, payrollUser: userId };
     return PayrollPayout.paginate(filter, {
       select: "date amount currency status",
       lean: true,
@@ -742,7 +741,7 @@ export class PayrollService {
       payload.accountNumber,
       payload.bankCode
     );
-    const bank: ISalary["bank"] = {
+    const bank: IPayrollUser["bank"] = {
       accountName: result.accountName,
       accountNumber: result.accountNumber,
       bankCode: result.bankCode,
@@ -750,53 +749,9 @@ export class PayrollService {
       bankName: result.bankName,
     };
 
-    let salary = null;
-    if (!user.salary) {
-      salary = await Salary.create({
-        organization: orgId,
-        user: payload.userId,
-        bank,
-        currency: "NGN",
-      });
-      user.salary = salary._id;
-      await user.save();
-    } else {
-      salary = await Salary.findOneAndUpdate({ _id: user.salary }, { bank });
-    }
+    await user.updateOne({ bank });
 
     return bank;
-  }
-
-  async setSalary(orgId: string, payload: AddSalaryDto) {
-    let user = await PayrollUser.findOne({
-      _id: payload.userId,
-      organization: orgId,
-      deletedAt: { $exists: false },
-    });
-    if (!user) {
-      throw new BadRequestError("User does not exist");
-    }
-
-    let salary = null;
-    if (!user.salary) {
-      salary = await Salary.create({
-        organization: orgId,
-        user: payload.userId,
-        deductions: payload.deductions,
-        earnings: payload.earnings,
-        currency: "NGN",
-      });
-      user.salary = salary._id;
-      await user.save();
-    } else {
-      salary = await Salary.findOneAndUpdate(
-        { _id: user.salary },
-        { deductions: payload.deductions, earnings: payload.earnings },
-        { new: true }
-      );
-    }
-
-    return salary;
   }
 
   async getPayrollUsers(orgId: string) {
@@ -806,15 +761,15 @@ export class PayrollService {
         deletedAt: { $exists: false },
       })
       .lookup({
-        from: "salaries",
-        localField: "salary",
+        from: "users",
+        localField: "user",
         foreignField: "_id",
-        as: "salary",
+        as: "user",
       })
-      .unwind({ path: "$salary", preserveNullAndEmptyArrays: true })
+      .unwind({ path: "$user", preserveNullAndEmptyArrays: true })
       .lookup({
         from: "departments",
-        localField: "departments",
+        localField: "user.departments",
         foreignField: "_id",
         as: "departments",
       })
@@ -823,11 +778,13 @@ export class PayrollService {
         lastName: 1,
         employmentType: 1,
         employmentDate: 1,
-        avatar: 1,
+        avatar: "$user.avatar",
+        bank: 1,
         email: 1,
         entity: 1,
+        phoneNumber: 1,
         departments: { name: 1 },
-        salary: { earnings: 1, deductions: 1, bank: 1, currency: 1 },
+        salary: { earnings: 1, deductions: 1, currency: 1 },
       });
 
     const setting = (await PayrollSetting.findOne({ organization: orgId }))!;
@@ -862,7 +819,8 @@ export class PayrollService {
       payload.accountNumber,
       payload.bankCode
     );
-    const bank: ISalary["bank"] = {
+
+    const bank: IPayrollUser["bank"] = {
       accountName: result.accountName,
       accountNumber: result.accountNumber,
       bankCode: result.bankCode,
@@ -870,30 +828,21 @@ export class PayrollService {
       bankName: result.bankName,
     };
 
-    const salaryId = new ObjectId();
-    const userId = new ObjectId();
-    await Promise.all([
-      PayrollUser.create({
-        _id: userId,
-        organization: orgId,
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        phoneNumber: payload.phoneNumber,
-        email: payload.email,
-        employmentDate: payload.employmentDate,
-        employmentType: payload.employmentType,
-        salary: salaryId,
-      }),
-      Salary.create({
-        _id: salaryId,
-        organization: orgId,
-        user: userId,
+    await PayrollUser.create({
+      organization: orgId,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      phoneNumber: payload.phoneNumber,
+      email: payload.email,
+      employmentDate: payload.employmentDate,
+      employmentType: payload.employmentType,
+      bank,
+      salary: {
+        currency: "NGN",
         deductions: payload.deductions,
         earnings: payload.earnings,
-        currency: "NGN",
-        bank,
-      }),
-    ]);
+      },
+    });
 
     return {
       message: "Payroll user added",
@@ -937,5 +886,42 @@ export class PayrollService {
     return {
       message: "User deleted successfully",
     };
+  }
+
+  async editPayrollUser(
+    orgId: string,
+    userId: string,
+    payload: EditPayrollUserDto
+  ) {
+    const user = await PayrollUser.findOne({
+      _id: userId,
+      organization: orgId,
+      deletedAt: { $exists: false },
+    }).populate("salary");
+
+    if (!user) {
+      throw new BadRequestError("Could not find user");
+    }
+
+    if (
+      payload.bankCode !== user.bank?.bankCode ||
+      payload.accountNumber !== user.bank?.accountNumber
+    ) {
+      await this.addSalaryBankAccount(orgId, { userId, ...payload });
+    }
+
+    await PayrollUser.findOneAndUpdate(
+      { _id: userId },
+      {
+        $set: {
+          employmentDate: payload.employmentDate,
+          employmentType: payload.employmentType,
+          'salary.deductions': payload.deductions,
+          'salary.earnings': payload.earnings,
+        },
+      }
+    );
+
+    return { message: "User updated successfully" };
   }
 }

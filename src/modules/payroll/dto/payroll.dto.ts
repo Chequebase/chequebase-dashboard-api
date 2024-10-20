@@ -42,7 +42,6 @@ class Deduction {
 
 class Earning {
   @IsString({ message: "Earning name must be a string." })
-  @MinLength(1, { message: "Earning name must not be empty." })
   name: string;
 
   @IsNumber({}, { message: "Earning amount must be a number." })
@@ -122,6 +121,31 @@ export class AddPayrollUserDto {
 
   @IsDateString()
   @IsNotEmpty()
+  employmentDate: string;
+
+  @IsEnum(EmploymentType)
+  employmentType: string;
+
+  @IsString()
+  bankCode: string;
+
+  @IsString()
+  accountNumber: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => Deduction)
+  deductions: Deduction[];
+
+  @IsArray()
+  @ArrayMinSize(1, { message: "There must be at least one earning." })
+  @ValidateNested({ each: true })
+  @Type(() => Earning)
+  earnings: Earning[];
+}
+
+export class EditPayrollUserDto {
+  @IsDateString()
   employmentDate: string;
 
   @IsEnum(EmploymentType)
