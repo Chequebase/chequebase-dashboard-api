@@ -11,11 +11,21 @@ import {
   Put,
   QueryParam,
   QueryParams,
+  Res,
 } from "routing-controllers";
 import { Service } from "typedi";
+import { Response } from "express";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { PayrollService } from "./payroll.service";
-import { AddBulkPayrollUserDto, AddPayrollUserDto, AddSalaryDto, EditPayrollUserDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
+import {
+  AddBulkPayrollUserDto,
+  AddPayrollUserDto,
+  AddSalaryDto,
+  EditPayrollUserDto,
+  GetHistoryDto,
+  UpdatePayrollSettingDto,
+} from "./dto/payroll.dto";
+import { PassThrough } from "stream";
 
 @Service()
 @JsonController("/payroll", { transformResponse: false })
@@ -93,6 +103,26 @@ export default class PayrollController {
     @QueryParam("page", { required: true }) page: number
   ) {
     return this.payrollService.getEmployeePayouts(auth.orgId, user, page);
+  }
+
+  @Get("/employee-payouts/:user/export")
+  @Authorized(EPermission.PayrollRead)
+  async exportEmployeePayouts(
+    @Res() res: Response,
+    @CurrentUser() auth: AuthUser,
+    @Param("user") user: string
+  ) {
+    const passthrough = new PassThrough();
+    const { filename, stream } =
+      await this.payrollService.exportEmployeePayouts(auth.orgId, user);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.attachment(filename);
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+
+    stream.pipe(passthrough);
+
+    return passthrough;
   }
 
   @Post("/")

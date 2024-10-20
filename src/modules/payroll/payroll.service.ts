@@ -1,3 +1,4 @@
+import * as fastCsv from "fast-csv";
 import ApprovalRequest, {
   ApprovalRequestPriority,
 } from "@/models/approval-request.model";
@@ -32,7 +33,7 @@ import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
 import { AnchorService } from "../common/anchor.service";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { findDuplicates, getLastBusinessDay, getPercentageDiff } from "../common/utils";
+import { findDuplicates, formatMoney, getLastBusinessDay, getPercentageDiff } from "../common/utils";
 import { getDates } from "../common/utils/date";
 import { TransferClientName } from "../transfer/providers/transfer.client";
 import { DepositAccountService } from "../virtual-account/deposit-account";
@@ -526,6 +527,30 @@ export class PayrollService {
     });
   }
 
+  async exportEmployeePayouts(orgId: string, userId: string) {
+    const cursor = PayrollPayout.find({
+      organization: orgId,
+      payrollUser: userId,
+    }).select("date amount currency status").lean()
+      .cursor();
+    
+    const stream = fastCsv
+      .format({ headers: true })
+      .transform((payout: any) => ({
+        ID: payout._id,
+        Amount: formatMoney(payout.amount),
+        Currency: payout.currency,
+        Date: dayjs(payout.createdAt)
+        .tz("Africa/Lagos")
+        .format("MMM D, YYYY h:mm A"),
+        Status: payout.status.toUpperCase(),
+      }));
+
+    cursor.pipe(stream);
+
+    return { stream, filename: "paystub.csv" };
+  }
+
   async getPayrollWallet(orgId: string) {
     const org = await Organization.findById(orgId);
     if (!org) {
@@ -852,10 +877,10 @@ export class PayrollService {
   }
 
   async addBulkPayrollUser(orgId: string, payload: AddBulkPayrollUserDto) {
-    const duplicatePhoneNumbers = findDuplicates(payload.users, 'phoneNumber')
+    const duplicatePhoneNumbers = findDuplicates(payload.users, "phoneNumber");
     if (duplicatePhoneNumbers.length) {
       throw new BadRequestError(
-        `Found duplicate phone numbers (${duplicatePhoneNumbers.join(', ')}})`
+        `Found duplicate phone numbers (${duplicatePhoneNumbers.join(", ")}})`
       );
     }
 
@@ -863,7 +888,7 @@ export class PayrollService {
     const existingUsers = await PayrollUser.find({
       organization: orgId,
       phoneNumber: { $in: phoneNumbers },
-    }).select('phoneNumber');
+    }).select("phoneNumber");
 
     if (existingUsers.length) {
       throw new BadRequestError(
@@ -873,11 +898,11 @@ export class PayrollService {
       );
     }
 
-    await Promise.all(payload.users.map((u) => (this.addPayrollUser(orgId, u))))
+    await Promise.all(payload.users.map((u) => this.addPayrollUser(orgId, u)));
 
     return {
-      message: 'Users added successfully'
-    }
+      message: "Users added successfully",
+    };
   }
 
   async setupPayroll(orgId: string) {
