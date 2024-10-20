@@ -3,6 +3,7 @@ import {
   Authorized,
   Body,
   CurrentUser,
+  Delete,
   Get,
   JsonController,
   Param,
@@ -126,8 +127,17 @@ export default class PayrollController {
   }
 
   @Authorized(EPermission.PayrollEdit)
+  @Delete("/payroll-user/:id/delete")
+  deletePayrollUser(
+    @CurrentUser() auth: AuthUser,
+    @Param("id") userId: string
+  ) {
+    return this.payrollService.deletePayrollUser(auth.orgId, userId);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
   @Post("/setup-payroll")
-  setupPayroll(@CurrentUser() auth: AuthUser,) {
+  setupPayroll(@CurrentUser() auth: AuthUser) {
     return this.payrollService.setupPayroll(auth.orgId);
   }
 }

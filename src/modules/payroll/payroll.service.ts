@@ -44,7 +44,6 @@ import {
   AddSalaryBankAccountDto,
   AddSalaryDto,
   GetHistoryDto,
-  PayrollEmployeeEntity,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
 
@@ -56,7 +55,10 @@ export class PayrollService {
   ) {}
 
   private async migrateInternalUsers(orgId: string) {
-    const users = await User.find({ organization: orgId });
+    const users = await User.find({
+      organization: orgId,
+      status: UserStatus.ACTIVE,
+    });
     await PayrollUser.create(
       users.map((user) => ({
         organization: orgId,
@@ -645,10 +647,7 @@ export class PayrollService {
           payroll: payroll._id,
           organization: orgId,
           wallet: wallet._id,
-          user:
-            user.entity === PayrollEmployeeEntity.Internal ? user._id : null,
-          payrollUser:
-            user.entity === PayrollEmployeeEntity.External ? user._id : null,
+          payrollUser: user._id,
           status: PayrollPayoutStatus.Pending,
           amount: user.salary.net,
           currency: user.salary.currency,
@@ -729,13 +728,11 @@ export class PayrollService {
   }
 
   async addSalaryBankAccount(orgId: string, payload: AddSalaryBankAccountDto) {
-    let user: HydratedDocument<IUser | IPayrollUser> | null = null;
-    const filter = { _id: payload.userId, organization: orgId };
-    if (payload.entity === PayrollEmployeeEntity.Internal) {
-      user = await User.findOne(filter);
-    } else {
-      user = await PayrollUser.findOne(filter);
-    }
+    let user = await PayrollUser.findOne({
+      _id: payload.userId,
+      organization: orgId,
+      detetedAt: { $exists: false },
+    });
 
     if (!user) {
       throw new BadRequestError("User does not exist");
@@ -771,14 +768,11 @@ export class PayrollService {
   }
 
   async setSalary(orgId: string, payload: AddSalaryDto) {
-    let user: HydratedDocument<IUser | IPayrollUser> | null = null;
-    const filter = { _id: payload.userId, organization: orgId };
-    if (payload.entity === PayrollEmployeeEntity.Internal) {
-      user = await User.findOne(filter);
-    } else {
-      user = await PayrollUser.findOne(filter);
-    }
-
+    let user = await PayrollUser.findOne({
+      _id: payload.userId,
+      organization: orgId,
+      deletedAt: { $exists: false },
+    });
     if (!user) {
       throw new BadRequestError("User does not exist");
     }
@@ -806,18 +800,10 @@ export class PayrollService {
   }
 
   async getPayrollUsers(orgId: string) {
-    let users = await User.aggregate()
+    let users = await PayrollUser.aggregate()
       .match({
         organization: new ObjectId(orgId),
-        status: UserStatus.ACTIVE,
-      })
-      .addFields({ entity: PayrollEmployeeEntity.Internal })
-      .unionWith({
-        coll: "payrollusers",
-        pipeline: [
-          { $match: { organization: new ObjectId(orgId) } },
-          { $addFields: { entity: PayrollEmployeeEntity.External } },
-        ],
+        deletedAt: { $exists: false },
       })
       .lookup({
         from: "salaries",
@@ -864,6 +850,7 @@ export class PayrollService {
     const exists = await PayrollUser.findOne({
       organization: orgId,
       phoneNumber: payload.phoneNumber,
+      deletedAt: { $exists: false },
     });
     if (exists) {
       throw new BadRequestError(
@@ -932,6 +919,23 @@ export class PayrollService {
     return {
       message: "Payroll setup completed successfully",
       completed: true,
+    };
+  }
+
+  async deletePayrollUser(orgId: string, userId: string) {
+    const user = await PayrollUser.findOneAndUpdate(
+      { _id: userId, organization: orgId },
+      {
+        deletedAt: new Date(),
+      }
+    );
+
+    if (!user) {
+      throw new BadRequestError("User does not exist");
+    }
+
+    return {
+      message: "User deleted successfully",
     };
   }
 }
