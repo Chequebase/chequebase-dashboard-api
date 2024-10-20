@@ -32,12 +32,13 @@ import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
 import { AnchorService } from "../common/anchor.service";
 import { AuthUser } from "../common/interfaces/auth-user";
-import { getLastBusinessDay, getPercentageDiff } from "../common/utils";
+import { findDuplicates, getLastBusinessDay, getPercentageDiff } from "../common/utils";
 import { getDates } from "../common/utils/date";
 import { TransferClientName } from "../transfer/providers/transfer.client";
 import { DepositAccountService } from "../virtual-account/deposit-account";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import {
+  AddBulkPayrollUserDto,
   AddPayrollUserDto,
   AddSalaryBankAccountDto,
   AddSalaryDto,
@@ -135,7 +136,7 @@ export class PayrollService {
   private calculateSalary(
     salary: {
       earnings: IPayrollUser["salary"]["earnings"];
-      deductions: IPayrollUser['salary']["deductions"];
+      deductions: IPayrollUser["salary"]["deductions"];
     } | null,
     settings: IPayrollSetting
   ) {
@@ -581,7 +582,7 @@ export class PayrollService {
     }
 
     let users = await this.getPayrollUsers(orgId);
-    users = users.filter((u) => u.salary && u.salary.netAmount);
+    users = users.filter((u) => u.salary && u.salary.netAmount && u.bank);
 
     const totalNet = users.reduce((acc, salary) => acc + salary.net, 0);
     const totalGross = users.reduce((acc, salary) => acc + salary.gross, 0);
@@ -773,6 +774,7 @@ export class PayrollService {
         foreignField: "_id",
         as: "departments",
       })
+      .sort({ createdAt: -1 })
       .project({
         firstName: 1,
         lastName: 1,
@@ -849,6 +851,35 @@ export class PayrollService {
     };
   }
 
+  async addBulkPayrollUser(orgId: string, payload: AddBulkPayrollUserDto) {
+    const duplicatePhoneNumbers = findDuplicates(payload.users, 'phoneNumber')
+    if (duplicatePhoneNumbers.length) {
+      throw new BadRequestError(
+        `Found duplicate phone numbers (${duplicatePhoneNumbers.join(', ')}})`
+      );
+    }
+
+    const phoneNumbers = payload.users.map((u) => u.phoneNumber);
+    const existingUsers = await PayrollUser.find({
+      organization: orgId,
+      phoneNumber: { $in: phoneNumbers },
+    }).select('phoneNumber');
+
+    if (existingUsers.length) {
+      throw new BadRequestError(
+        `Found duplicate phone number already added (${existingUsers
+          .map((u) => u.phoneNumber)
+          .join(", ")})`
+      );
+    }
+
+    await Promise.all(payload.users.map((u) => (this.addPayrollUser(orgId, u))))
+
+    return {
+      message: 'Users added successfully'
+    }
+  }
+
   async setupPayroll(orgId: string) {
     const organization = await Organization.findById(orgId);
     if (!organization) {
@@ -916,8 +947,8 @@ export class PayrollService {
         $set: {
           employmentDate: payload.employmentDate,
           employmentType: payload.employmentType,
-          'salary.deductions': payload.deductions,
-          'salary.earnings': payload.earnings,
+          "salary.deductions": payload.deductions,
+          "salary.earnings": payload.earnings,
         },
       }
     );

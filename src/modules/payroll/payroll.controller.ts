@@ -15,7 +15,7 @@ import {
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { PayrollService } from "./payroll.service";
-import { AddPayrollUserDto, AddSalaryDto, EditPayrollUserDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
+import { AddBulkPayrollUserDto, AddPayrollUserDto, AddSalaryDto, EditPayrollUserDto, GetHistoryDto, UpdatePayrollSettingDto } from "./dto/payroll.dto";
 
 @Service()
 @JsonController("/payroll", { transformResponse: false })
@@ -101,13 +101,22 @@ export default class PayrollController {
     return this.payrollService.initiatePayrollRun(auth);
   }
 
-  @Authorized(EPermission.PayrollRead)
+  @Authorized(EPermission.PayrollEdit)
   @Post("/payroll-user/add")
-  addExternalPayrollUser(
+  addPayrollUser(
     @CurrentUser() auth: AuthUser,
     @Body() dto: AddPayrollUserDto
   ) {
     return this.payrollService.addPayrollUser(auth.orgId, dto);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Post("/payroll-user/add-bulk")
+  addBulkPayrollUser(
+    @CurrentUser() auth: AuthUser,
+    @Body() dto: AddBulkPayrollUserDto
+  ) {
+    return this.payrollService.addBulkPayrollUser(auth.orgId, dto);
   }
 
   @Authorized(EPermission.PayrollEdit)

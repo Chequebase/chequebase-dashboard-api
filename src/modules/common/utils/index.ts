@@ -59,3 +59,14 @@ export function getLastBusinessDay(year: number, month: number) {
 
   return lastDay;
 };
+
+export function findDuplicates<T>(arr: T[], key: keyof T): T[] {
+  const countMap = new Map<any, number>();
+
+  arr.forEach((item) => {
+    const value = item[key];
+    countMap.set(value, (countMap.get(value) || 0) + 1);
+  });
+
+  return [...new Set(arr.filter((item) => countMap.get(item[key])! > 1))];
+}

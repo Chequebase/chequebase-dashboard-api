@@ -45,7 +45,7 @@ class Earning {
   name: string;
 
   @IsNumber({}, { message: "Earning amount must be a number." })
-  @Min(200_00, { message: "Earning percentage must be at least 200" })
+  @Min(200_00, { message: "Earning amount must be at least 200" })
   amount: number;
 }
 
@@ -102,6 +102,14 @@ export class AddSalaryDto {
   earnings: Earning[];
 }
 
+export class AddBulkPayrollUserDto {
+  @IsArray()
+  @ArrayMinSize(1, { message: "There must be at least one user." })
+  @ValidateNested({ each: true })
+  @Type(() => AddPayrollUserDto)
+  users: AddPayrollUserDto[];
+}
+
 export class AddPayrollUserDto {
   @IsString()
   @IsNotEmpty()
@@ -135,11 +143,12 @@ export class AddPayrollUserDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => Deduction)
+  @IsOptional()
   deductions: Deduction[];
 
   @IsArray()
-  @ArrayMinSize(1, { message: "There must be at least one earning." })
   @ValidateNested({ each: true })
+  @IsOptional()
   @Type(() => Earning)
   earnings: Earning[];
 }
