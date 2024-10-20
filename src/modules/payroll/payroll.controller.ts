@@ -121,7 +121,6 @@ export default class PayrollController {
   addExternalPayrollUser(
     @CurrentUser() auth: AuthUser,
     @Body() dto: AddPayrollUserDto
-    
   ) {
     return this.payrollService.addPayrollUser(auth.orgId, dto);
   }

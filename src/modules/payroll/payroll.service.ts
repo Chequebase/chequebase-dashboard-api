@@ -46,6 +46,7 @@ import { TransferClientName } from "../transfer/providers/transfer.client";
 import { AnchorService } from "../common/anchor.service";
 import PayrollUser, { IPayrollUser } from "@/models/payroll/payroll-user.model";
 import { HydratedDocument } from "mongoose";
+import { getDates } from "../common/utils/date";
 
 @Service()
 export class PayrollService {
@@ -144,11 +145,10 @@ export class PayrollService {
     const today = dayjs().tz(tz);
     const month = today.month();
     const year = today.year();
-
     if (mode === PayrollScheduleMode.Fixed && dayOfMonth) {
-      let fixedRunDate = dayjs(new Date(year, month, dayOfMonth)).tz(tz);
+      let fixedRunDate = dayjs.tz(new Date(year, month, dayOfMonth), tz);
       if (today.isAfter(fixedRunDate, "day")) {
-        fixedRunDate = dayjs(new Date(year, month + 1, dayOfMonth)).tz(tz);
+        fixedRunDate = dayjs.tz(new Date(year, month+1, dayOfMonth), tz);
       }
 
       return fixedRunDate.toDate();
@@ -246,7 +246,22 @@ export class PayrollService {
         amount: { $sum: "$payout.amount" },
       });
 
-    return result.map((r) => ({ ...r._id, amount: r.amount }));
+    const from = dayjs().startOf('year').toDate()
+    const to = dayjs().endOf('year').toDate()
+    const boundaries = getDates(from, to, 'month');
+    const trend = boundaries.map((boundary: any) => {
+      const match = result.filter((t) =>
+        dayjs(t.date).isBetween(boundary.from, boundary.to, null, "[]")
+      );
+
+      return {
+        from: boundary.from,
+        to: boundary.to,
+        value: match.reduce((total, cur) => total + cur.amount, 0),
+      };
+    });
+    
+    return trend;
   }
 
   async payrollMetrics(orgId: string) {
@@ -272,10 +287,10 @@ export class PayrollService {
     users = users.filter((u) => u.salary && u.salary.netAmount);
     const totalNet =
       currentPayroll?.totalNetAmount ||
-      users.reduce((acc, salary) => acc + salary.net, 0);
+      users.reduce((acc, user) => acc + user.salary.netAmount, 0);
     const totalGross =
       currentPayroll?.totalGrossAmount ||
-      users.reduce((acc, salary) => acc + salary.gross, 0);
+      users.reduce((acc, user) => acc + user.salary.grossAmount, 0);
 
     return {
       balance: {

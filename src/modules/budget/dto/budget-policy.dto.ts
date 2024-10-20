@@ -96,6 +96,10 @@ export class GetPolicies {
   @IsOptional()
   recipient: string
 
+  @IsEnum(PolicyType)
+  @IsOptional()
+  type: string
+
   @IsInt()
   page: number
 }

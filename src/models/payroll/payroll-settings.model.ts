@@ -42,6 +42,7 @@ const PayrollSettingSchema = new Schema<IPayrollSetting>(
       },
     ],
     schedule: {
+      dayOfMonth: Number,
       mode: {
         type: String,
         default: PayrollScheduleMode.LastBusinessDay,
