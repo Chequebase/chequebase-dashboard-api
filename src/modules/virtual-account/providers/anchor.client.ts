@@ -4,6 +4,7 @@ import { getEnvOrThrow } from "@/modules/common/utils";
 import { CreateDepositAccountData, CreateDepositAccountResult, CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountClient, VirtualAccountClientName } from "./virtual-account.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
+import { BadRequestError } from "routing-controllers";
 
 export const ANCHOR_TOKEN = new Token('va.provider.anchor')
 
@@ -178,7 +179,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     } catch (err: any) {
       this.logger.error('error getting deposit account', {
         reason: JSON.stringify(err.response?.data || err?.message),
-        status: err.response.status
+        status: err.response?.status
       });
 
       throw new ServiceUnavailableError('Unable to get deposit account');

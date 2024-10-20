@@ -1,17 +1,44 @@
-import { ObjectId } from "mongodb";
-import { Service } from "typedi";
-import User, { IUser, UserStatus } from "@/models/user.model";
-import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
-import dayjs from "dayjs";
-import PayrollSetting, {
-  IPayrollSetting,
-  PayrollScheduleMode,
-} from "@/models/payroll/payroll-settings.model";
-import { getLastBusinessDay, getPercentageDiff } from "../common/utils";
+import ApprovalRequest, {
+  ApprovalRequestPriority,
+} from "@/models/approval-request.model";
+import ApprovalRule, {
+  ApprovalType,
+  WorkflowType,
+} from "@/models/approval-rule.model";
+import BaseWallet from "@/models/base-wallet.model";
+import Organization, { IOrganization } from "@/models/organization.model";
 import PayrollPayout, {
   DeductionCategory,
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
+import PayrollSetting, {
+  IPayrollSetting,
+  PayrollScheduleMode,
+} from "@/models/payroll/payroll-settings.model";
+import PayrollUser, { IPayrollUser } from "@/models/payroll/payroll-user.model";
+import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
+import Salary, { ISalary } from "@/models/payroll/salary.model";
+import User, { IUser, UserStatus } from "@/models/user.model";
+import VirtualAccount, {
+  IVirtualAccount,
+} from "@/models/virtual-account.model";
+import Wallet, { WalletType } from "@/models/wallet.model";
+import { payrollQueue } from "@/queues";
+import { IProcessPayroll } from "@/queues/jobs/payroll/process-payout.job";
+import { createId } from "@paralleldrive/cuid2";
+import dayjs from "dayjs";
+import { ObjectId } from "mongodb";
+import { HydratedDocument } from "mongoose";
+import numeral from "numeral";
+import { BadRequestError, NotFoundError } from "routing-controllers";
+import { Service } from "typedi";
+import { AnchorService } from "../common/anchor.service";
+import { AuthUser } from "../common/interfaces/auth-user";
+import { getLastBusinessDay, getPercentageDiff } from "../common/utils";
+import { getDates } from "../common/utils/date";
+import { TransferClientName } from "../transfer/providers/transfer.client";
+import { DepositAccountService } from "../virtual-account/deposit-account";
+import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import {
   AddPayrollUserDto,
   AddSalaryBankAccountDto,
@@ -20,33 +47,6 @@ import {
   PayrollEmployeeEntity,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
-import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
-import { DepositAccountService } from "../virtual-account/deposit-account";
-import { createId } from "@paralleldrive/cuid2";
-import Organization from "@/models/organization.model";
-import { BadRequestError, NotFoundError } from "routing-controllers";
-import Salary, { ISalary } from "@/models/payroll/salary.model";
-import numeral from "numeral";
-import ApprovalRule, {
-  WorkflowType,
-  ApprovalType,
-} from "@/models/approval-rule.model";
-import { AuthUser } from "../common/interfaces/auth-user";
-import ApprovalRequest, {
-  ApprovalRequestPriority,
-} from "@/models/approval-request.model";
-import Wallet, { WalletType } from "@/models/wallet.model";
-import BaseWallet from "@/models/base-wallet.model";
-import VirtualAccount, {
-  IVirtualAccount,
-} from "@/models/virtual-account.model";
-import { payrollQueue } from "@/queues";
-import { IProcessPayroll } from "@/queues/jobs/payroll/process-payout.job";
-import { TransferClientName } from "../transfer/providers/transfer.client";
-import { AnchorService } from "../common/anchor.service";
-import PayrollUser, { IPayrollUser } from "@/models/payroll/payroll-user.model";
-import { HydratedDocument } from "mongoose";
-import { getDates } from "../common/utils/date";
 
 @Service()
 export class PayrollService {
@@ -54,6 +54,82 @@ export class PayrollService {
     private depositAccountService: DepositAccountService,
     private anchorService: AnchorService
   ) {}
+
+  private async migrateInternalUsers(orgId: string) {
+    const users = await User.find({ organization: orgId });
+    await PayrollUser.create(
+      users.map((user) => ({
+        organization: orgId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phoneNumber: user.phone,
+        email: user.email,
+        employmentDate: user.employmentDate,
+        employmentType: user.employmentType,
+        user: user._id,
+      }))
+    );
+  }
+
+  private async createWallet(org: IOrganization) {
+    const baseWallet = await BaseWallet.findOne({ currency: "NGN" });
+    if (!baseWallet) {
+      throw new NotFoundError("Base wallet not found");
+    }
+
+    const depositAccRef = `da-${createId()}`;
+    const depositAccountId = await this.depositAccountService.createAccount({
+      customerType: "BusinessCustomer",
+      productName: "CURRENT",
+      customerId: org.anchorCustomerId,
+      provider: VirtualAccountClientName.Anchor,
+      reference: depositAccRef,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    const account = await this.depositAccountService.getAccount(
+      depositAccountId,
+      VirtualAccountClientName.Anchor,
+      "NGN"
+    );
+    const walletId = new ObjectId();
+    const virtualAccountId = new ObjectId();
+
+    const wallet = await Wallet.create({
+      _id: walletId,
+      organization: org._id,
+      baseWallet: baseWallet._id,
+      currency: baseWallet.currency,
+      balance: 0,
+      primary: false,
+      type: WalletType.Payroll,
+      virtualAccounts: [virtualAccountId],
+    });
+
+    const virtualAccount = await VirtualAccount.create({
+      _id: virtualAccountId,
+      organization: org._id,
+      wallet: wallet._id,
+      accountNumber: account.accountNumber,
+      bankCode: account.bankCode,
+      name: account.accountName,
+      bankName: account.bankName,
+      provider: VirtualAccountClientName.Anchor,
+      externalRef: depositAccountId,
+    });
+
+    return {
+      balance: wallet.balance,
+      currency: wallet.currency,
+      account: {
+        name: virtualAccount.name,
+        accountNumber: virtualAccount.accountNumber,
+        bankCode: virtualAccount.bankCode,
+        bankName: virtualAccount.bankName,
+      },
+    };
+  }
 
   private calculateSalary(
     salary: {
@@ -148,7 +224,7 @@ export class PayrollService {
     if (mode === PayrollScheduleMode.Fixed && dayOfMonth) {
       let fixedRunDate = dayjs.tz(new Date(year, month, dayOfMonth), tz);
       if (today.isAfter(fixedRunDate, "day")) {
-        fixedRunDate = dayjs.tz(new Date(year, month+1, dayOfMonth), tz);
+        fixedRunDate = dayjs.tz(new Date(year, month + 1, dayOfMonth), tz);
       }
 
       return fixedRunDate.toDate();
@@ -246,9 +322,9 @@ export class PayrollService {
         amount: { $sum: "$payout.amount" },
       });
 
-    const from = dayjs().startOf('year').toDate()
-    const to = dayjs().endOf('year').toDate()
-    const boundaries = getDates(from, to, 'month');
+    const from = dayjs().startOf("year").toDate();
+    const to = dayjs().endOf("year").toDate();
+    const boundaries = getDates(from, to, "month");
     const trend = boundaries.map((boundary: any) => {
       const match = result.filter((t) =>
         dayjs(t.date).isBetween(boundary.from, boundary.to, null, "[]")
@@ -260,7 +336,7 @@ export class PayrollService {
         value: match.reduce((total, cur) => total + cur.amount, 0),
       };
     });
-    
+
     return trend;
   }
 
@@ -458,70 +534,14 @@ export class PayrollService {
       organization: orgId,
       type: WalletType.Payroll,
     }).populate<IVirtualAccount>("virtualAccounts");
-    if (existingWallet) {
-      const virtualAccount = existingWallet
-        .virtualAccounts[0] as IVirtualAccount;
-      return {
-        balance: existingWallet.balance,
-        currency: existingWallet.currency,
-        account: {
-          name: virtualAccount.name,
-          accountNumber: virtualAccount.accountNumber,
-          bankCode: virtualAccount.bankCode,
-          bankName: virtualAccount.bankName,
-        },
-      };
+    if (!existingWallet) {
+      throw new BadRequestError("Wallet not found");
     }
 
-    const baseWallet = await BaseWallet.findOne({ currency: "NGN" });
-    if (!baseWallet) {
-      throw new NotFoundError("Base wallet not found");
-    }
-
-    const depositAccRef = `da-${createId()}`;
-    const depositAccountId = await this.depositAccountService.createAccount({
-      customerType: "BusinessCustomer",
-      productName: "CURRENT",
-      customerId: org.anchorCustomerId,
-      provider: VirtualAccountClientName.Anchor,
-      reference: depositAccRef,
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const account = await this.depositAccountService.getAccount(
-      depositAccountId,
-      VirtualAccountClientName.Anchor,
-      "NGN"
-    );
-    const walletId = new ObjectId();
-    const virtualAccountId = new ObjectId();
-
-    const wallet = await Wallet.create({
-      _id: walletId,
-      organization: orgId,
-      baseWallet: baseWallet._id,
-      currency: baseWallet.currency,
-      balance: 0,
-      primary: false,
-      virtualAccounts: [virtualAccountId],
-    });
-
-    const virtualAccount = await VirtualAccount.create({
-      _id: virtualAccountId,
-      organization: orgId,
-      wallet: wallet._id,
-      accountNumber: account.accountNumber,
-      bankCode: account.bankCode,
-      name: account.accountName,
-      bankName: account.bankName,
-      provider: VirtualAccountClientName.Anchor,
-      externalRef: depositAccountId,
-    });
-
+    const virtualAccount = existingWallet.virtualAccounts[0] as IVirtualAccount;
     return {
-      balance: wallet.balance,
-      currency: wallet.currency,
+      balance: existingWallet.balance,
+      currency: existingWallet.currency,
       account: {
         name: virtualAccount.name,
         accountNumber: virtualAccount.accountNumber,
@@ -890,6 +910,28 @@ export class PayrollService {
 
     return {
       message: "Payroll user added",
+    };
+  }
+
+  async setupPayroll(orgId: string) {
+    const organization = await Organization.findById(orgId);
+    if (!organization) {
+      throw new BadRequestError("Could not find organization");
+    }
+
+    if (organization.hasSetupPayroll) {
+      return { message: "Payroll already setup", completed: true };
+    }
+
+    await this.createWallet(organization);
+    await this.migrateInternalUsers(orgId);
+    await PayrollSetting.create({ organization: orgId });
+
+    await organization.set("hasSetupPayroll", true).save();
+
+    return {
+      message: "Payroll setup completed successfully",
+      completed: true,
     };
   }
 }

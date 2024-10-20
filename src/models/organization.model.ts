@@ -79,6 +79,7 @@ export interface IOrganization {
   postalCode: string
   setDefualtApprovalWorkflow: boolean
   setInitialPolicies: boolean
+  hasSetupPayroll: boolean
   regDate: string
   state: string
   owners: Shareholder[]
@@ -132,8 +133,8 @@ const organizationSchma = new Schema<IOrganization>(
   {
     admin: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      ref: "User",
+      required: true,
     },
     averageMonthlyExpenses: String,
     bnNumber: String,
@@ -143,8 +144,9 @@ const organizationSchma = new Schema<IOrganization>(
     city: String,
     country: String,
     email: String,
-    setDefualtApprovalWorkflow: Boolean,
-    setInitialPolicies: Boolean,
+    setDefualtApprovalWorkflow: { type: Boolean, default: false },
+    setInitialPolicies: { type: Boolean, default: false },
+    hasSetupPayroll: { type: Boolean, default: false },
     address: String,
     status: String,
     numberOfEmployees: String,
@@ -175,16 +177,16 @@ const organizationSchma = new Schema<IOrganization>(
         gracePeriod: { type: Number, default: 3 },
         nextPlan: {
           type: Schema.Types.ObjectId,
-          ref: 'SubscriptionPlan'
+          ref: "SubscriptionPlan",
         },
         object: {
           type: Schema.Types.ObjectId,
-          ref: 'Subscription'
-        }
-      }
+          ref: "Subscription",
+        },
+      },
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 organizationSchma.plugin(aggregatePaginate);

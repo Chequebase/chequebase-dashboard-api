@@ -34,6 +34,7 @@ const PayrollSettingSchema = new Schema<IPayrollSetting>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true,
+      unique: true
     },
     deductions: [
       {

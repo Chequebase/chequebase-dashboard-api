@@ -15,6 +15,7 @@ export interface IPayrollUser {
   employmentDate: Date;
   employmentType: string;
   salary: any;
+  user?: any
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,10 +41,15 @@ const PayrollUserSchema = new Schema<IPayrollUser>(
       enum: Object.values(EmploymentType),
       required: true
     },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      unique: true,
+      sparse: true
+    },
     salary: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Salary",
-      required: true,
+      ref: "Salary"
     },
   },
   { timestamps: true }

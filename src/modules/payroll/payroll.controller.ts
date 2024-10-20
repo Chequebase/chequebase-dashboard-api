@@ -124,4 +124,10 @@ export default class PayrollController {
   ) {
     return this.payrollService.addPayrollUser(auth.orgId, dto);
   }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Post("/setup-payroll")
+  setupPayroll(@CurrentUser() auth: AuthUser,) {
+    return this.payrollService.setupPayroll(auth.orgId);
+  }
 }
