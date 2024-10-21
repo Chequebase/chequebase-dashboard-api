@@ -143,7 +143,7 @@ export class AddPayrollUserDto {
   @IsString()
   @IsOptional()
   taxId: string;
-  
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => Deduction)
@@ -159,20 +159,25 @@ export class AddPayrollUserDto {
 
 export class EditPayrollUserDto {
   @IsDateString()
+  @IsOptional()
   employmentDate: string;
 
   @IsEnum(EmploymentType)
+  @IsOptional()
   employmentType: string;
 
   @IsString()
+  @IsOptional()
   bankCode: string;
 
   @IsString()
+  @IsOptional()
   accountNumber: string;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => Deduction)
+  @IsOptional()
   deductions: Deduction[];
 
   @IsString()
@@ -183,5 +188,6 @@ export class EditPayrollUserDto {
   @ArrayMinSize(1, { message: "There must be at least one earning." })
   @ValidateNested({ each: true })
   @Type(() => Earning)
+  @IsOptional()
   earnings: Earning[];
 }
