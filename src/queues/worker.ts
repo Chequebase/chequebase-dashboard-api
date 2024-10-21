@@ -19,6 +19,7 @@ import processKycRejected from './jobs/organization/processKycRejected';
 import processFundBudget from './jobs/budget/fund-budget.job';
 import { addWalletEntriesForIngestionToElastic, processWalletEntryToElasticsearch } from './jobs/wallet/wallet-entry-elasticsearch-ingester';
 import processPayroll from './jobs/payroll/process-payout.job';
+import createNextPayrolls from './jobs/payroll/create-next-payroll';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -72,6 +73,10 @@ function setupQueues() {
     })
 
     payrollQueue.process('processPayout', processPayroll)
+    payrollQueue.process(createNextPayrolls.name, createNextPayrolls);
+    payrollQueue.add(createNextPayrolls.name, null, {
+      repeat: { cron: "0 8 1 * *", tz }, // every 1st day of month at 8am
+    });
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message

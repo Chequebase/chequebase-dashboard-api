@@ -3,6 +3,11 @@ import numeral from 'numeral'
 import { InternalServerError } from "routing-controllers";
 import Logger from './logger';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 const logger = new Logger('utils');
 
@@ -52,7 +57,7 @@ const isBusinessDay = (date: dayjs.Dayjs): boolean => {
 };
 
 export function getLastBusinessDay(year: number, month: number) {
-  let lastDay = dayjs(new Date(year, month + 1, 0)).tz("Africa/Lagos"); // Last day of the month
+  let lastDay = dayjs(new Date(year, month + 1, 0)).tz("Africa/Lagos", true); // Last day of the month
   while (!isBusinessDay(lastDay)) {
     lastDay = lastDay.subtract(1, "day");
   }

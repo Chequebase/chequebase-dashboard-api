@@ -6,6 +6,7 @@ import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum PayrollApprovalStatus {
   Pending = "pending",
+  InReview = "in_review",
   Approved = "approved",
   Rejected = "rejected",
 }
@@ -21,6 +22,7 @@ export interface IPayroll {
   organization: any;
   date: Date;
   approvalStatus: PayrollApprovalStatus;
+  approvalRequest: any
   status: PayrollStatus;
   periodStartDate: Date
   periodEndDate: Date
@@ -57,6 +59,10 @@ const PayrollSchema = new Schema<IPayroll>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Wallet",
       required: true,
+    },
+    approvalRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ApprovalRequest",
     },
     periodStartDate: { type: Date, required: true },
     periodEndDate: { type: Date, required: true },

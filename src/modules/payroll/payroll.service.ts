@@ -28,6 +28,8 @@ import { IProcessPayroll } from "@/queues/jobs/payroll/process-payout.job";
 import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import * as fastCsv from "fast-csv";
 import { ObjectId } from "mongodb";
 import numeral from "numeral";
@@ -57,6 +59,8 @@ import {
 import EmailService from "../common/email.service";
 
 dayjs.extend(isSameOrAfter);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 @Service()
 export class PayrollService {
@@ -218,7 +222,7 @@ export class PayrollService {
     };
   }
 
-  private async getNextPayrollRunDate(orgId: string) {
+  async getNextPayrollRunDate(orgId: string) {
     let payrollSetting = await PayrollSetting.findOne({ organization: orgId });
     if (!payrollSetting) {
       payrollSetting = await PayrollSetting.create({ organization: orgId });
@@ -231,9 +235,9 @@ export class PayrollService {
     const month = today.month();
     const year = today.year();
     if (mode === PayrollScheduleMode.Fixed && dayOfMonth) {
-      let fixedRunDate = dayjs.tz(new Date(year, month, dayOfMonth), tz);
+      let fixedRunDate = dayjs(new Date(year, month, dayOfMonth)).tz(tz, true);
       if (today.isAfter(fixedRunDate, "date")) {
-        fixedRunDate = dayjs.tz(new Date(year, month + 1, dayOfMonth), tz);
+        fixedRunDate = dayjs(new Date(year, month + 1, dayOfMonth)).tz(tz, true);
       }
 
       return fixedRunDate.toDate();
@@ -308,12 +312,13 @@ export class PayrollService {
   }
 
   async payrollStatistics(orgId: string) {
+    const today = dayjs().tz()
     const result = await Payroll.aggregate()
       .match({
         organization: new ObjectId(orgId),
         date: {
-          $gte: dayjs().startOf("year").toDate(),
-          $lte: dayjs().endOf("year").toDate(),
+          $gte: today.startOf("year").toDate(),
+          $lte: today.endOf("year").toDate(),
         },
       })
       .lookup({
@@ -600,10 +605,8 @@ export class PayrollService {
     const today = dayjs();
     const pendingPayroll = await Payroll.findOne({
       organization: orgId,
-      date: {
-        $gte: today.startOf("month").toDate(),
-        $lte: today.endOf("month").toDate(),
-      },
+      periodStartDate: today.startOf('month').toDate(),
+      periodEndDate: today.endOf('month').toDate(),
     });
     if (pendingPayroll) {
       throw new BadRequestError(
@@ -723,19 +726,31 @@ export class PayrollService {
       return this.approvePayroll(payroll.id, auth.userId);
     }
 
-    await ApprovalRequest.create({
-      organization: auth.orgId,
-      workflowType: WorkflowType.Payroll,
-      approvalType: rule!.approvalType,
-      requester: auth.userId,
-      approvalRule: rule!._id,
-      priority: ApprovalRequestPriority.High,
-      reviews: rule!.reviewers.map((user) => ({
-        user,
-        status: user.equals(auth.userId) ? "approved" : "pending",
-      })),
-      properties: { payroll: payroll._id },
-    });
+    if (payroll.approvalStatus === PayrollApprovalStatus.InReview) {
+      return { message: "payroll already in review", approvalRequired: true };
+    }
+
+    const requestId = new ObjectId()
+    await Promise.all([
+      ApprovalRequest.create({
+        _id: requestId,
+        organization: auth.orgId,
+        workflowType: WorkflowType.Payroll,
+        approvalType: rule!.approvalType,
+        requester: auth.userId,
+        approvalRule: rule!._id,
+        priority: ApprovalRequestPriority.High,
+        reviews: rule!.reviewers.map((user) => ({
+          user,
+          status: user.equals(auth.userId) ? "approved" : "pending",
+        })),
+        properties: { payroll: payroll._id },
+      }),
+      payroll.updateOne({
+        approvalStatus: PayrollApprovalStatus.InReview,
+        approvalRequest: requestId,
+      }),
+    ]);
 
     rule!.reviewers.forEach((reviewer) => {
       this.emailService.sendPayrollApprovalRequest(reviewer.email, {
@@ -793,6 +808,7 @@ export class PayrollService {
         provider: TransferClientName.Anchor,
         bank: user.salary.bank,
         salaryBreakdown: {
+          // TODO: calculate deduction for days not worked for employees that didn't complete a full month
           netAmount: user.salary.net,
           grossAmount: user.salary.gross,
           earnings: user.salary.earnings,
