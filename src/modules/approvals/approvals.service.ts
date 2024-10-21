@@ -364,7 +364,7 @@ export class ApprovalService {
   }
 
   async createDefaultApprovalRules(orgId: string, userId: string) {
-    const rules = [
+    const defaultRules = [
       {
         name: "Transaction Rule",
         amount: 0,
@@ -412,7 +412,8 @@ export class ApprovalService {
       },
     ];
     
-    return ApprovalRule.create(rules)
+    const rules = await ApprovalRule.create(defaultRules);
+    return rules 
   }
 
   async sendRequestReminder(auth: AuthUser, requestId: string) {
