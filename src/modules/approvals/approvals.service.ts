@@ -18,6 +18,7 @@ import EmailService from "../common/email.service";
 import dayjs from "dayjs";
 import Organization from "@/models/organization.model";
 import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
+import { PayrollService } from "../payroll/payroll.service";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -29,6 +30,7 @@ export class ApprovalService {
   constructor (
     private budgetService: BudgetService,
     private budgetTnxService: BudgetTransferService,
+    private payrollService: PayrollService,
     private emailService: EmailService
   ) { }
 
@@ -247,10 +249,7 @@ export class ApprovalService {
         })
         break;
       case WorkflowType.Payroll:
-        await Payroll.updateOne(
-          { _id: request.properties.payroll },
-          { approvalStatus: PayrollApprovalStatus.Approved }
-        );
+        await this.payrollService.approvePayroll(request.properties.payroll, request.requester._id)
         response = {
           status: PayrollApprovalStatus.Approved,
           approvalRequired: false,
@@ -474,6 +473,8 @@ export class ApprovalService {
     pendingReviews.forEach(review => {
       if(request.workflowType === WorkflowType.Transaction)
         this.emailService.sendTransactionApprovalRequest(review.user.email, getVariables(request.requester))
+      if(request.workflowType === WorkflowType.Payroll)
+        this.emailService.sendPayrollApprovalRequest(review.user.email, getVariables(request.requester))
       else if (request.workflowType === WorkflowType.Expense)
         this.emailService.sendExpenseApprovalRequest(review.user.email, getVariables(request.requester))
       else if (request.workflowType === WorkflowType.FundRequest)

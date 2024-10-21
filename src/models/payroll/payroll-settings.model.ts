@@ -17,6 +17,7 @@ export interface IPayrollSetting {
     percentage: number;
   }>;
   schedule: {
+    nextRunDate: Date
     mode: PayrollScheduleMode;
     dayOfMonth?: number;
   };
@@ -43,6 +44,7 @@ const PayrollSettingSchema = new Schema<IPayrollSetting>(
       },
     ],
     schedule: {
+      nextRunDate: Date,
       dayOfMonth: Number,
       mode: {
         type: String,

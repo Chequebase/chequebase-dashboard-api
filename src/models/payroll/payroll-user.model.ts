@@ -16,6 +16,7 @@ export interface IPayrollUser {
   employmentDate: Date;
   employmentType: string;
   user?: any;
+  taxId: string
   salary: {
     currency: string;
     earnings: {
@@ -26,6 +27,8 @@ export interface IPayrollUser {
       name: string;
       percentage: number;
     }[];
+    netAmount: number;
+    grossAmount: number;
   };
   bank: {
     accountName: string;
@@ -54,6 +57,7 @@ const PayrollUserSchema = new Schema<IPayrollUser>(
     phoneNumber: { type: String, required: true },
     email: { type: String, required: true },
     employmentDate: { type: Date },
+    taxId: String,
     deletedAt: { type: Date },
     employmentType: {
       type: String,
@@ -74,19 +78,24 @@ const PayrollUserSchema = new Schema<IPayrollUser>(
       sparse: true,
     },
     salary: {
-      currency: { type: String, required: true },
-      earnings: [
-        {
-          name: String,
-          amount: Number,
-        },
-      ],
-      deductions: [
-        {
-          name: String,
-          percentage: Number,
-        },
-      ],
+      required: false,
+      type: {
+        currency: { type: String, required: true },
+        netAmount: { type: Number, default: 0 },
+        grossAmount: { type: Number, default: 0 },
+        earnings: [
+          {
+            name: String,
+            amount: Number,
+          },
+        ],
+        deductions: [
+          {
+            name: String,
+            percentage: Number,
+          },
+        ],
+      },
     },
   },
   { timestamps: true }

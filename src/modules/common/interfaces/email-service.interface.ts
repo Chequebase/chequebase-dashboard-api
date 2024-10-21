@@ -204,6 +204,11 @@ export interface SendExpenseApprovalRequest {
   link: string
 }
 
+export interface SendPayrollApprovalRequest {
+  employeeName: string
+  link: string
+}
+
 export interface SendFundRequestApprovalRequest {
   employeeName: string
   workflowType: string

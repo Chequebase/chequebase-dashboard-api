@@ -28,9 +28,7 @@ dayjs.extend(timezone);
 
 export interface IProcessPayroll {
   payroll: string;
-  wallet: string;
-  orgId: string;
-  initiatedBy: string;
+  initiatedBy: string
 }
 
 const logger = new Logger("process-payroll.job");
@@ -39,12 +37,11 @@ const transferService = Container.get(TransferService);
 
 async function processPayroll(job: Job<IProcessPayroll>) {
   const data = job.data;
-  const { orgId, initiatedBy, payroll } = data;
+  const { initiatedBy, payroll } = data;
 
   try {
     const payouts = await PayrollPayout.find({
       payroll,
-      organization: orgId,
       status: {
         $in: [PayrollPayoutStatus.Pending, PayrollPayoutStatus.Failed],
       },

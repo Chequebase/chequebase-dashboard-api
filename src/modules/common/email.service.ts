@@ -52,6 +52,15 @@ export default class EmailService {
     })
   }
 
+  sendPayrollApprovalRequest(to: string, data: T.SendPayrollApprovalRequest) {
+    return this.send({
+      to,
+      subject: "Payroll approval request",
+      templateId: "d-865fc41d5db64dfe813d432c76d04924",
+      dynamicTemplateData: data,
+    });
+  }
+
   sendMemberReactivation(to: string, data: T.SendMemberReactivation) {
     return this.send({
       to,

@@ -10,14 +10,23 @@ export enum PayrollApprovalStatus {
   Rejected = "rejected",
 }
 
+export enum PayrollStatus {
+  Pending = "pending",
+  Processing = "processing",
+  Successful = "successful",
+}
+
 export interface IPayroll {
   _id: ObjectId;
   organization: any;
   date: Date;
   approvalStatus: PayrollApprovalStatus;
+  status: PayrollStatus;
+  periodStartDate: Date
+  periodEndDate: Date
   totalNetAmount: number;
   totalGrossAmount: number;
-  totalEmployees: number
+  totalEmployees: number;
   wallet: any;
   createdAt: Date;
   updatedAt: Date;
@@ -39,12 +48,19 @@ const PayrollSchema = new Schema<IPayroll>(
       enum: Object.values(PayrollApprovalStatus),
       default: PayrollApprovalStatus.Pending,
     },
+    status: {
+      type: String,
+      enum: Object.values(PayrollStatus),
+      default: PayrollStatus.Pending,
+    },
     wallet: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Wallet",
       required: true,
     },
-    totalEmployees: Number, 
+    periodStartDate: { type: Date, required: true },
+    periodEndDate: { type: Date, required: true },
+    totalEmployees: Number,
     totalGrossAmount: Number,
     totalNetAmount: Number,
     date: { type: Date, required: true },
