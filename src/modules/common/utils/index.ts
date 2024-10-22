@@ -36,8 +36,10 @@ export function getPercentageDiff(previousValue = 0, currentValue = 0) {
   return { value: currentValue, percentageDiff: Number(percentageDiff.toFixed(2)) };
 }
 
-export function formatMoney(amount: number) {
-  return numeral(amount).divide(100).value()!.toLocaleString()
+export function formatMoney(amount: number, currency?: string) {
+  let value = numeral(amount).divide(100).value()!.toLocaleString()
+  if (currency) value = `${currency} ${value}`;
+  return value;
 }
 
 export const transactionOpts: TransactionOptions = {
@@ -46,7 +48,7 @@ export const transactionOpts: TransactionOptions = {
   writeConcern: { w: 'majority' }
 }
 
-export function toTitleCase(s: string) {
+export function toTitleCase(s = '') {
   return s.replace(/^[-_]*(.)/, (_, c) => c.toUpperCase())
     .replace(/[-_]+(.)/g, (_, c) => ' ' + c.toUpperCase())
 }

@@ -159,10 +159,11 @@ export class ApprovalService {
       }
     }
 
-    const requests = await ApprovalRequest.paginate(filter.object, {
+    let requests = await ApprovalRequest.paginate(filter.object, {
       page: Number(query.page),
       limit: query.limit,
       sort: '-createdAt',
+      lean: true,
       populate: [
         {
           path: 'reviews.user', select: 'firstName lastName avatar',
@@ -179,6 +180,29 @@ export class ApprovalService {
       ]
     })
 
+    
+    requests.docs = await Promise.all(
+      requests.docs.map(async (request) => {
+        const isPayroll = request.workflowType === WorkflowType.Payroll;
+        if (
+          !isPayroll ||
+          (isPayroll && request.status === ApprovalRequestReviewStatus.Approved)
+        ) {
+          return request;
+        }
+        
+        // prevent unapproved payroll from having stale data returned
+        const users = await this.payrollService.getPayrollUsers(request.organization)
+        const totalNet = users.reduce((acc, user) => acc + user.salary.netAmount, 0);
+        const totalGross = users.reduce((acc, user) => acc + user.salary.grossAmount, 0);
+        request.properties.payroll.totalNetAmount = totalNet
+        request.properties.payroll.totalGrossAmount = totalGross;
+        request.properties.payroll.totalEmployees = users.length;
+
+        return request
+      })
+    );
+      
     return requests
   }
 

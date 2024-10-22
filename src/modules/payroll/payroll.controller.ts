@@ -78,7 +78,7 @@ export default class PayrollController {
     @CurrentUser() auth: AuthUser,
     @Body() body: UpdatePayrollSettingDto
   ) {
-    await this.usageService.checkPayrollUsage(auth.orgId)
+    await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.updatePayrollSetting(auth.orgId, body);
   }
 
@@ -120,6 +120,48 @@ export default class PayrollController {
     const passthrough = new PassThrough();
     const { filename, stream } =
       await this.payrollService.exportEmployeePayouts(auth.orgId, user);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.attachment(filename);
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+
+    stream.pipe(passthrough);
+
+    return passthrough;
+  }
+
+  @Get("/:id/payouts/export")
+  @Authorized(EPermission.PayrollRead)
+  async exportPayrollPayouts(
+    @Res() res: Response,
+    @CurrentUser() auth: AuthUser,
+    @Param("id") id: string
+  ) {
+    const passthrough = new PassThrough();
+    const { filename, stream } = await this.payrollService.exportPayrollPayouts(
+      auth.orgId,
+      id
+    );
+
+    res.setHeader("Content-Type", "text/csv");
+    res.attachment(filename);
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+
+    stream.pipe(passthrough);
+
+    return passthrough;
+  }
+
+  @Get("/employees/export")
+  @Authorized(EPermission.PayrollRead)
+  async exportPayrollUsers(
+    @Res() res: Response,
+    @CurrentUser() auth: AuthUser,
+  ) {
+    const passthrough = new PassThrough();
+    const { filename, stream } = await this.payrollService.exportPayrollUsers(
+      auth.orgId,
+    );
 
     res.setHeader("Content-Type", "text/csv");
     res.attachment(filename);

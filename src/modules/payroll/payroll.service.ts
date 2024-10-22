@@ -43,6 +43,7 @@ import {
   getEnvOrThrow,
   getLastBusinessDay,
   getPercentageDiff,
+  toTitleCase,
 } from "../common/utils";
 import { getDates } from "../common/utils/date";
 import { TransferClientName } from "../transfer/providers/transfer.client";
@@ -310,7 +311,7 @@ export class PayrollService {
   }
 
   async payrollStatistics(orgId: string) {
-    const today = dayjs().tz('Africa/Lagos');
+    const today = dayjs().tz("Africa/Lagos");
     const result = await Payroll.aggregate()
       .match({
         organization: new ObjectId(orgId),
@@ -416,7 +417,17 @@ export class PayrollService {
     const payoutsAggr = PayrollPayout.find({
       organization: orgId,
       payroll: payrollId,
-    }).select("-logs -meta");
+    })
+      .populate({
+        path: "payrollUser",
+        select: "user firstName lastName employmentType",
+        populate: {
+          path: "user",
+          select: "departments",
+          populate: { path: "departments", select: "name" },
+        },
+      })
+      .select("salary status");
 
     const [payouts, stats] = await Promise.all([
       payoutsAggr,
@@ -490,6 +501,83 @@ export class PayrollService {
     return { stream, filename: "paystub.csv" };
   }
 
+  async exportPayrollPayouts(orgId: string, payrollId: string) {
+    const cursor = PayrollPayout.find({
+      organization: orgId,
+      payroll: payrollId,
+    })
+      .populate({
+        path: "payrollUser",
+        select: "user firstName lastName employmentType",
+        populate: {
+          path: "user",
+          select: "departments",
+          populate: { path: "departments", select: "name" },
+        },
+      })
+      .cursor();
+
+    const stream = fastCsv
+      .format({ headers: true })
+      .transform((payout: any) => ({
+        "First name": payout.payrollUser.firstName,
+        "Last name": payout.payrollUser.lastName,
+        "Account number": payout.bank.accountNumber,
+        "Bank name": payout.bank.bankName,
+        Department: payout.payrollUser?.user?.departments
+          ?.map((d: any) => d.name)
+          ?.join(", "),
+        "Employement type": toTitleCase(payout.payrollUser.employementType),
+        "Net salary": formatMoney(payout.salary.netAmount, payout.currency),
+        "Gross salary": formatMoney(payout.salary.grossAmount, payout.currency),
+        Status: payout.status.toUpperCase(),
+      }));
+
+    cursor.pipe(stream);
+
+    return { stream, filename: "payouts.csv" };
+  }
+
+  async exportPayrollUsers(orgId: string) {
+    const cursor = PayrollUser.find({
+      organization: orgId,
+      deletedAt: { $exists: false },
+      "salary.netAmount": { $gt: 0 },
+      bank: { $exists: true },
+    })
+      .populate({
+        path: "user",
+        select: "departments",
+        populate: { path: "departments", select: "name" },
+      })
+      .cursor();
+
+    const stream = fastCsv
+      .format({ headers: true })
+      .transform((pUser: any) => ({
+        "First name": pUser.firstName,
+        "Last name": pUser.lastName,
+        "Account number": pUser.bank?.accountNumber,
+        "Bank name": pUser.bank?.bankName,
+        Department: pUser?.user?.departments
+          ?.map((d: any) => d.name)
+          ?.join(", "),
+        "Employement type": toTitleCase(pUser.employementType),
+        "Net salary": formatMoney(
+          pUser.salary.netAmount,
+          pUser.salary.currency || 'NGN'
+        ),
+        "Gross salary": formatMoney(
+          pUser.salary.grossAmount,
+          pUser.salary.currency || "NGN"
+        ),
+      }));
+
+    cursor.pipe(stream);
+
+    return { stream, filename: "payroll-users.csv" };
+  }
+
   async getPayrollWallet(orgId: string) {
     const org = await Organization.findById(orgId);
     if (!org) {
@@ -541,8 +629,14 @@ export class PayrollService {
 
     let users = await this.getPayrollUsers(orgId);
     users = users.filter((u) => u.salary && u.salary.netAmount && u.bank);
-    const totalNet = users.reduce((acc, user) => acc + user.salary.netAmount, 0);
-    const totalGross = users.reduce((acc, user) => acc + user.salary.grossAmount, 0);
+    const totalNet = users.reduce(
+      (acc, user) => acc + user.salary.netAmount,
+      0
+    );
+    const totalGross = users.reduce(
+      (acc, user) => acc + user.salary.grossAmount,
+      0
+    );
     if (!users.length) {
       throw new BadRequestError(
         "Unable to create payroll, ensure your employees have salary and bank account"
@@ -576,9 +670,9 @@ export class PayrollService {
   }
 
   async processPayroll(auth: AuthUser, dto: ProcessPayrollDto) {
-    const valid = await UserService.verifyTransactionPin(auth.userId, dto.pin)
+    const valid = await UserService.verifyTransactionPin(auth.userId, dto.pin);
     if (!valid) {
-      throw new BadRequestError("Invalid pin")
+      throw new BadRequestError("Invalid pin");
     }
 
     const payroll = await Payroll.findOne({
@@ -731,10 +825,10 @@ export class PayrollService {
         payrollUser: user._id,
         status: PayrollPayoutStatus.Pending,
         amount: user.salary.netAmount,
-        currency: user.salary.currency || 'NGN',
+        currency: user.salary.currency || "NGN",
         provider: TransferClientName.Anchor,
         bank: user.bank,
-        salaryBreakdown: {
+        salary: {
           // TODO: calculate deduction for days not worked for employees that didn't complete a full month
           netAmount: user.salary.netAmount,
           grossAmount: user.salary.grossAmount,
