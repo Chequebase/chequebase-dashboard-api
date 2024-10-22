@@ -253,18 +253,18 @@ export class PayrollService {
 
   async topDepartments(orgId: string) {
     const limit = 5;
-    const result = await User.aggregate()
+    const result = await PayrollUser.aggregate()
       .match({ organization: new ObjectId(orgId) })
       .lookup({
-        from: "salaries",
-        localField: "salary",
+        from: "users",
+        localField: "user",
         foreignField: "_id",
-        as: "salary",
+        as: "user",
       })
-      .unwind("$salary")
+      .unwind('$user')
       .lookup({
         from: "departments",
-        localField: "departments",
+        localField: "user.departments",
         foreignField: "_id",
         as: "department",
       })
@@ -288,15 +288,8 @@ export class PayrollService {
 
   async topEarners(orgId: string) {
     const limit = 10;
-    const result = await User.aggregate()
+    const result = await PayrollUser.aggregate()
       .match({ organization: new ObjectId(orgId) })
-      .lookup({
-        from: "salaries",
-        localField: "salary",
-        foreignField: "_id",
-        as: "salary",
-      })
-      .unwind("$salary")
       .sort({ "salary.netAmount": -1 })
       .limit(limit)
       .project({
@@ -399,62 +392,15 @@ export class PayrollService {
   }
 
   async history(orgId: string, query: GetHistoryDto) {
-    const aggregate = Payroll.aggregate()
-      .match({
-        organization: new ObjectId(orgId),
-        approvalStatus: { $ne: PayrollApprovalStatus.Rejected },
-      })
-      .lookup({
-        from: "payrollpayouts",
-        localField: "_id",
-        foreignField: "payroll",
-        as: "payouts",
-      })
-      .unwind("$payouts")
-      .group({
-        _id: "$_id",
-        date: { $first: "$date" },
-        payoutCount: { $sum: 1 },
-        amountsByCurrency: {
-          $push: {
-            currency: "$payouts.currency",
-            totalAmount: "$payouts.amount",
-          },
-        },
-        statuses: { $addToSet: "$payouts.status" },
-      })
-      .addFields({
-        payrollStatus: {
-          $switch: {
-            branches: [
-              {
-                case: { $in: [PayrollPayoutStatus.Failed, "$statuses"] },
-                then: PayrollPayoutStatus.Failed,
-              },
-              {
-                case: { $in: [PayrollPayoutStatus.Processing, "$statuses"] },
-                then: PayrollPayoutStatus.Processing,
-              },
-              {
-                case: { $in: [PayrollPayoutStatus.Pending, "$statuses"] },
-                then: PayrollPayoutStatus.Pending,
-              },
-            ],
-            default: "completed",
-          },
-        },
-      })
-      .project({
-        _id: 1,
-        date: 1,
-        payoutCount: 1,
-        amountsByCurrency: 1,
-        payrollStatus: 1,
-      });
+    const filter = {
+      organization: orgId,
+      approvalStatus: { $ne: PayrollApprovalStatus.Rejected },
+    };
 
-    const result = await Payroll.aggregatePaginate(aggregate, {
+    const result = await Payroll.paginate(filter, {
       limit: 12,
       page: Number(query.page),
+      sort: '-periodStartDate',
       lean: true,
     });
 
@@ -462,44 +408,10 @@ export class PayrollService {
   }
 
   async payrollDetails(orgId: string, payrollId: string) {
-    const payoutsAggr = PayrollPayout.aggregate()
-      .match({
-        organization: new ObjectId(orgId),
-        payroll: new ObjectId(payrollId),
-      })
-      .lookup({
-        from: "users",
-        let: { userId: "$user" },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$$user", "$_id"] } } },
-          {
-            $lookup: {
-              from: "departments",
-              foreignField: "_id",
-              localField: "departments",
-              as: "departments",
-            },
-          },
-          {
-            $project: {
-              firstName: 1,
-              lastName: 1,
-              employementType: 1,
-              departments: { name: 1 },
-            },
-          },
-        ],
-        as: "user",
-      })
-      .unwind("$user")
-      .project({
-        user: 1,
-        bank: 1,
-        status: 1,
-        currency: 1,
-        netSalary: "$salaryBreakdown.netAmount",
-        grossSalary: "$salaryBreakdown.grossAmount",
-      });
+    const payoutsAggr = PayrollPayout.find({
+      organization: orgId,
+      payroll: payrollId,
+    }).select('-logs -meta');
 
     const [payouts, stats] = await Promise.all([
       payoutsAggr,
@@ -790,7 +702,6 @@ export class PayrollService {
         totalEmployees: users.length,
         totalGrossAmount: totalGross,
         totalNetAmount: totalNet,
-        status: PayrollStatus.Processing,
         approvalStatus: PayrollApprovalStatus.Approved,
       },
     });

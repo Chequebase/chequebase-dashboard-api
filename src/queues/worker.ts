@@ -20,6 +20,7 @@ import processFundBudget from './jobs/budget/fund-budget.job';
 import { addWalletEntriesForIngestionToElastic, processWalletEntryToElasticsearch } from './jobs/wallet/wallet-entry-elasticsearch-ingester';
 import processPayroll from './jobs/payroll/process-payout.job';
 import createNextPayrolls from './jobs/payroll/create-next-payroll';
+import fetchDuePayrolls from './jobs/payroll/fetch-due-payrolls';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -76,6 +77,10 @@ function setupQueues() {
     payrollQueue.process(createNextPayrolls.name, createNextPayrolls);
     payrollQueue.add(createNextPayrolls.name, null, {
       repeat: { cron: "0 8 1 * *", tz }, // every 1st day of month at 8am
+    });
+    payrollQueue.process(fetchDuePayrolls.name, fetchDuePayrolls);
+    payrollQueue.add(fetchDuePayrolls.name, null, {
+      repeat: { cron: "0 15,16,17,18 * * *", tz }, // every 3,4,5,6pm 
     });
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {

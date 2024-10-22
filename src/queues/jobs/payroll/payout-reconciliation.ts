@@ -20,6 +20,7 @@ import numeral from "numeral";
 import { BadRequestError } from "routing-controllers";
 import Container from "typedi";
 import { WalletOutflowData } from "../wallet/wallet-outflow.job";
+import Payroll, { PayrollStatus } from "@/models/payroll/payroll.model";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -44,6 +45,13 @@ async function success(
     );
   }, transactionOpts);
 
+  const payouts = await PayrollPayout.find({ payroll: entry.payroll }).select('status').lean()
+  if (payouts.every(payout => payout.status === PayrollPayoutStatus.Settled)) {
+    await Payroll.updateOne(
+      { _id: entry.payroll },
+      { status: PayrollStatus.Completed }
+    );
+  }
   // TODO: send email notification to employee
   //  emailService.sendTransferSuccessEmail(entry.initiatedBy.email, {
   //  });
@@ -103,7 +111,8 @@ async function reversal(
             budget: entry.budget,
             currency: entry.currency,
             wallet: entry.wallet,
-            project: entry.project,
+            payroll: entry.payroll,
+            payoutPayroll: entry.payrollPayout,
             scope: WalletEntryScope.PayrollFunding,
             amount: reverseAmount,
             ledgerBalanceBefore: entry.wallet.ledgerBalance,

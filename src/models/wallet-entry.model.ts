@@ -40,6 +40,7 @@ export interface IWalletEntry {
   project?: any;
   wallet: any
   payrollPayout: any
+  payroll: any
   initiatedBy: any;
   currency: string;
   type: WalletEntryType;
@@ -88,6 +89,10 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     payrollPayout: {
       type: Schema.Types.ObjectId,
       ref: "PayrollPayout",
+    },
+    payroll: {
+      type: Schema.Types.ObjectId,
+      ref: "Payroll",
     },
     project: {
       type: Schema.Types.ObjectId,

@@ -14,7 +14,7 @@ export enum PayrollApprovalStatus {
 export enum PayrollStatus {
   Pending = "pending",
   Processing = "processing",
-  Successful = "successful",
+  Completed = "completed",
 }
 
 export interface IPayroll {

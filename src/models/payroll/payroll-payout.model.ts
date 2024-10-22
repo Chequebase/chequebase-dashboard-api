@@ -31,6 +31,7 @@ export interface IPayrollPayout {
   amount: number;
   currency: PayrollPayoutCurrency;
   provider: TransferClientName;
+  logs: {request: any, response: any, timestamp: Date}[]
   bank: {
     accountName: string;
     accountNumber: string;
@@ -125,6 +126,11 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
       ref: "Wallet",
       required: true,
     },
+    logs: [{
+      request: Object,
+      response: Object,
+      timestamp: Date
+    }],
     meta: Object,
   },
   { timestamps: true }
