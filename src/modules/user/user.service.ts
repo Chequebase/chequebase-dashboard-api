@@ -173,10 +173,8 @@ export class UserService {
     })
     await user.updateOne({ organization: organization._id })
 
-    await Promise.all([
-      this.approvalService.createDefaultApprovalRules(organization.id, user.id),
-      this.budgetTnxService.createDefaultCategories(organization.id)
-    ]);
+    await this.approvalService.createDefaultApprovalRules(organization._id.toString(), user.id)
+    await this.budgetTnxService.createDefaultCategories(organization._id.toString())
 
     const message = `${data.businessName}, with email: ${data.email} just signed up`;
     this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
