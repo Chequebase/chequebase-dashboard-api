@@ -34,6 +34,11 @@ export interface WalletOutflowDataNotification extends WalletOutflowData {
   bankName: string;
 }
 
+export interface BookWalletOutflowDataNotification extends WalletOutflowData {
+  businessName: string;
+  customerId: string;
+}
+
 const logger = new Logger("wallet-inflow.job");
 
 async function processWalletOutflow(job: Job<WalletOutflowData>) {
