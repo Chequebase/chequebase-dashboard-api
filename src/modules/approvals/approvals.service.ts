@@ -437,6 +437,7 @@ export class ApprovalService {
     ];
     
     const rules = await ApprovalRule.create(defaultRules);
+    console.log({ rules })
     return rules 
   }
 

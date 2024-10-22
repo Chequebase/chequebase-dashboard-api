@@ -173,7 +173,7 @@ export class UserService {
     })
     await user.updateOne({ organization: organization._id })
 
-    await this.approvalService.createDefaultApprovalRules(organization._id.toString(), user.id)
+    await this.approvalService.createDefaultApprovalRules(organization._id.toString(), user._id.toString())
     await this.budgetTnxService.createDefaultCategories(organization._id.toString())
 
     const message = `${data.businessName}, with email: ${data.email} just signed up`;
