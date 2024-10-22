@@ -16,15 +16,15 @@ import bcrypt, { compare } from 'bcryptjs';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
 import { Service } from "typedi";
-import { ApprovalService } from "../approvals/approvals.service";
 import { PlanUsageService } from "../billing/plan-usage.service";
-import { BudgetTransferService } from "../budget/budget-transfer.service";
 import { S3Service } from "../common/aws/s3.service";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import Logger from "../common/utils/logger";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import WalletService from "../wallet/wallet.service";
 import { AddEmployeeDto, CreateEmployeeDto, ERole, GetAllMembersQueryDto, GetMembersQueryDto, LoginDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
+import TransferCategory from "@/models/transfer-category";
 
 const logger = new Logger('user-service')
 const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
@@ -38,8 +38,6 @@ export class UserService {
     private emailService: EmailService,
     private planUsageService: PlanUsageService,
     private slackNotificationService: SlackNotificationService,
-    private approvalService: ApprovalService,
-    private budgetTnxService: BudgetTransferService,
   ) { }
 
   static async verifyTransactionPin(id: string, pin: string) {
@@ -121,6 +119,66 @@ export class UserService {
     return { success: true, message: 'User reactivated successfully' }
   }
 
+  async createDefaultCategories(orgId: string) {
+    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
+    const categories = await TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
+    return categories
+  }
+
+  async createDefaultApprovalRules(orgId: string, userId: string) {
+    const defaultRules = [
+      {
+        name: "Transaction Rule",
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Transaction,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: "Expense Rule",
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Expense,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: "Budget Extension Rule",
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.BudgetExtension,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: "Fund Request",
+        amount: 0,
+        approvalType: ApprovalType.Anyone,
+        createdBy: userId,
+        workflowType: WorkflowType.FundRequest,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: "Payroll",
+        amount: 0,
+        approvalType: ApprovalType.Anyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Payroll,
+        organization: orgId,
+        reviewers: [userId],
+      },
+    ];
+    
+    const rules = await ApprovalRule.create(defaultRules);
+    console.log({ rules })
+    return rules 
+  }
+
   async register(data: RegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const userExists = await User.findOne({ email: { $regex } })
@@ -173,8 +231,10 @@ export class UserService {
     })
     await user.updateOne({ organization: organization._id })
 
-    await this.approvalService.createDefaultApprovalRules(organization._id.toString(), user._id.toString())
-    await this.budgetTnxService.createDefaultCategories(organization._id.toString())
+    await Promise.all([
+      this.createDefaultApprovalRules(organization.id, user.id),
+      this.createDefaultCategories(organization.id)
+    ])
 
     const message = `${data.businessName}, with email: ${data.email} just signed up`;
     this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)

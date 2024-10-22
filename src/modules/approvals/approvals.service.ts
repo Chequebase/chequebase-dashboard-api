@@ -387,60 +387,6 @@ export class ApprovalService {
     return request
   }
 
-  async createDefaultApprovalRules(orgId: string, userId: string) {
-    const defaultRules = [
-      {
-        name: "Transaction Rule",
-        amount: 0,
-        approvalType: ApprovalType.Everyone,
-        createdBy: userId,
-        workflowType: WorkflowType.Transaction,
-        organization: orgId,
-        reviewers: [userId],
-      },
-      {
-        name: "Expense Rule",
-        amount: 0,
-        approvalType: ApprovalType.Everyone,
-        createdBy: userId,
-        workflowType: WorkflowType.Expense,
-        organization: orgId,
-        reviewers: [userId],
-      },
-      {
-        name: "Budget Extension Rule",
-        amount: 0,
-        approvalType: ApprovalType.Everyone,
-        createdBy: userId,
-        workflowType: WorkflowType.BudgetExtension,
-        organization: orgId,
-        reviewers: [userId],
-      },
-      {
-        name: "Fund Request",
-        amount: 0,
-        approvalType: ApprovalType.Anyone,
-        createdBy: userId,
-        workflowType: WorkflowType.FundRequest,
-        organization: orgId,
-        reviewers: [userId],
-      },
-      {
-        name: "Payroll",
-        amount: 0,
-        approvalType: ApprovalType.Anyone,
-        createdBy: userId,
-        workflowType: WorkflowType.Payroll,
-        organization: orgId,
-        reviewers: [userId],
-      },
-    ];
-    
-    const rules = await ApprovalRule.create(defaultRules);
-    console.log({ rules })
-    return rules 
-  }
-
   async sendRequestReminder(auth: AuthUser, requestId: string) {
     const request = await ApprovalRequest.findOne({ _id: requestId, organization: auth.orgId, 'request': auth.userId })
       .populate('reviews.user', 'email firstName lastName avatar')

@@ -584,10 +584,4 @@ export class BudgetTransferService {
 
     return { message: 'Recipient deleted' }
   }
-
-  async createDefaultCategories(orgId: string) {
-    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
-    const categories = await TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
-    return categories
-  }
 }
