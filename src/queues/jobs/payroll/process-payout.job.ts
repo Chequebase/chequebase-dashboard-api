@@ -41,7 +41,6 @@ const transferService = Container.get(TransferService);
 async function processPayroll(job: Job<IProcessPayroll>) {
   const data = job.data;
   const { initiatedBy, payroll } = data;
-
   try {
     let payouts: LeanDocument<IPayrollPayout>[] = [];
     await cdb.transaction(async (session) => {
@@ -77,7 +76,9 @@ async function processPayroll(job: Job<IProcessPayroll>) {
       { status: PayrollStatus.Processing }
     );
 
-    await Promise.all(payouts.map((p) => processPayout(initiatedBy, p)));
+    for (const payout of payouts) {
+      await processPayout(initiatedBy, payout);
+    }
 
     return { message: "payroll processed" };
   } catch (err: any) {
@@ -87,30 +88,28 @@ async function processPayroll(job: Job<IProcessPayroll>) {
 }
 
 async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
-  const fee = await budgetTransferService.calcTransferFee(
-    payout.organization,
-    payout.amount,
-    payout.currency
-  );
-  const amountToDeduct = numeral(payout.amount).add(fee).value()!;
-  if (payout.status === PayrollPayoutStatus.Failed) {
-    payout.id = `po_${createId()}`;
-    await PayrollPayout.updateOne({ _id: payout._id }, { id: payout.id });
-  }
+  try {
+    const fee = await budgetTransferService.calcTransferFee(
+      payout.organization,
+      payout.amount,
+      payout.currency
+    );
+    const amountToDeduct = numeral(payout.amount).add(fee).value()!;
+    if (payout.status === PayrollPayoutStatus.Failed) {
+      payout.id = `po_${createId()}`;
+      await PayrollPayout.updateOne({ _id: payout._id }, { id: payout.id });
+    }
 
-  logger.log("processing payout", { payout: payout._id });
+    logger.log("processing payout", { payout: payout._id });
 
-  let entry: IWalletEntry | undefined;
-  await cdb.transaction(async (session) => {
+    let entry: IWalletEntry | undefined;
     const wallet = await Wallet.findOneAndUpdate(
       {
         _id: payout.wallet,
         balance: { $gte: amountToDeduct },
       },
       { $inc: { balance: -amountToDeduct, ledgerBalance: -amountToDeduct } }
-    )
-      .populate("virtualAccounts")
-      .session(session);
+    ).populate("virtualAccounts");
     if (!wallet) {
       logger.error("insufficient wallet balance", {
         payout: payout._id,
@@ -119,37 +118,32 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       throw new BadRequestError("Insufficient balance");
     }
 
-    [entry] = await WalletEntry.create(
-      [
-        {
-          organization: payout.organization,
-          status: WalletEntryStatus.Pending,
-          currency: payout.currency,
-          wallet: payout.wallet._id,
-          amount: payout.amount,
-          fee,
-          initiatedBy: initiatedBy,
-          ledgerBalanceAfter: wallet.ledgerBalance,
-          ledgerBalanceBefore: numeral(wallet.ledgerBalance)
-            .add(amountToDeduct)
-            .value(),
-          balanceBefore: wallet.balance,
-          balanceAfter: numeral(wallet.balance).add(amountToDeduct).value(),
-          scope: WalletEntryScope.PayrollPayout,
-          payrollPayout: payout._id,
-          payroll: payout.payroll,
-          type: WalletEntryType.Debit,
-          narration: "Payroll Transfer",
-          paymentMethod: "transfer",
-          reference: payout.id,
-          provider: payout.provider,
-          meta: {
-            salaryBank: payout.bank,
-          },
-        },
-      ],
-      { session }
-    );
+    entry = await WalletEntry.create({
+      organization: payout.organization,
+      status: WalletEntryStatus.Pending,
+      currency: payout.currency,
+      wallet: payout.wallet._id,
+      amount: payout.amount,
+      fee,
+      initiatedBy: initiatedBy,
+      ledgerBalanceAfter: wallet.ledgerBalance,
+      ledgerBalanceBefore: numeral(wallet.ledgerBalance)
+        .add(amountToDeduct)
+        .value(),
+      balanceBefore: wallet.balance,
+      balanceAfter: numeral(wallet.balance).add(amountToDeduct).value(),
+      scope: WalletEntryScope.PayrollPayout,
+      payrollPayout: payout._id,
+      payroll: payout.payroll,
+      type: WalletEntryType.Debit,
+      narration: "Payroll Transfer",
+      paymentMethod: "transfer",
+      reference: payout.id,
+      provider: payout.provider,
+      meta: {
+        salaryBank: payout.bank,
+      },
+    });
 
     const virtualAccount = wallet.virtualAccounts[0] as IVirtualAccount;
     const request = {
@@ -171,28 +165,33 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
     });
 
     await PayrollPayout.updateOne(
-      { _id: entry._id },
+      { _id: payout._id },
       {
         $push: {
           logs: {
-            request,
+            request: JSON.stringify(request),
             response,
             timestamp: new Date(),
           },
         },
       }
-    ).session(session);
+    );
 
     if ("providerRef" in response) {
       await WalletEntry.updateOne(
         { _id: entry._id },
-        { providerRef: response.providerRef },
-        { session }
+        { providerRef: response.providerRef }
       );
     }
-  }, transactionOpts);
 
-  return entry;
+    return entry;
+  } catch (err: any) {
+    logger.error("error processing payout", {
+      payout: payout._id,
+      reason: err.message,
+      stack: err.stack,
+    });
+  }
 }
 
 export default processPayroll;

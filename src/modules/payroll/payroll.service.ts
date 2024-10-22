@@ -54,9 +54,11 @@ import {
   AddSalaryBankAccountDto,
   EditPayrollUserDto,
   GetHistoryDto,
+  ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
 import EmailService from "../common/email.service";
+import { UserService } from "../user/user.service";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
@@ -80,7 +82,7 @@ export class PayrollService {
         organization: orgId,
         firstName: user.firstName,
         lastName: user.lastName,
-        phoneNumber: user.phone || '',
+        phoneNumber: user.phone || "",
         email: user.email,
         employmentDate: user.employmentDate,
         employmentType: user.employmentType,
@@ -237,7 +239,10 @@ export class PayrollService {
     if (mode === PayrollScheduleMode.Fixed && dayOfMonth) {
       let fixedRunDate = dayjs(new Date(year, month, dayOfMonth)).tz(tz, true);
       if (today.isAfter(fixedRunDate, "date")) {
-        fixedRunDate = dayjs(new Date(year, month + 1, dayOfMonth)).tz(tz, true);
+        fixedRunDate = dayjs(new Date(year, month + 1, dayOfMonth)).tz(
+          tz,
+          true
+        );
       }
 
       return fixedRunDate.toDate();
@@ -261,7 +266,7 @@ export class PayrollService {
         foreignField: "_id",
         as: "user",
       })
-      .unwind('$user')
+      .unwind("$user")
       .lookup({
         from: "departments",
         localField: "user.departments",
@@ -305,7 +310,7 @@ export class PayrollService {
   }
 
   async payrollStatistics(orgId: string) {
-    const today = dayjs().tz()
+    const today = dayjs().tz('Africa/Lagos');
     const result = await Payroll.aggregate()
       .match({
         organization: new ObjectId(orgId),
@@ -400,7 +405,7 @@ export class PayrollService {
     const result = await Payroll.paginate(filter, {
       limit: 12,
       page: Number(query.page),
-      sort: '-periodStartDate',
+      sort: "-periodStartDate",
       lean: true,
     });
 
@@ -411,7 +416,7 @@ export class PayrollService {
     const payoutsAggr = PayrollPayout.find({
       organization: orgId,
       payroll: payrollId,
-    }).select('-logs -meta');
+    }).select("-logs -meta");
 
     const [payouts, stats] = await Promise.all([
       payoutsAggr,
@@ -514,11 +519,11 @@ export class PayrollService {
 
   async initiatePayrollRun(auth: AuthUser) {
     const { orgId } = auth;
-    const today = dayjs();
+    const today = dayjs().tz("Africa/Lagos");
     const pendingPayroll = await Payroll.findOne({
       organization: orgId,
-      periodStartDate: today.startOf('month').toDate(),
-      periodEndDate: today.endOf('month').toDate(),
+      periodStartDate: today.startOf("month").toDate(),
+      periodEndDate: today.endOf("month").toDate(),
     });
     if (pendingPayroll) {
       throw new BadRequestError(
@@ -537,6 +542,11 @@ export class PayrollService {
     let users = await this.getPayrollUsers(orgId);
     users = users.filter((u) => u.salary && u.salary.netAmount && u.bank);
     const totalNet = users.reduce((acc, salary) => acc + salary.net, 0);
+    if (!users.length) {
+      throw new BadRequestError(
+        "Unable to create payroll, ensure your employees have salary and bank account"
+      );
+    }
 
     if (totalNet > wallet.balance) {
       throw new BadRequestError(
@@ -549,11 +559,11 @@ export class PayrollService {
       organization: orgId,
       wallet: wallet._id,
       date: nextRunDate,
-      periodEndDate: dayjs().endOf('month').toDate(),
-      periodStartDate: dayjs().startOf('month').toDate(),
+      periodEndDate: today.endOf("month").toDate(),
+      periodStartDate: today.startOf("month").toDate(),
       totalNetAmount: null,
       totalGrossAmount: null,
-      totalEmployees: users.length,
+      totalEmployees: null,
       status: PayrollStatus.Pending,
       approvalStatus: PayrollApprovalStatus.Pending,
     });
@@ -564,9 +574,14 @@ export class PayrollService {
     };
   }
 
-  async processPayroll(auth: AuthUser, id: string) {
+  async processPayroll(auth: AuthUser, dto: ProcessPayrollDto) {
+    const valid = await UserService.verifyTransactionPin(auth.userId, dto.pin)
+    if (!valid) {
+      throw new BadRequestError("Invalid pin")
+    }
+
     const payroll = await Payroll.findOne({
-      _id: id,
+      _id: dto.payroll,
       organization: auth.orgId,
     }).populate("wallet");
     if (!payroll) {
@@ -576,6 +591,7 @@ export class PayrollService {
       throw new BadRequestError("Wallet does not exist");
     }
 
+    console.log(dayjs().isSameOrAfter(payroll.date, "date"));
     if (
       payroll.approvalStatus === PayrollApprovalStatus.Approved &&
       dayjs().isSameOrAfter(payroll.date, "date")
@@ -642,7 +658,7 @@ export class PayrollService {
       return { message: "payroll already in review", approvalRequired: true };
     }
 
-    const requestId = new ObjectId()
+    const requestId = new ObjectId();
     await Promise.all([
       ApprovalRequest.create({
         _id: requestId,
@@ -714,14 +730,14 @@ export class PayrollService {
         wallet: payroll.wallet._id,
         payrollUser: user._id,
         status: PayrollPayoutStatus.Pending,
-        amount: user.salary.net,
-        currency: user.salary.currency,
+        amount: user.salary.netAmount,
+        currency: user.salary.currency || 'NGN',
         provider: TransferClientName.Anchor,
-        bank: user.salary.bank,
+        bank: user.bank,
         salaryBreakdown: {
           // TODO: calculate deduction for days not worked for employees that didn't complete a full month
-          netAmount: user.salary.net,
-          grossAmount: user.salary.gross,
+          netAmount: user.salary.netAmount,
+          grossAmount: user.salary.grossAmount,
           earnings: user.salary.earnings,
           deductions: user.salary.deductions,
         },
@@ -756,7 +772,7 @@ export class PayrollService {
       bankName: result.bankName,
     };
 
-    await User.updateOne({ _id: payload.userId }, { bank });
+    await PayrollUser.updateOne({ _id: payload.userId }, { bank });
 
     return bank;
   }

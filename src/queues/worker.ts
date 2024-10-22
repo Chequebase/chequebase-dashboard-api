@@ -73,7 +73,7 @@ function setupQueues() {
       repeat: { cron: '0 8 * * *', tz }  // every day at 8am 
     })
 
-    payrollQueue.process('processPayout', processPayroll)
+    payrollQueue.process('processPayroll', processPayroll)
     payrollQueue.process(createNextPayrolls.name, createNextPayrolls);
     payrollQueue.add(createNextPayrolls.name, null, {
       repeat: { cron: "0 8 1 * *", tz }, // every 1st day of month at 8am

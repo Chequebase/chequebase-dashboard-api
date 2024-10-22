@@ -1,5 +1,5 @@
 import Container from "typedi";
-import { BadRequestError } from "routing-controllers";
+import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Job } from "bull";
 import dayjs from "dayjs";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus } from "@/models/wallet-entry.model";
@@ -9,10 +9,12 @@ import ProviderRegistry from "@/modules/transfer/provider-registry";
 import { TransferClient, TransferClientName } from "@/modules/transfer/providers/transfer.client";
 
 interface EntryForClearance {
-  _id: string
-  reference: string
-  providerRef?: string
-  provider: TransferClientName
+  _id: string;
+  reference: string;
+  providerRef?: string;
+  amount: number;
+  currency: string
+  provider: TransferClientName;
 }
 
 async function processWalletEntryClearance(job: Job) {
@@ -35,10 +37,27 @@ async function processWalletEntryClearance(job: Job) {
   const transferClient = Container.get<TransferClient>(token)
 
   try {
-    const result = await transferClient.verifyTransferById(providerRef!)
-    if (!['failed', 'reversed', 'successful'].includes(result.status)) {
-      logger.log('unexpected status from provider', { response: JSON.stringify(result) })
-      return { message: 'unexpected status from provider' }
+    let result: any
+
+    try {
+      result = await transferClient.verifyTransferById(providerRef!)
+      if (!['failed', 'reversed', 'successful'].includes(result.status)) {
+        logger.log('unexpected status from provider', { response: JSON.stringify(result) })
+        return { message: 'unexpected status from provider' }
+      }
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        result = {
+          amount: entry.amount,
+          currency: entry.currency,
+          gatewayResponse: err.message,
+          message: err.message,
+          reference: entry.reference,
+          status: 'failed',
+        };
+      } else {
+        throw err
+      }
     }
 
     const jobData: WalletOutflowData = {
@@ -73,7 +92,7 @@ async function addWalletEntriesForClearance(job: Job) {
   }
 
   const entries = await WalletEntry.find(filter)
-    .select('reference provider providerRef')
+    .select('reference amount currency provider providerRef')
     .lean()
 
   logger.log('fetched entries for clearance', { entries: entries.length })

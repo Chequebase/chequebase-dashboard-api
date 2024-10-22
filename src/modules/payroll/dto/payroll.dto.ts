@@ -110,6 +110,13 @@ export class AddBulkPayrollUserDto {
   users: AddPayrollUserDto[];
 }
 
+export class ProcessPayrollDto {
+  @IsString()
+  pin: string;
+
+  @IsString()
+  payroll: string;
+}
 export class AddPayrollUserDto {
   @IsString()
   @IsNotEmpty()

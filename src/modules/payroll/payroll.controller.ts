@@ -23,6 +23,7 @@ import {
   AddSalaryDto,
   EditPayrollUserDto,
   GetHistoryDto,
+  ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
 import { PassThrough } from "stream";
@@ -125,10 +126,19 @@ export default class PayrollController {
     return passthrough;
   }
 
-  @Post("/")
+  @Post("/create-payroll")
   @Authorized(EPermission.PayrollEdit)
   createPayrollRun(@CurrentUser() auth: AuthUser) {
     return this.payrollService.initiatePayrollRun(auth);
+  }
+
+  @Post("/process-payroll")
+  @Authorized(EPermission.PayrollEdit)
+  processPayroll(
+    @CurrentUser() auth: AuthUser,
+    @Body() dto: ProcessPayrollDto,
+  ) {
+    return this.payrollService.processPayroll(auth, dto);
   }
 
   @Authorized(EPermission.PayrollEdit)
