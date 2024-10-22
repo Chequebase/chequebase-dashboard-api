@@ -276,7 +276,8 @@ export class WalletTransferService {
         auth,
         requester: auth.userId,
         category: data.category,
-        invoiceUrl
+        invoiceUrl,
+        saveRecipient: data.saveRecipient
       })
     }
 

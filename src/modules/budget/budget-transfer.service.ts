@@ -350,7 +350,8 @@ export class BudgetTransferService {
         auth,
         requester: auth.userId,
         category: data.category,
-        invoiceUrl
+        invoiceUrl,
+        saveRecipient: data.saveRecipient
       })
     }
 
