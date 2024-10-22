@@ -20,18 +20,21 @@ import { PayrollService } from "./payroll.service";
 import {
   AddBulkPayrollUserDto,
   AddPayrollUserDto,
-  AddSalaryDto,
   EditPayrollUserDto,
   GetHistoryDto,
   ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
 import { PassThrough } from "stream";
+import { PlanUsageService } from "../billing/plan-usage.service";
 
 @Service()
 @JsonController("/payroll", { transformResponse: false })
 export default class PayrollController {
-  constructor(private payrollService: PayrollService) {}
+  constructor(
+    private payrollService: PayrollService,
+    private usageService: PlanUsageService
+  ) {}
 
   @Get("/overview/top-earners")
   @Authorized(EPermission.PayrollRead)
@@ -71,10 +74,11 @@ export default class PayrollController {
 
   @Put("/setting")
   @Authorized(EPermission.PayrollEdit)
-  updatePayrollSetting(
+  async updatePayrollSetting(
     @CurrentUser() auth: AuthUser,
     @Body() body: UpdatePayrollSettingDto
   ) {
+    await this.usageService.checkPayrollUsage(auth.orgId)
     return this.payrollService.updatePayrollSetting(auth.orgId, body);
   }
 
@@ -128,59 +132,66 @@ export default class PayrollController {
 
   @Post("/create-payroll")
   @Authorized(EPermission.PayrollEdit)
-  createPayrollRun(@CurrentUser() auth: AuthUser) {
+  async createPayrollRun(@CurrentUser() auth: AuthUser) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.initiatePayrollRun(auth);
   }
 
   @Post("/process-payroll")
   @Authorized(EPermission.PayrollEdit)
-  processPayroll(
+  async processPayroll(
     @CurrentUser() auth: AuthUser,
-    @Body() dto: ProcessPayrollDto,
+    @Body() dto: ProcessPayrollDto
   ) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.processPayroll(auth, dto);
   }
 
   @Authorized(EPermission.PayrollEdit)
   @Post("/payroll-user/add")
-  addPayrollUser(
+  async addPayrollUser(
     @CurrentUser() auth: AuthUser,
     @Body() dto: AddPayrollUserDto
   ) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.addPayrollUser(auth.orgId, dto);
   }
 
   @Authorized(EPermission.PayrollEdit)
   @Post("/payroll-user/add-bulk")
-  addBulkPayrollUser(
+  async addBulkPayrollUser(
     @CurrentUser() auth: AuthUser,
     @Body() dto: AddBulkPayrollUserDto
   ) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.addBulkPayrollUser(auth.orgId, dto);
   }
 
   @Authorized(EPermission.PayrollEdit)
   @Delete("/payroll-user/:id/delete")
-  deletePayrollUser(
+  async deletePayrollUser(
     @CurrentUser() auth: AuthUser,
     @Param("id") userId: string
   ) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.deletePayrollUser(auth.orgId, userId);
   }
 
   @Authorized(EPermission.PayrollEdit)
   @Put("/payroll-user/:id/edit")
-  editPayrollUser(
+  async editPayrollUser(
     @CurrentUser() auth: AuthUser,
     @Param("id") userId: string,
     @Body() dto: EditPayrollUserDto
   ) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.editPayrollUser(auth.orgId, userId, dto);
   }
 
   @Authorized(EPermission.PayrollEdit)
   @Post("/setup-payroll")
-  setupPayroll(@CurrentUser() auth: AuthUser) {
+  async setupPayroll(@CurrentUser() auth: AuthUser) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.setupPayroll(auth.orgId);
   }
 }

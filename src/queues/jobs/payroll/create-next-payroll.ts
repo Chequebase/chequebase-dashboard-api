@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import Container from "typedi";
+import { PlanUsageService } from "@/modules/billing/plan-usage.service";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -17,7 +18,34 @@ dayjs.extend(timezone);
 const logger = new Logger(createNextPayrolls.name);
 const payrollService = Container.get(PayrollService);
 async function createNextPayrolls(_: Job) {
-  const settings = await PayrollSetting.find();
+  const settings = await PayrollSetting.aggregate()
+    .lookup({
+      from: "organizations",
+      localField: "organization",
+      foreignField: "_id",
+      as: "org",
+    })
+    .unwind("$org")
+    .lookup({
+      from: "subscriptions",
+      localField: "org.subscription.object",
+      foreignField: "_id",
+      as: "subscription",
+    })
+    .unwind("$subscription")
+    .match({ "subscription.status": "active" })
+    .lookup({
+      from: "subscriptionplans",
+      localField: "subscription.plan",
+      foreignField: "_id",
+      as: "plan",
+    })
+    .unwind("$plan")
+    .match({
+      "plan.features": { $elemMatch: { code: "payroll", available: true } },
+    })
+    .project({ organization: 1 });
+  
   const today = dayjs().tz("Africa/Lagos");
   const period = {
     periodStartDate: today.startOf("month").toDate(),
@@ -68,7 +96,9 @@ async function createPayroll(
     let users = await payrollService.getPayrollUsers(setting.organization);
     users = users.filter((u) => u.salary && u.salary.netAmount && u.bank);
     if (!users.length) {
-      logger.log("no valid employees for payroll", { organization: setting.organization });
+      logger.log("no valid employees for payroll", {
+        organization: setting.organization,
+      });
       return { message: "no valid employees for payroll" };
     }
 
@@ -96,6 +126,16 @@ async function createPayroll(
       reason: err.message,
       stack: err.stack,
     });
+  }
+}
+
+const usageService = Container.get(PlanUsageService);
+async function hasAccess(orgId: string) {
+  try {
+    const result = await usageService.checkPayrollUsage(orgId);
+    return result;
+  } catch {
+    return false;
   }
 }
 

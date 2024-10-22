@@ -541,7 +541,8 @@ export class PayrollService {
 
     let users = await this.getPayrollUsers(orgId);
     users = users.filter((u) => u.salary && u.salary.netAmount && u.bank);
-    const totalNet = users.reduce((acc, salary) => acc + salary.net, 0);
+    const totalNet = users.reduce((acc, user) => acc + user.salary.netAmount, 0);
+    const totalGross = users.reduce((acc, user) => acc + user.salary.grossAmount, 0);
     if (!users.length) {
       throw new BadRequestError(
         "Unable to create payroll, ensure your employees have salary and bank account"
@@ -561,9 +562,9 @@ export class PayrollService {
       date: nextRunDate,
       periodEndDate: today.endOf("month").toDate(),
       periodStartDate: today.startOf("month").toDate(),
-      totalNetAmount: null,
-      totalGrossAmount: null,
-      totalEmployees: null,
+      totalNetAmount: totalNet,
+      totalGrossAmount: totalGross,
+      totalEmployees: users.length,
       status: PayrollStatus.Pending,
       approvalStatus: PayrollApprovalStatus.Pending,
     });
@@ -591,7 +592,6 @@ export class PayrollService {
       throw new BadRequestError("Wallet does not exist");
     }
 
-    console.log(dayjs().isSameOrAfter(payroll.date, "date"));
     if (
       payroll.approvalStatus === PayrollApprovalStatus.Approved &&
       dayjs().isSameOrAfter(payroll.date, "date")
