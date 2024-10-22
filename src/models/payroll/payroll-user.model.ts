@@ -54,15 +54,14 @@ const PayrollUserSchema = new Schema<IPayrollUser>(
     },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    phoneNumber: { type: String, required: true },
-    email: { type: String, required: true },
+    phoneNumber: { type: String, },
+    email: { type: String },
     employmentDate: { type: Date },
     taxId: String,
     deletedAt: { type: Date },
     employmentType: {
       type: String,
       enum: Object.values(EmploymentType),
-      required: true,
     },
     bank: {
       accountName: String,
