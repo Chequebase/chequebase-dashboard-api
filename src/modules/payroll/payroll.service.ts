@@ -614,9 +614,10 @@ export class PayrollService {
       periodEndDate: today.endOf("month").toDate(),
     });
     if (pendingPayroll) {
-      throw new BadRequestError(
-        "A payroll has already been submitted for this month"
-      );
+      return {
+        message: "A payroll has already been submitted for this month",
+        payroll: pendingPayroll._id,
+      };
     }
 
     let wallet = await Wallet.findOne({
