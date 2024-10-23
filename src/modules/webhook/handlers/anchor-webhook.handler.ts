@@ -159,7 +159,7 @@ export default class AnchorWebhookHandler {
     return { message: 'transfer event queued' }
   }
 
-  private async onBokTransferEvent(body: any) {
+  private async onBookTransferEvent(body: any) {
     const transferId = body.data.relationships.transfer.data.id
     const verifyResponse = await this.anchorTransferClient.verifyTransferById(transferId)
 
@@ -331,10 +331,10 @@ export default class AnchorWebhookHandler {
       case 'nip.transfer.failed':
       case 'nip.transfer.reversed':
         return this.onTransferEvent(body)
-      case 'book.transfer.successful':
-      case 'book.transfer.failed':
-      case 'book.transfer.reversed':
-        return this.onBokTransferEvent(body)
+      // case 'book.transfer.successful':
+      // case 'book.transfer.failed':
+      // case 'book.transfer.reversed':
+      //   return this.onBookTransferEvent(body)
       default:
         this.logger.log('unhandled event', { event: data.type })
         break;
@@ -348,9 +348,9 @@ const allowedWebooks = [
   "nip.transfer.failed",
   "nip.transfer.successful",
   "nip.transfer.reversed",
-  "book.transfer.failed",
-  "book.transfer.successful",
-  "book.transfer.reversed",
+  // "book.transfer.failed",
+  // "book.transfer.successful",
+  // "book.transfer.reversed",
   "payment.settled",
   "customer.created",
   "customer.identification.awaitingDocument",
