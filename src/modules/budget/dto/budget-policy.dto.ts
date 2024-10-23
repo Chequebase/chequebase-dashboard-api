@@ -42,9 +42,6 @@ export class CreatePolicy {
 }
 
 export class updatePolicy {
-  @IsString()
-  name: string
-
   @IsInt({ each: true })
   @Min(1, { each: true })
   @Max(7, { each: true })

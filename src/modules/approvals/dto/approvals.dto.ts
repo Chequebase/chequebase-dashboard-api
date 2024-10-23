@@ -20,9 +20,6 @@ export class CreateRule {
 }
 
 export class UpdateRule {
-  @IsString()
-  name: string
-  
   @IsEnum(WorkflowType)
   workflowType: WorkflowType
 

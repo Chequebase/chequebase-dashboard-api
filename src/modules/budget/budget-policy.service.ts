@@ -68,17 +68,6 @@ export class BudgetPolicyService {
       }
     }
 
-    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
-    const nameExists = await BudgetPolicy.exists({
-      _id: { $ne: policyId },
-      organization: auth.orgId,
-      name: { $regex }
-    })
-
-    if (nameExists) {
-      throw new BadRequestError("Policy with similar name already exists")
-    }
-
     policy = await BudgetPolicy.findOneAndUpdate({ _id: policyId, organization: auth.orgId }, data, { new: true })
 
     return policy

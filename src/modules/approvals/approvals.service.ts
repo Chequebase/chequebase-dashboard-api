@@ -81,20 +81,9 @@ export class ApprovalService {
     if (!org?.setDefualtApprovalWorkflow) {
       await Organization.updateOne({ _id: orgId }, { setDefualtApprovalWorkflow: true })
     }
-    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
-    const nameExists = await ApprovalRule.exists({
-      _id: { $ne: ruleId },
-      organization: orgId,
-      name: { $regex }
-    })
-
-    if (nameExists) {
-      throw new BadRequestError("Approval rule with similar name already exists")
-    }
 
     // TOD: if approval for reviewer removal is required ---
     const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, {
-      name: data.name,
       amount: data.amount,
       approvalType: data.approvalType,
       workflowType: data.workflowType,
