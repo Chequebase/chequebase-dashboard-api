@@ -166,9 +166,9 @@ export class PeopleService {
       name: i.name,
       organization: auth.orgId,
       invitedBy: auth.userId,
-      manager: new ObjectId(i.manager),
+      manager: i.manager.trim().length === 0 ? new ObjectId(i.manager) : i.manager,
       phoneNumber: i.phoneNumber,
-      department: i.department,
+      department: i.department.trim().length === 0 ? new ObjectId(i.department) : i.department,
       roleRef: i.role,
       expiry: dayjs().add(14, 'days').toDate(),
     })))
