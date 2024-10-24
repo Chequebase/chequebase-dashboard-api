@@ -163,6 +163,7 @@ export class PeopleService {
     const userInvitesMap = data.invites.map((i) => {
       const manager = i.manager && i.manager.trim().length === 0 ? delete i.manager : new ObjectId(i.manager)
       const department = i.department && i.department.trim().length === 0 ? delete i.department : new ObjectId(i.department)
+      console.log({ manager, department })
       return {
         code: createId(),
         email: i.email,
