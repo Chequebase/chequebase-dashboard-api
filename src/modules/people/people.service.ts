@@ -160,18 +160,23 @@ export class PeopleService {
     const deletedUsers = await User.find({ organization: auth.orgId, email: emailRegexps, status: UserStatus.DELETED })
       .select('firstName email').lean()
     console.log({ invites: data.invites })
-    const userInvites = await UserInvite.create(data.invites.map(i => ({
-      code: createId(),
-      email: i.email,
-      name: i.name,
-      organization: auth.orgId,
-      invitedBy: auth.userId,
-      manager: i.manager.trim().length === 0 ? new ObjectId(i.manager) : i.manager,
-      phoneNumber: i.phoneNumber,
-      department: i.department.trim().length === 0 ? new ObjectId(i.department) : i.department,
-      roleRef: i.role,
-      expiry: dayjs().add(14, 'days').toDate(),
-    })))
+    const userInvitesMap = data.invites.map((i) => {
+      const manager = i.manager && i.manager.trim().length === 0 ? delete i.manager : new ObjectId(i.manager)
+      const department = i.department && i.department.trim().length === 0 ? delete i.department : new ObjectId(i.department)
+      return {
+        code: createId(),
+        email: i.email,
+        name: i.name,
+        organization: auth.orgId,
+        invitedBy: auth.userId,
+        manager,
+        phoneNumber: i.phoneNumber,
+        department,
+        roleRef: i.role,
+        expiry: dayjs().add(14, 'days').toDate(),
+      }
+    })
+    const userInvites = await UserInvite.create(userInvitesMap)
 
     userInvites.forEach(invite => {
       const deletedUser = deletedUsers.find(u => u.email === invite.email)

@@ -47,11 +47,11 @@ class InviteData {
 
   @IsString()
   @IsOptional()
-  manager: string
+  manager?: string
 
   @IsString()
   @IsOptional()
-  department: string
+  department?: string
 }
 
 export class EditEmployeeDto  {
