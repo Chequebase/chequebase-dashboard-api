@@ -158,6 +158,7 @@ export class PeopleService {
 
     const deletedUsers = await User.find({ organization: auth.orgId, email: emailRegexps, status: UserStatus.DELETED })
       .select('firstName email').lean()
+    console.log({ invites: data.invites })
     const userInvites = await UserInvite.create(data.invites.map(i => ({
       code: createId(),
       email: i.email,
