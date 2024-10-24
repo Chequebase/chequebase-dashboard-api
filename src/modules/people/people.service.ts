@@ -14,6 +14,7 @@ import { escapeRegExp, getEnvOrThrow } from "../common/utils"
 import Logger from "../common/utils/logger"
 import { FeatureLimitExceededError } from "../common/utils/service-errors"
 import { CreateDepartmentDto, EditEmployeeDto, GetDepartmentDto, SendMemberInviteDto } from "./dto/people.dto"
+import { ObjectId } from 'mongodb';
 
 const logger = new Logger('people-service')
 
@@ -165,7 +166,7 @@ export class PeopleService {
       name: i.name,
       organization: auth.orgId,
       invitedBy: auth.userId,
-      manager: i.manager,
+      manager: new ObjectId(i.manager),
       phoneNumber: i.phoneNumber,
       department: i.department,
       roleRef: i.role,

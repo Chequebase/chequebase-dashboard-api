@@ -12,7 +12,7 @@ export interface IUserInvite {
   code: string
   organization: any
   phoneNumber: string
-  manager?: any
+  manager: any
   department: any
   invitedBy: any
   created_at: Date
@@ -31,7 +31,6 @@ const UserInviteSchema = new Schema<IUserInvite>(
     code: { type: String, required: true },
     phoneNumber: String,
     manager: {
-      required: false,
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
