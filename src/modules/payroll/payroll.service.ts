@@ -184,9 +184,6 @@ export class PayrollService {
     const currentPayroll = await Payroll.findOne({
       _id: payrollId,
       organization: orgId,
-      approvalStatus: {
-        $in: [PayrollApprovalStatus.Pending, PayrollApprovalStatus.Approved],
-      },
     });
     if (!currentPayroll) {
       throw new BadRequestError("Payroll not found");
@@ -194,7 +191,6 @@ export class PayrollService {
 
     const previousPayroll = await Payroll.findOne({
       organization: orgId,
-      approvalStatus: PayrollApprovalStatus.Approved,
       date: { $lt: currentPayroll.date },
     }).sort("-createdAt");
 
@@ -203,6 +199,11 @@ export class PayrollService {
       .group({ _id: "$status", count: { $sum: 1 } });
 
     return {
+      periodStartDate: currentPayroll.periodStartDate,
+      periodEndDate: currentPayroll.periodEndDate,
+      runDate: currentPayroll.date,
+      approvalStatus: currentPayroll.approvalStatus,
+      status: currentPayroll.status,
       amount: getPercentageDiff(
         previousPayroll?.totalNetAmount,
         currentPayroll.totalNetAmount
