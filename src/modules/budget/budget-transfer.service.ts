@@ -95,11 +95,10 @@ export class BudgetTransferService {
       organization: orgId,
       accountNumber,
       bankCode,
-      isRecipient
-    }, {
       accountName: resolveRes.accountName,
       bankName: resolveRes.bankName,
-    }, { new: true, upsert: true })
+      isRecipient
+    })
 
     return { ...counterparty, bankId: resolveRes.bankId }
   }
