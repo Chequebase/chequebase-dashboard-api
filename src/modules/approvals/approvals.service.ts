@@ -117,7 +117,10 @@ export class ApprovalService {
     const rules = await ApprovalRule.paginate(filter.object, {
       page: Number(query.page),
       sort: '-createdAt',
-      populate: [{ path: 'reviewers', select: 'firstName lastName avatar' }]
+      populate: [
+        { path: 'reviewers', select: 'firstName lastName avatar' },
+        { path: 'budget', select: 'name _id' }
+      ]
     })
 
     return rules
