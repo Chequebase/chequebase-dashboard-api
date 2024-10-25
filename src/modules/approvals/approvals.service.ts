@@ -119,7 +119,7 @@ export class ApprovalService {
       sort: '-createdAt',
       populate: [
         { path: 'reviewers', select: 'firstName lastName avatar' },
-        { path: 'budget', select: 'name _id' }
+        { path: 'budget', select: 'name' }
       ]
     })
 
