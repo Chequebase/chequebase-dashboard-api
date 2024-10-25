@@ -82,19 +82,25 @@ export class ApprovalService {
       await Organization.updateOne({ _id: orgId }, { setDefualtApprovalWorkflow: true })
     }
 
-    const payload = {
-      amount: data.amount,
-      approvalType: data.approvalType,
-      workflowType: data.workflowType,
-      budget: data.budget,
-      // update this: send email to old reviewers
-      reviewers: data.reviewers,
+    const body = {
+      payload: {
+        amount: data.amount,
+        approvalType: data.approvalType,
+        workflowType: data.workflowType,
+        budget: data.budget,
+        // update this: send email to old reviewers
+        reviewers: data.reviewers,
+      },
+      '$unset': {}
+    };
+
+    if (data.budget === null) {
+      delete body.payload.budget
+      body['$unset'] = { budget: "" }
     }
 
-    if (!data.budget) delete payload.budget
-
     // TOD: if approval for reviewer removal is required ---
-    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, payload, { upsert: true, new: true })
+    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, { ...body.payload, $unset: body['$unset'] }, { new: true })
 
     if (!rule) throw new NotFoundError("Rule not found")
 
