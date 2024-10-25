@@ -72,13 +72,13 @@ export class BudgetTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
+  private async getCounterparty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
     if (saveRecipient) {
-      await this.saveCounterParty(auth, bankCode, accountNumber, true)
+      await this.saveCounterParty(orgId, bankCode, accountNumber, true)
     }
     let counterparty = {
-      organization: auth.orgId,
+      organization: orgId,
       accountNumber,
       bankCode,
       accountName: resolveRes.accountName,
@@ -89,10 +89,10 @@ export class BudgetTransferService {
     return { ...counterparty, bankId: resolveRes.bankId }
   }
 
-  private async saveCounterParty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
+  private async saveCounterParty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
     let counterparty = await Counterparty.create({
-      organization: auth.orgId,
+      organization: orgId,
       accountNumber,
       bankCode,
       isRecipient
@@ -441,7 +441,7 @@ export class BudgetTransferService {
     }
 
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber, true, data.saveRecipient)
+    const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber, true, data.saveRecipient)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const transferResponse = await this.transferService.initiateTransfer({
