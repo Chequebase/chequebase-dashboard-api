@@ -34,9 +34,6 @@ export class CreatePolicy {
   @IsOptional()
   recipient: string
 
-  @IsString()
-  description: string
-
   @IsBoolean()
   enabled: boolean
 }
