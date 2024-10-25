@@ -14,7 +14,7 @@ export interface IBudgetPolicy {
   _id: ObjectId
   organization: any
   type: PolicyType
-  description: string
+  description?: string
   amount: number
   budget?: any
   daysOfWeek?: number[]
@@ -40,7 +40,7 @@ interface BudgetPolicyModel extends
 const BudgetPolicySchema = new Schema<IBudgetPolicy>(
   {
     amount: Number,
-    description: { type: String, required: true },
+    description: { type: String, required: false },
     type: {
       type: String,
       enum: Object.values(PolicyType),
