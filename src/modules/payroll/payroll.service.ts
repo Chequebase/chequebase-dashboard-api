@@ -421,7 +421,7 @@ export class PayrollService {
     })
       .populate({
         path: "payrollUser",
-        select: "user firstName lastName employmentType",
+        select: "user firstName lastName bank employmentType",
         populate: {
           path: "user",
           select: "departments",
