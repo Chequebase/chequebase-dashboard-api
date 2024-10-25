@@ -34,6 +34,10 @@ export class UpdateRule {
 
   @IsArray()
   deletedReviewers: string[]
+
+  @IsOptional()
+  @IsString()
+  budget?: string
 }
 
 export class GetRulesQuery {

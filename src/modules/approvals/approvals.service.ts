@@ -82,14 +82,19 @@ export class ApprovalService {
       await Organization.updateOne({ _id: orgId }, { setDefualtApprovalWorkflow: true })
     }
 
-    // TOD: if approval for reviewer removal is required ---
-    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, {
+    const payload = {
       amount: data.amount,
       approvalType: data.approvalType,
       workflowType: data.workflowType,
+      budget: data.budget,
       // update this: send email to old reviewers
       reviewers: data.reviewers,
-    }, { new: true })
+    }
+
+    if (!data.budget) delete payload.budget
+
+    // TOD: if approval for reviewer removal is required ---
+    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, payload, { new: true })
 
     if (!rule) throw new NotFoundError("Rule not found")
 
@@ -119,7 +124,7 @@ export class ApprovalService {
       sort: '-createdAt',
       populate: [
         { path: 'reviewers', select: 'firstName lastName avatar' },
-        { path: 'budget', select: 'name' }
+        { path: 'budget', select: 'name _id' }
       ]
     })
 
