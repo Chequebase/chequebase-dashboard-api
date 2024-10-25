@@ -11,7 +11,12 @@ import WalletEntry, {
 import Wallet from "@/models/wallet.model";
 import EmailService from "@/modules/common/email.service";
 import { cdb } from "@/modules/common/mongoose";
-import { formatMoney, maskString, transactionOpts } from "@/modules/common/utils";
+import {
+  formatMoney,
+  getEnvOrThrow,
+  maskString,
+  transactionOpts,
+} from "@/modules/common/utils";
 import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
@@ -33,7 +38,7 @@ async function success(
   entry: HydratedDocument<IWalletEntry>,
   data: WalletOutflowData
 ) {
-  let payout: null | IPayrollPayout = null
+  let payout: null | IPayrollPayout = null;
   await cdb.transaction(async (session) => {
     await entry
       .updateOne({
@@ -45,17 +50,21 @@ async function success(
     payout = await PayrollPayout.findByIdAndUpdate(entry.payrollPayout, {
       status: PayrollPayoutStatus.Settled,
     })
-      .populate('payroll', 'periodStartDate periodEndDate')
-      .populate('organization', 'businessName')
+      .populate("payroll", "periodStartDate periodEndDate")
+      .populate("organization", "businessName")
       .populate({
         path: "payrollUser",
-        populate: { path: "user", select: 'email' }
+        populate: { path: "user", select: "email" },
       })
       .session(session);
   }, transactionOpts);
 
-  const payouts = await PayrollPayout.find({ payroll: entry.payroll }).select('status').lean()
-  if (payouts.every(payout => payout.status === PayrollPayoutStatus.Settled)) {
+  const payouts = await PayrollPayout.find({ payroll: entry.payroll })
+    .select("status")
+    .lean();
+  if (
+    payouts.every((payout) => payout.status === PayrollPayoutStatus.Settled)
+  ) {
     await Payroll.updateOne(
       { _id: entry.payroll },
       { status: PayrollStatus.Completed }
@@ -63,7 +72,9 @@ async function success(
   }
 
   payout = <IPayrollPayout>(<unknown>payout);
-  const periodStartDate = dayjs(payout.payroll.periodStartDate).tz('Africa/Lagos');
+  const periodStartDate = dayjs(payout.payroll.periodStartDate).tz(
+    "Africa/Lagos"
+  );
   const periodEndDate = dayjs(payout.payroll.periodEndDate).tz("Africa/Lagos");
   const payrollUser: IPayrollUser = payout?.payrollUser;
   if (payrollUser && (payrollUser.email || payrollUser.user?.email)) {
@@ -80,6 +91,7 @@ async function success(
       employeeName: payrollUser.firstName,
       transactionTime: dayjs().format("HH:mm"),
       transactionDate: dayjs().format("Do MMM"),
+      link: payrollUser.user && getEnvOrThrow("BASE_FRONTEND_URL"),
     });
   }
 }

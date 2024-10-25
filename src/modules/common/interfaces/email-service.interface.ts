@@ -258,15 +258,16 @@ export interface SendTransactionApprovalRequest {
 }
 
 export interface SalaryReceived {
-  employeeName: string
-  businessName: string
-  date: string
-  currency: string
-  amount: string
-  accountNumber: string
-  bankName: string
-  transactionDate : string
-  transactionTime: string
+  employeeName: string;
+  businessName: string;
+  date: string;
+  currency: string;
+  amount: string;
+  accountNumber: string;
+  bankName: string;
+  transactionDate: string;
+  transactionTime: string;
+  link?: string;
 }
 
 export interface SendApprovalRequestReviewed {
