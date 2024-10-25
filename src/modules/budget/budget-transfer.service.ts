@@ -358,7 +358,7 @@ export class BudgetTransferService {
     const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
 
     if (data.saveRecipient) {
-      await this.saveCounterParty(auth, data.bankCode, data.accountNumber, true)
+      await this.saveCounterParty(organization._id.toString(), data.bankCode, data.accountNumber, true)
     }
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
@@ -553,7 +553,7 @@ export class BudgetTransferService {
   }
 
   async createRecipient(auth: AuthUser, data: CreateRecipient) {
-    return this.saveCounterParty(auth, data.bankCode, data.accountNumber, true);
+    return this.saveCounterParty(auth.orgId, data.bankCode, data.accountNumber, true);
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
