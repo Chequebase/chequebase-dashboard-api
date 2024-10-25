@@ -42,7 +42,6 @@ export class BudgetPolicyService {
       daysOfWeek: data.daysOfWeek,
       department: data.department,
       recipient: data.recipient,
-      description: data.description,
       enabled: data.enabled,
       spendPeriod: data.type === PolicyType.SpendLimit ? data.spendPeriod || 'daily' : undefined
     })
