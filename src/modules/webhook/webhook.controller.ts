@@ -5,6 +5,7 @@ import { raw } from "express";
 import Logger from "../common/utils/logger";
 import { PaystackWebhookHandler } from "./handlers/paystack-webhook.handler";
 import { AnchorHeaderDto, PaystackHeaderDto } from "./dto/webhook.dto";
+import SafeHavenWebhookHandler from "./handlers/safe-haven-webhook.handler";
 
 const logger = new Logger('webhook-controller')
 
@@ -13,7 +14,8 @@ const logger = new Logger('webhook-controller')
 export default class WebhookController {
   constructor (
     private anchorHandler: AnchorWebhookHandler,
-    private paystackHandler: PaystackWebhookHandler
+    private paystackHandler: PaystackWebhookHandler,
+    private safeHavenHandler: SafeHavenWebhookHandler
   ) { }
 
   @Post('/anchor')
@@ -25,6 +27,17 @@ export default class WebhookController {
     })
 
     return this.anchorHandler.processWebhook(body, headers)
+  }
+
+  @Post('/safe-haven')
+  @UseBefore(raw({ type: "application/json" }))
+  async processSafeHaven(@Body() body: any, @HeaderParams() headers: AnchorHeaderDto) {
+    logger.log('received safehaven webhook', {
+      body: body.toString('utf-8'),
+      headers: JSON.stringify(headers)
+    })
+
+    return this.safeHavenHandler.processWebhook(body, headers)
   }
 
   @Post('/paystack')

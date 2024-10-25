@@ -29,7 +29,7 @@ export interface WalletInflowData {
   providerRef: string
   sourceAccount: {
     accountName: string
-    bankName: string
+    bankName?: string
     accountNumber: string
   }
 }
@@ -132,7 +132,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
     emailService.sendFundedWalletEmail(organization.admin.email, {
       accountBalance: formatMoney(balanceAfter),
       accountNumber: data.sourceAccount.accountNumber,
-      bankName: data.sourceAccount.bankName,
+      bankName: data.sourceAccount.bankName || '',
       beneficiaryName: data.sourceAccount.accountName,
       businessName: organization.businessName,
       amount: formatMoney(creditedAmount),

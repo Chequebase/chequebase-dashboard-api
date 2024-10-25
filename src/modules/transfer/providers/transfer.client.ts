@@ -25,6 +25,7 @@ export interface InitiateTransferResult {
 
 export enum TransferClientName {
   Anchor = 'anchor',
+  SafeHaven = 'safe-haven',
   SarePay = 'sarepay'
 }
 
