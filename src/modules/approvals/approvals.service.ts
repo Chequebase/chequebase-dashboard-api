@@ -94,7 +94,7 @@ export class ApprovalService {
     if (!data.budget) delete payload.budget
 
     // TOD: if approval for reviewer removal is required ---
-    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, payload, { new: true })
+    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, payload, { upsert: true, new: true })
 
     if (!rule) throw new NotFoundError("Rule not found")
 
