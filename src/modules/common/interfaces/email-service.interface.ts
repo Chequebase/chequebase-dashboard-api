@@ -257,6 +257,18 @@ export interface SendTransactionApprovalRequest {
   link: string
 }
 
+export interface SalaryReceived {
+  employeeName: string
+  businessName: string
+  date: string
+  currency: string
+  amount: string
+  accountNumber: string
+  bankName: string
+  transactionDate : string
+  transactionTime: string
+}
+
 export interface SendApprovalRequestReviewed {
   employeeName: string,
   budgetName: string,

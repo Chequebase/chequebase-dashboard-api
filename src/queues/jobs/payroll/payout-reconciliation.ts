@@ -1,4 +1,5 @@
 import PayrollPayout, {
+  IPayrollPayout,
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
 import WalletEntry, {
@@ -10,7 +11,7 @@ import WalletEntry, {
 import Wallet from "@/models/wallet.model";
 import EmailService from "@/modules/common/email.service";
 import { cdb } from "@/modules/common/mongoose";
-import { transactionOpts } from "@/modules/common/utils";
+import { formatMoney, maskString, transactionOpts } from "@/modules/common/utils";
 import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
@@ -21,6 +22,7 @@ import { BadRequestError } from "routing-controllers";
 import Container from "typedi";
 import { WalletOutflowData } from "../wallet/wallet-outflow.job";
 import Payroll, { PayrollStatus } from "@/models/payroll/payroll.model";
+import { IPayrollUser } from "@/models/payroll/payroll-user.model";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -31,6 +33,7 @@ async function success(
   entry: HydratedDocument<IWalletEntry>,
   data: WalletOutflowData
 ) {
+  let payout: null | IPayrollPayout = null
   await cdb.transaction(async (session) => {
     await entry
       .updateOne({
@@ -39,10 +42,16 @@ async function success(
       })
       .session(session);
 
-    await PayrollPayout.updateOne(
-      { _id: entry.payrollPayout },
-      { status: PayrollPayoutStatus.Settled }
-    );
+    payout = await PayrollPayout.findByIdAndUpdate(entry.payrollPayout, {
+      status: PayrollPayoutStatus.Settled,
+    })
+      .populate('payroll', 'periodStartDate periodEndDate')
+      .populate('organization', 'businessName')
+      .populate({
+        path: "payrollUser",
+        populate: { path: "user", select: 'email' }
+      })
+      .session(session);
   }, transactionOpts);
 
   const payouts = await PayrollPayout.find({ payroll: entry.payroll }).select('status').lean()
@@ -52,9 +61,27 @@ async function success(
       { status: PayrollStatus.Completed }
     );
   }
-  // TODO: send email notification to employee
-  //  emailService.sendTransferSuccessEmail(entry.initiatedBy.email, {
-  //  });
+
+  payout = <IPayrollPayout>(<unknown>payout);
+  const periodStartDate = dayjs(payout.payroll.periodStartDate).tz('Africa/Lagos');
+  const periodEndDate = dayjs(payout.payroll.periodEndDate).tz("Africa/Lagos");
+  const payrollUser: IPayrollUser = payout?.payrollUser;
+  if (payrollUser && (payrollUser.email || payrollUser.user?.email)) {
+    const to = payrollUser.user?.email || payrollUser.email;
+    await emailService.sendSalaryReceivedEmail(to, {
+      amount: formatMoney(payout.amount),
+      accountNumber: maskString(payout.bank.accountNumber),
+      bankName: payout.bank.bankName,
+      businessName: payout.organization.businessName,
+      currency: payout.currency,
+      date: `${periodStartDate.format("MMM d")} - ${periodEndDate.format(
+        "MMM d YYYY"
+      )}`,
+      employeeName: payrollUser.firstName,
+      transactionTime: dayjs().format("HH:mm"),
+      transactionDate: dayjs().format("Do MMM"),
+    });
+  }
 }
 
 async function failure(

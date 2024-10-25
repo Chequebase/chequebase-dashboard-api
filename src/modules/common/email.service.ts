@@ -97,6 +97,15 @@ export default class EmailService {
     })
   }
 
+  sendSalaryReceivedEmail(to: string, data: T.SalaryReceived) {
+    return this.send({
+      to,
+      subject: "Salary received",
+      templateId: "d-9272ec6279aa4e80946ee86c8a2012ef",
+      dynamicTemplateData: data,
+    });
+  }
+
   sendApprovalRequestReviewed(to: string, data: T.SendApprovalRequestReviewed) {
     return this.send({
       to,

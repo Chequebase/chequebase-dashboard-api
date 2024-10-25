@@ -77,3 +77,36 @@ export function findDuplicates<T>(arr: T[], key: keyof T): T[] {
 
   return [...new Set(arr.filter((item) => countMap.get(item[key])! > 1))];
 }
+
+export function maskString(
+  str: string,
+  start?: number,
+  length?: number,
+  maskChar: string = "*"
+): string {
+  if (typeof str !== "string" || str.length === 0) {
+    return str;
+  }
+
+  // Automatically set 'start' and 'length' if not provided
+  if (typeof start !== "number" || start < 0) {
+    // Default to masking from around 30% of the string length
+    start = Math.max(1, Math.floor(str.length * 0.3));
+  }
+
+  if (typeof length !== "number" || length <= 0 || start >= str.length) {
+    // Default to masking around 40% of the string length
+    length = Math.max(1, Math.floor(str.length * 0.4));
+  }
+
+  // Calculate the end of the masked section
+  const maskEnd = Math.min(start + length, str.length);
+
+  // Create the masked section
+  const maskedSection = str.slice(start, maskEnd).replace(/./g, maskChar);
+
+  // Combine the unmasked and masked parts
+  const maskedStr = str.slice(0, start) + maskedSection + str.slice(maskEnd);
+
+  return maskedStr;
+}
