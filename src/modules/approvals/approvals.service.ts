@@ -281,6 +281,7 @@ export class ApprovalService {
           status: PayrollApprovalStatus.Approved,
           approvalRequired: false,
         };
+        break;
       default:
         logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })
         throw new BadRequestError("Something went wrong")
