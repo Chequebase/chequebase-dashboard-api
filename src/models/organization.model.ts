@@ -76,6 +76,7 @@ export interface IOrganization {
   anchorCustomerId: string
   safeHavenIdentityId: string
   identityGatewayResponse: string
+  bvnVerified: boolean
   depositAccount: string
   phone: string
   postalCode: string
@@ -166,6 +167,7 @@ const organizationSchma = new Schema<IOrganization>(
     anchorCustomerId: String,
     safeHavenIdentityId: String,
     identityGatewayResponse: String,
+    bvnVerified: Boolean,
     kycRejectReason: String,
     anchor: anchorSchema,
     kycRejectionLevel: String,

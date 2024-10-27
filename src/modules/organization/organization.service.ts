@@ -268,8 +268,11 @@ export class OrganizationsService {
       throw new NotFoundError(`Identity ID not found`)
     }
     const validationResult = await this.safeHavenIdentityClient.validateVerification(organization.safeHavenIdentityId, otp);
-    console.log({ validationResult})
-    return validationResult
+    if (validationResult.status === 'success') {
+      await organization.updateOne({ bvnVerified: true })
+      return { message: 'bvn verified' }
+    }
+    throw new ForbiddenError(`Unable to verify BVN`);
   }
 
   // async approve(id: string) {
