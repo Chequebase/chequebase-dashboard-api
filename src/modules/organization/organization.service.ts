@@ -2,18 +2,19 @@ import Organization from '@/models/organization.model';
 import User, { KycStatus } from '@/models/user.model';
 import { ForbiddenError, NotFoundError } from 'routing-controllers';
 import { v4 as uuid } from 'uuid'
-import { Service } from 'typedi';
+import { Inject, Service } from 'typedi';
 import { OwnerDto, UpdateBusinessInfoDto, UpdateBusinessOwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { S3Service } from '@/modules/common/aws/s3.service';
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { organizationQueue } from '@/queues';
-import { SafeHavenIdentityClient } from './providers/safe-haven.client';
+import { SAFE_HAVEN_IDENTITY_TOKEN, SafeHavenIdentityClient } from './providers/safe-haven.client';
 
 @Service()
 export class OrganizationsService {
   constructor (
-    private s3Service: S3Service,
+    @Inject(SAFE_HAVEN_IDENTITY_TOKEN)
     private safeHavenIdentityClient: SafeHavenIdentityClient,
+    private s3Service: S3Service
     // private sqsClient: SqsClient
   ) { }
 
