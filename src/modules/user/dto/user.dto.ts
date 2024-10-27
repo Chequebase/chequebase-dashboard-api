@@ -34,6 +34,22 @@ export class RegisterDto {
   avatar?: string;
 }
 
+export class NewRegisterDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  businessName: string
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+}
+
 export class LoginDto {
   @IsEmail()
   email: string;

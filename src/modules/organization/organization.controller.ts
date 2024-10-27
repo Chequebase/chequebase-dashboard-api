@@ -1,6 +1,6 @@
 import { City, State } from 'country-state-city';
 import { Post, Authorized, Body, Get, Param, Patch, UseBefore, Req, JsonController, CurrentUser } from 'routing-controllers';
-import { OwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
+import { OwnerDto, SendBvnOtpDto, UpdateBusinessInfoDto, UpdateBusinessOwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto, VerifyBvnOtpDto } from './dto/organization.dto';
 import { OrganizationsService } from './organization.service';
 import { ERole } from '../user/dto/user.dto';
 import { Countries } from '@/modules/common/utils/countries';
@@ -23,6 +23,19 @@ export default class OrganizationsController {
     return this.organizationsService.updateCompanyInfo(auth.orgId, kycDto);
   }
 
+  @Authorized(ERole.Owner)
+  @Patch('/update-business-info')
+  @UseBefore(multer().single('cac'))
+  async updateBusinessInfo(@CurrentUser() auth: AuthUser, @Req() req: Request) {
+    const file = req.file as any
+    const dto = plainToInstance(UpdateBusinessInfoDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', cac: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) {
+      throw { errors }
+    }
+    return this.organizationsService.updatebusinessInfo(auth.orgId, dto);
+  }
+
   // make this form data
   @Authorized(ERole.Owner)
   @UseBefore(multer().any())
@@ -31,6 +44,12 @@ export default class OrganizationsController {
     const files = req.files as any[] || []
     const dto = plainToInstance(OwnerDto, req.body)
     return this.organizationsService.updateOwnerInfo(auth.orgId, dto, files);
+  }
+
+  @Authorized(ERole.Owner)
+  @Patch('/update-business-owner')
+  async newUpdateOwnerInfo(@CurrentUser() auth: AuthUser, @Body() body: UpdateBusinessOwnerDto) {
+    return this.organizationsService.updateBusinessOwner(auth.orgId, body);
   }
 
   @Authorized(ERole.Owner)
@@ -54,6 +73,18 @@ export default class OrganizationsController {
   @Patch('/apply-for-approval')
   applyForApproval(@CurrentUser() auth: AuthUser) {
     return this.organizationsService.applyForApproval(auth.orgId);
+  }
+
+  @Authorized(ERole.Owner)
+  @Patch('/send-bvn-otp')
+  sendBvnOtp(@CurrentUser() auth: AuthUser, @Body() body: SendBvnOtpDto) {
+    return this.organizationsService.sendBvnOtp(auth.orgId, body.bvn);
+  }
+
+  @Authorized(ERole.Owner)
+  @Patch('/verify-bvn-otp')
+  verifyBvnOtp(@CurrentUser() auth: AuthUser, @Body() body: VerifyBvnOtpDto) {
+    return this.organizationsService.verifyBvnOtp(auth.orgId, body.otp);
   }
 
   @Authorized()

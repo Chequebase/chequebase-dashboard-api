@@ -51,6 +51,30 @@ export class UpdateCompanyInfoDto {
   regDate: string;
 }
 
+export class UpdateBusinessInfoDto {
+  @IsString()
+  readonly businessIndustry: string;
+
+  @IsString()
+  readonly phone: string;
+
+  @IsString()
+  readonly city: string;
+
+  @IsString()
+  readonly address: string;
+
+  @IsString()
+  readonly state: string;
+
+  @IsString()
+  regNumber: string
+
+  cac: Buffer
+
+  fileExt?: string
+}
+
 export class OwnerDto {
   @IsString()
   firstName: string
@@ -88,6 +112,42 @@ export class OwnerDto {
   @IsNumber()
   @IsOptional()
   percentOwned?: string
+}
+
+export class UpdateBusinessOwnerDto {
+  @IsString()
+  firstName: string
+  @IsString()
+  lastName: string
+  @IsString()
+  phone: string
+  @IsString()
+  dob: string
+  @IsOptional()
+  @IsString()
+  email: string
+  @IsString()
+  country: string
+  @IsString()
+  bvn: string
+  @IsString()
+  address: string
+  @IsString()
+  state: string
+  @IsString()
+  city: string
+  @IsString()
+  postalCode: string
+}
+
+export class SendBvnOtpDto {
+  @IsString()
+  bvn: string
+}
+
+export class VerifyBvnOtpDto {
+  @IsString()
+  otp: string
 }
 
 export class UpdateOwnerDto {
