@@ -251,7 +251,6 @@ export class OrganizationsService {
       throw new NotFoundError(`Organization with id ${id} not found`)
     }
     const bvnCheckResult = await this.safeHavenIdentityClient.initiateVerification(bvn);
-    console.log({ bvnCheckResult})
     if (bvnCheckResult.identityId) {
       await organization.updateOne({ safeHavenIdentityId: bvnCheckResult.identityId, identityGatewayResponse: bvnCheckResult.gatewayResponse })
       return { message: 'otp sent' }
