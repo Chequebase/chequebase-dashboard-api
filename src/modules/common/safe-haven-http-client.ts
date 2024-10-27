@@ -42,7 +42,6 @@ export class SafeHavenHttpClient {
     const tokenExpiresInTwoMinutes = dayjs
       .unix(this.tokenExpiry || 0)
       .isBefore(dayjs().subtract(2, "minutes"));
-    console.log({ token: this.authToken, tokenExpiresInTwoMinutes})
     if (!this.authToken || tokenExpiresInTwoMinutes) {
       this.authToken = await this.regenerateAuthToken();
     }
