@@ -252,8 +252,11 @@ export class OrganizationsService {
     }
     const bvnCheckResult = await this.safeHavenIdentityClient.initiateVerification(bvn);
     console.log({ bvnCheckResult})
-    // save safeHavenIdentityId from response
-    return bvnCheckResult
+    if (bvnCheckResult.identityId) {
+      await organization.updateOne({ safeHavenIdentityId: bvnCheckResult.identityId, identityGatewayResponse: bvnCheckResult.gatewayResponse })
+      return { message: 'otp sent' }
+    }
+    throw new ForbiddenError(`Unable to verify BVN`);
   }
 
   async verifyBvnOtp(id: string, otp: string) {

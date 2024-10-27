@@ -39,12 +39,8 @@ export class SafeHavenIdentityClient {
       });
       return {
         status: success ? "successful" : "pending",
-        message: data.data.responseMessage,
-        providerRef: data.data.sessionId,
-        currency: data.currency,
-        amount: data.amount,
-        reference: data.reference,
-        gatewayResponse: JSON.stringify(data),
+        identityId: data.data._id,
+        gatewayResponse: JSON.stringify(data.providerResponse),
       };
     } catch (err: any) {
       this.logger.error("error processing bvn check", {
