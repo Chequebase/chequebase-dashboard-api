@@ -1,6 +1,6 @@
 import { City, State } from 'country-state-city';
 import { Post, Authorized, Body, Get, Param, Patch, UseBefore, Req, JsonController, CurrentUser } from 'routing-controllers';
-import { OwnerDto, SendBvnOtpDto, UpdateBusinessInfoDto, UpdateBusinessOwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto, VerifyBvnOtpDto } from './dto/organization.dto';
+import { OwnerDto, SendBvnOtpDto, UpdateBusinessInfoDto, UpdateBusinessOwnerDto, UpdateBusinessOwnerIdDto, UpdateCompanyInfoDto, UpdateOwnerDto, VerifyBvnOtpDto } from './dto/organization.dto';
 import { OrganizationsService } from './organization.service';
 import { ERole } from '../user/dto/user.dto';
 import { Countries } from '@/modules/common/utils/countries';
@@ -36,6 +36,19 @@ export default class OrganizationsController {
     return this.organizationsService.updatebusinessInfo(auth.orgId, dto);
   }
 
+  @Authorized(ERole.Owner)
+  @Patch('/update-business-owner-id')
+  @UseBefore(multer().single('identity'))
+  async updateBusinessOwnerId(@CurrentUser() auth: AuthUser, @Req() req: Request) {
+    const file = req.file as any
+    const dto = plainToInstance(UpdateBusinessOwnerIdDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', identity: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) {
+      throw { errors }
+    }
+    return this.organizationsService.updatebusinessOwnerId(auth.orgId, dto);
+  }
+
   // make this form data
   @Authorized(ERole.Owner)
   @UseBefore(multer().any())
@@ -48,8 +61,15 @@ export default class OrganizationsController {
 
   @Authorized(ERole.Owner)
   @Patch('/update-business-owner')
-  async newUpdateOwnerInfo(@CurrentUser() auth: AuthUser, @Body() body: UpdateBusinessOwnerDto) {
-    return this.organizationsService.updateBusinessOwner(auth.orgId, body);
+  @UseBefore(multer().single('poa'))
+  async newUpdateOwnerInfo(@CurrentUser() auth: AuthUser, @Req() req: Request) {
+    const file = req.file as any
+    const dto = plainToInstance(UpdateBusinessOwnerDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', poa: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) {
+      throw { errors }
+    }
+    return this.organizationsService.updateBusinessOwner(auth.orgId, dto);
   }
 
   @Authorized(ERole.Owner)

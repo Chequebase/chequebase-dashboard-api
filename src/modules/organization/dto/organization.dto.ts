@@ -75,6 +75,15 @@ export class UpdateBusinessInfoDto {
   fileExt?: string
 }
 
+export class UpdateBusinessOwnerIdDto {
+  @IsString()
+  readonly idType: string;
+
+  identity: Buffer
+
+  fileExt?: string
+}
+
 export class OwnerDto {
   @IsString()
   firstName: string
@@ -138,6 +147,10 @@ export class UpdateBusinessOwnerDto {
   city: string
   @IsString()
   postalCode: string
+
+  poa: Buffer
+
+  fileExt?: string
 }
 
 export class SendBvnOtpDto {

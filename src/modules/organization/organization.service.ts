@@ -3,7 +3,7 @@ import User, { KycStatus } from '@/models/user.model';
 import { ForbiddenError, NotFoundError } from 'routing-controllers';
 import { v4 as uuid } from 'uuid'
 import { Inject, Service } from 'typedi';
-import { OwnerDto, UpdateBusinessInfoDto, UpdateBusinessOwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
+import { OwnerDto, UpdateBusinessInfoDto, UpdateBusinessOwnerDto, UpdateBusinessOwnerIdDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { S3Service } from '@/modules/common/aws/s3.service';
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { organizationQueue } from '@/queues';
@@ -94,6 +94,29 @@ export class OrganizationsService {
     throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
   }
 
+  async updatebusinessOwnerId(id: string, kycDto: UpdateBusinessOwnerIdDto) {
+    const organization = await Organization.findById(id)
+    if (!organization) {
+      throw new NotFoundError(`Organization with id ${id} not found`)
+    }
+
+    if (organization.admin) {
+      const key = `new-kyc/documents/${organization.id}/id.${kycDto.fileExt || 'pdf'}`;
+      const url = await this.s3Service.uploadObject(
+        getEnvOrThrow('KYB_BUCKET_NAME'),
+        key,
+        kycDto.identity
+      );
+      await Promise.all([
+        organization.updateOne({ ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED, cacUrl: url }),
+        User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED })
+      ])
+      return { ...organization.toObject(), ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED };
+    }
+ 
+    throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
+  }
+
   async updateOwnerInfo(id: string, kycDto: OwnerDto, files: any[]) {
     const organization = await Organization.findById(id)
     if (!organization) {
@@ -147,6 +170,12 @@ export class OrganizationsService {
     }
 
     if (organization.admin) {
+      const key = `new-kyc/documents/${organization.id}/poa.${kycDto.fileExt || 'pdf'}`;
+      const url = await this.s3Service.uploadObject(
+        getEnvOrThrow('KYB_BUCKET_NAME'),
+        key,
+        kycDto.poa
+      );
       await organization.updateOne({
         owner: kycDto,
         status: KycStatus.OWNER_INFO_SUBMITTED
