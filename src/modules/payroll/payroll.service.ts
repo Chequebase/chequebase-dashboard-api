@@ -60,6 +60,7 @@ import {
 } from "./dto/payroll.dto";
 import EmailService from "../common/email.service";
 import { UserService } from "../user/user.service";
+import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
@@ -68,7 +69,7 @@ dayjs.extend(timezone);
 @Service()
 export class PayrollService {
   constructor(
-    private depositAccountService: DepositAccountService,
+    private vaService: VirtualAccountService,
     private anchorService: AnchorService,
     private emailService: EmailService
   ) {}
@@ -98,22 +99,18 @@ export class PayrollService {
       throw new NotFoundError("Base wallet not found");
     }
 
-    const depositAccRef = `da-${createId()}`;
-    const depositAccountId = await this.depositAccountService.createAccount({
-      customerType: "BusinessCustomer",
-      productName: "CURRENT",
-      customerId: org.anchorCustomerId,
-      provider: VirtualAccountClientName.Anchor,
-      reference: depositAccRef,
+    const accountRef = `va-${createId()}`;
+    const account = await this.vaService.createAccount({
+      currency: 'NGN',
+      email: org.email,
+      phone: org.phone,
+      name: org.businessName,
+      type: 'static',
+      customerId: org.safeHavenIdentityId,
+      provider: VirtualAccountClientName.SafeHaven,
+      reference: accountRef,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    const account = await this.depositAccountService.getAccount(
-      depositAccountId,
-      VirtualAccountClientName.Anchor,
-      "NGN"
-    );
     const walletId = new ObjectId();
     const virtualAccountId = new ObjectId();
 
@@ -136,8 +133,8 @@ export class PayrollService {
       bankCode: account.bankCode,
       name: account.accountName,
       bankName: account.bankName,
-      provider: VirtualAccountClientName.Anchor,
-      externalRef: depositAccountId,
+      provider: VirtualAccountClientName.SafeHaven,
+      externalRef: accountRef,
     });
 
     return {
@@ -194,8 +191,11 @@ export class PayrollService {
       date: { $lt: currentPayroll.date },
     }).sort("-createdAt");
 
-    const [payoutStats] = await PayrollPayout.aggregate()
-      .match({ organization: orgId, payroll: new ObjectId(payrollId) })
+    const payoutStats = await PayrollPayout.aggregate()
+      .match({
+        organization: new ObjectId(orgId),
+        payroll: new ObjectId(payrollId),
+      })
       .group({ _id: "$status", count: { $sum: 1 } });
 
     return {
@@ -418,6 +418,7 @@ export class PayrollService {
     const payoutsAggr = PayrollPayout.find({
       organization: orgId,
       payroll: payrollId,
+      status: { $ne: PayrollPayoutStatus.Rejected },
     })
       .populate({
         path: "payrollUser",
@@ -467,7 +468,11 @@ export class PayrollService {
   }
 
   async getEmployeePayouts(orgId: string, userId: string, page: number) {
-    const filter = { organization: orgId, payrollUser: userId };
+    const filter = {
+      organization: orgId,
+      payrollUser: userId,
+      status: PayrollPayoutStatus.Settled,
+    };
     return PayrollPayout.paginate(filter, {
       select: "date amount currency status",
       lean: true,
@@ -502,11 +507,21 @@ export class PayrollService {
     return { stream, filename: "paystub.csv" };
   }
 
-  async exportPayrollPayouts(orgId: string, payrollId: string) {
-    const cursor = PayrollPayout.find({
+  async exportPayrollPayouts(
+    orgId: string,
+    payrollId: string,
+    request?: string
+  ) {
+    const filter: any = {
       organization: orgId,
       payroll: payrollId,
-    })
+    };
+    if (request) {
+      filter.approvalRequest = request;
+    } else {
+      filter.status = { $ne: PayrollPayoutStatus.Rejected };
+    }
+    const cursor = PayrollPayout.find(filter)
       .populate({
         path: "payrollUser",
         select: "user firstName lastName employmentType",
@@ -566,7 +581,7 @@ export class PayrollService {
         "Employement type": toTitleCase(pUser.employementType),
         "Net salary": formatMoney(
           pUser.salary.netAmount,
-          pUser.salary.currency || 'NGN'
+          pUser.salary.currency || "NGN"
         ),
         "Gross salary": formatMoney(
           pUser.salary.grossAmount,
@@ -725,7 +740,8 @@ export class PayrollService {
     let users = (await this.getPayrollUsers(auth.orgId)).filter(
       (u) => u.salary && u.salary.netAmount && u.bank
     );
-    const totalNet = users.reduce((acc, salary) => acc + salary.net, 0);
+    const totalNet = users.reduce((acc, u) => acc + u.salary.net, 0);
+    const totalGross = users.reduce((acc, u) => acc + u.salary.net, 0);
     if (totalNet > payroll.wallet.balance) {
       throw new BadRequestError(
         "Insufficient fund to process payroll run. Please keep your payroll account(s) funded at least 24 hours before your next run date"
@@ -746,6 +762,30 @@ export class PayrollService {
         rule.reviewers.some((r) => r.equals(auth.userId));
     }
 
+    const requestId = new ObjectId();
+    await PayrollPayout.create(
+      users.map((user) => ({
+        id: `po_${createId()}`,
+        approvalRequest: requestId,
+        payroll: payroll._id,
+        organization: payroll.organization,
+        wallet: payroll.wallet._id,
+        payrollUser: user._id,
+        status: PayrollPayoutStatus.Pending,
+        amount: user.salary.netAmount,
+        currency: user.salary.currency || "NGN",
+        provider: TransferClientName.SafeHaven,
+        bank: user.bank,
+        salary: {
+          // TODO: calculate deduction for days not worked for employees that didn't complete a full month
+          netAmount: user.salary.netAmount,
+          grossAmount: user.salary.grossAmount,
+          earnings: user.salary.earnings,
+          deductions: user.salary.deductions,
+        },
+      }))
+    );
+
     if (noApprovalRequired) {
       return this.approvePayroll(payroll.id, auth.userId);
     }
@@ -754,7 +794,6 @@ export class PayrollService {
       return { message: "payroll already in review", approvalRequired: true };
     }
 
-    const requestId = new ObjectId();
     await Promise.all([
       ApprovalRequest.create({
         _id: requestId,
@@ -773,6 +812,9 @@ export class PayrollService {
       payroll.updateOne({
         approvalStatus: PayrollApprovalStatus.InReview,
         approvalRequest: requestId,
+        totalEmployees: users.length,
+        totalGrossAmount: totalGross,
+        totalNetAmount: totalNet,
       }),
     ]);
 
@@ -811,34 +853,9 @@ export class PayrollService {
 
     await payroll.updateOne({
       $set: {
-        totalEmployees: users.length,
-        totalGrossAmount: totalGross,
-        totalNetAmount: totalNet,
         approvalStatus: PayrollApprovalStatus.Approved,
       },
     });
-
-    await PayrollPayout.create(
-      users.map((user) => ({
-        id: `po_${createId()}`,
-        payroll: payroll._id,
-        organization: payroll.organization,
-        wallet: payroll.wallet._id,
-        payrollUser: user._id,
-        status: PayrollPayoutStatus.Pending,
-        amount: user.salary.netAmount,
-        currency: user.salary.currency || "NGN",
-        provider: TransferClientName.Anchor,
-        bank: user.bank,
-        salary: {
-          // TODO: calculate deduction for days not worked for employees that didn't complete a full month
-          netAmount: user.salary.netAmount,
-          grossAmount: user.salary.grossAmount,
-          earnings: user.salary.earnings,
-          deductions: user.salary.deductions,
-        },
-      }))
-    );
 
     // this will be ran from the cron
     if (dayjs().isSameOrAfter(payroll.date, "date")) {

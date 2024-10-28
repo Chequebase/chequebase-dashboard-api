@@ -11,7 +11,7 @@ export class CreateWalletDto {
   @IsString()
   @IsEnum(VirtualAccountClientName)
   @IsOptional()
-  provider = VirtualAccountClientName.Anchor;
+  provider = VirtualAccountClientName.SafeHaven;
 
   @IsString()
   @IsEnum(WalletType)

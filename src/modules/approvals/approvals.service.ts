@@ -302,7 +302,7 @@ export class ApprovalService {
     const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
     this.emailService.sendApprovalRequestReviewed(request.requester.email, {
       approverName: `${approver.user.firstName} ${approver.user.lastName}`,
-      budgetName: request.properties.budget.name,
+      budgetName: request.properties.budget?.name,
       createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
       employeeName: request.requester.firstName,
       requestType: toTitleCase(request.workflowType),

@@ -10,7 +10,7 @@ export interface InitiateTransferData {
     accountNumber: string
   }
   provider: TransferClientName
-  depositAcc: string
+  debitAccount?: string
 }
 
 export interface InitiateTransferResult {

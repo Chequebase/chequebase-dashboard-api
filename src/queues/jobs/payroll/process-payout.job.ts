@@ -3,7 +3,6 @@ import PayrollPayout, {
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
 import Payroll, { PayrollStatus } from "@/models/payroll/payroll.model";
-import { IVirtualAccount } from "@/models/virtual-account.model";
 import WalletEntry, {
   IWalletEntry,
   WalletEntryScope,
@@ -15,6 +14,7 @@ import { BudgetTransferService } from "@/modules/budget/budget-transfer.service"
 import { cdb } from "@/modules/common/mongoose";
 import { transactionOpts } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
+import { InitiateTransferData } from "@/modules/transfer/providers/transfer.client";
 import { TransferService } from "@/modules/transfer/transfer.service";
 import { createId } from "@paralleldrive/cuid2";
 import { Job } from "bull";
@@ -109,7 +109,7 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
         balance: { $gte: amountToDeduct },
       },
       { $inc: { balance: -amountToDeduct, ledgerBalance: -amountToDeduct } }
-    ).populate("virtualAccounts");
+    );
     if (!wallet) {
       logger.error("insufficient wallet balance", {
         payout: payout._id,
@@ -145,14 +145,12 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       },
     });
 
-    const virtualAccount = wallet.virtualAccounts[0] as IVirtualAccount;
-    const request = {
+    const request: InitiateTransferData = {
       reference: entry.reference,
       amount: payout.amount,
       counterparty: payout.bank,
       currency: payout.currency,
       narration: entry.narration,
-      depositAcc: virtualAccount.externalRef,
       provider: payout.provider,
     };
 

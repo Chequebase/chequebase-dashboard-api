@@ -349,7 +349,7 @@ export class WalletTransferService {
       throw new NotFoundError('Organization does not exist')
     }
     const fee = await this.calcTransferFee(orgId, data.amount, wallet.currency)
-    const provider = TransferClientName.Anchor // could be dynamic in the future
+    const provider = TransferClientName.SafeHaven // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
     const payload = {
       auth: { userId: data.auth.userId, orgId },
@@ -369,7 +369,6 @@ export class WalletTransferService {
       counterparty,
       currency: wallet.currency,
       narration: entry.narration,
-      depositAcc: organization.depositAccount,
       provider
     })
 

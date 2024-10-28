@@ -8,7 +8,7 @@ export interface CreateVirtualAccountData {
   amount?: number;
   metadata?: any;
   customerId: string
-  identity: {
+  identity?: {
     type: "bvn";
     number: string;
   };

@@ -6,6 +6,7 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import { TransferClientName } from "@/modules/transfer/providers/transfer.client";
 
 export enum PayrollPayoutStatus {
+  Rejected = 'rejected',
   Pending = "pending",
   Processing = "processing",
   Settled = "settled",
@@ -52,6 +53,7 @@ export interface IPayrollPayout {
       percentage: number;
     }[];
   };
+  approvalRequest: any
   wallet: any;
   payroll: any;
   meta: Record<string, any>;
@@ -72,11 +74,15 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
       required: true,
       index: true,
     },
+    approvalRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ApprovalRequest",
+    },
     payrollUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PayrollUser",
       required: true,
-      index: true
+      index: true,
     },
     salary: {
       netAmount: Number,
@@ -126,11 +132,13 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
       ref: "Wallet",
       required: true,
     },
-    logs: [{
-      request: Object,
-      response: Object,
-      timestamp: Date
-    }],
+    logs: [
+      {
+        request: Object,
+        response: Object,
+        timestamp: Date,
+      },
+    ],
     meta: Object,
   },
   { timestamps: true }

@@ -7,8 +7,11 @@ import {
   InitiateTransferData,
   InitiateTransferResult,
   TransferClient,
+  TransferClientName,
 } from "./transfer.client";
 import { BadRequestError, NotFoundError } from "routing-controllers";
+import numeral from "numeral";
+import { createId } from "@paralleldrive/cuid2";
 
 export const SAFE_HAVEN_TRANSFER_TOKEN = new Token("transfer.provider.safe-haven");
 const settlementAccount = getEnvOrThrow("SAFE_HAVEN_SETTLEMENT_ACCOUNT_NUMBER");
@@ -29,7 +32,7 @@ export class SafeHavenTransferClient implements TransferClient {
       "/transfers/name-enquiry",
       body
     );
-
+  
     this.logger.log("name enquiry response", {
       response: JSON.stringify(data),
       status,
@@ -50,7 +53,7 @@ export class SafeHavenTransferClient implements TransferClient {
       debitAccountNumber: settlementAccount,
       beneficiaryBankCode: payload.counterparty.bankCode,
       beneficiaryAccountNumber: payload.counterparty.accountNumber,
-      amount: payload.amount,
+      amount: numeral(payload.amount).divide(100).value(),
       saveBeneficiary: false,
       narration: payload.narration,
       paymentReference: payload.reference,
@@ -72,14 +75,14 @@ export class SafeHavenTransferClient implements TransferClient {
         status: success ? "successful" : "pending",
         message: data.data.responseMessage,
         providerRef: data.data.sessionId,
-        currency: data.currency,
-        amount: data.amount,
-        reference: data.reference,
+        currency: payload.currency,
+        amount: payload.amount,
+        reference: payload.reference,
         gatewayResponse: JSON.stringify(data),
       };
     } catch (err: any) {
       this.logger.error("error processing transfer", {
-        reason: JSON.stringify(err.response?.data || err?.message),
+        reason: JSON.stringify(err?.response?.data || err?.message),
         payload: JSON.stringify(payload),
         requestData: JSON.stringify(body),
         status: err.response?.status,
@@ -114,11 +117,11 @@ export class SafeHavenTransferClient implements TransferClient {
       if (status === "completed") status = "successful";
 
       return {
-        providerRef: sessionId,
+        providerRef: data.data.sessionId,
         status,
         reference: data.data.paymentReference,
-        amount: data.data.amount,
-        currency: data.data.currency,
+        amount: numeral(data.data.amount).multiply(100).value()!,
+        currency: 'NGN',
         message: data.data.responseMessage,
         gatewayResponse: JSON.stringify(data),
       };
@@ -137,15 +140,3 @@ export class SafeHavenTransferClient implements TransferClient {
     }
   }
 }
-
-async function run() {
-  const safehaven = Container.get<SafeHavenTransferClient>(SAFE_HAVEN_TRANSFER_TOKEN);
-  const account = await safehaven.verifyTransferById("");
-
-  console.log("account %o", account);
-  // const token = await safehaven.regenerateAuthToken()
-  // console.log(Container.get(safehavenIBSClinetID))
-  // console.log(Container.get(safehavenAuthToken))
-}
-
-// run();

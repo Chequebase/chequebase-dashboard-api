@@ -27,7 +27,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
         virtualAccountDetail: {
           name: payload.name,
           amount: payload.amount,
-          bvn: payload.identity.number,
+          bvn: payload.identity?.number,
           reference: payload.reference,
           email: payload.email,
           description: `Virtual account for ${payload.name}`,
@@ -73,7 +73,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       attributes: {
         virtualAccountDetail: {
           name: payload.name,
-          bvn: payload.identity.number,
+          bvn: payload.identity?.number,
           reference: payload.reference,
           email: payload.email,
           description: `Virtual account for ${payload.name}`,

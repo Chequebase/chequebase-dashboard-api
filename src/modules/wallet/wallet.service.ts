@@ -32,7 +32,10 @@ dayjs.extend(timezone)
 
 @Service()
 export default class WalletService {
-  constructor(private depositAccountService: DepositAccountService, private slackService: SlackNotificationService) { }
+  constructor (
+    private vaService: VirtualAccountService,
+    private slackService: SlackNotificationService
+  ) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()
@@ -126,18 +129,18 @@ export default class WalletService {
       //   rcNumber: organization.rcNumber
       // }})
 
-      const depositAccRef = `da-${createId()}`
-
-      const depositAccountId = await this.depositAccountService.createAccount({
-        customerType: 'BusinessCustomer',
-        productName: 'CURRENT',
-        customerId: organization.anchorCustomerId,
-        provider: data.provider,
-        reference: depositAccRef,
-      })
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const account = await this.depositAccountService.getAccount(depositAccountId, VirtualAccountClientName.Anchor, baseWallet.currency)
+      const accountRef = `va-${createId()}`
+      const provider = VirtualAccountClientName.SafeHaven;
+      const account = await this.vaService.createAccount({
+        currency: "NGN",
+        email: organization.email,
+        phone: organization.phone,
+        name: organization.businessName,
+        type: "static",
+        customerId: organization.safeHavenIdentityId,
+        provider,
+        reference: accountRef,
+      });
 
       const wallet = await Wallet.create({
         _id: walletId,
@@ -157,11 +160,9 @@ export default class WalletService {
         bankCode: account.bankCode,
         name: account.accountName,
         bankName: account.bankName,
-        provider: VirtualAccountClientName.Anchor,
-        externalRef: depositAccountId,
+        provider,
+        externalRef: accountRef,
       });
-
-      await Organization.updateOne({ _id: organization._id }, { depositAccount: depositAccountId }).lean()
 
       return {
         _id: wallet._id,

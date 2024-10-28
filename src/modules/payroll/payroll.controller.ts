@@ -135,12 +135,14 @@ export default class PayrollController {
   async exportPayrollPayouts(
     @Res() res: Response,
     @CurrentUser() auth: AuthUser,
-    @Param("id") id: string
+    @Param("id") id: string,
+    @QueryParam('request') request?: string 
   ) {
     const passthrough = new PassThrough();
     const { filename, stream } = await this.payrollService.exportPayrollPayouts(
       auth.orgId,
-      id
+      id,
+      request
     );
 
     res.setHeader("Content-Type", "text/csv");

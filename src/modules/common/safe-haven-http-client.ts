@@ -80,7 +80,6 @@ export class SafeHavenHttpClient {
         this.authToken = response.data.access_token;
         this.tokenExpiry = response.data.expires_in;
         this.ibsClientId = response.data.ibs_client_id;
-
         return response.data.access_token;
       }
     } catch (err: any) {

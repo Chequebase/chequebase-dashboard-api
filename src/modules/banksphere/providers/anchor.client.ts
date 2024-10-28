@@ -35,7 +35,7 @@ export class AnchorCustomerClient implements CustomerClient {
       this.logger.error('error creating customer', {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
-        status: err.response.status
+        status: err.response?.status
       });
 
       throw new ServiceUnavailableError('Unable to create customer');
@@ -56,7 +56,7 @@ export class AnchorCustomerClient implements CustomerClient {
       this.logger.error('error updating customer', {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
-        status: err.response.status
+        status: err.response?.status
       });
 
       throw new ServiceUnavailableError('Unable to update customer');

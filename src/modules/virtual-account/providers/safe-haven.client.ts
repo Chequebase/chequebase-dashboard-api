@@ -11,18 +11,25 @@ import {
   VirtualAccountClient,
   VirtualAccountClientName,
 } from "./virtual-account.client";
+import numeral from "numeral";
 
 export const SAFE_HAVEN_VA_TOKEN = new Token("va.provider.safe-haven");
 const settlementAccount = getEnvOrThrow("SAFE_HAVEN_SETTLEMENT_ACCOUNT_NUMBER");
+const callbackUrl = getEnvOrThrow("SAFE_HAVEN_WEBHOOK_URL");
+const settlementAccountBankCOde = getEnvOrThrow(
+  "SAFE_HAVEN_SETTLEMENT_BANK_CODE"
+);
 
-@Service({ id: SAFE_HAVEN_VA_TOKEN })
+@Service({ id: SAFE_HAVEN_VA_TOKEN, global: true })
 export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
   currencies = ["NGN"];
   logger = new Logger(SafeHavenVirtualAccountClient.name);
 
   constructor(private client: SafeHavenHttpClient) {}
 
-  async createStaticVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult> {
+  async createStaticVirtualAccount(
+    payload: CreateVirtualAccountData
+  ): Promise<CreateVirtualAccountResult> {
     const body = {
       phoneNumber: payload.phone,
       emailAddress: payload.email,
@@ -38,23 +45,29 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
     };
 
     try {
-      const res = await this.client.axios.post("/api/v1/virtual-nubans", 
-      body,
+      const { data, status } = await this.client.axios.post(
+        "/accounts/v2/subaccount",
+        body
       );
-      const details = res.data.data.attributes;
-
+      this.logger.log("create static virtual account response", {
+        response: JSON.stringify(data),
+        status,
+      });
+      if (data.statusCode !== 200) {
+        throw data;
+      }
       return {
-        accountName: details.accountName,
-        accountNumber: details.accountNumber,
-        bankCode: details.bank.nipCode,
-        bankName: details.bank.name,
+        accountName: data.data.accountName,
+        accountNumber: data.data.accountNumber,
+        bankCode: data.data.bankCode,
+        bankName: "SafeHaven MFB",
         provider: VirtualAccountClientName.SafeHaven,
       };
     } catch (err: any) {
-      this.logger.error("error creating virtual account", {
+      this.logger.error("error creating static virtual account", {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
-        status: err.response.status,
+        status: err.response?.status,
       });
 
       throw new ServiceUnavailableError("Unable to create virtual account");
@@ -67,11 +80,11 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
     const body = {
       validFor: 60 * 60, // 1hr
       amountControl: "Fixed",
-      callbackUrl: "https://chequebase.com",
-      amount: payload.amount,
+      callbackUrl,
+      amount: numeral(payload.amount).divide(100).value(),
       externalReference: payload.reference,
       settlementAccount: {
-        bankCode: "090286",
+        bankCode: settlementAccountBankCOde,
         accountNumber: settlementAccount,
       },
     };
@@ -81,6 +94,7 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
         "/virtual-accounts",
         body
       );
+
       if (data.statusCode !== 200) {
         throw data;
       }
@@ -92,15 +106,15 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
       });
 
       return {
-        accountName: data.accountName,
-        accountNumber: data.accountNumber,
-        bankCode: data.bank.nipCode,
-        bankName: data.bank.name,
+        accountName: data.data.accountName,
+        accountNumber: data.data.accountNumber,
+        bankCode: data.data.bankCode,
+        bankName: "SafeHaven MFB",
         provider: VirtualAccountClientName.SafeHaven,
       };
     } catch (err: any) {
       this.logger.error("error creating virtual account", {
-        reason: JSON.stringify(err.response?.data || err?.message),
+        reason: JSON.stringify(err.response?.data || err),
         payload: JSON.stringify(payload),
         status: err.response?.status,
       });
@@ -146,30 +160,3 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
     throw new ServiceUnavailableError("Unable to get deposit account");
   }
 }
-
-async function run() {
-  const safehaven =
-    Container.get<SafeHavenVirtualAccountClient>(SAFE_HAVEN_VA_TOKEN);
-  const account = await safehaven.createDynamicVirtualAccount({
-    currency: "NGN",
-    email: "daviesesiro@gmail.com",
-    name: "Davies Esiro",
-    provider: VirtualAccountClientName.SafeHaven,
-    type: "static",
-    customerId: "",
-    amount: 10,
-    metadata: {},
-    reference: "externalReference_01",
-    identity: {
-      number: "2104346688",
-      type: "bvn",
-    },
-  });
-
-  console.log("account %o", account);
-  // const token = await safehaven.regenerateAuthToken()
-  // console.log(Container.get(safehavenIBSClinetID))
-  // console.log(Container.get(safehavenAuthToken))
-}
-
-// run();
