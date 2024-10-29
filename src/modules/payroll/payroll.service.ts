@@ -172,7 +172,7 @@ export class PayrollService {
     const net = gross - Object.values(deductions).reduce((a, b) => a + b, 0);
 
     return {
-      netAmount: net,
+      netAmount: Number(net.toFixed()),
       grossAmount: gross,
     };
   }
