@@ -261,7 +261,7 @@ export class PayrollService {
   async topDepartments(orgId: string) {
     const limit = 5;
     const result = await PayrollUser.aggregate()
-      .match({ organization: new ObjectId(orgId) })
+      .match({ organization: new ObjectId(orgId), salary: { $exists: true } })
       .lookup({
         from: "users",
         localField: "user",
@@ -296,7 +296,7 @@ export class PayrollService {
   async topEarners(orgId: string) {
     const limit = 10;
     const result = await PayrollUser.aggregate()
-      .match({ organization: new ObjectId(orgId) })
+      .match({ organization: new ObjectId(orgId), salary: { $exists: true } })
       .sort({ "salary.netAmount": -1 })
       .limit(limit)
       .project({
