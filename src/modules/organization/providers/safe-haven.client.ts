@@ -65,7 +65,7 @@ export class SafeHavenIdentityClient {
     const body = {
         identityId,
         otp,
-        type: 'BVN'
+        type: 'CAC'
         };
       const { data, status: resStatus } = await this.httpClient.axios.post(
         `/identity/v2/validate`,
