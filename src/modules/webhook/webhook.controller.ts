@@ -37,7 +37,7 @@ export default class WebhookController {
       headers: JSON.stringify(headers)
     })
 
-    return this.safeHavenHandler.processWebhook(body, headers)
+    return this.safeHavenHandler.processWebhook(body)
   }
 
   @Post('/paystack')

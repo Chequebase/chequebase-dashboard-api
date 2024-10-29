@@ -2,7 +2,6 @@ import {
   AllowedSlackWebhooks,
   SlackNotificationService,
 } from "@/modules/common/slack/slackNotification.service";
-import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/transfer/providers/safe-haven.client";
 import { walletQueue } from "@/queues";
@@ -14,9 +13,7 @@ import {
   WalletOutflowData,
   WalletOutflowDataNotification
 } from "@/queues/jobs/wallet/wallet-outflow.job";
-import crypto from "crypto";
 import numeral from "numeral";
-import { UnauthorizedError } from "routing-controllers";
 import { Inject, Service } from "typedi";
 
 @Service()
@@ -85,14 +82,6 @@ export default class SafeHavenWebhookHandler {
       AllowedSlackWebhooks.inflow,
       message
     );
-  }
-
-  private createHmac(body: string) {
-    const secret = getEnvOrThrow("ANCHOR_WEBHOOK_SECRET");
-    const hash = crypto.createHmac("sha1", secret).update(body).digest("hex");
-
-    const base64 = Buffer.from(hash).toString("base64");
-    return base64;
   }
 
   private async onTransferEvent(body: any) {
@@ -194,14 +183,7 @@ export default class SafeHavenWebhookHandler {
     }
   }
 
-  processWebhook(body: any, headers: any) {
-    const expectedHmac = headers["x-safe-haven-signature"];
-    const calcuatedHmac = this.createHmac(body);
-    if (calcuatedHmac !== expectedHmac) {
-      this.logger.error("invalid webhhook", { expectedHmac, calcuatedHmac });
-      throw new UnauthorizedError("Invalid webhook");
-    }
-
+  processWebhook(body: any) {
     body = JSON.parse(body);
     const { data, type } = body;
     if (!allowedWebooks.includes(type)) {
