@@ -170,11 +170,11 @@ export class OrganizationsService {
     }
 
     if (organization.admin) {
-      const key = `new-kyc/documents/${organization.id}/poa.${kycDto.fileExt || 'pdf'}`;
+      const key = `new-kyc/documents/${organization.id}/proofOfAddress.${kycDto.fileExt || 'pdf'}`;
       const url = await this.s3Service.uploadObject(
         getEnvOrThrow('KYB_BUCKET_NAME'),
         key,
-        kycDto.poa
+        kycDto.proofOfAddress
       );
       await organization.updateOne({
         owner: kycDto,

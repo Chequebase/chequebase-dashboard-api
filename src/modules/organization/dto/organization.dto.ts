@@ -148,7 +148,8 @@ export class UpdateBusinessOwnerDto {
   @IsString()
   postalCode: string
 
-  poa: Buffer
+  @IsString()
+  proofOfAddress: Buffer
 
   fileExt?: string
 }
