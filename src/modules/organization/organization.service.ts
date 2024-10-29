@@ -127,7 +127,6 @@ export class OrganizationsService {
       const owners: any[] = organization?.owners || []
       const ownerId = kycDto?.id || uuid()
       const existingOwnerIndex = owners.findIndex((x) => x.id === ownerId);
-      console.log({ kycDto })
       const titles = JSON.parse(kycDto.title)
       const percentOwned = Number(kycDto.percentOwned || 0)
       const modifiedTitles = titles.map((t: string) => {
@@ -163,26 +162,29 @@ export class OrganizationsService {
     throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
   }
 
-  async updateBusinessOwner(id: string, kycDto: UpdateBusinessOwnerDto) {
+  async updateBusinessOwner(id: string, kycDto: UpdateBusinessOwnerDto, files: any[]) {
     const organization = await Organization.findById(id)
     if (!organization) {
       throw new NotFoundError(`Organization with id ${id} not found`)
     }
 
     if (organization.admin) {
-      const key = `new-kyc/documents/${organization.id}/proofOfAddress.${kycDto.fileExt || 'pdf'}`;
-      const url = await this.s3Service.uploadObject(
-        getEnvOrThrow('KYB_BUCKET_NAME'),
-        key,
-        kycDto.proofOfAddress
-      );
+      await Promise.all(files.map(async (file) => {
+        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
+        const key = `new-kyc/documents/${organization.id}/directors/${file.fieldname}.${fileExt || 'pdf'}`;
+        const url = await this.s3Service.uploadObject(
+          getEnvOrThrow('KYB_BUCKET_NAME'),
+          key,
+          file.buffer
+        );
+      }))
       await organization.updateOne({
         owner: kycDto,
-        status: KycStatus.OWNER_INFO_SUBMITTED
+        status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED
       })
-      await User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.OWNER_INFO_SUBMITTED })
+      await User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED })
 
-      return { ...organization.toObject(), ...kycDto, status: KycStatus.OWNER_INFO_SUBMITTED };
+      return { ...organization.toObject(), ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED };
     }
 
     throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);

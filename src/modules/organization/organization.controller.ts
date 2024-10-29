@@ -61,15 +61,15 @@ export default class OrganizationsController {
 
   @Authorized(ERole.Owner)
   @Patch('/update-business-owner')
-  @UseBefore(multer().single('proofOfAddress'))
+  @UseBefore(multer().any())
   async newUpdateOwnerInfo(@CurrentUser() auth: AuthUser, @Req() req: Request) {
-    const file = req.file as any
-    const dto = plainToInstance(UpdateBusinessOwnerDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', proofOfAddress: file?.buffer, ...req.body })
-    const errors = await validate(dto)
+    const files = req.files as any[] || []
+    const dto = plainToInstance(UpdateBusinessOwnerDto, req.body)
+    const errors = await validate(dto, req.body)
     if (errors.length) {
       throw { errors }
     }
-    return this.organizationsService.updateBusinessOwner(auth.orgId, dto);
+    return this.organizationsService.updateBusinessOwner(auth.orgId, dto, files);
   }
 
   @Authorized(ERole.Owner)
