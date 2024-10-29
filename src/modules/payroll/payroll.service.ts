@@ -755,8 +755,8 @@ export class PayrollService {
     let users = (await this.getPayrollUsers(auth.orgId)).filter(
       (u) => u.salary && u.salary.netAmount && u.bank
     );
-    const totalNet = users.reduce((acc, u) => acc + u.salary.net, 0);
-    const totalGross = users.reduce((acc, u) => acc + u.salary.net, 0);
+    const totalNet = users.reduce((acc, u) => acc + u.salary.netAmount, 0);
+    const totalGross = users.reduce((acc, u) => acc + u.salary.grossAmount, 0);
     if (totalNet > payroll.wallet.balance) {
       throw new BadRequestError(
         "Insufficient fund to process payroll run. Please keep your payroll account(s) funded at least 24 hours before your next run date"
