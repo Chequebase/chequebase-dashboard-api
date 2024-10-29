@@ -144,13 +144,11 @@ export class UpdateBusinessOwnerDto {
   @IsString()
   city: string
 
-  @IsString()
   proofOfAddress: Buffer
 
   @IsString()
   readonly idType: string;
 
-  @IsString()
   identity: Buffer
 
   fileExt?: string
