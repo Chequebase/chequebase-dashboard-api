@@ -422,14 +422,14 @@ export class PayrollService {
     })
       .populate({
         path: "payrollUser",
-        select: "user firstName lastName bank employmentType",
+        select: "user firstName lastName employmentType",
         populate: {
           path: "user",
           select: "departments",
           populate: { path: "departments", select: "name" },
         },
       })
-      .select("salary status");
+      .select("salary bank status");
 
     const [payouts, stats] = await Promise.all([
       payoutsAggr,
@@ -703,10 +703,7 @@ export class PayrollService {
       throw new BadRequestError("Wallet does not exist");
     }
 
-    if (
-      payroll.approvalStatus === PayrollApprovalStatus.Approved &&
-      dayjs().isSameOrAfter(payroll.date, "date")
-    ) {
+    if (payroll.approvalStatus === PayrollApprovalStatus.Approved) {
       const [aggregatedPayout] = await PayrollPayout.aggregate()
         .match({
           payroll: payroll._id,
@@ -724,12 +721,14 @@ export class PayrollService {
         throw new BadRequestError("Insufficient fund to process payroll run");
       }
 
-      // this will be ran from the cron
-      await payrollQueue.add("processPayroll", {
-        payroll: payroll._id.toString(),
-        orgId: auth.orgId,
-        initiatedBy: auth.userId,
-      } as IProcessPayroll);
+      if (dayjs().isSameOrAfter(payroll.date, "date")) {
+        // this will be ran from the cron
+        await payrollQueue.add("processPayroll", {
+          payroll: payroll._id.toString(),
+          orgId: auth.orgId,
+          initiatedBy: auth.userId,
+        } as IProcessPayroll);
+      }
 
       return {
         message: "Payroll payments are processing",
@@ -841,10 +840,6 @@ export class PayrollService {
       (acc, user) => acc + user.salary.netAmount,
       0
     );
-    const totalGross = users.reduce(
-      (acc, user) => acc + user.salary.grossAmount,
-      0
-    );
     if (totalNet > payroll.wallet.balance) {
       throw new BadRequestError(
         "Insufficient fund to process payroll run. Please keep your payroll account(s) funded at least 24 hours before your next run date"
@@ -857,6 +852,7 @@ export class PayrollService {
       },
     });
 
+    console.log({ run: dayjs().isSameOrAfter(payroll.date, "date") });
     // this will be ran from the cron
     if (dayjs().isSameOrAfter(payroll.date, "date")) {
       await payrollQueue.add("processPayroll", {

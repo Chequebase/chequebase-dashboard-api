@@ -52,7 +52,7 @@ export class SafeHavenTransferClient implements TransferClient {
       debitAccountNumber: settlementAccount,
       beneficiaryBankCode: payload.counterparty.bankCode,
       beneficiaryAccountNumber: payload.counterparty.accountNumber,
-      amount: numeral(payload.amount).divide(100).value(),
+      amount: Number(numeral(payload.amount).divide(100).format('0.00')),
       saveBeneficiary: false,
       narration: payload.narration,
       paymentReference: payload.reference,
@@ -67,7 +67,7 @@ export class SafeHavenTransferClient implements TransferClient {
       const success = data.responseCode === "00";
 
       this.logger.log("anchor initiate transfer response", {
-        payload: JSON.stringify(payload),
+        body: JSON.stringify(body),
         response: JSON.stringify(data),
         status,
       });
@@ -83,7 +83,7 @@ export class SafeHavenTransferClient implements TransferClient {
     } catch (err: any) {
       this.logger.error("error processing transfer", {
         reason: JSON.stringify(err?.response?.data || err?.message),
-        payload: JSON.stringify(payload),
+        body: JSON.stringify(body),
         requestData: JSON.stringify(body),
         status: err.response?.status,
       });

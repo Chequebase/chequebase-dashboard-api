@@ -50,10 +50,10 @@ export class TransferService {
   async verifyTransferById(data: VerifyTransferData) {
     try {
       const client = this.getClient(data.provider, data.currency);
-      const result = await client.verifyTransferById(data.provider);
+      const result = await client.verifyTransferById(data.reference);
       return result;
     } catch (err: any) {
-      this.logger.error("error initiating transfer", {
+      this.logger.error("error verifying transfer", {
         payload: JSON.stringify(data),
         reason: err.message,
       });

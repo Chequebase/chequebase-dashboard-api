@@ -62,7 +62,7 @@ export default class SafeHavenWebhookHandler {
     }
 
     switch (type as (typeof allowedWebooks)[number]) {
-      case "virtualAccount.transfer":
+      // case "virtualAccount.transfer":
       case "transfer":
         return this.OnTransferReceived(body);
       default:

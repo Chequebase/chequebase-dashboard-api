@@ -37,7 +37,7 @@ export function getPercentageDiff(previousValue = 0, currentValue = 0) {
 }
 
 export function formatMoney(amount: number, currency?: string) {
-  let value = numeral(amount).divide(100).value()!.toLocaleString()
+  let value = numeral(amount).divide(100).format('0,0.00')
   if (currency) value = `${currency} ${value}`;
   return value;
 }
