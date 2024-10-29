@@ -108,7 +108,7 @@ export class OrganizationsService {
         kycDto.identity
       );
       await Promise.all([
-        organization.updateOne({ ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED, cacUrl: url }),
+        organization.updateOne({ ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED, identityDocument: url }),
         User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED })
       ])
       return { ...organization.toObject(), ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED };
