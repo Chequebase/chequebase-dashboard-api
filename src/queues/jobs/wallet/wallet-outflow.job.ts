@@ -2,8 +2,9 @@ import { IBudget } from "@/models/budget.model";
 import { IOrganization } from "@/models/organization.model";
 import { IUser } from "@/models/user.model";
 import WalletEntry, {
+  IWalletEntry,
   WalletEntryScope,
-  WalletEntryStatus
+  WalletEntryStatus,
 } from "@/models/wallet-entry.model";
 import { IWallet } from "@/models/wallet.model";
 import Logger from "@/modules/common/utils/logger";
@@ -14,6 +15,9 @@ import utc from "dayjs/plugin/utc";
 import { BadRequestError } from "routing-controllers";
 import BudgetRecon from "../budget/budget-reconciliation";
 import PayoutRecon from "../payroll/payout-reconciliation";
+import { cdb } from "@/modules/common/mongoose";
+import { transactionOpts } from "@/modules/common/utils";
+import { HydratedDocument } from "mongoose";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -72,28 +76,34 @@ async function processWalletOutflow(job: Job<WalletOutflowData>) {
 
 async function handleSuccessful(data: WalletOutflowData) {
   try {
-    const entry = await WalletEntry.findOne({ reference: data.reference })
-      .populate<{ initiatedBy: IUser }>("initiatedBy")
-      .populate<{ wallet: IWallet }>("wallet")
-      .populate<{ budget: IBudget }>("budget")
-      .populate<{ organization: IOrganization }>(
-        "organization",
-        "businessName"
-      );
-    if (!entry) {
-      logger.error("entry not found", { reference: data.reference });
-      throw new BadRequestError("Wallet entry does not exist");
-    }
+    let entry: HydratedDocument<IWalletEntry> | undefined | null;
+    await cdb.transaction(async (session) => {
+      entry = await WalletEntry.findOne({ reference: data.reference })
+        .populate<{ initiatedBy: IUser }>("initiatedBy")
+        .populate<{ wallet: IWallet }>("wallet")
+        .populate<{ budget: IBudget }>("budget")
+        .populate<{ organization: IOrganization }>(
+          "organization",
+          "businessName"
+        ).session(session);
+      if (!entry) {
+        logger.error("entry not found", { reference: data.reference });
+        throw new BadRequestError("Wallet entry does not exist");
+      }
 
-    if (entry.status !== WalletEntryStatus.Pending) {
-      logger.error("entry already in conclusive state", {
-        reference: data.reference,
-        entry: entry._id,
-      });
+      if (entry.status !== WalletEntryStatus.Pending) {
+        logger.error("entry already in conclusive state", {
+          reference: data.reference,
+          entry: entry._id,
+        });
 
-      return { message: "entry already in conclusive state" };
-    }
+        throw new BadRequestError("Wallet entry does not exist");
+      }
 
+      await entry.updateOne({ status: WalletEntryStatus.Processing })
+    }, transactionOpts);
+
+    entry = entry!
     if (entry.scope === WalletEntryScope.PayrollPayout) {
       await PayoutRecon.success(entry, data);
     } else {
@@ -164,7 +174,7 @@ async function handleReversed(data: WalletOutflowData) {
     }
 
     if (entry.scope === WalletEntryScope.PayrollPayout) {
-      await PayoutRecon.reversal(entry, data)
+      await PayoutRecon.reversal(entry, data);
     } else {
       await BudgetRecon.reversal(entry, data);
     }

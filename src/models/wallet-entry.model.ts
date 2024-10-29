@@ -11,6 +11,7 @@ export enum WalletEntryType {
 
 export enum WalletEntryStatus {
   Successful = 'successful',
+  Processing = 'processing',
   Pending = 'pending',
   Failed = 'failed'
 }

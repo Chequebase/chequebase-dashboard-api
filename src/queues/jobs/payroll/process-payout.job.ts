@@ -16,6 +16,7 @@ import { transactionOpts } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { InitiateTransferData } from "@/modules/transfer/providers/transfer.client";
 import { TransferService } from "@/modules/transfer/transfer.service";
+import { walletQueue } from "@/queues";
 import { createId } from "@paralleldrive/cuid2";
 import { Job } from "bull";
 import dayjs from "dayjs";
@@ -25,6 +26,7 @@ import { LeanDocument } from "mongoose";
 import numeral from "numeral";
 import { BadRequestError } from "routing-controllers";
 import Container from "typedi";
+import { RequeryOutflowJobData } from "../wallet/requery-outflow.job";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -175,11 +177,16 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       }
     );
 
-    if ("providerRef" in response) {
+    if ("providerRef" in response && response.providerRef) {
       await WalletEntry.updateOne(
         { _id: entry._id },
         { providerRef: response.providerRef }
       );
+
+      await walletQueue.add("requeryOutflow", {
+        provider: payout.provider,
+        providerRef: response.providerRef,
+      } as RequeryOutflowJobData);
     }
 
     return entry;

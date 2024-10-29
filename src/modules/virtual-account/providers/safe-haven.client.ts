@@ -2,7 +2,7 @@ import { SafeHavenHttpClient } from "@/modules/common/safe-haven-http-client";
 import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
-import Container, { Service, Token } from "typedi";
+import { Service, Token } from "typedi";
 import {
   CreateDepositAccountData,
   CreateDepositAccountResult,
@@ -49,6 +49,7 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
         "/accounts/v2/subaccount",
         body
       );
+
       this.logger.log("create static virtual account response", {
         response: JSON.stringify(data),
         status,

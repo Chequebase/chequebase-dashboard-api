@@ -29,7 +29,8 @@ import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
 import EmailService from "../common/email.service"
 import { IVirtualAccount } from "@/models/virtual-account.model";
-import WalletService from "./wallet.service";
+import { walletQueue } from "@/queues"
+import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -372,10 +373,15 @@ export class WalletTransferService {
       provider
     })
 
-    if ('providerRef' in transferResponse) {
+    if ('providerRef' in transferResponse && transferResponse.providerRef) {
       await WalletEntry.updateOne({ _id: entry._id }, {
         providerRef: transferResponse.providerRef
       })
+
+      await walletQueue.add("requeryOutflow", {
+        provider,
+        providerRef: transferResponse.providerRef,
+      } as RequeryOutflowJobData);
     }
 
     return {

@@ -63,6 +63,7 @@ export class SafeHavenTransferClient implements TransferClient {
         "/transfers",
         body
       );
+
       const success = data.responseCode === "00";
 
       this.logger.log("anchor initiate transfer response", {
@@ -99,12 +100,17 @@ export class SafeHavenTransferClient implements TransferClient {
       };
     }
   }
+
   async verifyTransferById(sessionId: string): Promise<InitiateTransferResult> {
     try {
       const { data, status: resStatus } = await this.httpClient.axios.post(
         `/transfers/status`,
         { sessionId }
       );
+
+      if (data.statusCode !== 200) {
+        throw data
+      }
 
       this.logger.log("verify transfer status response", {
         sessionId,
@@ -128,14 +134,61 @@ export class SafeHavenTransferClient implements TransferClient {
       this.logger.error("error verify transfer", {
         reason: JSON.stringify(err.response?.data || err?.message),
         sessionId,
-        status: err.response?.status,
+        status: err?.response?.status,
       });
 
-      if (err.response.status === 404) {
+      if ((err?.response?.status || err?.statusCode) === 400) {
         throw new NotFoundError("Transfer not found");
       }
 
       throw new ServiceUnavailableError("Unable to verify transfer");
     }
   }
+
+  async verifyIdentity(){
+    try {
+      const { data, status: resStatus } = await this.httpClient.axios.post(
+        `/identity/v2/validate`,
+        {
+          type: "BVN",
+          identityId: "6720a3e0a3f3cfc14c065b6a",
+          otp: "795752",
+        }
+      );
+
+      console.log('%o',{
+        data,
+        resStatus,
+      });
+     
+    } catch (err: any) {
+      console.log(err.response.data, err.response.status)
+    }
+  }
+
 }
+
+async function run() {
+  const safehaven = Container.get<SafeHavenTransferClient>(SAFE_HAVEN_TRANSFER_TOKEN);
+  // const account = await safehaven.initiateTransfer({
+  //   currency: "NGN",
+  //   provider: TransferClientName.SafeHaven,
+  //   amount: 500_00,
+  //   reference: "externalReference_14",
+  //   narration: "Salary sep 1 - 30",
+  //   debitAccount: "",
+  //   counterparty: {
+  //     accountName: "Chequebasen/ John doe",
+  //     accountNumber: "8028118297",
+  //     bankCode: "999240",
+  //     bankId: "999240",
+  //   },
+  // });
+
+  const account = await safehaven.verifyTransferById(
+    "000003241029101146003493526807"
+  );
+  console.log("account %o", account);
+}
+
+// run();

@@ -21,6 +21,7 @@ import { addWalletEntriesForIngestionToElastic, processWalletEntryToElasticsearc
 import processPayroll from './jobs/payroll/process-payout.job';
 import createNextPayrolls from './jobs/payroll/create-next-payroll';
 import fetchDuePayrolls from './jobs/payroll/fetch-due-payrolls';
+import requeryOutflow from './jobs/wallet/requery-outflow.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -36,6 +37,7 @@ function setupQueues() {
     walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 1, processWalletInflow)
     walletQueue.process('processWalletOutflow', 1, processWalletOutflow)
+    walletQueue.process("requeryOutflow", 1, requeryOutflow);
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
     walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
     walletQueue.add('addWalletEntriesForClearance', null, {

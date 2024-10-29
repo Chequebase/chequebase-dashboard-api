@@ -13,6 +13,12 @@ export interface InitiateTransferData {
   debitAccount?: string
 }
 
+export interface VerifyTransferData {
+  reference: string;
+  currency: string;
+  provider: TransferClientName;
+}
+
 export interface InitiateTransferResult {
   providerRef?: string
   status: string

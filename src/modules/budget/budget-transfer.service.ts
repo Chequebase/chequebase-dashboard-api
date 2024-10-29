@@ -33,6 +33,8 @@ import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
 import { BudgetPolicyService } from "./budget-policy.service"
 import EmailService from "../common/email.service"
+import { walletQueue } from "@/queues"
+import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -452,14 +454,17 @@ export class BudgetTransferService {
       provider
     })
 
-    if ('providerRef' in transferResponse) {
+    if (transferResponse.status === 'failed') {
+      await this.reverseBudgetDebit(entry, transferResponse)
+    } else if ('providerRef' in transferResponse && transferResponse.providerRef) {
       await WalletEntry.updateOne({ _id: entry._id }, {
         providerRef: transferResponse.providerRef
       })
-    }
 
-    if (transferResponse.status === 'failed') {
-      await this.reverseBudgetDebit(entry, transferResponse)
+      await walletQueue.add("requeryOutflow", {
+        provider,
+        providerRef: transferResponse.providerRef,
+      } as RequeryOutflowJobData);
     }
 
     return {

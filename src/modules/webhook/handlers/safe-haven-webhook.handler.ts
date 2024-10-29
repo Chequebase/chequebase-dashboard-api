@@ -26,62 +26,32 @@ export default class SafeHavenWebhookHandler {
     private slackNotificationService: SlackNotificationService
   ) {}
 
-  private async onPaymentSettled(body: any) {
-    const { data } = body;
+  private async OnTransferReceived(body: any) {
+    const response = await this.safeHavenTransferClient.verifyTransferById(
+      body.data.sessionId
+    );
+    const gatewayResponse = JSON.parse(response.gatewayResponse)
 
     const jobData: WalletInflowData = {
-      amount: numeral(data.amount).multiply(100).value()!,
-      accountNumber: data.creditAccountNumber,
+      amount: numeral(response.amount).multiply(100).value()!,
+      accountNumber: gatewayResponse.data.creditAccountNumber,
       currency: "NGN",
-      gatewayResponse: JSON.stringify(body),
-      narration: data.narration,
-      reference: data.paymentReference,
-      providerRef: data.sessionId,
-      paymentMethod: 'transfer',
+      gatewayResponse: response.gatewayResponse,
+      narration: gatewayResponse.data.narration,
+      reference: gatewayResponse.data.paymentReference,
+      providerRef: gatewayResponse.data.sessionId,
+      paymentMethod: "transfer",
       sourceAccount: {
-        accountName: data.debitAccountName,
-        accountNumber: data.debitAccountNumber,
-        // bankName: "", // TODO: get bank name
+        accountName: gatewayResponse.data.debitAccountName,
+        accountNumber: gatewayResponse.data.debitAccountNumber,
       },
     };
 
     await walletQueue.add("processWalletInflow", jobData);
 
     // TODO: send slack notification
-    // await this.onPaymentSettledNotification({
-    //   ...jobData,
-    //   customerId: payment.virtualNuban.accountId,
-    //   businessName: payment.virtualNuban.accountName,
-    // });
 
     return { message: "payment queued" };
-  }
-
-  private async onPaymentSettledNotification(
-    notification: WalletInflowDataNotification
-  ): Promise<void> {
-    const {
-      amount,
-      sourceAccount: { accountName, accountNumber, bankName },
-      paymentMethod,
-      reference,
-      customerId,
-      businessName,
-    } = notification;
-    const correctAmount = +amount / 100;
-    const message = `:rocket: Merchant Wallet Inflow :rocket: \n\n
-      *Merchant*: ${businessName} (${customerId})
-      *Reference*: ${reference}
-      *Amount*: ${correctAmount}
-      *Paymentmethod*: ${paymentMethod}
-      *SourceAccountNumber*: ${accountNumber}
-      *SourceAccountName*: ${accountName}
-      *SourceBank*: ${bankName}
-    `;
-    await this.slackNotificationService.sendMessage(
-      AllowedSlackWebhooks.inflow,
-      message
-    );
   }
 
   private async onTransferEvent(body: any) {
@@ -100,87 +70,8 @@ export default class SafeHavenWebhookHandler {
     await walletQueue.add("processWalletOutflow", jobData);
 
     // TODO: send slack notification
-    // const receipient = body.included.find(
-    //   (x: any) => x.type === "CounterParty"
-    // );
-    // const businessCustomer = body.included.find(
-    //   (x: any) => x.type === "BusinessCustomer"
-    // );
 
-    // await this.onTransferEventNotification({
-    //   ...jobData,
-    //   businessName: businessCustomer.attributes.detail.businessName,
-    //   customerId: body.data.relationships.customer.data.id,
-    //   accountName: receipient.attributes.accountName,
-    //   accountNumber: receipient.attributes.accountNumber,
-    //   bankName: receipient.attributes.bank.name,
-    // });
     return { message: "transfer event queued" };
-  }
-
-  private async onTransferEventNotification(
-    notification: WalletOutflowDataNotification
-  ): Promise<any> {
-    const {
-      amount,
-      status,
-      reference,
-      customerId,
-      accountName,
-      accountNumber,
-      bankName,
-      businessName,
-    } = notification;
-    const correctAmount = +amount / 100;
-    const successTopic = ":warning: Merchant Wallet Outflow Success :warning:";
-    const failureTopic = ":alert: Merchant Wallet Outflow Failed :alert:";
-    const reversedTopic = ":alert: Merchant Wallet Outflow Reversed :alert:";
-
-    switch (status) {
-      case "successful":
-        const successMessage = `${successTopic} \n\n
-        *Merchant*: ${businessName} ${customerId}
-        *Reference*: ${reference}
-        *Amount*: ${correctAmount}
-        *AccountName*: ${accountName}
-        *AccountNumber*: ${accountNumber}
-        *BankName*: ${bankName}
-        *Status*: ${status}
-      `;
-        console.log({ successMessage });
-        return await this.slackNotificationService.sendMessage(
-          AllowedSlackWebhooks.outflow,
-          successMessage
-        );
-      case "failed":
-        const failedNessage = `${failureTopic} \n\n
-        *Merchant*: ${businessName} ${customerId}
-        *Reference*: ${reference}
-        *Amount*: ${correctAmount}
-        *AccountName*: ${accountName}
-        *AccountNumber*: ${accountNumber}
-        *BankName*: ${bankName}
-        *Status*: ${status}
-      `;
-        return await this.slackNotificationService.sendMessage(
-          AllowedSlackWebhooks.outflow,
-          failedNessage
-        );
-      case "reversed":
-        const reversedMessage = `${reversedTopic} \n\n
-        *Merchant*: ${businessName} ${customerId}
-        *Reference*: ${reference}
-        *Amount*: ${correctAmount}
-        *AccountName*: ${accountName}
-        *AccountNumber*: ${accountNumber}
-        *BankName*: ${bankName}
-        *Status*: ${status}
-      `;
-        return await this.slackNotificationService.sendMessage(
-          AllowedSlackWebhooks.outflow,
-          reversedMessage
-        );
-    }
   }
 
   processWebhook(body: any) {
@@ -192,9 +83,8 @@ export default class SafeHavenWebhookHandler {
 
     switch (type as (typeof allowedWebooks)[number]) {
       case "virtualAccount.transfer":
-        return this.onPaymentSettled(body);
       case "transfer":
-        return this.onTransferEvent(body);
+        return this.OnTransferReceived(body);
       default:
         this.logger.log("unhandled event", { event: data.type });
         break;
