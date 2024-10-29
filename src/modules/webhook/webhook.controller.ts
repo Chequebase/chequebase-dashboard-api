@@ -31,10 +31,9 @@ export default class WebhookController {
 
   @Post('/safe-haven')
   @UseBefore(raw({ type: "application/json" }))
-  async processSafeHaven(@Body() body: any, @HeaderParams() headers: AnchorHeaderDto) {
+  async processSafeHaven(@Body() body: any) {
     logger.log('received safehaven webhook', {
       body: body.toString('utf-8'),
-      headers: JSON.stringify(headers)
     })
 
     return this.safeHavenHandler.processWebhook(body)
