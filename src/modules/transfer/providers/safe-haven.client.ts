@@ -165,30 +165,4 @@ export class SafeHavenTransferClient implements TransferClient {
       console.log(err.response.data, err.response.status)
     }
   }
-
 }
-
-async function run() {
-  const safehaven = Container.get<SafeHavenTransferClient>(SAFE_HAVEN_TRANSFER_TOKEN);
-  // const account = await safehaven.initiateTransfer({
-  //   currency: "NGN",
-  //   provider: TransferClientName.SafeHaven,
-  //   amount: 500_00,
-  //   reference: "externalReference_14",
-  //   narration: "Salary sep 1 - 30",
-  //   debitAccount: "",
-  //   counterparty: {
-  //     accountName: "Chequebasen/ John doe",
-  //     accountNumber: "8028118297",
-  //     bankCode: "999240",
-  //     bankId: "999240",
-  //   },
-  // });
-
-  const account = await safehaven.verifyTransferById(
-    "000003241029101146003493526807"
-  );
-  console.log("account %o", account);
-}
-
-// run();

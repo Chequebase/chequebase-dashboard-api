@@ -33,7 +33,7 @@ async function requeryOutflow(job: Job<RequeryOutflowJobData>) {
 
     if ("reference" in result) {
       const jobData: WalletOutflowData = {
-        amount: numeral(result.amount).multiply(100).value()!,
+        amount: result.amount,
         currency: result.currency || "NGN",
         gatewayResponse: result.gatewayResponse,
         reference: result.reference,

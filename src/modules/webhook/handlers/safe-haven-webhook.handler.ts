@@ -31,14 +31,14 @@ export default class SafeHavenWebhookHandler {
       body.data.sessionId
     );
     const gatewayResponse = JSON.parse(response.gatewayResponse)
-
     const jobData: WalletInflowData = {
-      amount: numeral(response.amount).multiply(100).value()!,
+      amount: response.amount,
       accountNumber: gatewayResponse.data.creditAccountNumber,
       currency: "NGN",
       gatewayResponse: response.gatewayResponse,
       narration: gatewayResponse.data.narration,
-      reference: gatewayResponse.data.paymentReference,
+      reference:
+        gatewayResponse.data.paymentReference || gatewayResponse.data.sessionId,
       providerRef: gatewayResponse.data.sessionId,
       paymentMethod: "transfer",
       sourceAccount: {
@@ -52,26 +52,6 @@ export default class SafeHavenWebhookHandler {
     // TODO: send slack notification
 
     return { message: "payment queued" };
-  }
-
-  private async onTransferEvent(body: any) {
-    const sessionId = body.data.sessionId;
-    const verifyResponse =
-      await this.safeHavenTransferClient.verifyTransferById(sessionId);
-
-    const jobData: WalletOutflowData = {
-      amount: numeral(verifyResponse.amount).multiply(100).value()!,
-      currency: verifyResponse.currency,
-      gatewayResponse: verifyResponse.gatewayResponse,
-      reference: verifyResponse.reference,
-      status: verifyResponse.status as WalletOutflowData["status"],
-    };
-
-    await walletQueue.add("processWalletOutflow", jobData);
-
-    // TODO: send slack notification
-
-    return { message: "transfer event queued" };
   }
 
   processWebhook(body: any) {
