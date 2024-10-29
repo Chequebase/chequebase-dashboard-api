@@ -183,10 +183,20 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
         { providerRef: response.providerRef }
       );
 
-      await walletQueue.add("requeryOutflow", {
-        provider: payout.provider,
-        providerRef: response.providerRef,
-      } as RequeryOutflowJobData);
+      await walletQueue.add(
+        "requeryOutflow",
+        {
+          provider: payout.provider,
+          providerRef: response.providerRef,
+        } as RequeryOutflowJobData,
+        {
+          attempts: 4,
+          backoff: {
+            type: "exponential",
+            delay: 60_000, // 1min in ms
+          },
+        }
+      );
     }
 
     return entry;

@@ -378,10 +378,20 @@ export class WalletTransferService {
         providerRef: transferResponse.providerRef
       })
 
-      await walletQueue.add("requeryOutflow", {
-        provider,
-        providerRef: transferResponse.providerRef,
-      } as RequeryOutflowJobData);
+      await walletQueue.add(
+        "requeryOutflow",
+        {
+          provider,
+          providerRef: transferResponse.providerRef,
+        } as RequeryOutflowJobData,
+        {
+          attempts: 4,
+          backoff: {
+            type: "exponential",
+            delay: 60_000, // 1min in ms
+          },
+        }
+      );
     }
 
     return {
