@@ -145,8 +145,6 @@ export class UpdateBusinessOwnerDto {
   state: string
   @IsString()
   city: string
-  @IsString()
-  postalCode: string
 
   @IsString()
   proofOfAddress: Buffer
