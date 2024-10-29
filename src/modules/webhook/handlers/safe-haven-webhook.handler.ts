@@ -184,7 +184,6 @@ export default class SafeHavenWebhookHandler {
   }
 
   processWebhook(body: any) {
-    body = JSON.parse(body);
     const { data, type } = body;
     if (!allowedWebooks.includes(type)) {
       this.logger.log("event type not allowed", { event: type });
