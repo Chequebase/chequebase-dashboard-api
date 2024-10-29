@@ -226,7 +226,7 @@ export class PayrollService {
     };
   }
 
-  async getNextPayrollRunDate(orgId: string) {
+  async getNextPayrollRunDate(orgId: string, onlyFutureDate = false) {
     let payrollSetting = await PayrollSetting.findOne({ organization: orgId });
     if (!payrollSetting) {
       payrollSetting = await PayrollSetting.create({ organization: orgId });
@@ -240,7 +240,7 @@ export class PayrollService {
     const year = today.year();
     if (mode === PayrollScheduleMode.Fixed && dayOfMonth) {
       let fixedRunDate = dayjs(new Date(year, month, dayOfMonth)).tz(tz, true);
-      if (today.isAfter(fixedRunDate, "date")) {
+      if (onlyFutureDate && today.isAfter(fixedRunDate, "date")) {
         fixedRunDate = dayjs(new Date(year, month + 1, dayOfMonth)).tz(
           tz,
           true
@@ -251,7 +251,7 @@ export class PayrollService {
     }
 
     let lastRunDate = getLastBusinessDay(year, month);
-    if (today.isAfter(lastRunDate, "day")) {
+    if (onlyFutureDate && today.isAfter(lastRunDate, "day")) {
       lastRunDate = getLastBusinessDay(year, month + 1);
     }
 
@@ -357,7 +357,7 @@ export class PayrollService {
   async payrollMetrics(orgId: string) {
     let [nextRunDate, wallet, users, previousPayroll, currentPayroll] =
       await Promise.all([
-        this.getNextPayrollRunDate(orgId),
+        this.getNextPayrollRunDate(orgId, true),
         Wallet.findOne({
           organization: orgId,
           type: WalletType.Payroll,
@@ -463,6 +463,22 @@ export class PayrollService {
       },
       { new: true }
     ).lean();
+
+    const today = dayjs().tz("Africa/Lagos");
+    await Payroll.findOneAndUpdate(
+      {
+        organization: orgId,
+        periodStartDate: today.startOf("month").toDate(),
+        periodEndDate: today.endOf("month").toDate(),
+        approvalStatus: {
+          $nin: [
+            PayrollApprovalStatus.InReview,
+            PayrollApprovalStatus.Approved,
+          ],
+        },
+      },
+      { date: nextRunDate }
+    );
 
     return setting;
   }

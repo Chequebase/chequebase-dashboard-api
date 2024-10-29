@@ -144,25 +144,4 @@ export class SafeHavenTransferClient implements TransferClient {
       throw new ServiceUnavailableError("Unable to verify transfer");
     }
   }
-
-  async verifyIdentity(){
-    try {
-      const { data, status: resStatus } = await this.httpClient.axios.post(
-        `/identity/v2/validate`,
-        {
-          type: "BVN",
-          identityId: "6720a3e0a3f3cfc14c065b6a",
-          otp: "795752",
-        }
-      );
-
-      console.log('%o',{
-        data,
-        resStatus,
-      });
-     
-    } catch (err: any) {
-      console.log(err.response.data, err.response.status)
-    }
-  }
 }
