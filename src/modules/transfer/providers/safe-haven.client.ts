@@ -2,6 +2,8 @@ import { SafeHavenHttpClient } from "@/modules/common/safe-haven-http-client";
 import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
+import numeral from "numeral";
+import { BadRequestError, NotFoundError } from "routing-controllers";
 import Container, { Service, Token } from "typedi";
 import {
   InitiateTransferData,
@@ -9,9 +11,6 @@ import {
   TransferClient,
   TransferClientName,
 } from "./transfer.client";
-import { BadRequestError, NotFoundError } from "routing-controllers";
-import numeral from "numeral";
-import { createId } from "@paralleldrive/cuid2";
 
 export const SAFE_HAVEN_TRANSFER_TOKEN = new Token("transfer.provider.safe-haven");
 const settlementAccount = getEnvOrThrow("SAFE_HAVEN_SETTLEMENT_ACCOUNT_NUMBER");

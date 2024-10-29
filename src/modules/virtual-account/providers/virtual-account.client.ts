@@ -25,6 +25,7 @@ export interface CreateDepositAccountData {
 }
 
 export interface CreateVirtualAccountResult {
+  providerRef?: string
   accountName: string
   accountNumber: string
   bankCode: string

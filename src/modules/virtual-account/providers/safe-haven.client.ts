@@ -16,7 +16,7 @@ import numeral from "numeral";
 export const SAFE_HAVEN_VA_TOKEN = new Token("va.provider.safe-haven");
 const settlementAccount = getEnvOrThrow("SAFE_HAVEN_SETTLEMENT_ACCOUNT_NUMBER");
 const callbackUrl = getEnvOrThrow("SAFE_HAVEN_WEBHOOK_URL");
-const settlementAccountBankCOde = getEnvOrThrow(
+const settlementAccountBankCode = getEnvOrThrow(
   "SAFE_HAVEN_SETTLEMENT_BANK_CODE"
 );
 
@@ -56,11 +56,13 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
       if (data.statusCode !== 200) {
         throw data;
       }
+
       return {
         accountName: data.data.accountName,
         accountNumber: data.data.accountNumber,
-        bankCode: data.data.bankCode,
+        bankCode: settlementAccountBankCode,
         bankName: "SafeHaven MFB",
+        providerRef: data.data._id,
         provider: VirtualAccountClientName.SafeHaven,
       };
     } catch (err: any) {
@@ -84,7 +86,7 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
       amount: numeral(payload.amount).divide(100).value(),
       externalReference: payload.reference,
       settlementAccount: {
-        bankCode: settlementAccountBankCOde,
+        bankCode: settlementAccountBankCode,
         accountNumber: settlementAccount,
       },
     };
@@ -105,11 +107,13 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
         status,
       });
 
+      console.log(data);
       return {
         accountName: data.data.accountName,
         accountNumber: data.data.accountNumber,
-        bankCode: data.data.bankCode,
+        bankCode: settlementAccountBankCode,
         bankName: "SafeHaven MFB",
+        providerRef: data.data._id,
         provider: VirtualAccountClientName.SafeHaven,
       };
     } catch (err: any) {

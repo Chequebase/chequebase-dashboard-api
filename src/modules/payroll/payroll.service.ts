@@ -110,7 +110,7 @@ export class PayrollService {
       provider: VirtualAccountClientName.SafeHaven,
       reference: accountRef,
     });
-
+    const providerRef = account.providerRef || accountRef
     const walletId = new ObjectId();
     const virtualAccountId = new ObjectId();
 
@@ -134,7 +134,7 @@ export class PayrollService {
       name: account.accountName,
       bankName: account.bankName,
       provider: VirtualAccountClientName.SafeHaven,
-      externalRef: accountRef,
+      externalRef: providerRef,
     });
 
     return {

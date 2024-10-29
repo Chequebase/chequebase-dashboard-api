@@ -72,14 +72,17 @@ async function success(
   }
 
   payout = <IPayrollPayout>(<unknown>payout);
-  const periodStartDate = dayjs(payout.payroll.periodStartDate).tz(
-    "Africa/Lagos"
-  );
-  const periodEndDate = dayjs(payout.payroll.periodEndDate).tz("Africa/Lagos");
-  const payrollUser: IPayrollUser = payout?.payrollUser;
-  if (payrollUser && (payrollUser.email || payrollUser.user?.email)) {
-    const to = payrollUser.user?.email || payrollUser.email;
-    await emailService.sendSalaryReceivedEmail(to, {
+  const payrollUser: IPayrollUser = payout.payrollUser;
+  const email = payrollUser.email || payrollUser.user?.email;
+
+  if (email) {
+    const periodStartDate = dayjs(payout.payroll.periodStartDate).tz(
+      "Africa/Lagos"
+    );
+    const periodEndDate = dayjs(payout.payroll.periodEndDate).tz(
+      "Africa/Lagos"
+    );
+    await emailService.sendSalaryReceivedEmail(email, {
       amount: formatMoney(payout.amount),
       accountNumber: maskString(payout.bank.accountNumber),
       bankName: payout.bank.bankName,

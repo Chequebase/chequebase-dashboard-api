@@ -15,6 +15,7 @@ import {
   WalletOutflowDataNotification
 } from "@/queues/jobs/wallet/wallet-outflow.job";
 import crypto from "crypto";
+import numeral from "numeral";
 import { UnauthorizedError } from "routing-controllers";
 import { Inject, Service } from "typedi";
 
@@ -32,7 +33,7 @@ export default class SafeHavenWebhookHandler {
     const { data } = body;
 
     const jobData: WalletInflowData = {
-      amount: data.amount,
+      amount: numeral(data.amount).multiply(100).value()!,
       accountNumber: data.creditAccountNumber,
       currency: "NGN",
       gatewayResponse: JSON.stringify(body),
@@ -100,7 +101,7 @@ export default class SafeHavenWebhookHandler {
       await this.safeHavenTransferClient.verifyTransferById(sessionId);
 
     const jobData: WalletOutflowData = {
-      amount: verifyResponse.amount,
+      amount: numeral(verifyResponse.amount).multiply(100).value()!,
       currency: verifyResponse.currency,
       gatewayResponse: verifyResponse.gatewayResponse,
       reference: verifyResponse.reference,

@@ -141,7 +141,7 @@ export default class WalletService {
         provider,
         reference: accountRef,
       });
-
+      const providerRef = account.providerRef || accountRef
       const wallet = await Wallet.create({
         _id: walletId,
         organization: organization._id,
@@ -161,7 +161,7 @@ export default class WalletService {
         name: account.accountName,
         bankName: account.bankName,
         provider,
-        externalRef: accountRef,
+        externalRef: providerRef,
       });
 
       return {
