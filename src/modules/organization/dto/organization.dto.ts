@@ -130,8 +130,6 @@ export class UpdateBusinessOwnerDto {
   lastName: string
   @IsString()
   phone: string
-  @IsString()
-  dob: string
   @IsOptional()
   @IsString()
   email: string
