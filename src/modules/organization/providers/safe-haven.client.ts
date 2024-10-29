@@ -20,7 +20,7 @@ export class SafeHavenIdentityClient {
     // type this
   ): Promise<any> {
     const body = {
-      type: 'BVN',
+      type: 'CAC',
       number: bvn,
       debitAccountNumber: settlementAccount,
     };
