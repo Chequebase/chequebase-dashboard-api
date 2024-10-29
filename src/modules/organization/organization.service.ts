@@ -169,6 +169,7 @@ export class OrganizationsService {
     }
 
     if (organization.admin) {
+      const owner = organization.owner || {}
       await Promise.all(files.map(async (file) => {
         const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
         const key = `new-kyc/documents/${organization.id}/directors/${file.fieldname}.${fileExt || 'pdf'}`;
@@ -177,6 +178,7 @@ export class OrganizationsService {
           key,
           file.buffer
         );
+        owner[file.fieldname] = url
       }))
       await organization.updateOne({
         owner: kycDto,
