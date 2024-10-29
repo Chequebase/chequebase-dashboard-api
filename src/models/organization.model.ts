@@ -88,6 +88,7 @@ export interface IOrganization {
   regDate: string
   state: string
   owners: Shareholder[]
+  owner: any
   anchor?: Anchor
   kycRejectionLevel: string
   kycRejectionDescription: string
@@ -166,6 +167,7 @@ const organizationSchma = new Schema<IOrganization>(
     rcNumber: String,
     cacItNumber: String,
     owners: [shareholderSchema],
+    owner: Object,
     anchorCustomerId: String,
     safeHavenIdentityId: String,
     identityGatewayResponse: String,
