@@ -181,7 +181,7 @@ export class OrganizationsService {
         owner[file.fieldname] = url
       }))
       await organization.updateOne({
-        owner: kycDto,
+        owner: { ...organization.owner, ...kycDto, ...owner },
         status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED
       })
       await User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED })
