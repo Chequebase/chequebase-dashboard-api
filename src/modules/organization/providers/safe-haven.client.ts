@@ -3,7 +3,7 @@ import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { Service, Token } from "typedi";
-import { BadRequestError, NotFoundError } from "routing-controllers";
+import { NotFoundError } from "routing-controllers";
 
 export const SAFE_HAVEN_IDENTITY_TOKEN = new Token("identity.provider.safe-haven");
 const settlementAccount = getEnvOrThrow("SAFE_HAVEN_SETTLEMENT_ACCOUNT_NUMBER");
@@ -20,7 +20,7 @@ export class SafeHavenIdentityClient {
     // type this
   ): Promise<any> {
     const body = {
-      type: 'CAC',
+      type: 'BVN',
       number: bvn,
       debitAccountNumber: settlementAccount,
     };
@@ -65,7 +65,7 @@ export class SafeHavenIdentityClient {
     const body = {
         identityId,
         otp,
-        type: 'CAC'
+        type: 'BVN'
         };
       const { data, status: resStatus } = await this.httpClient.axios.post(
         `/identity/v2/validate`,
@@ -77,15 +77,8 @@ export class SafeHavenIdentityClient {
         status: resStatus,
       });
 
-      let status = data.data.status.toLowerCase();
-      if (status === "completed") status = "successful";
-
       return {
         providerRef: identityId,
-        status,
-        reference: data.data.paymentReference,
-        amount: data.data.amount,
-        currency: data.data.currency,
         message: data.data.responseMessage,
         gatewayResponse: JSON.stringify(data),
       };
