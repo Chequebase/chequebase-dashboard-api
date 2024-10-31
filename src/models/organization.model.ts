@@ -164,6 +164,7 @@ const organizationSchma = new Schema<IOrganization>(
     state: String,
     tin: String,
     businessNumber: String,
+    cacUrl: String,
     rcNumber: String,
     cacItNumber: String,
     owners: [shareholderSchema],
