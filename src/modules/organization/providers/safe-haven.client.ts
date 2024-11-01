@@ -77,6 +77,7 @@ export class SafeHavenIdentityClient {
       });
 
       return {
+        status: data.statusCode,
         providerRef: identityId,
         gatewayResponse: JSON.stringify(data),
       };
