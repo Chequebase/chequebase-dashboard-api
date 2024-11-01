@@ -44,7 +44,7 @@ export class SafeHavenIdentityClient {
       };
     } catch (err: any) {
       this.logger.error("error processing bvn check", {
-        reason: JSON.stringify(err.response?.data || err?.message),
+        reason: JSON.stringify(err),
         payload: JSON.stringify(bvn),
         requestData: JSON.stringify(body),
         status: err.response?.status,
@@ -53,9 +53,8 @@ export class SafeHavenIdentityClient {
       return {
         status: "failed",
         message:
-          err.response.data?.errors?.[0]?.detail ||
           "Unable to process bvn check",
-        gatewayResponse: JSON.stringify(err.response.data),
+        gatewayResponse: JSON.stringify(err),
       };
     }
   }
@@ -79,14 +78,12 @@ export class SafeHavenIdentityClient {
 
       return {
         providerRef: identityId,
-        message: data.data.responseMessage,
         gatewayResponse: JSON.stringify(data),
       };
     } catch (err: any) {
       this.logger.error("error verify bvn otp", {
-        reason: JSON.stringify(err.response?.data || err?.message),
+        reason: JSON.stringify(err),
         identityId,
-        status: err.response?.status,
       });
 
       if (err.response.status === 404) {
