@@ -255,7 +255,7 @@ export class BanksphereService {
         // TODO: hard coding base wallet for now
         // TODO: check if anchor is verified first
         await this.walletService.createWallet({
-          baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.Anchor, organization: accountId,
+          baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.SafeHaven, organization: accountId,
           walletType: WalletType.General
         })
         this.emailService.sendKYCApprovedEmail(admin.email, {
