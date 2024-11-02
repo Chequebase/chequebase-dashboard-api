@@ -43,6 +43,15 @@ export default class EmailService {
     }
   }
 
+  removeOwnerAsApprovalReviewer(to: string, data: T.RemoveOwnerAsApprovalReviewer) {
+    return this.send({
+      to,
+      subject: "Approve or Reject Workflow Removal",
+      templateId: "d-221cab8133c74c7ab279a713f2f94e5f",
+      dynamicTemplateData: data,
+    });
+  }
+
   sendExpenseApprovalRequest(to: string, data: T.SendExpenseApprovalRequest) {
     return this.send({
       to,

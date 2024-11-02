@@ -204,6 +204,13 @@ export interface SendExpenseApprovalRequest {
   link: string
 }
 
+export interface RemoveOwnerAsApprovalReviewer {
+  userName: string;
+  workflowName: string;
+  approvalLink: string;
+  rejectionLink: string;
+}
+
 export interface SendPayrollApprovalRequest {
   employeeName: string
   link: string

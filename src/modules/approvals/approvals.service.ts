@@ -4,7 +4,7 @@ import timezone from "dayjs/plugin/timezone"
 import advancedFormat from 'dayjs/plugin/advancedFormat'
 import { ApproveApprovalRequestBody, CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import User, { IUser } from "@/models/user.model";
+import User, { IUser, UserStatus } from "@/models/user.model";
 import QueryFilter from "../common/utils/query-filter";
 import { Service } from "typedi";
 import ApprovalRequest, { ApprovalRequestReviewStatus } from "@/models/approval-request.model";
@@ -20,6 +20,9 @@ import Organization from "@/models/organization.model";
 import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
 import { PayrollService } from "../payroll/payroll.service";
 import { ISubscriptionPlan } from "@/models/subscription-plan.model";
+import { ERole } from "../user/dto/user.dto";
+import { createId } from "@paralleldrive/cuid2";
+import getRedis from "../common/redis";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -110,6 +113,48 @@ export class ApprovalService {
       await Organization.updateOne({ _id: orgId }, { setDefualtApprovalWorkflow: true })
     }
 
+    let rule = await ApprovalRule.findOne({ _id: ruleId, organization: auth.orgId }).populate('reviewers')
+    if (!rule) {
+      throw new BadRequestError("Rule does not exist");
+    }
+    
+    let requiresRemovalPermission: any[] = [];
+    const owners: IUser[] = rule.reviewers.filter(r => r.role === ERole.Owner)
+    const removedOwners = owners.filter(
+      (owner) => !data.reviewers.includes(owner._id.toString())
+    );
+    if (removedOwners.length) {
+      await Promise.all(removedOwners.map(async (owner) => {
+        const code = createId()
+        const link = `${getEnvOrThrow('BASE_BACKEND_URL')}/approvals/remove-owner-as-reviewer/${code}`
+        await getRedis().set(
+          `remove-owner-as-reviewer:${code}`,
+          JSON.stringify({
+            rule: rule!._id,
+            reviewer: owner._id,
+          }),
+          'EX',
+          60 * 60 * 24 * 7 // 7 days
+        );
+        await this.emailService.removeOwnerAsApprovalReviewer(owner.email, {
+          userName: owner.firstName,
+          approvalLink: `${link}/approve`,
+          rejectionLink: `${link}/reject`,
+          workflowName: `${toTitleCase(rule?.workflowType)} workflow`,
+        });
+
+        data.reviewers = data.reviewers.filter(
+          (reviewer) => !removedOwners.some((owner) => owner._id.toString() === reviewer)
+        );
+
+        requiresRemovalPermission.push({
+          firstName: owner.firstName,
+          lastName: owner.lastName,
+          avatar: owner.avatar,
+        })
+      }))
+    }
+
     const body = {
       payload: {
         amount: data.amount,
@@ -128,11 +173,11 @@ export class ApprovalService {
     }
 
     // TOD: if approval for reviewer removal is required ---
-    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, { ...body.payload, $unset: body['$unset'] }, { new: true })
+    rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, { ...body.payload, $unset: body['$unset'] }, { new: true })
 
     if (!rule) throw new NotFoundError("Rule not found")
 
-    return rule
+    return { ...rule.toObject(), requiresRemovalPermission };
   }
 
   async getRules(auth: AuthUser, query: GetRulesQuery) {
