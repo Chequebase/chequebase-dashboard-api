@@ -20,7 +20,7 @@ export class SafeHavenIdentityClient {
     // type this
   ): Promise<any> {
     const body = {
-      type: 'BVN',
+      type: 'CAC',
       number: bvn,
       debitAccountNumber: settlementAccount,
     };
@@ -37,6 +37,7 @@ export class SafeHavenIdentityClient {
         response: JSON.stringify(data),
         status,
       });
+      console.log({ data })
       return {
         status: success ? "successful" : "pending",
         identityId: data.data._id,
@@ -64,16 +65,17 @@ export class SafeHavenIdentityClient {
     const body = {
         identityId,
         otp,
-        type: 'BVN'
+        type: 'CAC'
         };
-      const { data, status: resStatus } = await this.httpClient.axios.post(
+      const { data } = await this.httpClient.axios.post(
         `/identity/v2/validate`,
         body
       );
 
+      console.log({ data })
+
       this.logger.log("verify bvn otp response", {
         response: JSON.stringify(data),
-        status: resStatus,
       });
 
       return {
