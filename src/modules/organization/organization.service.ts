@@ -184,7 +184,7 @@ export class OrganizationsService {
         owner: { ...organization.owner, ...kycDto, ...owner },
         status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED
       })
-      await User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED })
+      await User.updateOne({ _id: organization.admin }, { firstName: kycDto.firstName, lastName: kycDto.lastName, kybStatus: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED })
 
       return { ...organization.toObject(), ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED };
     }
