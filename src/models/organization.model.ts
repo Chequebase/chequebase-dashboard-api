@@ -55,7 +55,7 @@ export interface IOrganization {
     months: number // 1|12
     gracePeriod: number
     nextPlan: ObjectId | ISubscriptionPlan
-    object: ObjectId | ISubscription
+    object: any
   }
   averageMonthlyExpenses: string
   bnNumber: string

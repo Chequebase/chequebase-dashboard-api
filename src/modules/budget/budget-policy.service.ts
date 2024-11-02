@@ -11,6 +11,7 @@ import dayjs from "dayjs";
 import WalletEntry, { WalletEntryStatus } from "@/models/wallet-entry.model";
 import { CheckTransferPolicyDto } from "./dto/budget-transfer.dto";
 import Organization from "@/models/organization.model";
+import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 
 @Service()
 export class BudgetPolicyService {
@@ -29,6 +30,18 @@ export class BudgetPolicyService {
     }
 
     const org = await Organization.findById(auth.orgId)
+    if (!org) throw new BadRequestError("Organization not found");
+    const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
+    const available =
+      plan?.features?.find((f: any) => f.code === "spend_policy")
+        ?.available ?? false
+
+    if (!available) {
+      throw new BadRequestError(
+        "Custom spend policy is not available for this organization"
+      );
+    }
+    
     if (!org?.setInitialPolicies) {
       await Organization.updateOne({ _id: auth.orgId }, { setInitialPolicies: true })
     }
@@ -65,6 +78,19 @@ export class BudgetPolicyService {
       if (policyExists) {
         throw new BadRequestError("A similar policy on same budget/department already exists");
       }
+    }
+    
+    const org = await Organization.findById(auth.orgId);
+    if (!org) throw new BadRequestError("Organization not found");
+    const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
+    const available =
+      plan?.features?.find((f: any) => f.code === "spend_policy")?.available ??
+      false;
+
+    if (!available) {
+      throw new BadRequestError(
+        "Custom spend policy is not available for this organization"
+      );
     }
 
     policy = await BudgetPolicy.findOneAndUpdate({ _id: policyId, organization: auth.orgId }, data, { new: true })

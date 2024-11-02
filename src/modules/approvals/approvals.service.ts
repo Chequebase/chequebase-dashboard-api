@@ -19,6 +19,7 @@ import dayjs from "dayjs";
 import Organization from "@/models/organization.model";
 import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
 import { PayrollService } from "../payroll/payroll.service";
+import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -35,8 +36,21 @@ export class ApprovalService {
   ) { }
 
   async createApprovalRule(auth: AuthUser, data: CreateRule) {
-    // TODO: limit reviewer count based on plan
-    const org = await Organization.findById(auth.orgId)
+    const org = await Organization.findById(auth.orgId).populate({
+      path: "subscription.object",
+      populate: "plan",
+    });
+
+    if(!org)throw new BadRequestError('Organization not found')
+    const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
+    const maxReviewers = plan?.features?.find((f: any) => f.code === "approvals_workflow")?.maxUnits || 1;
+
+    if (data.reviewers.length > maxReviewers) {
+      throw new BadRequestError(
+        "Approval workflow has reached its maximum limit for reviewers. Limit is " + maxReviewers
+      );
+    }
+
     if (!org?.setDefualtApprovalWorkflow) {
       await Organization.updateOne({ _id: auth.orgId }, { setDefualtApprovalWorkflow: true })
     }
@@ -78,6 +92,20 @@ export class ApprovalService {
   async updateApprovalRule(auth: AuthUser, ruleId: string, data: UpdateRule) {
     const { orgId } = auth;
     const org = await Organization.findById(orgId)
+
+    if (!org) throw new BadRequestError("Organization not found");
+    const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
+    const maxReviewers =
+      plan?.features?.find((f: any) => f.code === "approvals_workflow")
+        ?.maxUnits || 1;
+
+    if (data.reviewers.length > maxReviewers) {
+      throw new BadRequestError(
+        "Approval workflow has reached its maximum limit for reviewers. Limit is " +
+          maxReviewers
+      );
+    }
+
     if (!org?.setDefualtApprovalWorkflow) {
       await Organization.updateOne({ _id: orgId }, { setDefualtApprovalWorkflow: true })
     }
