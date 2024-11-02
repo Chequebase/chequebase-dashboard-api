@@ -69,6 +69,7 @@ export interface IOrganization {
   status: string
   tin: string
   businessNumber: string
+  bvn: string
   rcNumber: string
   cacItNumber: string
   numberOfEmployees: string
@@ -162,6 +163,7 @@ const organizationSchma = new Schema<IOrganization>(
     postalCode: String,
     regDate: String,
     state: String,
+    bvn: String,
     tin: String,
     businessNumber: String,
     cacUrl: String,
