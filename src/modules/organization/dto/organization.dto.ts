@@ -135,6 +135,7 @@ export class UpdateBusinessOwnerDto {
   email: string
   @IsString()
   country: string
+  @IsOptional()
   @IsString()
   bvn: string
   @IsString()
