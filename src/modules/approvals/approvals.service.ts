@@ -22,7 +22,7 @@ import { PayrollService } from "../payroll/payroll.service";
 import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 import { ERole } from "../user/dto/user.dto";
 import { createId } from "@paralleldrive/cuid2";
-import getRedis from "../common/redis";
+import redis from "../common/redis";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -127,7 +127,7 @@ export class ApprovalService {
       await Promise.all(removedOwners.map(async (owner) => {
         const code = createId()
         const link = `${getEnvOrThrow('BASE_BACKEND_URL')}/approvals/remove-owner-as-reviewer/${code}`
-        await getRedis().set(
+        await redis.set(
           `remove-owner-as-reviewer:${code}`,
           JSON.stringify({
             rule: rule!._id,

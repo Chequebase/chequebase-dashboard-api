@@ -52,6 +52,7 @@ import { VirtualAccountClientName } from "../virtual-account/providers/virtual-a
 import {
   AddBulkPayrollUserDto,
   AddPayrollUserDto,
+  AddPayrollUserViaInviteDto,
   AddSalaryBankAccountDto,
   EditPayrollUserDto,
   GetHistoryDto,
@@ -61,6 +62,7 @@ import {
 import EmailService from "../common/email.service";
 import { UserService } from "../user/user.service";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
+import redis from "../common/redis";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
@@ -101,16 +103,16 @@ export class PayrollService {
 
     const accountRef = `va-${createId()}`;
     const account = await this.vaService.createAccount({
-      currency: 'NGN',
+      currency: "NGN",
       email: org.email,
       phone: org.phone,
       name: org.businessName,
-      type: 'static',
+      type: "static",
       customerId: org.safeHavenIdentityId,
       provider: VirtualAccountClientName.SafeHaven,
       reference: accountRef,
     });
-    const providerRef = account.providerRef || accountRef
+    const providerRef = account.providerRef || accountRef;
     const walletId = new ObjectId();
     const virtualAccountId = new ObjectId();
 
@@ -939,7 +941,7 @@ export class PayrollService {
     return users;
   }
 
-  async addPayrollUser(orgId: string, payload: AddPayrollUserDto) {
+  async addPayrollUser(orgId: string, payload: AddPayrollUserDto | AddPayrollUserViaInviteDto) {
     const exists = await PayrollUser.findOne({
       organization: orgId,
       phoneNumber: payload.phoneNumber,
@@ -966,19 +968,20 @@ export class PayrollService {
 
     await PayrollUser.create({
       organization: orgId,
+      ...payload,
       firstName: payload.firstName,
       lastName: payload.lastName,
       phoneNumber: payload.phoneNumber,
       email: payload.email,
-      employmentDate: payload.employmentDate,
-      employmentType: payload.employmentType,
       bank,
       taxId: payload.taxId,
       salary: {
         currency: "NGN",
-        deductions: payload.deductions,
-        earnings: payload.earnings,
-        ...this.calculateSalary(payload),
+        ...("deductions" in payload && {
+          deductions: payload.deductions,
+          earnings: payload.earnings,
+          ...this.calculateSalary(payload),
+        }),
       },
     });
 
@@ -1088,5 +1091,14 @@ export class PayrollService {
     );
 
     return { message: "User updated successfully" };
+  }
+
+  async createInviteCode(orgId: string) {
+    const code = createId()
+    const sevenDaysInSecs = 60 * 60 * 24 * 7
+    const key = `invite-payroll-user:${code}`;
+    await redis.set(key, JSON.stringify({ orgId }), "EX", sevenDaysInSecs);
+
+    return code
   }
 }

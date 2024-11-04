@@ -1,6 +1,7 @@
 import { EPermission } from "@/models/role-permission.model";
 import {
   Authorized,
+  BadRequestError,
   Body,
   CurrentUser,
   Delete,
@@ -20,6 +21,7 @@ import { PayrollService } from "./payroll.service";
 import {
   AddBulkPayrollUserDto,
   AddPayrollUserDto,
+  AddPayrollUserViaInviteDto,
   EditPayrollUserDto,
   GetHistoryDto,
   ProcessPayrollDto,
@@ -27,6 +29,7 @@ import {
 } from "./dto/payroll.dto";
 import { PassThrough } from "stream";
 import { PlanUsageService } from "../billing/plan-usage.service";
+import redis from "../common/redis";
 
 @Service()
 @JsonController("/payroll", { transformResponse: false })
@@ -136,7 +139,7 @@ export default class PayrollController {
     @Res() res: Response,
     @CurrentUser() auth: AuthUser,
     @Param("id") id: string,
-    @QueryParam('request') request?: string 
+    @QueryParam("request") request?: string
   ) {
     const passthrough = new PassThrough();
     const { filename, stream } = await this.payrollService.exportPayrollPayouts(
@@ -158,11 +161,11 @@ export default class PayrollController {
   @Authorized(EPermission.PayrollRead)
   async exportPayrollUsers(
     @Res() res: Response,
-    @CurrentUser() auth: AuthUser,
+    @CurrentUser() auth: AuthUser
   ) {
     const passthrough = new PassThrough();
     const { filename, stream } = await this.payrollService.exportPayrollUsers(
-      auth.orgId,
+      auth.orgId
     );
 
     res.setHeader("Content-Type", "text/csv");
@@ -237,5 +240,36 @@ export default class PayrollController {
   async setupPayroll(@CurrentUser() auth: AuthUser) {
     await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.setupPayroll(auth.orgId);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Get("/payroll-user/invite-code")
+  async createInviteLink(@CurrentUser() auth: AuthUser) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
+    return this.payrollService.createInviteCode(auth.orgId);
+  }
+
+  @Post("/payroll-user/add-via-invite/:code")
+  async addPayrollUserViaInvite(
+    @Body({
+      validate: {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      },
+    })
+    dto: AddPayrollUserViaInviteDto,
+    @Param("code") code: string
+  ) {
+    const key = `invite-payroll-user:${code}`;
+    const data = await redis.get(key);
+    if (!data) {
+      throw new BadRequestError("Invalid or expired invite");
+    }
+
+    const payload = JSON.parse(data);
+    await this.usageService.checkPayrollUsage(payload.orgId);
+    await redis.del(key);
+
+    return this.payrollService.addPayrollUser(payload.orgId, dto);
   }
 }

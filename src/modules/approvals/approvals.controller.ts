@@ -1,15 +1,15 @@
+import ApprovalRule from "@/models/approval-rule.model";
 import { LogAction } from "@/models/logs.model";
-import { Response} from 'express'
 import { EPermission } from "@/models/role-permission.model";
-import { Authorized, BadRequestError, Body, CurrentUser, Delete, Get, JsonController, Param, Post, Put, QueryParams, Res, UseBefore } from "routing-controllers";
+import { Response } from 'express';
+import { Authorized, Body, CurrentUser, Delete, Get, JsonController, Param, Post, Put, QueryParams, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import { logAuditTrail } from "../common/audit-logs/logs";
 import { AuthUser } from "../common/interfaces/auth-user";
+import redis from "../common/redis";
+import { getEnvOrThrow } from "../common/utils";
 import { ApprovalService } from "./approvals.service";
 import { ApproveApprovalRequestBody, CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
-import getRedis from "../common/redis";
-import ApprovalRule from "@/models/approval-rule.model";
-import { getEnvOrThrow } from "../common/utils";
 
 @Service()
 @JsonController("/approvals", { transformResponse: false })
@@ -41,7 +41,7 @@ export default class ApprovalsController {
     @Param("action") action: string
   ) {
     const key = `remove-owner-as-reviewer:${code}`;
-    const data = await getRedis().get(key);
+    const data = await redis.get(key);
     if (!data) {
       return res.status(400).send("<h1>Invalid or expired link</h1>");
     }
@@ -53,7 +53,7 @@ export default class ApprovalsController {
         { $pull: { reviewers: payload.reviewer } }
       );
 
-    await getRedis().del(key);
+    await redis.del(key);
     return res.redirect(
       `${getEnvOrThrow(
         "BASE_FRONTEND_URL"

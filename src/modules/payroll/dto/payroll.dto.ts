@@ -164,6 +164,34 @@ export class AddPayrollUserDto {
   earnings: Earning[];
 }
 
+export class AddPayrollUserViaInviteDto {
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  phoneNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  email?: string;
+
+  @IsString()
+  bankCode: string;
+
+  @IsString()
+  accountNumber: string;
+
+  @IsString()
+  @IsOptional()
+  taxId: string;
+}
+
 export class EditPayrollUserDto {
   @IsDateString()
   @IsOptional()
