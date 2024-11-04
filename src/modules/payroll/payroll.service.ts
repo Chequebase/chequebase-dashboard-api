@@ -851,6 +851,7 @@ export class PayrollService {
       return { message: "payroll already in review", approvalRequired: true };
     }
 
+    const totalFee = payouts.reduce((a, b) => a + b.fee, 0);
     await Promise.all([
       ApprovalRequest.create({
         _id: requestId,
@@ -864,15 +865,21 @@ export class PayrollService {
           user,
           status: user.equals(auth.userId) ? "approved" : "pending",
         })),
-        properties: { payroll: payroll._id },
+        properties: {
+          payroll: payroll._id,
+          payrollTotalEmployees: users.length,
+          payrollTotalNetAmount: totalNet,
+          payrollTotalGrossAmount: totalGross,
+          payrollTotalFee: totalFee
+        },
       }),
       payroll.updateOne({
         approvalStatus: PayrollApprovalStatus.InReview,
         approvalRequest: requestId,
         totalEmployees: users.length,
         totalGrossAmount: totalGross,
-        totalFee: payouts.reduce((a, b) => a + b.fee, 0),
         totalNetAmount: totalNet,
+        totalFee,
       }),
     ]);
 

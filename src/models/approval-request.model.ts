@@ -30,6 +30,10 @@ export interface IApprovalRequest {
   properties: {
     fundRequestType?: string;
     payroll?: any;
+    payrollTotalEmployees?: number;
+    payrollTotalNetAmount?: number;
+    payrollTotalGrossAmount?: number;
+    payrollTotalFee: number;
     budget?: any;
     transaction?: {
       amount: number;
@@ -87,6 +91,10 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
         type: mongoose.Schema.Types.ObjectId,
         ref: "Payroll",
       },
+      payrollTotalEmployees: Number,
+      payrollTotalNetAmount: Number,
+      payrollTotalGrossAmount: Number,
+      payrollTotalFee: Number,
       transaction: {
         amount: Number,
         accountNumber: String,
