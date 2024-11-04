@@ -18,7 +18,7 @@ import processKycApproved from './jobs/organization/processKycApproved';
 import processKycRejected from './jobs/organization/processKycRejected';
 import processFundBudget from './jobs/budget/fund-budget.job';
 import { addWalletEntriesForIngestionToElastic, processWalletEntryToElasticsearch } from './jobs/wallet/wallet-entry-elasticsearch-ingester';
-import processPayroll from './jobs/payroll/process-payout.job';
+import processPayroll from './jobs/payroll/process-payroll.job';
 import createNextPayrolls from './jobs/payroll/create-next-payroll';
 import fetchDuePayrolls from './jobs/payroll/fetch-due-payrolls';
 import requeryOutflow from './jobs/wallet/requery-outflow.job';

@@ -24,7 +24,7 @@ import VirtualAccount, {
 } from "@/models/virtual-account.model";
 import Wallet, { WalletType } from "@/models/wallet.model";
 import { payrollQueue } from "@/queues";
-import { IProcessPayroll } from "@/queues/jobs/payroll/process-payout.job";
+import { IProcessPayroll } from "@/queues/jobs/payroll/process-payroll.job";
 import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
@@ -47,7 +47,6 @@ import {
 } from "../common/utils";
 import { getDates } from "../common/utils/date";
 import { TransferClientName } from "../transfer/providers/transfer.client";
-import { DepositAccountService } from "../virtual-account/deposit-account";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import {
   AddBulkPayrollUserDto,
@@ -67,6 +66,9 @@ import redis from "../common/redis";
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
 dayjs.extend(timezone);
+const tz = "Africa/Lagos";
+dayjs.tz.setDefault(tz);
+
 
 @Service()
 export class PayrollService {
@@ -234,7 +236,6 @@ export class PayrollService {
       payrollSetting = await PayrollSetting.create({ organization: orgId });
     }
 
-    const tz = "Africa/Lagos";
     const { mode, dayOfMonth } = payrollSetting.schedule;
 
     const today = dayjs().tz(tz);
@@ -314,7 +315,7 @@ export class PayrollService {
   }
 
   async payrollStatistics(orgId: string) {
-    const today = dayjs().tz("Africa/Lagos");
+    const today = dayjs().tz(tz);
     const result = await Payroll.aggregate()
       .match({
         organization: new ObjectId(orgId),
@@ -466,7 +467,7 @@ export class PayrollService {
       { new: true }
     ).lean();
 
-    const today = dayjs().tz("Africa/Lagos");
+    const today = dayjs().tz(tz);
     await Payroll.findOneAndUpdate(
       {
         organization: orgId,
@@ -515,7 +516,7 @@ export class PayrollService {
         Amount: formatMoney(payout.amount),
         Currency: payout.currency,
         Date: dayjs(payout.createdAt)
-          .tz("Africa/Lagos")
+          .tz(tz)
           .format("MMM D, YYYY h:mm A"),
         Status: payout.status.toUpperCase(),
       }));
@@ -641,7 +642,7 @@ export class PayrollService {
 
   async initiatePayrollRun(auth: AuthUser) {
     const { orgId } = auth;
-    const today = dayjs().tz("Africa/Lagos");
+    const today = dayjs().tz(tz);
     const pendingPayroll = await Payroll.findOne({
       organization: orgId,
       periodStartDate: today.startOf("month").toDate(),
@@ -739,7 +740,7 @@ export class PayrollService {
         throw new BadRequestError("Insufficient fund to process payroll run");
       }
 
-      if (dayjs().isSameOrAfter(payroll.date, "date")) {
+      if (dayjs().tz(tz).isSameOrAfter(payroll.date, "date")) {
         // this will be ran from the cron
         await payrollQueue.add("processPayroll", {
           payroll: payroll._id.toString(),
@@ -870,9 +871,8 @@ export class PayrollService {
       },
     });
 
-    console.log({ run: dayjs().isSameOrAfter(payroll.date, "date") });
     // this will be ran from the cron
-    if (dayjs().isSameOrAfter(payroll.date, "date")) {
+    if (dayjs().tz(tz).isSameOrAfter(payroll.date, "date")) {
       await payrollQueue.add("processPayroll", {
         payroll: payroll._id.toString(),
         initiatedBy,
