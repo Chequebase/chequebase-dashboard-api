@@ -131,7 +131,7 @@ export default class WalletService {
       const accountRef = `va-${createId()}`
       const provider = VirtualAccountClientName.SafeHaven;
       const account = await this.vaService.createAccount({
-        currency: "NGN",
+        currency: baseWallet.currency,
         email: organization.email,
         phone: organization.phone,
         name: organization.businessName,
@@ -139,6 +139,7 @@ export default class WalletService {
         customerId: organization.safeHavenIdentityId,
         provider,
         reference: accountRef,
+        rcNumber: organization.rcNumber
       });
       const providerRef = account.providerRef || accountRef
       const wallet = await Wallet.create({
@@ -417,51 +418,51 @@ export default class WalletService {
 //         type: "bvn",
 //         number: '22264208983',
 //       },
-//       rcNumber: 'BN2732903',
+//       rcNumber: '1782393',
 
 //       currency: "NGN",
-//       email: 'shaokhandesignz@gmail.com',
+//       email: 'chequebase@gmail.com',
 //       phone: '07066647649',
-//       name: 'Shaokhan Creatives',
-//       customerId: '67236940fee347549c52efc5',
+//       name: 'Chequebase',
+//       customerId: '67268a7cc2815b47819e24cc',
 //       provider,
 //       reference: accountRef,
 //     });
 //     console.log({ account })
-//     const providerRef = account.providerRef || accountRef
-//     const wallet = await Wallet.create({
-//       _id: walletId,
-//       organization: '66e2cd42bb0baa2b6d513349',
-//       baseWallet: baseWallet,
-//       currency: 'NGN',
-//       balance: 0,
-//       primary: true,
-//       virtualAccounts: [virtualAccountId]
-//     })
+//     // const providerRef = account.providerRef || accountRef
+//     // const wallet = await Wallet.create({
+//     //   _id: walletId,
+//     //   organization: '66e2cd42bb0baa2b6d513349',
+//     //   baseWallet: baseWallet,
+//     //   currency: 'NGN',
+//     //   balance: 0,
+//     //   primary: true,
+//     //   virtualAccounts: [virtualAccountId]
+//     // })
 
-//     const virtualAccount = await VirtualAccount.create({
-//       _id: virtualAccountId,
-//       organization: '66e2cd42bb0baa2b6d513349',
-//       wallet: wallet._id,
-//       accountNumber: account.accountNumber,
-//       bankCode: account.bankCode,
-//       name: account.accountName,
-//       bankName: account.bankName,
-//       provider,
-//       externalRef: providerRef,
-//     });
+//     // const virtualAccount = await VirtualAccount.create({
+//     //   _id: virtualAccountId,
+//     //   organization: '66e2cd42bb0baa2b6d513349',
+//     //   wallet: wallet._id,
+//     //   accountNumber: account.accountNumber,
+//     //   bankCode: account.bankCode,
+//     //   name: account.accountName,
+//     //   bankName: account.bankName,
+//     //   provider,
+//     //   externalRef: providerRef,
+//     // });
 
-//     console.log({
-//       _id: wallet._id,
-//       balance: wallet.balance,
-//       currency: wallet.currency,
-//       account: {
-//         name: virtualAccount.name,
-//         accountNumber: virtualAccount.accountNumber,
-//         bankName: virtualAccount.bankName,
-//         bankCode: virtualAccount.bankCode
-//       }
-//     })
+//     // console.log({
+//     //   _id: wallet._id,
+//     //   balance: wallet.balance,
+//     //   currency: wallet.currency,
+//     //   account: {
+//     //     name: virtualAccount.name,
+//     //     accountNumber: virtualAccount.accountNumber,
+//     //     bankName: virtualAccount.bankName,
+//     //     bankCode: virtualAccount.bankCode
+//     //   }
+//     // })
 // } catch (error) {
 //     console.log({ error })
 //   }
