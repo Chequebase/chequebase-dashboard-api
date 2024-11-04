@@ -105,14 +105,23 @@ async function createPayroll(
     const nextRunDate = await payrollService.getNextPayrollRunDate(
       setting.organization
     );
+    
+    const totalNet = users.reduce(
+      (acc, user) => acc + user.salary.netAmount,
+      0
+    );
+    const totalGross = users.reduce(
+      (acc, user) => acc + user.salary.grossAmount,
+      0
+    );
     const payroll = await Payroll.create({
       organization: setting.organization,
       wallet: wallet._id,
       approvalStatus: PayrollApprovalStatus.Pending,
       status: PayrollApprovalStatus.Pending,
-      totalEmployees: null,
-      totalGrossAmount: null,
-      totalNetAmount: null,
+      totalEmployees: users.length,
+      totalGrossAmount: totalGross,
+      totalNetAmount: totalNet,
       date: nextRunDate,
       ...period,
     });
@@ -126,16 +135,6 @@ async function createPayroll(
       reason: err.message,
       stack: err.stack,
     });
-  }
-}
-
-const usageService = Container.get(PlanUsageService);
-async function hasAccess(orgId: string) {
-  try {
-    const result = await usageService.checkPayrollUsage(orgId);
-    return result;
-  } catch {
-    return false;
   }
 }
 
