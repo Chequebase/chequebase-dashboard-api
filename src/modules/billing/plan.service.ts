@@ -278,6 +278,7 @@ export class PlanService {
       await Organization.updateOne({ _id: organization }, {
         subscription: {
           object: subscription._id,
+          plan: plan._id,
           months: data.months,
           gracePeriod: 3,
           nextPlan: plan._id

@@ -41,7 +41,6 @@ export interface IUser {
   taxId: string;
   employmentType: EmploymentType;
   employmentDate: Date;
-  salary: any
   password: string;
   organization: any;
   departments: ObjectId[] | IDepartment[];
@@ -100,7 +99,6 @@ const userSchema = new Schema<IUser>(
         ref: "Department",
       },
     ],
-    salary: { type: mongoose.Schema.Types.ObjectId, ref: 'Salary' },
     rememberMe: Number,
     pin: { type: String, select: false },
     role: String,

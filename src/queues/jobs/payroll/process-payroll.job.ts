@@ -91,12 +91,15 @@ async function processPayroll(job: Job<IProcessPayroll>) {
 
 async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
   try {
-    const fee = await budgetTransferService.calcTransferFee(
-      payout.organization,
-      payout.amount,
-      payout.currency
-    );
-    const amountToDeduct = numeral(payout.amount).add(fee).value()!;
+    const fee =
+      payout.fee ??
+      (await budgetTransferService.calcTransferFee(
+        payout.organization,
+        payout.amount,
+        payout.currency
+      ));
+    
+    const amountToDeduct = numeral(payout.amount).add(fee).value()!
     if (payout.status === PayrollPayoutStatus.Failed) {
       payout.id = `po_${createId()}`;
       await PayrollPayout.updateOne({ _id: payout._id }, { id: payout.id });

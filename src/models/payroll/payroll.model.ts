@@ -22,11 +22,12 @@ export interface IPayroll {
   organization: any;
   date: Date;
   approvalStatus: PayrollApprovalStatus;
-  approvalRequest: any
+  approvalRequest: any;
   status: PayrollStatus;
-  periodStartDate: Date
-  periodEndDate: Date
+  periodStartDate: Date;
+  periodEndDate: Date;
   totalNetAmount: number;
+  totalFee: number;
   totalGrossAmount: number;
   totalEmployees: number;
   wallet: any;
@@ -67,6 +68,7 @@ const PayrollSchema = new Schema<IPayroll>(
     periodStartDate: { type: Date, required: true },
     periodEndDate: { type: Date, required: true },
     totalEmployees: Number,
+    totalFee: Number,
     totalGrossAmount: Number,
     totalNetAmount: Number,
     date: { type: Date, required: true },

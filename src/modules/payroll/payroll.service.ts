@@ -42,6 +42,7 @@ import {
   formatMoney,
   getEnvOrThrow,
   getLastBusinessDay,
+  getOrganizationPlan,
   getPercentageDiff,
   toTitleCase,
 } from "../common/utils";
@@ -62,13 +63,13 @@ import EmailService from "../common/email.service";
 import { UserService } from "../user/user.service";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import redis from "../common/redis";
+import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 const tz = "Africa/Lagos";
 dayjs.tz.setDefault(tz);
-
 
 @Service()
 export class PayrollService {
@@ -369,12 +370,12 @@ export class PayrollService {
         this.getPayrollUsers(orgId),
         Payroll.findOne({
           organization: orgId,
-          date: { $lt: dayjs().startOf("month").toDate() },
+          date: { $lt: dayjs().tz().startOf("month").toDate() },
         }).sort("-createdAt"),
         Payroll.findOne({
           organization: orgId,
-          date: { $gte: dayjs().startOf("month").toDate() },
-        }),
+          date: { $gte: dayjs().tz().startOf("month").toDate() },
+        }).sort("-createdAt"),
       ]);
 
     users = users.filter((u) => u.salary && u.salary.netAmount);
@@ -385,12 +386,31 @@ export class PayrollService {
       currentPayroll?.totalGrossAmount ||
       users.reduce((acc, user) => acc + user.salary.grossAmount, 0);
 
+    let totalFee = currentPayroll?.totalFee;
+    if (typeof totalFee !== "number") {
+      const plan = await getOrganizationPlan(orgId)
+      totalFee = users.reduce(
+        (acc, user) =>
+          acc +
+          this.getTransferFee(
+            plan,
+            user.salary.netAmount || 0,
+            user.salary.currency || 'NGN'
+          ),
+        0
+      );
+    }
+
     return {
       balance: {
         amount: wallet?.balance || 0,
         currency: wallet?.currency || "NGN",
       },
-      nextRunNet: getPercentageDiff(previousPayroll?.totalNetAmount, totalNet),
+      nextRunNet: getPercentageDiff(
+        previousPayroll?.totalNetAmount &&
+          previousPayroll.totalNetAmount + (previousPayroll?.totalFee || 0),
+        totalNet + totalFee
+      ),
       nextRunDeductions: getPercentageDiff(
         previousPayroll
           ? previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount
@@ -399,6 +419,25 @@ export class PayrollService {
       ),
       nextRunDate,
     };
+  }
+
+  private getTransferFee(
+    plan: ISubscriptionPlan,
+    amount: number,
+    currency: string
+  ) {
+    const fee = plan.transferFee.budget.find(
+      (f) =>
+        amount >= f.lowerBound &&
+        (amount <= f.upperBound || f.upperBound === -1)
+    );
+    const flatAmount = fee?.flatAmount?.[currency.toUpperCase()];
+
+    if (typeof flatAmount !== "number") {
+      return 0;
+    }
+
+    return flatAmount;
   }
 
   async history(orgId: string, query: GetHistoryDto) {
@@ -515,9 +554,7 @@ export class PayrollService {
         ID: payout._id,
         Amount: formatMoney(payout.amount),
         Currency: payout.currency,
-        Date: dayjs(payout.createdAt)
-          .tz(tz)
-          .format("MMM D, YYYY h:mm A"),
+        Date: dayjs(payout.createdAt).tz(tz).format("MMM D, YYYY h:mm A"),
         Status: payout.status.toUpperCase(),
       }));
 
@@ -711,6 +748,7 @@ export class PayrollService {
       throw new BadRequestError("Invalid pin");
     }
 
+    const plan = await getOrganizationPlan(auth.orgId)
     const payroll = await Payroll.findOne({
       _id: dto.payroll,
       organization: auth.orgId,
@@ -781,7 +819,7 @@ export class PayrollService {
     }
 
     const requestId = new ObjectId();
-    await PayrollPayout.create(
+    const payouts = await PayrollPayout.create(
       users.map((user) => ({
         id: `po_${createId()}`,
         approvalRequest: requestId,
@@ -789,6 +827,7 @@ export class PayrollService {
         organization: payroll.organization,
         wallet: payroll.wallet._id,
         payrollUser: user._id,
+        fee: this.getTransferFee(plan, user.salary.netAmount, user.salary.currency),
         status: PayrollPayoutStatus.Pending,
         amount: user.salary.netAmount,
         currency: user.salary.currency || "NGN",
@@ -832,6 +871,7 @@ export class PayrollService {
         approvalRequest: requestId,
         totalEmployees: users.length,
         totalGrossAmount: totalGross,
+        totalFee: payouts.reduce((a, b) => a + b.fee, 0),
         totalNetAmount: totalNet,
       }),
     ]);
@@ -941,7 +981,10 @@ export class PayrollService {
     return users;
   }
 
-  async addPayrollUser(orgId: string, payload: AddPayrollUserDto | AddPayrollUserViaInviteDto) {
+  async addPayrollUser(
+    orgId: string,
+    payload: AddPayrollUserDto | AddPayrollUserViaInviteDto
+  ) {
     const exists = await PayrollUser.findOne({
       organization: orgId,
       phoneNumber: payload.phoneNumber,
@@ -1094,11 +1137,11 @@ export class PayrollService {
   }
 
   async createInviteCode(orgId: string) {
-    const code = createId()
-    const sevenDaysInSecs = 60 * 60 * 24 * 7
+    const code = createId();
+    const sevenDaysInSecs = 60 * 60 * 24 * 7;
     const key = `invite-payroll-user:${code}`;
     await redis.set(key, JSON.stringify({ orgId }), "EX", sevenDaysInSecs);
 
-    return code
+    return code;
   }
 }

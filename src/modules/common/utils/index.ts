@@ -1,10 +1,12 @@
 import { TransactionOptions } from 'mongodb'
 import numeral from 'numeral'
-import { InternalServerError } from "routing-controllers";
+import { BadRequestError, InternalServerError } from "routing-controllers";
 import Logger from './logger';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import Organization from '@/models/organization.model';
+import { ISubscriptionPlan } from '@/models/subscription-plan.model';
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -109,4 +111,22 @@ export function maskString(
   const maskedStr = str.slice(0, start) + maskedSection + str.slice(maskEnd);
 
   return maskedStr;
+}
+
+export async function getOrganizationPlan(
+  orgId: string
+): Promise<ISubscriptionPlan> {
+  const org = await Organization.findById(orgId)
+    .select("subscription")
+    .populate({
+      path: "subscription.object",
+      select: "plan",
+      populate: { path: "plan" },
+    })
+    .lean();
+  if (!org?.subscription?.object?.plan) {
+    throw new BadRequestError("Organization has no subscription");
+  }
+
+  return org?.subscription?.object?.plan as ISubscriptionPlan;
 }

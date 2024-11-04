@@ -28,6 +28,7 @@ export interface IPayrollPayout {
   organization: any;
   user: any;
   payrollUser: any;
+  fee: number
   status: PayrollPayoutStatus;
   amount: number;
   currency: PayrollPayoutCurrency;
@@ -113,6 +114,7 @@ const PayrollPayoutSchema = new Schema<IPayrollPayout>(
       required: true,
     },
     amount: { type: Number, required: true },
+    fee: { type: Number, required: true },
     currency: { type: String, required: true },
     bank: {
       accountName: String,

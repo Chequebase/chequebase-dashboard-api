@@ -1,7 +1,6 @@
 import { cdb } from '@/modules/common/mongoose';
 import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
-import { ISubscription } from './subscription.model';
 import { IUser } from './user.model';
 import { ISubscriptionPlan } from './subscription-plan.model';
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
@@ -55,6 +54,7 @@ export interface IOrganization {
     months: number // 1|12
     gracePeriod: number
     nextPlan: ObjectId | ISubscriptionPlan
+    plan: ObjectId
     object: any
   }
   averageMonthlyExpenses: string
@@ -190,6 +190,10 @@ const organizationSchma = new Schema<IOrganization>(
         months: { type: Number, default: 1 }, // 1|12
         gracePeriod: { type: Number, default: 3 },
         nextPlan: {
+          type: Schema.Types.ObjectId,
+          ref: "SubscriptionPlan",
+        },
+        plan: {
           type: Schema.Types.ObjectId,
           ref: "SubscriptionPlan",
         },
