@@ -67,8 +67,8 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
       throw new BadRequestError('Virtual account not found')
     }
 
-    // Anchor inflow fee
-    let inflowFee = Math.min(amount * 0.005, 20000);
+    // 0.5% of amount, with a minimum of NGN5 and capped at NGN200
+    let inflowFee = Math.max(5_00, Math.min(amount * 0.005, 200_00));
     const creditedAmount = amount - inflowFee;
     const wallet = virtualAccount.wallet
     const organization = virtualAccount.organization

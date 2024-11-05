@@ -1,19 +1,9 @@
-import {
-  AllowedSlackWebhooks,
-  SlackNotificationService,
-} from "@/modules/common/slack/slackNotification.service";
 import Logger from "@/modules/common/utils/logger";
 import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/transfer/providers/safe-haven.client";
 import { walletQueue } from "@/queues";
 import {
-  WalletInflowData,
-  WalletInflowDataNotification,
+  WalletInflowData
 } from "@/queues/jobs/wallet/wallet-inflow.job";
-import {
-  WalletOutflowData,
-  WalletOutflowDataNotification
-} from "@/queues/jobs/wallet/wallet-outflow.job";
-import numeral from "numeral";
 import { Inject, Service } from "typedi";
 
 @Service()
@@ -22,15 +12,14 @@ export default class SafeHavenWebhookHandler {
 
   constructor(
     @Inject(SAFE_HAVEN_TRANSFER_TOKEN)
-    private safeHavenTransferClient: SafeHavenTransferClient,
-    private slackNotificationService: SlackNotificationService
+    private safeHavenTransferClient: SafeHavenTransferClient
   ) {}
 
   private async OnTransferReceived(body: any) {
     const response = await this.safeHavenTransferClient.verifyTransferById(
       body.data.sessionId
     );
-    const gatewayResponse = JSON.parse(response.gatewayResponse)
+    const gatewayResponse = JSON.parse(response.gatewayResponse);
     const jobData: WalletInflowData = {
       amount: response.amount,
       accountNumber: gatewayResponse.data.creditAccountNumber,
@@ -54,6 +43,8 @@ export default class SafeHavenWebhookHandler {
     return { message: "payment queued" };
   }
 
+  async OnVATransferReceived(body: any) {}
+
   processWebhook(body: any) {
     const { data, type } = body;
     if (!allowedWebooks.includes(type)) {
@@ -62,7 +53,8 @@ export default class SafeHavenWebhookHandler {
     }
 
     switch (type as (typeof allowedWebooks)[number]) {
-      // case "virtualAccount.transfer":
+      case "virtualAccount.transfer":
+        return this.OnVATransferReceived(body);
       case "transfer":
         return this.OnTransferReceived(body);
       default:

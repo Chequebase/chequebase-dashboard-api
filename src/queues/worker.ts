@@ -22,6 +22,7 @@ import processPayroll from './jobs/payroll/process-payroll.job';
 import createNextPayrolls from './jobs/payroll/create-next-payroll';
 import fetchDuePayrolls from './jobs/payroll/fetch-due-payrolls';
 import requeryOutflow from './jobs/wallet/requery-outflow.job';
+import sweepSafeHavenRevenue from './jobs/wallet/sweep-safe-haven-revenue.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -48,6 +49,10 @@ function setupQueues() {
     walletQueue.add('addWalletEntriesForIngestionToElastic', null, {
       repeat: { cron: '*/5  * * * *', tz }
     })
+    walletQueue.process("sweepSafeHavenRevenue", sweepSafeHavenRevenue);
+    walletQueue.add("sweepSafeHavenRevenue", null, {
+      repeat: { cron: "0 18 * * *", tz }, // every 6pm
+    });
     
     budgetQueue.process('processFundBudget', processFundBudget)
     budgetQueue.process('closeExpiredBudget', closeExpiredBudget)

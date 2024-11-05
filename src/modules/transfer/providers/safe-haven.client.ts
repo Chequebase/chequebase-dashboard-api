@@ -4,12 +4,11 @@ import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import Container, { Service, Token } from "typedi";
+import { Service, Token } from "typedi";
 import {
   InitiateTransferData,
   InitiateTransferResult,
   TransferClient,
-  TransferClientName,
 } from "./transfer.client";
 
 export const SAFE_HAVEN_TRANSFER_TOKEN = new Token("transfer.provider.safe-haven");
@@ -70,7 +69,7 @@ export class SafeHavenTransferClient implements TransferClient {
         response: JSON.stringify(data),
         status,
       });
-      
+
       return {
         status: success ? "successful" : "pending",
         message: success ? 'Processing transfer' : 'Transfer failed',
