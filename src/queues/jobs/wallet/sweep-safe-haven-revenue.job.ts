@@ -41,7 +41,7 @@ async function sweepSafeHavenRevenue() {
       getInflowFee(filter),
     ]);
 
-    let totalRevenue = numeral(outflow.revenue).add(outflow.revenue).value()!;
+    let totalRevenue = numeral(outflow.revenue).add(inflow.revenue).value()!;
     logger.log("inflow breakdown", inflow);
     logger.log("outflow breakdown", outflow);
     logger.log("total revenue", { totalRevenue });
