@@ -2,6 +2,7 @@ import WalletEntry, {
   WalletEntryScope,
   WalletEntryType,
 } from "@/models/wallet-entry.model";
+import { AllowedSlackWebhooks, SlackNotificationService } from "@/modules/common/slack/slackNotification.service";
 import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/transfer/providers/safe-haven.client";
@@ -65,10 +66,12 @@ async function sweepSafeHavenRevenue() {
     });
 
     /**
-     * TODO: send slack notification
      * - send breakdown for each flow type
      * - add tagged for if transfer was successful or failed
      */
+    const slackMessage = `Revenue processed for today, amount: ${totalRevenue}`;
+    const slackService = new SlackNotificationService();
+    await slackService.sendMessage(AllowedSlackWebhooks.revenue, slackMessage)
   } catch (e: any) {
     logger.error('error transferring revenue', { reason: e.message, stack: e.stack })
     throw new Error('error transferring revenue')

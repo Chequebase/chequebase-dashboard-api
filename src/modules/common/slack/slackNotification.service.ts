@@ -8,7 +8,8 @@ export enum AllowedSlackWebhooks {
   sales = 'sales',
   reportTransaction = 'reportTransaction',
   suggestions = 'suggestions',
-  analytics = 'analytics'
+  analytics = 'analytics',
+  revenue = 'revenue'
 }
 
 export const webhookMap = {
@@ -18,7 +19,8 @@ export const webhookMap = {
   sales: 'https://hooks.slack.com/services/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',
   reportTransaction: 'https://hooks.slack.com/services/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',
   suggestions: 'https://hooks.slack.com/services/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',
-  analytics: 'https://hooks.slack.com/services/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'
+  analytics: 'https://hooks.slack.com/services/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',
+  revenue: 'https://hooks.slack.com/services/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'
 };
 
 @Service()
