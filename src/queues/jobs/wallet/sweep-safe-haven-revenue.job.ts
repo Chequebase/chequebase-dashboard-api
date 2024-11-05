@@ -48,6 +48,8 @@ async function sweepSafeHavenRevenue() {
     logger.log("total revenue", { totalRevenue });
 
     if (totalRevenue <= 0) {
+      const slackService = new SlackNotificationService();
+      await slackService.sendMessage(AllowedSlackWebhooks.revenue, 'We litereally did NOT make any money today, that is SAD')
       return { message: "no revenue" };
     }
 
