@@ -114,6 +114,7 @@ export class PayrollService {
       customerId: org.safeHavenIdentityId,
       provider: VirtualAccountClientName.SafeHaven,
       reference: accountRef,
+      rcNumber: org.rcNumber,
     });
     const providerRef = account.providerRef || accountRef;
     const walletId = new ObjectId();

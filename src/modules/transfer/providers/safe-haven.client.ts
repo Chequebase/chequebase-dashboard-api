@@ -65,15 +65,15 @@ export class SafeHavenTransferClient implements TransferClient {
       );
 
       const success = data.responseCode === "00";
-
-      this.logger.log("anchor initiate transfer response", {
+      this.logger.log("safe-haven initiate transfer response", {
         body: JSON.stringify(body),
         response: JSON.stringify(data),
         status,
       });
+      
       return {
         status: success ? "successful" : "pending",
-        message: data.data.responseMessage,
+        message: success ? 'Processing transfer' : 'Transfer failed',
         providerRef: data.data.sessionId,
         currency: payload.currency,
         amount: payload.amount,
