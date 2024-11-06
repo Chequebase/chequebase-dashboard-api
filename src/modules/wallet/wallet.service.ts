@@ -418,51 +418,51 @@ export default class WalletService {
 //         type: "bvn",
 //         number: '22264208983',
 //       },
-//       rcNumber: '1782393',
+//       rcNumber: '2732903',
 
 //       currency: "NGN",
-//       email: 'chequebase@gmail.com',
+//       email: 'shaokhancreatives@gmail.com',
 //       phone: '07066647649',
-//       name: 'Chequebase',
-//       customerId: '67268a7cc2815b47819e24cc',
+//       name: 'Shaokhan Creatives',
+//       customerId: '67236940fee347549c52efc5',
 //       provider,
 //       reference: accountRef,
 //     });
 //     console.log({ account })
-//     // const providerRef = account.providerRef || accountRef
-//     // const wallet = await Wallet.create({
-//     //   _id: walletId,
-//     //   organization: '66e2cd42bb0baa2b6d513349',
-//     //   baseWallet: baseWallet,
-//     //   currency: 'NGN',
-//     //   balance: 0,
-//     //   primary: true,
-//     //   virtualAccounts: [virtualAccountId]
-//     // })
+    // const providerRef = account.providerRef || accountRef
+    // const wallet = await Wallet.create({
+    //   _id: walletId,
+    //   organization: '66e2cd42bb0baa2b6d513349',
+    //   baseWallet: baseWallet,
+    //   currency: 'NGN',
+    //   balance: 0,
+    //   primary: true,
+    //   virtualAccounts: [virtualAccountId]
+    // })
 
-//     // const virtualAccount = await VirtualAccount.create({
-//     //   _id: virtualAccountId,
-//     //   organization: '66e2cd42bb0baa2b6d513349',
-//     //   wallet: wallet._id,
-//     //   accountNumber: account.accountNumber,
-//     //   bankCode: account.bankCode,
-//     //   name: account.accountName,
-//     //   bankName: account.bankName,
-//     //   provider,
-//     //   externalRef: providerRef,
-//     // });
+    // const virtualAccount = await VirtualAccount.create({
+    //   _id: virtualAccountId,
+    //   organization: '66e2cd42bb0baa2b6d513349',
+    //   wallet: wallet._id,
+    //   accountNumber: account.accountNumber,
+    //   bankCode: account.bankCode,
+    //   name: account.accountName,
+    //   bankName: account.bankName,
+    //   provider,
+    //   externalRef: providerRef,
+    // });
 
-//     // console.log({
-//     //   _id: wallet._id,
-//     //   balance: wallet.balance,
-//     //   currency: wallet.currency,
-//     //   account: {
-//     //     name: virtualAccount.name,
-//     //     accountNumber: virtualAccount.accountNumber,
-//     //     bankName: virtualAccount.bankName,
-//     //     bankCode: virtualAccount.bankCode
-//     //   }
-//     // })
+    // console.log({
+    //   _id: wallet._id,
+    //   balance: wallet.balance,
+    //   currency: wallet.currency,
+    //   account: {
+    //     name: virtualAccount.name,
+    //     accountNumber: virtualAccount.accountNumber,
+    //     bankName: virtualAccount.bankName,
+    //     bankCode: virtualAccount.bankCode
+    //   }
+    // })
 // } catch (error) {
 //     console.log({ error })
 //   }
