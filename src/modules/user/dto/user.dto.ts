@@ -39,6 +39,15 @@ export class NewRegisterDto {
   email: string;
 
   @IsString()
+  firstName: string
+
+  @IsString()
+  lastName: string
+
+  @IsString()
+  phone: string
+
+  @IsString()
   businessName: string
 
   @IsString()

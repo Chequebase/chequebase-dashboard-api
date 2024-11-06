@@ -49,6 +49,8 @@ export interface Anchor {
 export interface IOrganization {
   _id: ObjectId
   admin: ObjectId | IUser
+  firstName: string
+  lastName: string
   subscription: {
     billingMethod: BillingMethod,
     months: number // 1|12
@@ -143,6 +145,8 @@ const organizationSchma = new Schema<IOrganization>(
       ref: "User",
       required: true,
     },
+    firstName: String,
+    lastName: String,
     averageMonthlyExpenses: String,
     bnNumber: String,
     businessIndustry: String,

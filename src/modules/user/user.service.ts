@@ -296,7 +296,8 @@ export class UserService {
     const organization = await Organization.create({
       businessName: data.businessName,
       admin: user._id,
-      email: data.email
+      email: data.email,
+      phone: data.phone
     })
     await user.updateOne({ organization: organization._id })
 
