@@ -38,6 +38,10 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
       identityId: payload.customerId,
       companyRegistrationNumber: payload.rcNumber,
       autoSweep: false,
+      autoSweepDetails: {
+        schedule: "Instant",
+        accountNumber: settlementAccount,
+      },
     };
 
     try {
