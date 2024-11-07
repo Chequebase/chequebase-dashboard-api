@@ -888,30 +888,26 @@ export class UserService {
   }
 
   async getMembers(auth: AuthUser, query: GetMembersQueryDto) {
-    const payrollRead = auth.roleRef.permissions.some(r => r.actions.includes(EPermission.PayrollRead))
-    const populate = [
-      { path: "roleRef", select: "name description type" },
-      { path: "manager", select: "firstName lastName avatar" },
-    ];
-    if (payrollRead) {
-      populate.push({
-        path: "salary",
-        select: "netAmount grossAmount earnings bank deductions currency",
-      });
-    }
-    const isOwnerQuery = query.notOwner ? 'owner' : 'empty'
-    const users = await User.paginate({
-      organization: auth.orgId,
-      _id: { $ne: auth.userId },
-      status: query.status,
-      role: { $ne: isOwnerQuery }
-    }, {
-      page: Number(query.page),
-      limit: query.limit,
-      lean: true,
-      populate,
-      select: 'firstName employmentDate employementType salary manager lastName email emailVerified role KYBStatus status avatar phone'
-    })
+    const isOwnerQuery = query.notOwner ? "owner" : "empty";
+    const users = await User.paginate(
+      {
+        organization: auth.orgId,
+        _id: { $ne: auth.userId },
+        status: query.status,
+        role: { $ne: isOwnerQuery },
+      },
+      {
+        page: Number(query.page),
+        limit: query.limit,
+        lean: true,
+        populate: [
+          { path: "roleRef", select: "name description type" },
+          { path: "manager", select: "firstName lastName avatar" },
+        ],
+        select:
+          "firstName employmentDate employementType manager lastName email emailVerified role KYBStatus status avatar phone",
+      }
+    );
     
     return users
   }
