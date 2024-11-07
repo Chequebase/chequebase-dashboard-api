@@ -63,6 +63,19 @@ export interface IUser {
   otpResentAt: number;
   otp: string;
   pin: string;
+  salary: {
+    currency: string;
+    earnings: {
+      name: string;
+      amount: number;
+    }[];
+    deductions: {
+      name: string;
+      percentage: number;
+    }[];
+    netAmount: number;
+    grossAmount: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -123,6 +136,26 @@ const userSchema = new Schema<IUser>(
       enum: Object.values(UserStatus),
     },
     forgotPinCode: String,
+    salary: {
+      required: false,
+      type: {
+        currency: { type: String, required: true },
+        netAmount: { type: Number, default: 0 },
+        grossAmount: { type: Number, default: 0 },
+        earnings: [
+          {
+            name: String,
+            amount: Number,
+          },
+        ],
+        deductions: [
+          {
+            name: String,
+            percentage: Number,
+          },
+        ],
+      },
+    },
   },
   { timestamps: true }
 );
