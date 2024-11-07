@@ -302,7 +302,8 @@ export class UserService {
       email: data.email,
       phone: data.phone,
       firstName: data.firstName,
-      lastName: data.lastName
+      lastName: data.lastName,
+      bvnVerified: false
     })
     await user.updateOne({ organization: organization._id })
 
