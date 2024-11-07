@@ -37,11 +37,6 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
       identityType: "vID",
       identityId: payload.customerId,
       companyRegistrationNumber: payload.rcNumber,
-      autoSweep: true,
-      autoSweepDetails: {
-        schedule: "Instant",
-        accountNumber: settlementAccount,
-      },
     };
 
     try {
