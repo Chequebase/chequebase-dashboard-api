@@ -888,11 +888,13 @@ export class UserService {
   }
 
   async getMembers(auth: AuthUser, query: GetMembersQueryDto) {
+    console.log('HEREEE')
     const payrollRead = auth.roleRef.permissions.some(r => r.actions.includes(EPermission.PayrollRead))
     const populate = [
       { path: "roleRef", select: "name description type" },
       { path: "manager", select: "firstName lastName avatar" },
     ];
+    console.log({ payrollRead })
     if (payrollRead) {
       populate.push({
         path: "salary",
