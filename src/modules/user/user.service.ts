@@ -291,13 +291,18 @@ export class UserService {
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
       avatar: '',
+      phone: data.phone,
+      firstName: data.firstName,
+      lastName: data.lastName
     });
 
     const organization = await Organization.create({
       businessName: data.businessName,
       admin: user._id,
       email: data.email,
-      phone: data.phone
+      phone: data.phone,
+      firstName: data.firstName,
+      lastName: data.lastName
     })
     await user.updateOne({ organization: organization._id })
 
