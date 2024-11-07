@@ -27,6 +27,7 @@ import numeral from "numeral";
 import { BadRequestError } from "routing-controllers";
 import Container from "typedi";
 import { RequeryOutflowJobData } from "../wallet/requery-outflow.job";
+import { IVirtualAccount } from "@/models/virtual-account.model";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -114,7 +115,10 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
         balance: { $gte: amountToDeduct },
       },
       { $inc: { balance: -amountToDeduct, ledgerBalance: -amountToDeduct } }
-    );
+    )
+    .populate<{ virtualAccounts: IVirtualAccount[] }>({
+      path: 'virtualAccounts',
+      select: 'accountNumber' })
     if (!wallet) {
       logger.error("insufficient wallet balance", {
         payout: payout._id,
@@ -157,6 +161,7 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       currency: payout.currency,
       narration: entry.narration,
       provider: payout.provider,
+      debitAccount: wallet.virtualAccounts[0].accountNumber
     };
 
     const response = await transferService.initiateTransfer(request);

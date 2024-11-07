@@ -12,7 +12,6 @@ import {
 } from "./transfer.client";
 
 export const SAFE_HAVEN_TRANSFER_TOKEN = new Token("transfer.provider.safe-haven");
-const settlementAccount = getEnvOrThrow("SAFE_HAVEN_SETTLEMENT_ACCOUNT_NUMBER");
 
 @Service({ id: SAFE_HAVEN_TRANSFER_TOKEN })
 export class SafeHavenTransferClient implements TransferClient {
@@ -48,7 +47,7 @@ export class SafeHavenTransferClient implements TransferClient {
     const nameEnquiryReference = await this.nameEnquiry(payload.counterparty);
     const body = {
       nameEnquiryReference,
-      debitAccountNumber: settlementAccount,
+      debitAccountNumber: payload.debitAccount,
       beneficiaryBankCode: payload.counterparty.bankCode,
       beneficiaryAccountNumber: payload.counterparty.accountNumber,
       amount: Number(numeral(payload.amount).divide(100).format('0.00')),

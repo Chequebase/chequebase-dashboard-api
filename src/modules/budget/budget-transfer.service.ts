@@ -35,6 +35,7 @@ import { BudgetPolicyService } from "./budget-policy.service"
 import EmailService from "../common/email.service"
 import { walletQueue } from "@/queues"
 import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
+import { IVirtualAccount } from "@/models/virtual-account.model";
 
 const logger = new Logger('budget-transfer-service')
 
@@ -419,6 +420,11 @@ export class BudgetTransferService {
   async approveTransfer(data: ApproveTransfer) {
     const budget = await Budget.findById(data.budget)
       .populate('project')
+      .populate({
+        path: 'wallet',
+        populate: { path: 'virtualAccounts',
+        select: 'accountNumber bankName bankCode name' }
+      })
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
     }
@@ -445,7 +451,9 @@ export class BudgetTransferService {
     const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber, true, data.saveRecipient)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
+    const debitAccount = ((budget.wallet as unknown as IWallet).virtualAccounts[0] as IVirtualAccount).accountNumber
     const transferResponse = await this.transferService.initiateTransfer({
+      debitAccount,
       reference: entry.reference,
       amount: data.amount,
       counterparty,

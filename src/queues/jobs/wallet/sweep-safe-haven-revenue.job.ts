@@ -29,55 +29,55 @@ const revenueAccountName = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NAME')
 const revenueAccountBankCode = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_BANK_CODE')
 
 async function sweepSafeHavenRevenue() {
-  try {
-    const yesterday = dayjs.tz().subtract(1, "day");
-    const filter = {
-      createdAt: {
-        $gte: yesterday.startOf("day").toDate(),
-        $lte: yesterday.endOf("day").toDate(),
-      },
-    };
-    const [outflow, inflow] = await Promise.all([
-      getOutflowFee(filter),
-      getInflowFee(filter),
-    ]);
+  // try {
+  //   const yesterday = dayjs.tz().subtract(1, "day");
+  //   const filter = {
+  //     createdAt: {
+  //       $gte: yesterday.startOf("day").toDate(),
+  //       $lte: yesterday.endOf("day").toDate(),
+  //     },
+  //   };
+  //   const [outflow, inflow] = await Promise.all([
+  //     getOutflowFee(filter),
+  //     getInflowFee(filter),
+  //   ]);
 
-    let totalRevenue = numeral(outflow.revenue).add(inflow.revenue).value()!;
-    logger.log("inflow breakdown", inflow);
-    logger.log("outflow breakdown", outflow);
-    logger.log("total revenue", { totalRevenue });
+  //   let totalRevenue = numeral(outflow.revenue).add(inflow.revenue).value()!;
+  //   logger.log("inflow breakdown", inflow);
+  //   logger.log("outflow breakdown", outflow);
+  //   logger.log("total revenue", { totalRevenue });
 
-    if (totalRevenue <= 0) {
-      const slackService = new SlackNotificationService();
-      await slackService.sendMessage(AllowedSlackWebhooks.revenue, 'We litereally did NOT make any money today, that is SAD')
-      return { message: "no revenue" };
-    }
+  //   if (totalRevenue <= 0) {
+  //     const slackService = new SlackNotificationService();
+  //     await slackService.sendMessage(AllowedSlackWebhooks.revenue, 'We litereally did NOT make any money today, that is SAD')
+  //     return { message: "no revenue" };
+  //   }
 
-    const response = await client.initiateTransfer({
-      amount: totalRevenue,
-      currency: "NGN",
-      narration: "Revenue sweep",
-      provider,
-      reference: `rev_sw_${createId()}`,
-      counterparty: {
-        accountName: revenueAccountName,
-        accountNumber: revenueAccounNumber,
-        bankCode: revenueAccountBankCode,
-        bankId: revenueAccountBankCode,
-      },
-    });
+  //   const response = await client.initiateTransfer({
+  //     amount: totalRevenue,
+  //     currency: "NGN",
+  //     narration: "Revenue sweep",
+  //     provider,
+  //     reference: `rev_sw_${createId()}`,
+  //     counterparty: {
+  //       accountName: revenueAccountName,
+  //       accountNumber: revenueAccounNumber,
+  //       bankCode: revenueAccountBankCode,
+  //       bankId: revenueAccountBankCode,
+  //     },
+  //   });
 
-    /**
-     * - send breakdown for each flow type
-     * - add tagged for if transfer was successful or failed
-     */
-    const slackMessage = `Revenue processed for today, amount: ${totalRevenue}`;
-    const slackService = new SlackNotificationService();
-    await slackService.sendMessage(AllowedSlackWebhooks.revenue, slackMessage)
-  } catch (e: any) {
-    logger.error('error transferring revenue', { reason: e.message, stack: e.stack })
-    throw new Error('error transferring revenue')
-  }
+  //   /**
+  //    * - send breakdown for each flow type
+  //    * - add tagged for if transfer was successful or failed
+  //    */
+  //   const slackMessage = `Revenue processed for today, amount: ${totalRevenue}`;
+  //   const slackService = new SlackNotificationService();
+  //   await slackService.sendMessage(AllowedSlackWebhooks.revenue, slackMessage)
+  // } catch (e: any) {
+  //   logger.error('error transferring revenue', { reason: e.message, stack: e.stack })
+  //   throw new Error('error transferring revenue')
+  // }
 }
 
 async function getOutflowFee(filter: object) {

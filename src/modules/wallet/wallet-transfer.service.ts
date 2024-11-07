@@ -364,7 +364,9 @@ export class WalletTransferService {
     const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber, true, data.saveRecipient)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
+    const debitAccount = wallet.virtualAccounts[0].accountNumber
     const transferResponse = await this.transferService.initiateTransfer({
+      debitAccount,
       reference: entry.reference,
       amount: data.amount,
       counterparty,
@@ -431,7 +433,7 @@ export class WalletTransferService {
   async getWallet(orgId: string, walletId: string) {
     const filter = walletId ? { _id: walletId } : { primary: true }
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
-      .populate({
+      .populate<{ virtualAccounts: IVirtualAccount[] }>({
         path: 'virtualAccounts',
         select: 'accountNumber bankName bankCode name'
       })
