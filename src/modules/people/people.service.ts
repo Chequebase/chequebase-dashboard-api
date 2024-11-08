@@ -185,7 +185,7 @@ export class PeopleService {
       if (deletedUser) {
         this.emailService.sendMemberReactivation(deletedUser.email, {
           firstName: deletedUser.firstName,
-          link: `${getEnvOrThrow('BASE_BACKEND_URL')}/auth/reactivate?code=${invite.code}`,
+          link: `${getEnvOrThrow('BASE_BACKEND_URL')}/v1/auth/reactivate?code=${invite.code}`,
           organizationName: organization.businessName
         })
       } else {

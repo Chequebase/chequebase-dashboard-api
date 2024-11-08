@@ -123,10 +123,11 @@ export class ApprovalService {
     const removedOwners = owners.filter(
       (owner) => !data.reviewers.includes(owner._id.toString())
     );
+
     if (removedOwners.length) {
       await Promise.all(removedOwners.map(async (owner) => {
         const code = createId()
-        const link = `${getEnvOrThrow('BASE_BACKEND_URL')}/approvals/remove-owner-as-reviewer/${code}`
+        const link = `${getEnvOrThrow('BASE_BACKEND_URL')}/v1/approvals/remove-owner-as-reviewer/${code}`
         await redis.set(
           `remove-owner-as-reviewer:${code}`,
           JSON.stringify({
@@ -143,9 +144,7 @@ export class ApprovalService {
           workflowName: `${toTitleCase(rule?.workflowType)} workflow`,
         });
 
-        data.reviewers = data.reviewers.filter(
-          (reviewer) => reviewer !== owner._id.toString()
-        );
+        data.reviewers.push(owner._id.toString())
 
         requiresRemovalPermission.push({
           firstName: owner.firstName,

@@ -47,6 +47,7 @@ export default class ApprovalsController {
     }
 
     const payload = JSON.parse(data);
+    const result = action === "approve" ? "true" : "false";
     if (action === "approve")
       await ApprovalRule.findOneAndUpdate(
         { _id: payload.rule },
@@ -57,7 +58,7 @@ export default class ApprovalsController {
     return res.redirect(
       `${getEnvOrThrow(
         "BASE_FRONTEND_URL"
-      )}/auth/signin?removed-owner-as-reviewer=true`
+      )}/auth/signin?removed-owner-as-reviewer=${result}`
     );
   }
 
