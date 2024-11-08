@@ -266,7 +266,11 @@ export class PayrollService {
   async topDepartments(orgId: string) {
     const limit = 5;
     const result = await PayrollUser.aggregate()
-      .match({ organization: new ObjectId(orgId), salary: { $exists: true } })
+      .match({
+        organization: new ObjectId(orgId),
+        deletedAt: { $exists: false },
+        salary: { $exists: true }
+      })
       .lookup({
         from: "users",
         localField: "user",
@@ -301,7 +305,11 @@ export class PayrollService {
   async topEarners(orgId: string) {
     const limit = 10;
     const result = await PayrollUser.aggregate()
-      .match({ organization: new ObjectId(orgId), salary: { $exists: true } })
+      .match({
+        organization: new ObjectId(orgId),
+        deletedAt: { $exists: false },
+        salary: { $exists: true },
+      })
       .sort({ "salary.netAmount": -1 })
       .limit(limit)
       .project({
@@ -993,17 +1001,6 @@ export class PayrollService {
     orgId: string,
     payload: AddPayrollUserDto | AddPayrollUserViaInviteDto
   ) {
-    const exists = await PayrollUser.findOne({
-      organization: orgId,
-      phoneNumber: payload.phoneNumber,
-      deletedAt: { $exists: false },
-    });
-    if (exists) {
-      throw new BadRequestError(
-        `User with phone number (${payload.phoneNumber}) already exists on this organization`
-      );
-    }
-
     const result = await this.anchorService.resolveAccountNumber(
       payload.accountNumber,
       payload.bankCode
@@ -1042,27 +1039,6 @@ export class PayrollService {
   }
 
   async addBulkPayrollUser(orgId: string, payload: AddBulkPayrollUserDto) {
-    const duplicatePhoneNumbers = findDuplicates(payload.users, "phoneNumber");
-    if (duplicatePhoneNumbers.length) {
-      throw new BadRequestError(
-        `Found duplicate phone numbers (${duplicatePhoneNumbers.join(", ")}})`
-      );
-    }
-
-    const phoneNumbers = payload.users.map((u) => u.phoneNumber);
-    const existingUsers = await PayrollUser.find({
-      organization: orgId,
-      phoneNumber: { $in: phoneNumbers },
-    }).select("phoneNumber");
-
-    if (existingUsers.length) {
-      throw new BadRequestError(
-        `Found duplicate phone number already added (${existingUsers
-          .map((u) => u.phoneNumber)
-          .join(", ")})`
-      );
-    }
-
     await Promise.all(payload.users.map((u) => this.addPayrollUser(orgId, u)));
 
     return { message: "Users added successfully" };
