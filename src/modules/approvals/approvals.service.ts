@@ -144,7 +144,7 @@ export class ApprovalService {
         });
 
         data.reviewers = data.reviewers.filter(
-          (reviewer) => !removedOwners.some((owner) => owner._id.toString() === reviewer)
+          (reviewer) => reviewer !== owner._id.toString()
         );
 
         requiresRemovalPermission.push({
