@@ -95,7 +95,11 @@ export class ApprovalService {
 
   async updateApprovalRule(auth: AuthUser, ruleId: string, data: UpdateRule) {
     const { orgId } = auth;
-    const org = await Organization.findById(orgId)
+    const org = await Organization.findById(orgId).populate({
+      path: "subscription.object",
+      populate: "plan",
+    });
+
 
     if (!org) throw new BadRequestError("Organization not found");
     const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
