@@ -195,13 +195,11 @@ export default class BudgetController {
   }
 
   @Get('/banks')
-  @Authorized()
   getBanks() {
     return this.budgetTransferService.getBanks()
   }
 
   @Post('/resolve-account')
-  @Authorized()
   resolveAccountNumber(@Body() body: ResolveAccountDto) {
     return this.budgetTransferService.resolveAccountNumber(body)
   }
