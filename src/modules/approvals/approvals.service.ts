@@ -48,7 +48,8 @@ export class ApprovalService {
     const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
     const maxReviewers = plan?.features?.find((f: any) => f.code === "approvals_workflow")?.maxUnits || 1;
 
-    if (data.reviewers.length > maxReviewers) {
+    const isUnlimited = maxReviewers === -1
+    if (!isUnlimited && data.reviewers.length > maxReviewers) {
       throw new BadRequestError(
         "Approval workflow has reached its maximum limit for reviewers. Limit is " + maxReviewers
       );
@@ -102,7 +103,8 @@ export class ApprovalService {
       plan?.features?.find((f: any) => f.code === "approvals_workflow")
         ?.maxUnits || 1;
 
-    if (data.reviewers.length > maxReviewers) {
+    const isUnlimited = maxReviewers === -1
+    if (!isUnlimited && data.reviewers.length > maxReviewers) {
       throw new BadRequestError(
         "Approval workflow has reached its maximum limit for reviewers. Limit is " +
           maxReviewers
