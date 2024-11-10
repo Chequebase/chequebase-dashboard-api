@@ -106,9 +106,6 @@ export class ApprovalService {
     const maxReviewers =
       plan?.features?.find((f: any) => f.code === "approvals_workflow")
         ?.maxUnits || 1;
-    
-    console.log({ max: plan?.features?.find((f: any) => f.code === "approvals_workflow")
-    ?.maxUnits, plan })
 
     const isUnlimited = maxReviewers === -1
     if (!isUnlimited && data.reviewers.length > maxReviewers) {
