@@ -30,6 +30,9 @@ export class BudgetPolicyService {
     }
 
     const org = await Organization.findById(auth.orgId)
+    .populate({ path: 'subscription.object', populate: 'plan' })
+    .select('subscription')
+    .lean()
     if (!org) throw new BadRequestError("Organization not found");
     const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
     const available =
@@ -80,7 +83,10 @@ export class BudgetPolicyService {
       }
     }
     
-    const org = await Organization.findById(auth.orgId);
+    const org = await Organization.findById(auth.orgId)
+    .populate({ path: 'subscription.object', populate: 'plan' })
+    .select('subscription')
+    .lean()
     if (!org) throw new BadRequestError("Organization not found");
     const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
     const available =
