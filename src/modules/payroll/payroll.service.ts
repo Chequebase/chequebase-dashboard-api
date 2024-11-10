@@ -997,6 +997,25 @@ export class PayrollService {
     return users;
   }
 
+  async verifyInviteCode(code: string) {
+    const key = `invite-payroll-user:${code}`;
+    const data = await redis.get(key);
+    if (!data) {
+      throw new BadRequestError("Invalid or expired invite");
+    }
+
+    const payload = JSON.parse(data);
+    const organization = await Organization.findById(payload.orgId).select(
+      "businessName"
+    );
+
+    if (!organization) {
+      throw new BadRequestError("Organization does not exist");
+    }
+    
+    return { businessName: organization.businessName };
+  }
+
   async addPayrollUser(
     orgId: string,
     payload: AddPayrollUserDto | AddPayrollUserViaInviteDto
