@@ -440,7 +440,7 @@ export class PayrollService {
         amount >= f.lowerBound &&
         (amount <= f.upperBound || f.upperBound === -1)
     );
-    const flatAmount = fee?.flatAmount?.[currency.toUpperCase()];
+    const flatAmount = fee?.flatAmount?.[(currency || 'NGN').toUpperCase()];
 
     if (typeof flatAmount !== "number") {
       return 0;
