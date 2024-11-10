@@ -836,7 +836,7 @@ export class PayrollService {
         organization: payroll.organization,
         wallet: payroll.wallet._id,
         payrollUser: user._id,
-        fee: this.getTransferFee(plan, user.salary.netAmount, user.salary.currency),
+        fee: this.getTransferFee(plan, user.salary.netAmount, user.salary.currency || "NGN"),
         status: PayrollPayoutStatus.Pending,
         amount: user.salary.netAmount,
         currency: user.salary.currency || "NGN",
