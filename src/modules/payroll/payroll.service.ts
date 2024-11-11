@@ -1012,7 +1012,7 @@ export class PayrollService {
     if (!organization) {
       throw new BadRequestError("Organization does not exist");
     }
-    
+
     return { businessName: organization.businessName };
   }
 

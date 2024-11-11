@@ -250,8 +250,8 @@ export default class PayrollController {
   }
 
   @Get("/payroll-user/invite-code/:code")
-  async verifyInviteCode(@CurrentUser() auth: AuthUser, @Param("code") code: string) {
-    return this.payrollService.verifyInviteCode(auth.orgId);
+  async verifyInviteCode(@Param("code") code: string) {
+    return this.payrollService.verifyInviteCode(code);
   }
 
   @Post("/payroll-user/add-via-invite/:code")
