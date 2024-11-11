@@ -26,8 +26,7 @@ export default class SafeHavenWebhookHandler {
       currency: "NGN",
       gatewayResponse: response.gatewayResponse,
       narration: gatewayResponse.data.narration,
-      reference:
-        gatewayResponse.data.paymentReference || gatewayResponse.data.sessionId,
+      reference: gatewayResponse.data.sessionId,
       providerRef: gatewayResponse.data.sessionId,
       paymentMethod: "transfer",
       sourceAccount: {
