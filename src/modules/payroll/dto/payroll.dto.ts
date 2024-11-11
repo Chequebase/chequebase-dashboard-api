@@ -131,7 +131,7 @@ export class AddPayrollUserDto {
   phoneNumber: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   email?: string;
 
   @IsDateString()
@@ -178,7 +178,7 @@ export class AddPayrollUserViaInviteDto {
   phoneNumber: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   email?: string;
 
   @IsString()

@@ -998,6 +998,10 @@ export class UserService {
     }
 
     await User.updateOne({ _id: id, organization: orgId }, { status: UserStatus.DELETED })
+    await ApprovalRule.updateMany(
+      { organization: orgId },
+      { $pull: { reviewers: id } }
+    );
 
     return { message: 'Member deleted' }
   }

@@ -232,7 +232,7 @@ export class PayrollService {
     };
   }
 
-  async getNextPayrollRunDate(orgId: string, onlyFutureDate = false) {
+  async getNextPayrollRunDate(orgId: string, onlyFutureDate = false, refDate = new Date()) {
     let payrollSetting = await PayrollSetting.findOne({ organization: orgId });
     if (!payrollSetting) {
       payrollSetting = await PayrollSetting.create({ organization: orgId });
@@ -240,7 +240,7 @@ export class PayrollService {
 
     const { mode, dayOfMonth } = payrollSetting.schedule;
 
-    const today = dayjs().tz(tz);
+    const today = dayjs(refDate).tz(tz);
     const month = today.month();
     const year = today.year();
     if (mode === PayrollScheduleMode.Fixed && dayOfMonth) {
@@ -397,17 +397,22 @@ export class PayrollService {
 
     let totalFee = currentPayroll?.totalFee;
     if (typeof totalFee !== "number") {
-      const plan = await getOrganizationPlan(orgId)
+      const plan = await getOrganizationPlan(orgId);
       totalFee = users.reduce(
         (acc, user) =>
           acc +
           this.getTransferFee(
             plan,
             user.salary.netAmount || 0,
-            user.salary.currency || 'NGN'
+            user.salary.currency || "NGN"
           ),
         0
       );
+    }
+
+    if (currentPayroll && dayjs(nextRunDate).isSame(currentPayroll.date, 'month')) {
+      const refDate = dayjs(currentPayroll.date).endOf('month').toDate();
+      nextRunDate = await this.getNextPayrollRunDate(orgId, true, refDate);
     }
 
     return {
