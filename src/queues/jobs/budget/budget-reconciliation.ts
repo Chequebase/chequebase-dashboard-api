@@ -51,7 +51,7 @@ async function success(
       .session(session);
   }, transactionOpts);
 
-  const counterparty = await Counterparty.findById(entry.meta.counterparty);
+  const counterparty = entry.meta.counterparty
   if (counterparty) {
     const [date, time] = dayjs()
       .tz("Africa/Lagos")
