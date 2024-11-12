@@ -125,6 +125,10 @@ async function failure(
       },
       { session }
     );
+
+    await PayrollPayout.updateOne({ _id: entry.payrollPayout }, {
+      status: PayrollPayoutStatus.Failed,
+    }).session(session)
   }, transactionOpts);
 }
 
@@ -195,6 +199,13 @@ async function reversal(
         { session }
       );
     }
+
+    await PayrollPayout.updateOne(
+      { _id: entry.payrollPayout },
+      {
+        status: PayrollPayoutStatus.Failed,
+      }
+    ).session(session);
   }, transactionOpts);
 }
 

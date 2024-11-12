@@ -28,6 +28,7 @@ import { BadRequestError } from "routing-controllers";
 import Container from "typedi";
 import { RequeryOutflowJobData } from "../wallet/requery-outflow.job";
 import { IVirtualAccount } from "@/models/virtual-account.model";
+import payoutReconciliation from "./payout-reconciliation";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -108,7 +109,6 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
 
     logger.log("processing payout", { payout: payout._id });
 
-    let entry: IWalletEntry | undefined;
     const wallet = await Wallet.findOneAndUpdate(
       {
         _id: payout.wallet,
@@ -127,7 +127,7 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       throw new BadRequestError("Insufficient balance");
     }
 
-    entry = await WalletEntry.create({
+    const entry = await WalletEntry.create({
       organization: payout.organization,
       status: WalletEntryStatus.Pending,
       currency: payout.currency,
@@ -205,6 +205,15 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
           },
         }
       );
+    } else {
+      // if no providerRef then transfer is likely failed
+      await payoutReconciliation.failure(entry, {
+        status: "failed",
+        amount: entry.amount,
+        currency: entry.currency,
+        reference: entry.reference,
+        gatewayResponse: JSON.stringify(response)
+      })
     }
 
     return entry;
