@@ -1,17 +1,19 @@
 import { SafeHavenHttpClient } from "@/modules/common/safe-haven-http-client";
-import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
+import { isAxiosError } from "axios";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service, Token } from "typedi";
 import {
   InitiateTransferData,
   InitiateTransferResult,
-  TransferClient,
+  TransferClient
 } from "./transfer.client";
 
-export const SAFE_HAVEN_TRANSFER_TOKEN = new Token("transfer.provider.safe-haven");
+export const SAFE_HAVEN_TRANSFER_TOKEN = new Token(
+  "transfer.provider.safe-haven"
+);
 
 @Service({ id: SAFE_HAVEN_TRANSFER_TOKEN })
 export class SafeHavenTransferClient implements TransferClient {
@@ -25,20 +27,26 @@ export class SafeHavenTransferClient implements TransferClient {
       bankCode: payload.bankCode,
       accountNumber: payload.accountNumber,
     };
-    const { data, status } = await this.httpClient.axios.post(
-      "/transfers/name-enquiry",
-      body
-    );
-  
-    this.logger.log("name enquiry response", {
-      response: JSON.stringify(data),
-      status,
-    });
-    if (data?.statusCode !== 200) {
-      throw new BadRequestError("Name enquiry failed");
-    }
+    try {
+      const { data, status } = await this.httpClient.axios.post(
+        "/transfers/name-enquiry",
+        body
+      );
 
-    return data.data.sessionId;
+      if (data?.statusCode !== 200) {
+        throw data
+      }
+      
+      this.logger.log("name enquiry response", {
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return data.data.sessionId;
+    } catch (err) {
+      const error = this.handleError("name enquiry failed", body, err);
+      throw new BadRequestError(error.message);
+    }
   }
 
   async initiateTransfer(
@@ -50,7 +58,7 @@ export class SafeHavenTransferClient implements TransferClient {
       debitAccountNumber: payload.debitAccount,
       beneficiaryBankCode: payload.counterparty.bankCode,
       beneficiaryAccountNumber: payload.counterparty.accountNumber,
-      amount: Number(numeral(payload.amount).divide(100).format('0.00')),
+      amount: Number(numeral(payload.amount).divide(100).format("0.00")),
       saveBeneficiary: false,
       narration: payload.narration,
       paymentReference: payload.reference,
@@ -62,6 +70,10 @@ export class SafeHavenTransferClient implements TransferClient {
         body
       );
 
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
       const success = data.responseCode === "00";
       this.logger.log("safe-haven initiate transfer response", {
         body: JSON.stringify(body),
@@ -71,7 +83,7 @@ export class SafeHavenTransferClient implements TransferClient {
 
       return {
         status: success ? "successful" : "pending",
-        message: success ? 'Processing transfer' : 'Transfer failed',
+        message: success ? "Processing transfer" : "Transfer failed",
         providerRef: data.data.sessionId,
         currency: payload.currency,
         amount: payload.amount,
@@ -79,22 +91,15 @@ export class SafeHavenTransferClient implements TransferClient {
         gatewayResponse: JSON.stringify(data),
       };
     } catch (err: any) {
-      this.logger.error("error processing transfer", {
-        reason: JSON.stringify(err?.response?.data || err?.message),
-        body: JSON.stringify(body),
-        requestData: JSON.stringify(body),
-        status: err.response?.status,
-      });
+      const error = this.handleError("error initiating transfer", body, err);
 
       return {
         status: "failed",
         currency: payload.currency,
         amount: payload.amount,
         reference: payload.reference,
-        message:
-          err.response.data?.errors?.[0]?.detail ||
-          "Unable to process transfer",
-        gatewayResponse: JSON.stringify(err.response.data),
+        message: "Unable to process transfer",
+        gatewayResponse: JSON.stringify(error),
       };
     }
   }
@@ -107,7 +112,7 @@ export class SafeHavenTransferClient implements TransferClient {
       );
 
       if (data.statusCode !== 200) {
-        throw data
+        throw data;
       }
 
       this.logger.log("verify transfer status response", {
@@ -124,22 +129,44 @@ export class SafeHavenTransferClient implements TransferClient {
         status,
         reference: data.data.paymentReference,
         amount: numeral(data.data.amount).multiply(100).value()!,
-        currency: 'NGN',
+        currency: "NGN",
         message: data.data.responseMessage,
         gatewayResponse: JSON.stringify(data),
       };
     } catch (err: any) {
-      this.logger.error("error verify transfer", {
-        reason: JSON.stringify(err.response?.data || err?.message),
+      const error = this.handleError(
+        "error verifying transfer",
         sessionId,
-        status: err?.response?.status,
-      });
-
-      if ((err?.response?.status || err?.statusCode) === 400) {
+        err
+      );
+      if (error.status === 400) {
         throw new NotFoundError("Transfer not found");
       }
 
       throw new ServiceUnavailableError("Unable to verify transfer");
     }
+  }
+
+  private handleError(message: string, request: any, error: any) {
+    let data: any, status: any, responseMsg: string | undefined
+    if (isAxiosError(error)) {
+      data = error?.response?.data || "Request failed with no response data";
+      status = error?.response?.status || "unknown";
+      
+    } else if (error?.statusCode) {
+      data = error;
+      status = error.statusCode || error.httpCode;
+      responseMsg = error.message
+    } else {
+      data = error.message;
+    }
+
+    this.logger.error(message, {
+      request: JSON.stringify(request),
+      reason: JSON.stringify(data),
+      status,
+    });
+
+    return { data, status, message: responseMsg || message };
   }
 }

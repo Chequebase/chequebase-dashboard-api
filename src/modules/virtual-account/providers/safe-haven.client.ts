@@ -2,6 +2,8 @@ import { SafeHavenHttpClient } from "@/modules/common/safe-haven-http-client";
 import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
+import { isAxiosError } from "axios";
+import numeral from "numeral";
 import { Service, Token } from "typedi";
 import {
   CreateDepositAccountData,
@@ -11,7 +13,6 @@ import {
   VirtualAccountClient,
   VirtualAccountClientName,
 } from "./virtual-account.client";
-import numeral from "numeral";
 
 export const SAFE_HAVEN_VA_TOKEN = new Token("va.provider.safe-haven");
 const settlementAccount = getEnvOrThrow("SAFE_HAVEN_SETTLEMENT_ACCOUNT_NUMBER");
@@ -44,14 +45,15 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
         "/accounts/v2/subaccount",
         body
       );
+      
+      if (data.statusCode !== 200) {
+        throw data;
+      }
 
       this.logger.log("create static virtual account response", {
         response: JSON.stringify(data),
         status,
       });
-      if (data.statusCode !== 200) {
-        throw data;
-      }
 
       return {
         accountName: data.data.accountName,
@@ -62,12 +64,7 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
         provider: VirtualAccountClientName.SafeHaven,
       };
     } catch (err: any) {
-      this.logger.error("error creating static virtual account", {
-        reason: JSON.stringify(err.response?.data || err?.message),
-        payload: JSON.stringify(payload),
-        status: err.response?.status,
-      });
-
+      this.handleError("error creating static virtual account", body, err);
       throw new ServiceUnavailableError("Unable to create virtual account");
     }
   }
@@ -113,12 +110,7 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
         provider: VirtualAccountClientName.SafeHaven,
       };
     } catch (err: any) {
-      this.logger.error("error creating virtual account", {
-        reason: JSON.stringify(err.response?.data || err),
-        payload: JSON.stringify(payload),
-        status: err.response?.status,
-      });
-
+      this.handleError("error creating virtual account", body, err);
       throw new ServiceUnavailableError("Unable to create virtual account");
     }
   }
@@ -144,7 +136,7 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
         status: err.response.status,
       });
 
-      throw new ServiceUnavailableError("Unable to create virtual account");
+      throw new ServiceUnavailableError("Unable to get virtual account");
     }
   }
 
@@ -158,5 +150,27 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
     accountId: string
   ): Promise<CreateDepositAccountResult> {
     throw new ServiceUnavailableError("Unable to get deposit account");
+  }
+
+  private handleError(message: string, request: any, error: any) {
+    let data: any, status: any, responseMsg: string | undefined;
+    if (isAxiosError(error)) {
+      data = error?.response?.data || "Request failed with no response data";
+      status = error?.response?.status || "unknown";
+    } else if (error?.statusCode) {
+      data = error;
+      status = error.statusCode || error.httpCode;
+      responseMsg = error.message;
+    } else {
+      data = error.message;
+    }
+
+    this.logger.error(message, {
+      request: JSON.stringify(request),
+      reason: JSON.stringify(data),
+      status,
+    });
+
+    return { data, status, message: responseMsg || message };
   }
 }

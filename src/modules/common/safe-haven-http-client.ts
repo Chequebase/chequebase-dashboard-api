@@ -17,7 +17,6 @@ const privateKey = getEnvOrThrow("SAFE_HAVEN_PRIVATE_KEY");
 export class SafeHavenHttpClient {
   axios: AxiosInstance;
   private logger: Logger;
-  private tokenExpiry: number | undefined;
   private authToken: string | undefined;
   private ibsClientId: string | undefined;
 
@@ -39,13 +38,8 @@ export class SafeHavenHttpClient {
       return config;
     }
 
-    const tokenExpiresInTwoMinutes = dayjs
-      .unix(this.tokenExpiry || 0)
-      .isBefore(dayjs().subtract(2, "minutes"));
-    if (!this.authToken || tokenExpiresInTwoMinutes) {
-      this.authToken = await this.regenerateAuthToken();
-    }
-
+    await this.regenerateAuthToken();
+  
     config.headers = Object.assign(config.headers, {
       Authorization: `Bearer ${this.authToken}`,
       ClientID: this.ibsClientId,
@@ -55,6 +49,7 @@ export class SafeHavenHttpClient {
   };
 
   private async regenerateAuthToken() {
+    console.log('regenerating auth token')
     try {
       const clientAssertion = jwt.sign(
         {
@@ -78,7 +73,6 @@ export class SafeHavenHttpClient {
       const response = await this.axios.post("/oauth2/token", data);
       if (response.status === HttpStatusCode.Created) {
         this.authToken = response.data.access_token;
-        this.tokenExpiry = response.data.expires_in;
         this.ibsClientId = response.data.ibs_client_id;
         return response.data.access_token;
       }

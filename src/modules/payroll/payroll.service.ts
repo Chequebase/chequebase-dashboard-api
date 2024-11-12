@@ -884,7 +884,7 @@ export class PayrollService {
           payrollTotalEmployees: users.length,
           payrollTotalNetAmount: totalNet,
           payrollTotalGrossAmount: totalGross,
-          payrollTotalFee: totalFee
+          payrollTotalFee: totalFee,
         },
       }),
       payroll.updateOne({
