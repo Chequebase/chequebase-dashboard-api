@@ -311,7 +311,7 @@ export class ApprovalService {
         response = await this.budgetService.initiateFundRequest({
           orgId: request.organization._id,
           userId: request.requester._id,
-          budgetId: props.budget._id,
+          budgetId: props?.budget?._id,
           type: 'extension',
         }, false)
         break;
@@ -324,14 +324,14 @@ export class ApprovalService {
           accountNumber: trnx.accountNumber,
           amount: trnx.amount,
           bankCode: trnx.bankCode,
-          budget: props.budget._id,
+          budget: props?.budget?._id,
           auth,
-          requester: request.requester._id,
+          requester: request?.requester?._id,
           category: trnx.category
         })
         break;
       case WorkflowType.Payroll:
-        await this.payrollService.approvePayroll(request.properties.payroll, request.requester._id)
+        await this.payrollService.approvePayroll(request.properties.payroll, request?.requester?._id)
         response = {
           status: PayrollApprovalStatus.Approved,
           approvalRequired: false,
