@@ -23,6 +23,8 @@ import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 import { ERole } from "../user/dto/user.dto";
 import { createId } from "@paralleldrive/cuid2";
 import redis from "../common/redis";
+import { WalletTransferService } from "../wallet/wallet-transfer.service";
+import WalletService from "../wallet/wallet.service";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -34,6 +36,7 @@ export class ApprovalService {
   constructor (
     private budgetService: BudgetService,
     private budgetTnxService: BudgetTransferService,
+    private walletTnxService: WalletTransferService,
     private payrollService: PayrollService,
     private emailService: EmailService
   ) { }
@@ -269,7 +272,7 @@ export class ApprovalService {
       _id: requestId,
       organization: auth.orgId,
       'reviews.user': auth.userId
-    }).populate('properties.budget', 'amount currency')
+    }).populate('properties.budget', 'amount currency').populate('properties.wallet')
 
     if (!request) {
       throw new BadRequestError("Approval request not found")
@@ -305,13 +308,15 @@ export class ApprovalService {
 
     let response: any
     const props = request.properties
+    const budgetId = props?.budget?._id
+    const walletId = props?.wallet?._id
     switch (request.workflowType) {
       case WorkflowType.BudgetExtension:
         await Budget.updateOne({ _id: props.budget._id }, { extensionApprovalRequest: request._id })
         response = await this.budgetService.initiateFundRequest({
           orgId: request.organization._id,
           userId: request.requester._id,
-          budgetId: props?.budget?._id,
+          budgetId,
           type: 'extension',
         }, false)
         break;
@@ -320,15 +325,28 @@ export class ApprovalService {
         break;
       case WorkflowType.Transaction:
         const trnx = props.transaction!
-        response = await this.budgetTnxService.approveTransfer({
-          accountNumber: trnx.accountNumber,
-          amount: trnx.amount,
-          bankCode: trnx.bankCode,
-          budget: props?.budget?._id,
-          auth,
-          requester: request?.requester?._id,
-          category: trnx.category
-        })
+        if (budgetId) {
+          response = await this.budgetTnxService.approveTransfer({
+            accountNumber: trnx.accountNumber,
+            amount: trnx.amount,
+            bankCode: trnx.bankCode,
+            budget: budgetId,
+            auth,
+            requester: request.requester._id,
+            category: trnx.category
+          })
+        }
+        else {
+          response = await this.walletTnxService.approveTransfer({
+            wallet: walletId,
+            accountNumber: trnx.accountNumber,
+            amount: trnx.amount,
+            bankCode: trnx.bankCode,
+            auth,
+            requester: request.requester._id,
+            category: trnx.category
+          })
+        }
         break;
       case WorkflowType.Payroll:
         await this.payrollService.approvePayroll(request.properties.payroll, request?.requester?._id)
