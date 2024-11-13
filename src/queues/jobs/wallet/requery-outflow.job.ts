@@ -5,7 +5,8 @@ import { walletQueue } from "@/queues";
 import { Job } from "bull";
 import numeral from "numeral";
 import Container from "typedi";
-import { WalletOutflowData } from "./wallet-outflow.job";
+import { WalletOutflowData, WalletOutflowDataNotification } from "./wallet-outflow.job";
+import { AllowedSlackWebhooks, SlackNotificationService } from "@/modules/common/slack/slackNotification.service";
 
 export type RequeryOutflowJobData = {
   providerRef: string;
@@ -15,6 +16,40 @@ export type RequeryOutflowJobData = {
 const transferService = Container.get(TransferService);
 
 const logger = new Logger("requery-outflow.job");
+
+async function onTransferEventNotification(notification: WalletOutflowData): Promise<any> {
+  const slackService = new SlackNotificationService();
+  const { amount, status, reference } = notification;
+  const correctAmount = +amount / 100;
+  const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
+  const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
+  const reversedTopic = ':alert: Merchant Wallet Outflow Reversed :alert:'
+  console.log({ status, correctAmount })
+  switch (status) {
+    case 'successful':
+      const successMessage = `${successTopic} \n\n
+      *Reference*: ${reference}
+      *Amount*: ${correctAmount}
+      *Status*: ${status}
+    `;
+      console.log({ successMessage })
+      return await slackService.sendMessage(AllowedSlackWebhooks.outflow, successMessage);
+    case 'failed':
+      const failedNessage = `${failureTopic} \n\n
+      *Reference*: ${reference}
+      *Amount*: ${correctAmount}
+      *Status*: ${status}
+    `;
+      return await slackService.sendMessage(AllowedSlackWebhooks.outflow, failedNessage);
+    case 'reversed':
+      const reversedMessage = `${reversedTopic} \n\n
+      *Reference*: ${reference}
+      *Amount*: ${correctAmount}
+      *Status*: ${status}
+    `;
+      return await slackService.sendMessage(AllowedSlackWebhooks.outflow, reversedMessage);
+  }
+}
 async function requeryOutflow(job: Job<RequeryOutflowJobData>) {
   const { provider, providerRef } = job.data;
   try {
@@ -41,6 +76,7 @@ async function requeryOutflow(job: Job<RequeryOutflowJobData>) {
       };
 
       await walletQueue.add("processWalletOutflow", jobData);
+      await onTransferEventNotification(jobData)
     } else {
       throw new Error("Unable to verify outflow");
     }

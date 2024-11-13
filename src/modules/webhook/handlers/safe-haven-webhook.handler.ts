@@ -1,8 +1,9 @@
+import { AllowedSlackWebhooks, SlackNotificationService } from "@/modules/common/slack/slackNotification.service";
 import Logger from "@/modules/common/utils/logger";
 import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/transfer/providers/safe-haven.client";
 import { walletQueue } from "@/queues";
 import {
-  WalletInflowData
+  WalletInflowData, WalletInflowDataNotification
 } from "@/queues/jobs/wallet/wallet-inflow.job";
 import { Inject, Service } from "typedi";
 
@@ -12,8 +13,23 @@ export default class SafeHavenWebhookHandler {
 
   constructor(
     @Inject(SAFE_HAVEN_TRANSFER_TOKEN)
-    private safeHavenTransferClient: SafeHavenTransferClient
+    private safeHavenTransferClient: SafeHavenTransferClient,
+    private slackNotificationService: SlackNotificationService
   ) {}
+
+  private async onPaymentSettledNotification(notification: WalletInflowData): Promise<void> {
+    const { amount, sourceAccount: { accountName, accountNumber, bankName }, paymentMethod, reference } = notification;
+    const correctAmount = +amount / 100;
+    const message = `:rocket: Merchant Wallet Inflow :rocket: \n\n
+      *Reference*: ${reference}
+      *Amount*: ${correctAmount}
+      *Paymentmethod*: ${paymentMethod}
+      *SourceAccountNumber*: ${accountNumber}
+      *SourceAccountName*: ${accountName}
+      *SourceBank*: ${bankName}
+    `;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.inflow, message);
+  }
 
   private async OnTransferReceived(body: any) {
     const response = await this.safeHavenTransferClient.verifyTransferById(
@@ -37,7 +53,7 @@ export default class SafeHavenWebhookHandler {
 
     await walletQueue.add("processWalletInflow", jobData);
 
-    // TODO: send slack notification
+    await this.onPaymentSettledNotification(jobData);
 
     return { message: "payment queued" };
   }
