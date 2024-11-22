@@ -78,6 +78,32 @@ export class PlanUsageService {
     return true
   }
 
+  async checkPayrollUsage(orgId: string) {
+    const code = 'payroll'
+    const organization = await Organization.findById(orgId)
+      .populate({ path: 'subscription.object', populate: 'plan' })
+      .select('subscription')
+      .lean()
+
+    if (!organization) {
+      throw new NotFoundError("Organization not found")
+    }
+
+    const subscription = organization.subscription?.object as ISubscription
+    if (!subscription || subscription?.status === 'expired') {
+      throw new FeatureUnavailableError('Organization has no active subscription', code)
+    }
+
+    const plan = subscription.plan as ISubscriptionPlan
+    const feature = plan.features.find((f) => f.code === code)
+    if (!feature || !feature.available) {
+      logger.error('feature not found', { code, plan: plan._id })
+      throw new FeatureUnavailableError('Organization does not have access to this feature', code)
+    }
+
+    return true
+  }
+
   async checkUsersUsage(orgId: string) {
     const code = 'users'
     const organization = await Organization.findById(orgId)
@@ -123,7 +149,7 @@ export class PlanUsageService {
       throw new NotFoundError("Organization not found")
     }
 
-    let actions = { CREATE_BUDGET: false, CREATE_PROJECT: false, INVITE_USER: false }
+    let actions = { CREATE_BUDGET: false, CREATE_PROJECT: false, INVITE_USER: false, PAYROLL: false }
     const subscription = organization.subscription?.object as ISubscription
     if (!subscription || subscription?.status === 'expired') {
       return actions
@@ -138,7 +164,10 @@ export class PlanUsageService {
         .catch(() => actions.CREATE_PROJECT = false),
       this.checkUsersUsage(orgId)
         .then(() => actions.INVITE_USER = true)
-        .catch(() => actions.INVITE_USER = false)
+        .catch(() => actions.INVITE_USER = false),
+      this.checkPayrollUsage(orgId)
+        .then(() => actions.PAYROLL = true)
+        .catch(() => actions.PAYROLL = false)
     ])
 
     return actions

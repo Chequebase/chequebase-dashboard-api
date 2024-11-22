@@ -1,7 +1,6 @@
 import { cdb } from '@/modules/common/mongoose';
 import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
-import { ISubscription } from './subscription.model';
 import { IUser } from './user.model';
 import { ISubscriptionPlan } from './subscription-plan.model';
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
@@ -50,12 +49,15 @@ export interface Anchor {
 export interface IOrganization {
   _id: ObjectId
   admin: ObjectId | IUser
+  firstName: string
+  lastName: string
   subscription: {
     billingMethod: BillingMethod,
     months: number // 1|12
     gracePeriod: number
     nextPlan: ObjectId | ISubscriptionPlan
-    object: ObjectId | ISubscription
+    plan: ObjectId
+    object: any
   }
   averageMonthlyExpenses: string
   bnNumber: string
@@ -69,19 +71,27 @@ export interface IOrganization {
   status: string
   tin: string
   businessNumber: string
+  bvn: string
   rcNumber: string
   cacItNumber: string
   numberOfEmployees: string
   documents: { [key: string]: string }
   anchorCustomerId: string
+  safeHavenIdentityId: string
+  identityGatewayResponse: string
+  bvnVerified: boolean
   depositAccount: string
   phone: string
+  cacUrl: string
+  identityDocument: string
   postalCode: string
   setDefualtApprovalWorkflow: boolean
   setInitialPolicies: boolean
+  hasSetupPayroll: boolean
   regDate: string
   state: string
   owners: Shareholder[]
+  owner: any
   anchor?: Anchor
   kycRejectionLevel: string
   kycRejectionDescription: string
@@ -132,9 +142,11 @@ const organizationSchma = new Schema<IOrganization>(
   {
     admin: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      ref: "User",
+      required: true,
     },
+    firstName: String,
+    lastName: String,
     averageMonthlyExpenses: String,
     bnNumber: String,
     businessIndustry: String,
@@ -143,8 +155,9 @@ const organizationSchma = new Schema<IOrganization>(
     city: String,
     country: String,
     email: String,
-    setDefualtApprovalWorkflow: Boolean,
-    setInitialPolicies: Boolean,
+    setDefualtApprovalWorkflow: { type: Boolean, default: false },
+    setInitialPolicies: { type: Boolean, default: false },
+    hasSetupPayroll: { type: Boolean, default: false },
     address: String,
     status: String,
     numberOfEmployees: String,
@@ -154,12 +167,19 @@ const organizationSchma = new Schema<IOrganization>(
     postalCode: String,
     regDate: String,
     state: String,
+    bvn: String,
     tin: String,
     businessNumber: String,
+    cacUrl: String,
     rcNumber: String,
     cacItNumber: String,
     owners: [shareholderSchema],
+    owner: Object,
     anchorCustomerId: String,
+    safeHavenIdentityId: String,
+    identityGatewayResponse: String,
+    bvnVerified: Boolean,
+    identityDocument: String,
     kycRejectReason: String,
     anchor: anchorSchema,
     kycRejectionLevel: String,
@@ -175,16 +195,20 @@ const organizationSchma = new Schema<IOrganization>(
         gracePeriod: { type: Number, default: 3 },
         nextPlan: {
           type: Schema.Types.ObjectId,
-          ref: 'SubscriptionPlan'
+          ref: "SubscriptionPlan",
+        },
+        plan: {
+          type: Schema.Types.ObjectId,
+          ref: "SubscriptionPlan",
         },
         object: {
           type: Schema.Types.ObjectId,
-          ref: 'Subscription'
-        }
-      }
+          ref: "Subscription",
+        },
+      },
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 organizationSchma.plugin(aggregatePaginate);

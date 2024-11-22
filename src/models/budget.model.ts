@@ -3,6 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from 'mongodb'
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
+import { IWallet } from './wallet.model';
 
 export enum BudgetStatus {
   Active = 'active',

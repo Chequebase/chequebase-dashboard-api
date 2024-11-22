@@ -5,9 +5,6 @@ export class CreatePolicy {
   @IsEnum(PolicyType)
   type: string
 
-  @IsString()
-  name: string
-
   @IsEnum(SpendPeriod)
   @IsOptional()
   spendPeriod: string
@@ -37,17 +34,11 @@ export class CreatePolicy {
   @IsOptional()
   recipient: string
 
-  @IsString()
-  description: string
-
   @IsBoolean()
   enabled: boolean
 }
 
 export class updatePolicy {
-  @IsString()
-  name: string
-
   @IsInt({ each: true })
   @Min(1, { each: true })
   @Max(7, { each: true })
@@ -98,6 +89,10 @@ export class GetPolicies {
   @IsString()
   @IsOptional()
   recipient: string
+
+  @IsEnum(PolicyType)
+  @IsOptional()
+  type: string
 
   @IsInt()
   page: number

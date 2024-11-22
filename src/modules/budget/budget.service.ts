@@ -10,7 +10,7 @@ import { BadRequestError, NotFoundError } from "routing-controllers";
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
 import { BeneficiaryDto, CloseBudgetBodyDto, CreateBudgetDto, EditBudgetDto, RequestBudgetExtension, GetBudgetsDto, InitiateProjectClosure, PauseBudgetBodyDto, FundBudget, FundBudgetSource, FundRequestBody } from "./dto/budget.dto";
 import Budget, { BudgetStatus, IBudget } from "@/models/budget.model";
-import Wallet, { IWallet } from "@/models/wallet.model";
+import Wallet, { IWallet, WalletType } from "@/models/wallet.model";
 import Logger from "../common/utils/logger";
 import User, { IUser } from "@/models/user.model";
 import { ERole } from "../user/dto/user.dto";
@@ -134,8 +134,9 @@ export default class BudgetService {
 
     const wallet = await Wallet.findOne({
       organization: auth.orgId,
-      currency: data.currency
-    })
+      currency: data.currency,
+      type: WalletType.General,
+    });
 
     if (!wallet) {
       logger.error('wallet not found', { currency: data.currency, orgId: auth.orgId })
@@ -289,6 +290,7 @@ export default class BudgetService {
         {
           organization: request.organization,
           currency: props.budget.currency,
+          type: WalletType.General,
           balance: { $gte: amount }
         },
         { $inc: { balance: -amount, ledgerBalance: -amount } },
@@ -1032,6 +1034,7 @@ export default class BudgetService {
           {
             organization: data.orgId,
             currency: budget!.currency,
+            type: WalletType.General,
             balance: { $gte: amount }
           },
           { $inc: { balance: -amount, ledgerBalance: -amount } },

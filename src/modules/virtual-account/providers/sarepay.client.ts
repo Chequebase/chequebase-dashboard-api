@@ -21,7 +21,7 @@ export default class SarepayVirtualAccountClient implements VirtualAccountClient
   async createStaticVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult> {
     const data = {
       business_name: payload.name,
-      bvn: payload.identity.number,
+      bvn: payload.identity?.number,
       phone_number: payload.phone,
       business_type: 'Main',
       type: 'Corporate',

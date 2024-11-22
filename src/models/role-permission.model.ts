@@ -13,6 +13,7 @@ export enum EPermission {
   TransactionDownload = 'transaction:download',
   BudgetCreate = 'budget:create',
   BudgetRead = 'budget:read',
+  BudgetEdit = 'budget:edit',
   BudgetDelete = 'budget:delete',
   BudgetFreeze = 'budget:freeze',
   BudgetExtend = 'budget:extend',
@@ -29,6 +30,8 @@ export enum EPermission {
   PeopleRead = 'people:read',
   LicenseRead = 'license:read',
   LicenseEdit = 'license:edit',
+  PayrollRead = 'payroll:read',
+  PayrollEdit = 'payroll:edit',
 }
 
 export interface IRolePermission {

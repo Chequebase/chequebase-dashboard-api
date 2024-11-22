@@ -32,6 +32,8 @@ import {
   VerifyEmailDto,
   UpdateProfileDto,
   PreRegisterDto,
+  GetAllMembersQueryDto,
+  NewRegisterDto,
 } from "./dto/user.dto";
 import { UserService } from "./user.service";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
@@ -98,6 +100,11 @@ export default class UserController {
   @Post("/register")
   register(@Body() registerDto: RegisterDto) {
     return this.userService.register(registerDto);
+  }
+
+  @Post("/register-new")
+  newRegister(@Body() newRegisterDto: NewRegisterDto) {
+    return this.userService.newRegister(newRegisterDto);
   }
 
   @Post("/login")
@@ -202,13 +209,13 @@ export default class UserController {
     return this.userService.getMembers(auth, query);
   }
 
-  @Authorized(EPermission.PeopleCreate)
+  @Authorized(EPermission.BudgetEdit)
   @Get("/members/all")
-  getUnpaginatedMembers(@CurrentUser() auth: AuthUser) {
-    return this.userService.getUnpaginatedMembers(auth);
+  getUnpaginatedMembers(@CurrentUser() auth: AuthUser, @QueryParams() query: GetAllMembersQueryDto) {
+    return this.userService.getUnpaginatedMembers(auth, query);
   }
 
-  @Authorized(EPermission.PeopleCreate)
+  @Authorized(EPermission.PeopleRead)
   @Get("/members/:id")
   getMember(@Param("id") id: string, @CurrentUser() auth: AuthUser) {
     return this.userService.getMember(id, auth.orgId);

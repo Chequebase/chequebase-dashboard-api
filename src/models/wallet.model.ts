@@ -4,10 +4,16 @@ import { ObjectId } from 'mongodb'
 import { IVirtualAccount } from './virtual-account.model';
 import { IOrganization } from './organization.model';
 
+export enum WalletType {
+  General = 'general',
+  Payroll = 'payroll',
+}
+
 export interface IWallet {
   _id: ObjectId
   organization: ObjectId | IOrganization
   baseWallet: ObjectId
+  type: WalletType
   currency: string
   balance: number
   ledgerBalance: number
@@ -24,6 +30,11 @@ const walletSchema = new Schema<IWallet>(
       type: Schema.Types.ObjectId,
       required: true,
       ref: 'Organization'
+    },
+    type: {
+      type: String,
+      enum: Object.values(WalletType),
+      default: WalletType.General
     },
     baseWallet: {
       type: Schema.Types.ObjectId,

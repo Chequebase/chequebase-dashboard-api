@@ -3,9 +3,6 @@ import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, isString, IsString, Min 
 
 export class CreateRule {
   @IsString()
-  name: string;
-
-  @IsString()
   @IsOptional()
   budget: string;
   
@@ -23,9 +20,6 @@ export class CreateRule {
 }
 
 export class UpdateRule {
-  @IsString()
-  name: string
-  
   @IsEnum(WorkflowType)
   workflowType: WorkflowType
 
@@ -40,6 +34,10 @@ export class UpdateRule {
 
   @IsArray()
   deletedReviewers: string[]
+
+  @IsOptional()
+  @IsString()
+  budget?: string
 }
 
 export class GetRulesQuery {

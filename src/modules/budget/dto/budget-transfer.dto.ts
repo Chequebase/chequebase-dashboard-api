@@ -26,6 +26,10 @@ export class InitiateTransferDto {
 
   @IsString()
   pin: string
+
+  @IsBoolean()
+  @Transform(({ value }) => value === "true" || value === true || value === 1)
+  saveRecipient: boolean
 }
 
 export class ResolveAccountDto {

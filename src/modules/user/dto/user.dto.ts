@@ -1,5 +1,5 @@
 import { UserStatus } from '@/models/user.model';
-import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum, IsInt, Min } from 'class-validator';
+import { IsString, MinLength, IsEmail, IsOptional, IsNotEmpty, IsNumber, IsEnum, IsInt, Min, IsBoolean } from 'class-validator';
 
 export enum ERole {
   Owner = 'owner',
@@ -24,6 +24,31 @@ export class RegisterDto {
 
   @IsString()
   lastName: string
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+}
+
+export class NewRegisterDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  firstName: string
+
+  @IsString()
+  lastName: string
+
+  @IsString()
+  phone: string
+
+  @IsString()
+  businessName: string
 
   @IsString()
   @MinLength(6)
@@ -172,4 +197,14 @@ export class GetMembersQueryDto {
   @IsOptional()
   @IsString()
   status: string;
+
+  @IsOptional()
+  @IsBoolean()
+  notOwner: boolean;
+}
+
+export class GetAllMembersQueryDto {
+  @IsOptional()
+  @IsBoolean()
+  notOwner: boolean;
 }

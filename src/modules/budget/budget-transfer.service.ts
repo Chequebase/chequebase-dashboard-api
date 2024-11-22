@@ -33,6 +33,9 @@ import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
 import { BudgetPolicyService } from "./budget-policy.service"
 import EmailService from "../common/email.service"
+import { walletQueue } from "@/queues"
+import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
+import { IVirtualAccount } from "@/models/virtual-account.model";
 
 const logger = new Logger('budget-transfer-service')
 
@@ -46,7 +49,7 @@ export class BudgetTransferService {
     private emailService: EmailService
   ) { }
 
-  private async calcTransferFee(orgId: string, amount: number, currency: string) {
+  async calcTransferFee(orgId: string, amount: number, currency: string) {
     const org = await Organization.findById(orgId)
       .select('subscription')
       .populate({
@@ -72,10 +75,13 @@ export class BudgetTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
+  private async getCounterparty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    if (saveRecipient) {
+      await this.saveCounterParty(orgId, bankCode, accountNumber, true)
+    }
     let counterparty = {
-      organization: auth.orgId,
+      organization: orgId,
       accountNumber,
       bankCode,
       accountName: resolveRes.accountName,
@@ -86,17 +92,16 @@ export class BudgetTransferService {
     return { ...counterparty, bankId: resolveRes.bankId }
   }
 
-  private async saveCounterParty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
+  private async saveCounterParty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
     let counterparty = await Counterparty.create({
-      organization: auth.orgId,
+      organization: orgId,
       accountNumber,
       bankCode,
-      isRecipient
-    }, {
       accountName: resolveRes.accountName,
       bankName: resolveRes.bankName,
-    }, { new: true, upsert: true })
+      isRecipient
+    })
 
     return { ...counterparty, bankId: resolveRes.bankId }
   }
@@ -347,12 +352,16 @@ export class BudgetTransferService {
         auth,
         requester: auth.userId,
         category: data.category,
-        invoiceUrl
+        invoiceUrl,
+        saveRecipient: data.saveRecipient
       })
     }
 
     const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
 
+    if (data.saveRecipient) {
+      await this.saveCounterParty(organization._id.toString(), data.bankCode, data.accountNumber, true)
+    }
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: rule.workflowType,
@@ -411,6 +420,11 @@ export class BudgetTransferService {
   async approveTransfer(data: ApproveTransfer) {
     const budget = await Budget.findById(data.budget)
       .populate('project')
+      .populate({
+        path: 'wallet',
+        populate: { path: 'virtualAccounts',
+        select: 'accountNumber bankName bankCode name' }
+      })
     if (!budget) {
       throw new NotFoundError('Budget does not exist')
     }
@@ -422,7 +436,7 @@ export class BudgetTransferService {
       throw new NotFoundError('Organization does not exist')
     }
     const fee = await this.calcTransferFee(orgId, data.amount, budget.currency)
-    const provider = TransferClientName.Anchor // could be dynamic in the future
+    const provider = TransferClientName.SafeHaven // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
     const payload = {
       auth: { userId: data.auth.userId, orgId },
@@ -434,27 +448,41 @@ export class BudgetTransferService {
     }
 
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber, true)
+    const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber, true, data.saveRecipient)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
+    const debitAccount = ((budget.wallet as unknown as IWallet).virtualAccounts[0] as IVirtualAccount).accountNumber
     const transferResponse = await this.transferService.initiateTransfer({
+      debitAccount,
       reference: entry.reference,
       amount: data.amount,
       counterparty,
       currency: budget.currency,
       narration: entry.narration,
-      depositAcc: organization.depositAccount,
       provider
     })
 
-    if ('providerRef' in transferResponse) {
+    if (transferResponse.status === 'failed') {
+      await this.reverseBudgetDebit(entry, transferResponse)
+    } else if ('providerRef' in transferResponse && transferResponse.providerRef) {
       await WalletEntry.updateOne({ _id: entry._id }, {
         providerRef: transferResponse.providerRef
       })
-    }
 
-    if (transferResponse.status === 'failed') {
-      await this.reverseBudgetDebit(entry, transferResponse)
+      await walletQueue.add(
+        "requeryOutflow",
+        {
+          provider,
+          providerRef: transferResponse.providerRef,
+        } as RequeryOutflowJobData,
+        {
+          attempts: 4,
+          backoff: {
+            type: "exponential",
+            delay: 60_000, // 1min in ms
+          },
+        }
+      );
     }
 
     return {
@@ -546,7 +574,7 @@ export class BudgetTransferService {
   }
 
   async createRecipient(auth: AuthUser, data: CreateRecipient) {
-    return this.saveCounterParty(auth, data.bankCode, data.accountNumber, true);
+    return this.saveCounterParty(auth.orgId, data.bankCode, data.accountNumber, true);
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
@@ -577,10 +605,5 @@ export class BudgetTransferService {
     }
 
     return { message: 'Recipient deleted' }
-  }
-
-  async createDefaultCategories(orgId: string) {
-    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
-    return TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
   }
 }

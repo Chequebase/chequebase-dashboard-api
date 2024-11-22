@@ -3,7 +3,7 @@ import { Inject, Service } from "typedi";
 import Logger from "@/modules/common/utils/logger";
 import { organizationQueue, walletQueue } from "@/queues";
 import { WalletInflowData, WalletInflowDataNotification } from "@/queues/jobs/wallet/wallet-inflow.job";
-import { WalletOutflowData, WalletOutflowDataNotification } from "@/queues/jobs/wallet/wallet-outflow.job";
+import { BookWalletOutflowDataNotification, WalletOutflowData, WalletOutflowDataNotification } from "@/queues/jobs/wallet/wallet-outflow.job";
 import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { BadRequestError, UnauthorizedError } from 'routing-controllers';
@@ -143,7 +143,6 @@ export default class AnchorWebhookHandler {
     const transferId = body.data.relationships.transfer.data.id
     const verifyResponse = await this.anchorTransferClient.verifyTransferById(transferId)
 
-
     const jobData: WalletOutflowData = {
       amount: verifyResponse.amount,
       currency: verifyResponse.currency,
@@ -158,6 +157,25 @@ export default class AnchorWebhookHandler {
 
     await this.onTransferEventNotification({ ...jobData, businessName: businessCustomer.attributes.detail.businessName, customerId: body.data.relationships.customer.data.id, accountName: receipient.attributes.accountName, accountNumber: receipient.attributes.accountNumber, bankName: receipient.attributes.bank.name })
     return { message: 'transfer event queued' }
+  }
+
+  private async onBookTransferEvent(body: any) {
+    const transferId = body.data.relationships.transfer.data.id
+    const verifyResponse = await this.anchorTransferClient.verifyTransferById(transferId)
+
+    const jobData: WalletOutflowData = {
+      amount: verifyResponse.amount,
+      currency: verifyResponse.currency,
+      gatewayResponse: verifyResponse.gatewayResponse,
+      reference: verifyResponse.reference,
+      status: verifyResponse.status as WalletOutflowData['status']
+    }
+
+    await walletQueue.add('processWalletOutflow', jobData)
+    const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
+
+    await this.onBookTransferEventNotification({ ...jobData, businessName: businessCustomer.attributes.detail.businessName, customerId: body.data.relationships.customer.data.id })
+    return { message: 'book transfer event queued' }
   }
 
   private async onPaymentSettledNotification(notification: WalletInflowDataNotification): Promise<void> {
@@ -214,6 +232,42 @@ export default class AnchorWebhookHandler {
         *AccountName*: ${accountName}
         *AccountNumber*: ${accountNumber}
         *BankName*: ${bankName}
+        *Status*: ${status}
+      `;
+        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, reversedMessage);
+    }
+  }
+
+  private async onBookTransferEventNotification(notification: BookWalletOutflowDataNotification): Promise<any> {
+    const { amount, status, reference, customerId, businessName } = notification;
+    const correctAmount = +amount / 100;
+    const successTopic = ':warning: Merchant Book Transfer Success :warning:';
+    const failureTopic = ':alert: Merchant Book Transfer Failed :alert:'
+    const reversedTopic = ':alert: Merchant Book Transfer Reversed :alert:'
+    console.log({ status, correctAmount })
+    switch (status) {
+      case 'successful':
+        const successMessage = `${successTopic} \n\n
+        *Merchant*: ${businessName} ${customerId}
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
+        *Status*: ${status}
+      `;
+        console.log({ successMessage })
+        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, successMessage);
+      case 'failed':
+        const failedNessage = `${failureTopic} \n\n
+        *Merchant*: ${businessName} ${customerId}
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
+        *Status*: ${status}
+      `;
+        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, failedNessage);
+      case 'reversed':
+        const reversedMessage = `${reversedTopic} \n\n
+        *Merchant*: ${businessName} ${customerId}
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
         *Status*: ${status}
       `;
         return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, reversedMessage);
@@ -277,6 +331,10 @@ export default class AnchorWebhookHandler {
       case 'nip.transfer.failed':
       case 'nip.transfer.reversed':
         return this.onTransferEvent(body)
+      // case 'book.transfer.successful':
+      // case 'book.transfer.failed':
+      // case 'book.transfer.reversed':
+      //   return this.onBookTransferEvent(body)
       default:
         this.logger.log('unhandled event', { event: data.type })
         break;
@@ -290,6 +348,9 @@ const allowedWebooks = [
   "nip.transfer.failed",
   "nip.transfer.successful",
   "nip.transfer.reversed",
+  // "book.transfer.failed",
+  // "book.transfer.successful",
+  // "book.transfer.reversed",
   "payment.settled",
   "customer.created",
   "customer.identification.awaitingDocument",

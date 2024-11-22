@@ -43,6 +43,15 @@ export default class EmailService {
     }
   }
 
+  removeOwnerAsApprovalReviewer(to: string, data: T.RemoveOwnerAsApprovalReviewer) {
+    return this.send({
+      to,
+      subject: "Approve or Reject Workflow Removal",
+      templateId: "d-221cab8133c74c7ab279a713f2f94e5f",
+      dynamicTemplateData: data,
+    });
+  }
+
   sendExpenseApprovalRequest(to: string, data: T.SendExpenseApprovalRequest) {
     return this.send({
       to,
@@ -50,6 +59,15 @@ export default class EmailService {
       templateId: 'd-85cdbf3f59e2467ca4f7a0444538cd23',
       dynamicTemplateData: data
     })
+  }
+
+  sendPayrollApprovalRequest(to: string, data: T.SendPayrollApprovalRequest) {
+    return this.send({
+      to,
+      subject: "Payroll approval request",
+      templateId: "d-865fc41d5db64dfe813d432c76d04924",
+      dynamicTemplateData: data,
+    });
   }
 
   sendMemberReactivation(to: string, data: T.SendMemberReactivation) {
@@ -86,6 +104,15 @@ export default class EmailService {
       templateId: 'd-63ba0805ef1e4d248ca49e939d7f96f2',
       dynamicTemplateData: { ...data, transactionLink: data.link }
     })
+  }
+
+  sendSalaryReceivedEmail(to: string, data: T.SalaryReceived) {
+    return this.send({
+      to,
+      subject: "Salary received",
+      templateId: "d-9272ec6279aa4e80946ee86c8a2012ef",
+      dynamicTemplateData: data,
+    });
   }
 
   sendApprovalRequestReviewed(to: string, data: T.SendApprovalRequestReviewed) {

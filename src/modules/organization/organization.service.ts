@@ -2,16 +2,19 @@ import Organization from '@/models/organization.model';
 import User, { KycStatus } from '@/models/user.model';
 import { ForbiddenError, NotFoundError } from 'routing-controllers';
 import { v4 as uuid } from 'uuid'
-import { Service } from 'typedi';
-import { OwnerDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
+import { Inject, Service } from 'typedi';
+import { OwnerDto, UpdateBusinessInfoDto, UpdateBusinessOwnerDto, UpdateBusinessOwnerIdDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { S3Service } from '@/modules/common/aws/s3.service';
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { organizationQueue } from '@/queues';
+import { SAFE_HAVEN_IDENTITY_TOKEN, SafeHavenIdentityClient } from './providers/safe-haven.client';
 
 @Service()
 export class OrganizationsService {
   constructor (
-    private s3Service: S3Service,
+    @Inject(SAFE_HAVEN_IDENTITY_TOKEN)
+    private safeHavenIdentityClient: SafeHavenIdentityClient,
+    private s3Service: S3Service
     // private sqsClient: SqsClient
   ) { }
 
@@ -68,6 +71,52 @@ export class OrganizationsService {
     throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
   }
 
+  async updatebusinessInfo(id: string, kycDto: UpdateBusinessInfoDto) {
+    const organization = await Organization.findById(id)
+    if (!organization) {
+      throw new NotFoundError(`Organization with id ${id} not found`)
+    }
+
+    if (organization.admin) {
+      const key = `new-kyc/documents/${organization.id}/cac.${kycDto.fileExt || 'pdf'}`;
+      const url = await this.s3Service.uploadObject(
+        getEnvOrThrow('KYB_BUCKET_NAME'),
+        key,
+        kycDto.cac
+      );
+      await Promise.all([
+        organization.updateOne({ ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED, cacUrl: url }),
+        User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.COPMANY_INFO_SUBMITTED })
+      ])
+      return { ...organization.toObject(), ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED };
+    }
+ 
+    throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
+  }
+
+  async updatebusinessOwnerId(id: string, kycDto: UpdateBusinessOwnerIdDto) {
+    const organization = await Organization.findById(id)
+    if (!organization) {
+      throw new NotFoundError(`Organization with id ${id} not found`)
+    }
+
+    if (organization.admin) {
+      const key = `new-kyc/documents/${organization.id}/id.${kycDto.fileExt || 'pdf'}`;
+      const url = await this.s3Service.uploadObject(
+        getEnvOrThrow('KYB_BUCKET_NAME'),
+        key,
+        kycDto.identity
+      );
+      await Promise.all([
+        organization.updateOne({ ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED, identityDocument: url }),
+        User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED })
+      ])
+      return { ...organization.toObject(), ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED };
+    }
+ 
+    throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
+  }
+
   async updateOwnerInfo(id: string, kycDto: OwnerDto, files: any[]) {
     const organization = await Organization.findById(id)
     if (!organization) {
@@ -78,7 +127,6 @@ export class OrganizationsService {
       const owners: any[] = organization?.owners || []
       const ownerId = kycDto?.id || uuid()
       const existingOwnerIndex = owners.findIndex((x) => x.id === ownerId);
-      console.log({ kycDto })
       const titles = JSON.parse(kycDto.title)
       const percentOwned = Number(kycDto.percentOwned || 0)
       const modifiedTitles = titles.map((t: string) => {
@@ -109,6 +157,36 @@ export class OrganizationsService {
       await User.updateOne({ _id: organization.admin }, { kybStatus: KycStatus.OWNER_INFO_SUBMITTED })
 
       return { ...organization.toObject(), ...kycDto, status: KycStatus.OWNER_INFO_SUBMITTED };
+    }
+
+    throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
+  }
+
+  async updateBusinessOwner(id: string, kycDto: UpdateBusinessOwnerDto, files: any[]) {
+    const organization = await Organization.findById(id)
+    if (!organization) {
+      throw new NotFoundError(`Organization with id ${id} not found`)
+    }
+
+    if (organization.admin) {
+      const owner = organization.owner || {}
+      await Promise.all(files.map(async (file) => {
+        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
+        const key = `new-kyc/documents/${organization.id}/directors/${file.fieldname}.${fileExt || 'pdf'}`;
+        const url = await this.s3Service.uploadObject(
+          getEnvOrThrow('KYB_BUCKET_NAME'),
+          key,
+          file.buffer
+        );
+        owner[file.fieldname] = url
+      }))
+      await organization.updateOne({
+        owner: { ...organization.owner, ...kycDto, ...owner },
+        status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED
+      })
+      await User.updateOne({ _id: organization.admin }, { firstName: kycDto.firstName, lastName: kycDto.lastName, kybStatus: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED })
+
+      return { ...organization.toObject(), ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED };
     }
 
     throw new ForbiddenError(`User with id ${organization.admin} is not an organization admin`);
@@ -198,6 +276,36 @@ export class OrganizationsService {
     }
 
     throw new ForbiddenError(`Application for approval not allowed`);
+  }
+
+  async sendBvnOtp(id: string, bvn: string) {
+    const organization = await Organization.findById(id)
+    if (!organization) {
+      throw new NotFoundError(`Organization with id ${id} not found`)
+    }
+    const bvnCheckResult = await this.safeHavenIdentityClient.initiateVerification(bvn);
+    if (bvnCheckResult.identityId) {
+      await organization.updateOne({ safeHavenIdentityId: bvnCheckResult.identityId, bvn, identityGatewayResponse: bvnCheckResult.gatewayResponse })
+      return { message: 'otp sent' }
+    }
+    throw new ForbiddenError(`Unable to verify BVN`);
+  }
+
+  async verifyBvnOtp(id: string, otp: string) {
+    const organization = await Organization.findById(id)
+    if (!organization) {
+      throw new NotFoundError(`Organization with id ${id} not found`)
+    }
+
+    if (!organization.safeHavenIdentityId) {
+      throw new NotFoundError(`Identity ID not found`)
+    }
+    const validationResult = await this.safeHavenIdentityClient.validateVerification(organization.safeHavenIdentityId, otp);
+    if (validationResult && (validationResult?.status === 200)) {
+      await organization.updateOne({ bvnVerified: true })
+      return { message: 'bvn verified' }
+    }
+    throw new ForbiddenError(`Unable to verify BVN`);
   }
 
   // async approve(id: string) {

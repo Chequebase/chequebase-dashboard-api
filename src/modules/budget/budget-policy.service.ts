@@ -11,6 +11,7 @@ import dayjs from "dayjs";
 import WalletEntry, { WalletEntryStatus } from "@/models/wallet-entry.model";
 import { CheckTransferPolicyDto } from "./dto/budget-transfer.dto";
 import Organization from "@/models/organization.model";
+import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 
 @Service()
 export class BudgetPolicyService {
@@ -29,18 +30,23 @@ export class BudgetPolicyService {
     }
 
     const org = await Organization.findById(auth.orgId)
+    .populate({ path: 'subscription.object', populate: 'plan' })
+    .select('subscription')
+    .lean()
+    if (!org) throw new BadRequestError("Organization not found");
+    const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
+    const available =
+      plan?.features?.find((f: any) => f.code === "spend_policy")
+        ?.available ?? false
+
+    if (!available) {
+      throw new BadRequestError(
+        "Custom spend policy is not available for this organization"
+      );
+    }
+    
     if (!org?.setInitialPolicies) {
       await Organization.updateOne({ _id: auth.orgId }, { setInitialPolicies: true })
-    }
-
-    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
-    const nameExists = await BudgetPolicy.exists({
-      organization: auth.orgId,
-      name: { $regex }
-    })
-
-    if (nameExists) { 
-      throw new BadRequestError("Policy with similar name already exists")
     }
 
     return await BudgetPolicy.create({
@@ -51,9 +57,7 @@ export class BudgetPolicyService {
       budget: data.budget,
       daysOfWeek: data.daysOfWeek,
       department: data.department,
-      name: data.name,
       recipient: data.recipient,
-      description: data.description,
       enabled: data.enabled,
       spendPeriod: data.type === PolicyType.SpendLimit ? data.spendPeriod || 'daily' : undefined
     })
@@ -78,16 +82,21 @@ export class BudgetPolicyService {
         throw new BadRequestError("A similar policy on same budget/department already exists");
       }
     }
+    
+    const org = await Organization.findById(auth.orgId)
+    .populate({ path: 'subscription.object', populate: 'plan' })
+    .select('subscription')
+    .lean()
+    if (!org) throw new BadRequestError("Organization not found");
+    const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
+    const available =
+      plan?.features?.find((f: any) => f.code === "spend_policy")?.available ??
+      false;
 
-    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
-    const nameExists = await BudgetPolicy.exists({
-      _id: { $ne: policyId },
-      organization: auth.orgId,
-      name: { $regex }
-    })
-
-    if (nameExists) {
-      throw new BadRequestError("Policy with similar name already exists")
+    if (!available) {
+      throw new BadRequestError(
+        "Custom spend policy is not available for this organization"
+      );
     }
 
     policy = await BudgetPolicy.findOneAndUpdate({ _id: policyId, organization: auth.orgId }, data, { new: true })
@@ -104,6 +113,7 @@ export class BudgetPolicyService {
       .set('budget', data.budget)
       .set('department', data.department)
       .set('recipient', data.recipient)
+      .set('type', data.type)
     if (data.search) {
       filter.set('name', { $regex: escapeRegExp(data.search), $options: "i" });
     }

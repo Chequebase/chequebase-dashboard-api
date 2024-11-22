@@ -81,7 +81,7 @@ export class AnchorTransferClient implements TransferClient {
         account: {
           data: {
             type: "DepositAccount",
-            id: payload.depositAcc
+            id: payload.debitAccount
           }
         },
         counterParty: {
@@ -100,6 +100,11 @@ export class AnchorTransferClient implements TransferClient {
       const message = status === 'failed' ?
         'Transfer failed' : 'Processing transfer'
 
+      this.logger.log("anchor initiate transfer response", {
+        payload: JSON.stringify(payload),
+        response: JSON.stringify(res.data),
+        status: res.status
+      });
       return {
         status,
         message,

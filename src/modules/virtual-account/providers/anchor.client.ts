@@ -4,6 +4,7 @@ import { getEnvOrThrow } from "@/modules/common/utils";
 import { CreateDepositAccountData, CreateDepositAccountResult, CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountClient, VirtualAccountClientName } from "./virtual-account.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
+import { BadRequestError } from "routing-controllers";
 
 export const ANCHOR_TOKEN = new Token('va.provider.anchor')
 
@@ -26,7 +27,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
         virtualAccountDetail: {
           name: payload.name,
           amount: payload.amount,
-          bvn: payload.identity.number,
+          bvn: payload.identity?.number,
           reference: payload.reference,
           email: payload.email,
           description: `Virtual account for ${payload.name}`,
@@ -72,7 +73,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       attributes: {
         virtualAccountDetail: {
           name: payload.name,
-          bvn: payload.identity.number,
+          bvn: payload.identity?.number,
           reference: payload.reference,
           email: payload.email,
           description: `Virtual account for ${payload.name}`,
@@ -135,19 +136,19 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
 
   async createDepositAccount(payload: CreateDepositAccountData): Promise<string> {
     const data = {
-      type: payload.accountType,
+      type: "DepositAccount",
       attributes: {
-        productName: payload.productName
+        productName: payload.productName,
       },
       relationships: {
         customer: {
           data: {
             id: payload.customerId,
-            type: payload.customerType
-          }
-        }
-      }
-    }
+            type: payload.customerType,
+          },
+        },
+      },
+    };
 
     try {
       const res = await this.http.post('/api/v1/accounts', { data })
@@ -178,7 +179,7 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
     } catch (err: any) {
       this.logger.error('error getting deposit account', {
         reason: JSON.stringify(err.response?.data || err?.message),
-        status: err.response.status
+        status: err.response?.status
       });
 
       throw new ServiceUnavailableError('Unable to get deposit account');

@@ -12,7 +12,7 @@ import Organization, { BillingMethod } from '@/models/organization.model';
 import { ActivatePlan, ChargeWalletForSubscription } from './interfaces/plan.interface';
 import PaymentIntent, { IntentType, PaymentIntentStatus } from '@/models/payment-intent.model';
 import { cdb } from '../common/mongoose';
-import Wallet from '@/models/wallet.model';
+import Wallet, { WalletType } from '@/models/wallet.model';
 import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from '@/models/wallet-entry.model';
 import Subscription, { ISubscription, SubscriptionStatus } from '@/models/subscription.model';
 import { subscriptionQueue } from '@/queues';
@@ -49,7 +49,12 @@ export class PlanService {
 
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
-        { organization: orgId, currency, balance: { $gte: amount } },
+        {
+          organization: orgId,
+          currency,
+          type: WalletType.General,
+          balance: { $gte: amount }
+        },
         { $inc: { balance: -amount, ledgerBalance: -amount } },
         { session, new: true }
       )
@@ -237,7 +242,7 @@ export class PlanService {
     const sub = organization?.subscription
     const currentSub = sub ? sub.object as ISubscription : undefined
     // 14 days trial for first timers
-    let days = currentSub ? months * 30 : 14
+    let days = currentSub ? months * 30 : 30
     let startedAt = new Date()
     let endingAt = dayjs(startedAt).add(days, 'days').toDate()
     const oldPlanId = currentSub ? currentSub?.plan?.toString() : undefined
@@ -273,6 +278,7 @@ export class PlanService {
       await Organization.updateOne({ _id: organization }, {
         subscription: {
           object: subscription._id,
+          plan: plan._id,
           months: data.months,
           gracePeriod: 3,
           nextPlan: plan._id
