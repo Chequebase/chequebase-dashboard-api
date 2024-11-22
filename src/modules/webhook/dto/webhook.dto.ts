@@ -5,6 +5,11 @@ export class AnchorHeaderDto {
   'x-anchor-signature': string
 }
 
+export class MonoHeaderDto {
+  @IsString()
+  'x-mono-signature': string
+}
+
 export class PaystackHeaderDto {
   @IsString()
   'x-paystack-signature': string
