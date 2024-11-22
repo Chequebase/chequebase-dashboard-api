@@ -379,10 +379,12 @@ export class PayrollService {
         this.getPayrollUsers(orgId),
         Payroll.findOne({
           organization: orgId,
-          date: { $lt: dayjs().tz().startOf("month").toDate() },
+          status: PayrollStatus.Completed,
+          date: { $lt: dayjs().tz().endOf("month").toDate() },
         }).sort("-createdAt"),
         Payroll.findOne({
           organization: orgId,
+          status: { $ne: PayrollStatus.Completed },
           date: { $gte: dayjs().tz().startOf("month").toDate() },
         }).sort("-createdAt"),
       ]);
