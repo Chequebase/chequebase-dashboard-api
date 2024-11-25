@@ -195,13 +195,11 @@ export default class BudgetController {
   }
 
   @Get('/banks')
-  @Authorized()
   getBanks() {
     return this.budgetTransferService.getBanks()
   }
 
   @Post('/resolve-account')
-  @Authorized()
   resolveAccountNumber(@Body() body: ResolveAccountDto) {
     return this.budgetTransferService.resolveAccountNumber(body)
   }
@@ -225,7 +223,7 @@ export default class BudgetController {
   }
 
   @Put('/:id')
-  @Authorized(EPermission.BudgetCreate)
+  @Authorized(EPermission.BudgetEdit)
   @UseBefore(logAuditTrail(LogAction.EDIT_BUDGET))
   editBudget(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: EditBudgetDto) {
     return this.budgetService.editBudget(auth, id, dto)
@@ -289,7 +287,11 @@ export default class BudgetController {
     @Req() req: Request,
   ) {
     const file = req.file as any
-    const dto = plainToInstance(InitiateTransferDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', invoice: file?.buffer, ...req.body })
+    const dto = plainToInstance(InitiateTransferDto, {
+      fileExt: file?.mimetype.toLowerCase().trim().split("/")[1] || "pdf",
+      invoice: file?.buffer,
+      ...req.body,
+    });
     const errors = await validate(dto)
     if (errors.length) {
       throw { errors }

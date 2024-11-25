@@ -1,22 +1,22 @@
 export interface CreateVirtualAccountData {
-  type: 'dynamic' | 'static'
-  name: string
-  provider: string
-  reference: string
-  email: string
-  currency: string
-  amount?: number
-  metadata?: any
-  identity: {
-    type: 'bvn',
-    number: string
-  },
+  type: "dynamic" | "static";
+  name: string;
+  provider: string;
+  reference: string;
+  email: string;
+  currency: string;
+  amount?: number;
+  metadata?: any;
+  customerId: string
+  identity?: {
+    type: "bvn";
+    number: string;
+  };
   phone?: string;
   rcNumber?: string;
 }
 
 export interface CreateDepositAccountData {
-  accountType: string
   customerType: string
   productName: string
   customerId: string
@@ -25,6 +25,7 @@ export interface CreateDepositAccountData {
 }
 
 export interface CreateVirtualAccountResult {
+  providerRef?: string
   accountName: string
   accountNumber: string
   bankCode: string
@@ -42,6 +43,7 @@ export interface CreateDepositAccountResult {
 
 export enum VirtualAccountClientName {
   Anchor = 'anchor',
+  SafeHaven = 'safe-haven',
   Paystack = 'paystack',
   SarePay = 'sarepay'
 }

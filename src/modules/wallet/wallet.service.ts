@@ -24,7 +24,6 @@ import QueryFilter from "../common/utils/query-filter";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
-import { DepositAccountService } from "../virtual-account/deposit-account";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 
 dayjs.extend(utc)
@@ -32,16 +31,24 @@ dayjs.extend(timezone)
 
 @Service()
 export default class WalletService {
-  constructor(private depositAccountService: DepositAccountService, private slackService: SlackNotificationService) { }
+  constructor (
+    private vaService: VirtualAccountService,
+    private slackService: SlackNotificationService
+  ) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
     const reference = createId()
-    const { amount, narration, currency } = data
+    const { amount, narration, currency, walletType } = data
 
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
       const wallet = await Wallet.findOneAndUpdate(
-        { organization: orgId, currency, balance: { $gte: amount } },
+        {
+          organization: orgId,
+          currency,
+          type: walletType,
+          balance: { $gte: amount }
+        },
         { $inc: { balance: -amount, ledgerBalance: -amount } },
         { session, new: true }
       )
@@ -98,7 +105,7 @@ export default class WalletService {
       baseWallet: baseWallet._id
     })
 
-    if (wallets.some((w) => w.baseWallet.equals(baseWallet._id))) {
+    if (wallets.some((w) => w.type === data.walletType && w.baseWallet.equals(baseWallet._id))) {
       throw new BadRequestError(`Organization already has a wallet for ${baseWallet.currency}`)
     }
 
@@ -121,20 +128,20 @@ export default class WalletService {
       //   rcNumber: organization.rcNumber
       // }})
 
-      const depositAccRef = `da-${createId()}`
-
-      const depositAccountId = await this.depositAccountService.createAccount({
-        accountType: 'DepositAccount',
-        customerType: 'BusinessCustomer',
-        productName: 'CURRENT',
-        customerId: organization.anchorCustomerId,
-        provider: data.provider,
-        reference: depositAccRef,
-      })
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const account = await this.depositAccountService.getAccount(depositAccountId, VirtualAccountClientName.Anchor, baseWallet.currency)
-
+      const accountRef = `va-${createId()}`
+      const provider = VirtualAccountClientName.SafeHaven;
+      const account = await this.vaService.createAccount({
+        currency: baseWallet.currency,
+        email: organization.email,
+        phone: organization.phone,
+        name: organization.businessName,
+        type: "static",
+        customerId: organization.safeHavenIdentityId,
+        provider,
+        reference: accountRef,
+        rcNumber: organization.rcNumber
+      });
+      const providerRef = account.providerRef || accountRef
       const wallet = await Wallet.create({
         _id: walletId,
         organization: organization._id,
@@ -153,10 +160,9 @@ export default class WalletService {
         bankCode: account.bankCode,
         name: account.accountName,
         bankName: account.bankName,
-        provider: VirtualAccountClientName.Anchor,
-      })
-
-      await Organization.updateOne({ _id: organization._id }, { depositAccount: depositAccountId }).lean()
+        provider,
+        externalRef: providerRef,
+      });
 
       return {
         _id: wallet._id,
@@ -395,3 +401,71 @@ export default class WalletService {
     return 'sucesss';
   }
 }
+
+// async function run() {
+//   const vaClient = Container.get<SafeHavenVirtualAccountClient>(SAFE_HAVEN_VA_TOKEN)
+
+//   const baseWallet = BaseWalletType.NGN
+//   const walletId = new ObjectId()
+//   const virtualAccountId = new ObjectId()
+
+//   const accountRef = `va-${createId()}`
+//   const provider = VirtualAccountClientName.SafeHaven;
+//   try {
+//     const account = await vaClient.createStaticVirtualAccount({
+//       type: "static",
+//       identity: {
+//         type: "bvn",
+//         number: '22264208983',
+//       },
+//       rcNumber: '2732903',
+
+//       currency: "NGN",
+//       email: 'shaokhancreatives@gmail.com',
+//       phone: '07066647649',
+//       name: 'Shaokhan Creatives',
+//       customerId: '67236940fee347549c52efc5',
+//       provider,
+//       reference: accountRef,
+//     });
+//     console.log({ account })
+    // const providerRef = account.providerRef || accountRef
+    // const wallet = await Wallet.create({
+    //   _id: walletId,
+    //   organization: '66e2cd42bb0baa2b6d513349',
+    //   baseWallet: baseWallet,
+    //   currency: 'NGN',
+    //   balance: 0,
+    //   primary: true,
+    //   virtualAccounts: [virtualAccountId]
+    // })
+
+    // const virtualAccount = await VirtualAccount.create({
+    //   _id: virtualAccountId,
+    //   organization: '66e2cd42bb0baa2b6d513349',
+    //   wallet: wallet._id,
+    //   accountNumber: account.accountNumber,
+    //   bankCode: account.bankCode,
+    //   name: account.accountName,
+    //   bankName: account.bankName,
+    //   provider,
+    //   externalRef: providerRef,
+    // });
+
+    // console.log({
+    //   _id: wallet._id,
+    //   balance: wallet.balance,
+    //   currency: wallet.currency,
+    //   account: {
+    //     name: virtualAccount.name,
+    //     accountNumber: virtualAccount.accountNumber,
+    //     bankName: virtualAccount.bankName,
+    //     bankCode: virtualAccount.bankCode
+    //   }
+    // })
+// } catch (error) {
+//     console.log({ error })
+//   }
+// }
+
+// run()

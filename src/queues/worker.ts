@@ -1,6 +1,6 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue } from '.';
+import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue, payrollQueue } from '.';
 import processWalletInflow from './jobs/wallet/wallet-inflow.job';
 import processWalletOutflow from './jobs/wallet/wallet-outflow.job';
 import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance.job';
@@ -18,6 +18,11 @@ import processKycApproved from './jobs/organization/processKycApproved';
 import processKycRejected from './jobs/organization/processKycRejected';
 import processFundBudget from './jobs/budget/fund-budget.job';
 import { addWalletEntriesForIngestionToElastic, processWalletEntryToElasticsearch } from './jobs/wallet/wallet-entry-elasticsearch-ingester';
+import processPayroll from './jobs/payroll/process-payroll.job';
+import createNextPayrolls from './jobs/payroll/create-next-payroll';
+import fetchDuePayrolls from './jobs/payroll/fetch-due-payrolls';
+import requeryOutflow from './jobs/wallet/requery-outflow.job';
+import sweepSafeHavenRevenue from './jobs/wallet/sweep-safe-haven-revenue.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -33,6 +38,7 @@ function setupQueues() {
     walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 1, processWalletInflow)
     walletQueue.process('processWalletOutflow', 1, processWalletOutflow)
+    walletQueue.process("requeryOutflow", 1, requeryOutflow);
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
     walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
     walletQueue.add('addWalletEntriesForClearance', null, {
@@ -43,6 +49,10 @@ function setupQueues() {
     walletQueue.add('addWalletEntriesForIngestionToElastic', null, {
       repeat: { cron: '*/5  * * * *', tz }
     })
+    walletQueue.process("sweepSafeHavenRevenue", sweepSafeHavenRevenue);
+    walletQueue.add("sweepSafeHavenRevenue", null, {
+      repeat: { cron: "0 18 * * *", tz }, // every 6pm
+    });
     
     budgetQueue.process('processFundBudget', processFundBudget)
     budgetQueue.process('closeExpiredBudget', closeExpiredBudget)
@@ -69,6 +79,16 @@ function setupQueues() {
     subscriptionQueue.add('fetchUpcomingSubscriptions', null, {
       repeat: { cron: '0 8 * * *', tz }  // every day at 8am 
     })
+
+    payrollQueue.process('processPayroll', processPayroll)
+    payrollQueue.process(createNextPayrolls.name, createNextPayrolls);
+    payrollQueue.add(createNextPayrolls.name, null, {
+      repeat: { cron: "0 8 1 * *", tz }, // every 1st day of month at 8am
+    });
+    payrollQueue.process(fetchDuePayrolls.name, fetchDuePayrolls);
+    payrollQueue.add(fetchDuePayrolls.name, null, {
+      repeat: { cron: "0 15,16,17,18 * * *", tz }, // every 3,4,5,6pm 
+    });
   } catch (e: any) {
     logger.error("something went wrong setting up queues", {
       reason: e?.message

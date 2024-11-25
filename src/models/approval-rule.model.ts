@@ -9,6 +9,7 @@ export enum WorkflowType {
   Expense = 'expense',
   BudgetExtension = 'budget_extension',
   FundRequest = 'fund_request',
+  Payroll = 'payroll',
 }
 
 export enum ApprovalType {
@@ -19,7 +20,6 @@ export enum ApprovalType {
 export interface IApprovalRule {
   _id: ObjectId
   amount: number
-  name: string
   organization: any
   approvalType: ApprovalType
   workflowType: WorkflowType
@@ -36,10 +36,6 @@ interface ApprovalRuleModel extends
 
 const approvalRuleSchema = new Schema<IApprovalRule>(
   {
-    name: {
-      type: String,
-      required: true
-    },
     amount: { type: Number, default: 0 },
     approvalType: {
       type: String,

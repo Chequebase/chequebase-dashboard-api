@@ -1,20 +1,26 @@
 import { WalletEntryType } from "@/models/wallet-entry.model";
+import { WalletType } from "@/models/wallet.model";
 import { VirtualAccountClientName } from "@/modules/virtual-account/providers/virtual-account.client";
 import { IsBoolean, IsDateString, IsEnum, IsHexadecimal, IsInt, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export class CreateWalletDto {
   @IsString()
   @IsHexadecimal()
-  baseWallet: string
+  baseWallet: string;
 
   @IsString()
   @IsEnum(VirtualAccountClientName)
   @IsOptional()
-  provider = VirtualAccountClientName.Anchor
+  provider = VirtualAccountClientName.SafeHaven;
+
+  @IsString()
+  @IsEnum(WalletType)
+  @IsOptional()
+  walletType = WalletType.General;
 
   @IsString()
   @IsHexadecimal()
-  organization: string
+  organization: string;
 }
 
 export class ReportTransactionDto {

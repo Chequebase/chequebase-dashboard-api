@@ -7,7 +7,7 @@ import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
 import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource } from "../budget/dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
-import { IWallet } from "@/models/wallet.model"
+import { IWallet, WalletType } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget from "@/models/budget.model"
 import Wallet from "@/models/wallet.model"
@@ -29,7 +29,8 @@ import TransferCategory from "@/models/transfer-category"
 import { UserService } from "../user/user.service"
 import EmailService from "../common/email.service"
 import { IVirtualAccount } from "@/models/virtual-account.model";
-import WalletService from "./wallet.service";
+import { walletQueue } from "@/queues"
+import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -57,6 +58,7 @@ export interface ApproveTransfer {
   auth: AuthUser
   requester: string
   category: string
+  saveRecipient?: boolean
   invoiceUrl?: string
 }
 
@@ -97,10 +99,13 @@ export class WalletTransferService {
     return flatAmount
   }
 
-  private async getCounterparty(auth: AuthUser, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
+  private async getCounterparty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
     const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    if (saveRecipient) {
+      await this.saveCounterParty(orgId, bankCode, accountNumber, true)
+    }
     let counterparty = {
-      organization: auth.orgId,
+      organization: orgId,
       accountNumber,
       bankCode,
       accountName: resolveRes.accountName,
@@ -117,7 +122,10 @@ export class WalletTransferService {
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
       const fetchedWallet = await Wallet.findOneAndUpdate(
-        { organization: auth.orgId, currency: wallet.currency, balance: { $gte: amountToDeduct } },
+        {
+          _id: wallet._id,
+          balance: { $gte: amountToDeduct }
+        },
         { $inc: { balance: -amountToDeduct, ledgerBalance: -amountToDeduct } },
         { session, new: true }
       )
@@ -188,6 +196,20 @@ export class WalletTransferService {
     return true
   }
 
+  private async saveCounterParty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
+    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    let counterparty = await Counterparty.create({
+      organization: orgId,
+      accountNumber,
+      bankCode,
+      accountName: resolveRes.accountName,
+      bankName: resolveRes.bankName,
+      isRecipient
+    })
+
+    return { ...counterparty, bankId: resolveRes.bankId }
+  }
+
   async initiateTransfer(auth: AuthUser, walletId: string, data: InitiateTransferDto) {
     const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
     if (!validPin) {
@@ -254,12 +276,16 @@ export class WalletTransferService {
         auth,
         requester: auth.userId,
         category: data.category,
-        invoiceUrl
+        invoiceUrl,
+        saveRecipient: data.saveRecipient
       })
     }
 
     const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
 
+    if (data.saveRecipient) {
+      await this.saveCounterParty(auth.orgId, data.bankCode, data.accountNumber, true)
+    }
     const request = await ApprovalRequest.create({
       organization: auth.orgId,
       workflowType: rule.workflowType,
@@ -324,7 +350,7 @@ export class WalletTransferService {
       throw new NotFoundError('Organization does not exist')
     }
     const fee = await this.calcTransferFee(orgId, data.amount, wallet.currency)
-    const provider = TransferClientName.Anchor // could be dynamic in the future
+    const provider = TransferClientName.SafeHaven // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
     const payload = {
       auth: { userId: data.auth.userId, orgId },
@@ -335,23 +361,39 @@ export class WalletTransferService {
     }
 
     await this.runSecurityChecks(payload)
-    const counterparty = await this.getCounterparty(data.auth, data.bankCode, data.accountNumber, true)
+    const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber, true, data.saveRecipient)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
+    const debitAccount = wallet.virtualAccounts[0].accountNumber
     const transferResponse = await this.transferService.initiateTransfer({
+      debitAccount,
       reference: entry.reference,
       amount: data.amount,
       counterparty,
       currency: wallet.currency,
       narration: entry.narration,
-      depositAcc: organization.depositAccount,
       provider
     })
 
-    if ('providerRef' in transferResponse) {
+    if ('providerRef' in transferResponse && transferResponse.providerRef) {
       await WalletEntry.updateOne({ _id: entry._id }, {
         providerRef: transferResponse.providerRef
       })
+
+      await walletQueue.add(
+        "requeryOutflow",
+        {
+          provider,
+          providerRef: transferResponse.providerRef,
+        } as RequeryOutflowJobData,
+        {
+          attempts: 4,
+          backoff: {
+            type: "exponential",
+            delay: 60_000, // 1min in ms
+          },
+        }
+      );
     }
 
     return {
@@ -388,10 +430,10 @@ export class WalletTransferService {
     return { transferFee }
   }
 
-  async getWallet(orgId: string, walletId?: string) {
+  async getWallet(orgId: string, walletId: string) {
     const filter = walletId ? { _id: walletId } : { primary: true }
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
-      .populate({
+      .populate<{ virtualAccounts: IVirtualAccount[] }>({
         path: 'virtualAccounts',
         select: 'accountNumber bankName bankCode name'
       })

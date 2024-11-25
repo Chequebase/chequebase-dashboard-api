@@ -4,7 +4,7 @@ import timezone from "dayjs/plugin/timezone"
 import advancedFormat from 'dayjs/plugin/advancedFormat'
 import { ApproveApprovalRequestBody, CreateRule, DeclineRequest, GetApprovalRequestsQuery, GetRulesQuery, UpdateRule } from "./dto/approvals.dto";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import User, { IUser } from "@/models/user.model";
+import User, { IUser, UserStatus } from "@/models/user.model";
 import QueryFilter from "../common/utils/query-filter";
 import { Service } from "typedi";
 import ApprovalRequest, { ApprovalRequestReviewStatus } from "@/models/approval-request.model";
@@ -17,6 +17,14 @@ import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule
 import EmailService from "../common/email.service";
 import dayjs from "dayjs";
 import Organization from "@/models/organization.model";
+import Payroll, { PayrollApprovalStatus } from "@/models/payroll/payroll.model";
+import { PayrollService } from "../payroll/payroll.service";
+import { ISubscriptionPlan } from "@/models/subscription-plan.model";
+import { ERole } from "../user/dto/user.dto";
+import { createId } from "@paralleldrive/cuid2";
+import redis from "../common/redis";
+import { WalletTransferService } from "../wallet/wallet-transfer.service";
+import WalletService from "../wallet/wallet.service";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -28,24 +36,30 @@ export class ApprovalService {
   constructor (
     private budgetService: BudgetService,
     private budgetTnxService: BudgetTransferService,
+    private walletTnxService: WalletTransferService,
+    private payrollService: PayrollService,
     private emailService: EmailService
   ) { }
 
   async createApprovalRule(auth: AuthUser, data: CreateRule) {
-    // TODO: limit reviewer count based on plan
-    const org = await Organization.findById(auth.orgId)
-    if (!org?.setDefualtApprovalWorkflow) {
-      await Organization.updateOne({ _id: auth.orgId }, { setDefualtApprovalWorkflow: true })
+    const org = await Organization.findById(auth.orgId).populate({
+      path: "subscription.object",
+      populate: "plan",
+    });
+
+    if(!org)throw new BadRequestError('Organization not found')
+    const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
+    const maxReviewers = plan?.features?.find((f: any) => f.code === "approvals_workflow")?.maxUnits || 1;
+
+    const isUnlimited = maxReviewers === -1
+    if (!isUnlimited && data.reviewers.length > maxReviewers) {
+      throw new BadRequestError(
+        "Approval workflow has reached its maximum limit for reviewers. Limit is " + maxReviewers
+      );
     }
 
-    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
-    const nameExists = await ApprovalRule.exists({
-      organization: auth.orgId,
-      name: { $regex }
-    })
-
-    if (nameExists) {
-      throw new BadRequestError("Approval rule with similar name already exists")
+    if (!org?.setDefualtApprovalWorkflow) {
+      await Organization.updateOne({ _id: auth.orgId }, { setDefualtApprovalWorkflow: true })
     }
 
     let rule = await ApprovalRule.findOne({
@@ -70,7 +84,6 @@ export class ApprovalService {
     }
 
     rule = await ApprovalRule.create({
-      name: data.name,
       organization: auth.orgId,
       createdBy: auth.userId,
       budget: data.budget,
@@ -85,34 +98,94 @@ export class ApprovalService {
 
   async updateApprovalRule(auth: AuthUser, ruleId: string, data: UpdateRule) {
     const { orgId } = auth;
-    const org = await Organization.findById(orgId)
+    const org = await Organization.findById(orgId).populate({
+      path: "subscription.object",
+      populate: "plan",
+    });
+
+
+    if (!org) throw new BadRequestError("Organization not found");
+    const plan = <ISubscriptionPlan>org.subscription?.object?.plan;
+    const maxReviewers =
+      plan?.features?.find((f: any) => f.code === "approvals_workflow")
+        ?.maxUnits || 1;
+
+    const isUnlimited = maxReviewers === -1
+    if (!isUnlimited && data.reviewers.length > maxReviewers) {
+      throw new BadRequestError(
+        "Approval workflow has reached its maximum limit for reviewers. Limit is " +
+          maxReviewers
+      );
+    }
+
     if (!org?.setDefualtApprovalWorkflow) {
       await Organization.updateOne({ _id: orgId }, { setDefualtApprovalWorkflow: true })
     }
-    const $regex = new RegExp(`^${escapeRegExp(data.name)}$`, "i")
-    const nameExists = await ApprovalRule.exists({
-      _id: { $ne: ruleId },
-      organization: orgId,
-      name: { $regex }
-    })
 
-    if (nameExists) {
-      throw new BadRequestError("Approval rule with similar name already exists")
+    let rule = await ApprovalRule.findOne({ _id: ruleId, organization: auth.orgId }).populate('reviewers')
+    if (!rule) {
+      throw new BadRequestError("Rule does not exist");
+    }
+    
+    let requiresRemovalPermission: any[] = [];
+    const owners: IUser[] = rule.reviewers.filter(r => r.role === ERole.Owner)
+    const removedOwners = owners.filter(
+      (owner) => !data.reviewers.includes(owner._id.toString())
+    );
+
+    if (removedOwners.length) {
+      await Promise.all(removedOwners.map(async (owner) => {
+        const code = createId()
+        const link = `${getEnvOrThrow('BASE_BACKEND_URL')}/v1/approvals/remove-owner-as-reviewer/${code}`
+        await redis.set(
+          `remove-owner-as-reviewer:${code}`,
+          JSON.stringify({
+            rule: rule!._id,
+            reviewer: owner._id,
+          }),
+          'EX',
+          60 * 60 * 24 * 7 // 7 days
+        );
+        await this.emailService.removeOwnerAsApprovalReviewer(owner.email, {
+          userName: owner.firstName,
+          approvalLink: `${link}/approve`,
+          rejectionLink: `${link}/reject`,
+          workflowName: `${toTitleCase(rule?.workflowType)} workflow`,
+        });
+
+        data.reviewers.push(owner._id.toString())
+
+        requiresRemovalPermission.push({
+          firstName: owner.firstName,
+          lastName: owner.lastName,
+          avatar: owner.avatar,
+        })
+      }))
+    }
+
+    const body = {
+      payload: {
+        amount: data.amount,
+        approvalType: data.approvalType,
+        workflowType: data.workflowType,
+        budget: data.budget,
+        // update this: send email to old reviewers
+        reviewers: data.reviewers,
+      },
+      '$unset': {}
+    };
+
+    if (data.budget === null) {
+      delete body.payload.budget
+      body['$unset'] = { budget: "" }
     }
 
     // TOD: if approval for reviewer removal is required ---
-    const rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, {
-      name: data.name,
-      amount: data.amount,
-      approvalType: data.approvalType,
-      workflowType: data.workflowType,
-      // update this: send email to old reviewers
-      reviewers: data.reviewers,
-    }, { new: true })
+    rule = await ApprovalRule.findOneAndUpdate({ _id: ruleId, organization: orgId }, { ...body.payload, $unset: body['$unset'] }, { new: true })
 
     if (!rule) throw new NotFoundError("Rule not found")
 
-    return rule
+    return { ...rule.toObject(), requiresRemovalPermission };
   }
 
   async getRules(auth: AuthUser, query: GetRulesQuery) {
@@ -136,7 +209,10 @@ export class ApprovalService {
     const rules = await ApprovalRule.paginate(filter.object, {
       page: Number(query.page),
       sort: '-createdAt',
-      populate: [{ path: 'reviewers', select: 'firstName lastName avatar' }]
+      populate: [
+        { path: 'reviewers', select: 'firstName lastName avatar' },
+        { path: 'budget', select: 'name _id' }
+      ]
     })
 
     return rules
@@ -167,10 +243,11 @@ export class ApprovalService {
       }
     }
 
-    const requests = await ApprovalRequest.paginate(filter.object, {
+    let requests = await ApprovalRequest.paginate(filter.object, {
       page: Number(query.page),
       limit: query.limit,
       sort: '-createdAt',
+      lean: true,
       populate: [
         {
           path: 'reviews.user', select: 'firstName lastName avatar',
@@ -180,12 +257,13 @@ export class ApprovalService {
           path: 'requester', select: 'firstName lastName avatar',
           populate: { path: 'roleRef', select: 'name' }
         },
+        { path: 'properties.payroll' },
         { path: 'properties.budget', select: 'name amount description createdAt expiry' },
         { path: 'properties.budgetBeneficiaries.user', select: 'firstName lastName avatar' },
         { path: 'properties.transaction.category', select: 'name' },
       ]
     })
-
+      
     return requests
   }
 
@@ -194,7 +272,7 @@ export class ApprovalService {
       _id: requestId,
       organization: auth.orgId,
       'reviews.user': auth.userId
-    }).populate('properties.budget', 'amount currency')
+    }).populate('properties.budget', 'amount currency').populate('properties.wallet')
 
     if (!request) {
       throw new BadRequestError("Approval request not found")
@@ -230,13 +308,15 @@ export class ApprovalService {
 
     let response: any
     const props = request.properties
+    const budgetId = props?.budget?._id
+    const walletId = props?.wallet?._id
     switch (request.workflowType) {
       case WorkflowType.BudgetExtension:
         await Budget.updateOne({ _id: props.budget._id }, { extensionApprovalRequest: request._id })
         response = await this.budgetService.initiateFundRequest({
           orgId: request.organization._id,
           userId: request.requester._id,
-          budgetId: props.budget._id,
+          budgetId,
           type: 'extension',
         }, false)
         break;
@@ -245,15 +325,35 @@ export class ApprovalService {
         break;
       case WorkflowType.Transaction:
         const trnx = props.transaction!
-        response = await this.budgetTnxService.approveTransfer({
-          accountNumber: trnx.accountNumber,
-          amount: trnx.amount,
-          bankCode: trnx.bankCode,
-          budget: props.budget._id,
-          auth,
-          requester: request.requester._id,
-          category: trnx.category
-        })
+        if (budgetId) {
+          response = await this.budgetTnxService.approveTransfer({
+            accountNumber: trnx.accountNumber,
+            amount: trnx.amount,
+            bankCode: trnx.bankCode,
+            budget: budgetId,
+            auth,
+            requester: request.requester._id,
+            category: trnx.category
+          })
+        }
+        else {
+          response = await this.walletTnxService.approveTransfer({
+            wallet: walletId,
+            accountNumber: trnx.accountNumber,
+            amount: trnx.amount,
+            bankCode: trnx.bankCode,
+            auth,
+            requester: request.requester._id,
+            category: trnx.category
+          })
+        }
+        break;
+      case WorkflowType.Payroll:
+        await this.payrollService.approvePayroll(request.properties.payroll, request?.requester?._id)
+        response = {
+          status: PayrollApprovalStatus.Approved,
+          approvalRequired: false,
+        };
         break;
       default:
         logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })
@@ -275,7 +375,7 @@ export class ApprovalService {
     const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
     this.emailService.sendApprovalRequestReviewed(request.requester.email, {
       approverName: `${approver.user.firstName} ${approver.user.lastName}`,
-      budgetName: request.properties.budget.name,
+      budgetName: request.properties.budget?.name,
       createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
       employeeName: request.requester.firstName,
       requestType: toTitleCase(request.workflowType),
@@ -336,6 +436,10 @@ export class ApprovalService {
       await Budget.updateOne({ _id: request.properties.budget }, {
         fundRequestApprovalRequest: null
       })
+    } else if (request.workflowType === WorkflowType.Payroll) {
+      await Payroll.updateOne({ _id: request.properties.payroll }, {
+        $set: { approvalStatus: PayrollApprovalStatus.Rejected }
+      })
     }
 
     const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
@@ -358,47 +462,6 @@ export class ApprovalService {
     })
 
     return request
-  }
-
-  async createDefaultApprovalRules(orgId: string, userId: string) {
-    await ApprovalRule.create([
-      {
-        name: 'Transaction Rule',
-        amount: 0,
-        approvalType: ApprovalType.Everyone,
-        createdBy: userId,
-        workflowType: WorkflowType.Transaction,
-        organization: orgId,
-        reviewers: [userId],
-      },
-      {
-        name: 'Expense Rule',
-        amount: 0,
-        approvalType: ApprovalType.Everyone,
-        createdBy: userId,
-        workflowType: WorkflowType.Expense,
-        organization: orgId,
-        reviewers: [userId],
-      },
-      {
-        name: 'Budget Extension Rule',
-        amount: 0,
-        approvalType: ApprovalType.Everyone,
-        createdBy: userId,
-        workflowType: WorkflowType.BudgetExtension,
-        organization: orgId,
-        reviewers: [userId],
-      },
-      {
-        name: 'Fund Request',
-        amount: 0,
-        approvalType: ApprovalType.Anyone,
-        createdBy: userId,
-        workflowType: WorkflowType.FundRequest,
-        organization: orgId,
-        reviewers: [userId],
-      }
-    ])
   }
 
   async sendRequestReminder(auth: AuthUser, requestId: string) {
@@ -459,6 +522,8 @@ export class ApprovalService {
     pendingReviews.forEach(review => {
       if(request.workflowType === WorkflowType.Transaction)
         this.emailService.sendTransactionApprovalRequest(review.user.email, getVariables(request.requester))
+      if(request.workflowType === WorkflowType.Payroll)
+        this.emailService.sendPayrollApprovalRequest(review.user.email, getVariables(request.requester))
       else if (request.workflowType === WorkflowType.Expense)
         this.emailService.sendExpenseApprovalRequest(review.user.email, getVariables(request.requester))
       else if (request.workflowType === WorkflowType.FundRequest)

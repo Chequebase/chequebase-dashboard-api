@@ -1,4 +1,5 @@
 import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
+// import fs from 'fs';
 import cors from "cors";
 import express, { Request, Response } from "express";
 import basicAuth from 'express-basic-auth';
@@ -24,6 +25,7 @@ import SettingsController from './modules/settings/settings.controller';
 import UserController from "./modules/user/user.controller";
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
+import PayrollController from './modules/payroll/payroll.controller';
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
@@ -59,7 +61,8 @@ const rcOptions: RoutingControllersOptions = {
     ApprovalsController,
     BanksphereController,
     LogController,
-    ProviderController
+    ProviderController,
+    PayrollController
   ],
   middlewares: [ExceptionFilter],
   interceptors: [],
@@ -79,6 +82,9 @@ const storage = getMetadataArgsStorage()
 const spec = routingControllersToSpec(storage, rcOptions, {
   components: { schemas },
 })
+
+// const json = JSON.stringify(spec);
+// fs.writeFileSync('api-spec.json', json, 'utf8');
 
 app.use('/docs',
   basicAuth({

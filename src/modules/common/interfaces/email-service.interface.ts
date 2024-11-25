@@ -204,6 +204,18 @@ export interface SendExpenseApprovalRequest {
   link: string
 }
 
+export interface RemoveOwnerAsApprovalReviewer {
+  userName: string;
+  workflowName: string;
+  approvalLink: string;
+  rejectionLink: string;
+}
+
+export interface SendPayrollApprovalRequest {
+  employeeName: string
+  link: string
+}
+
 export interface SendFundRequestApprovalRequest {
   employeeName: string
   workflowType: string
@@ -250,6 +262,19 @@ export interface SendTransactionApprovalRequest {
   category: string
   beneficiaries?: { avatar: string }[]
   link: string
+}
+
+export interface SalaryReceived {
+  employeeName: string;
+  businessName: string;
+  date: string;
+  currency: string;
+  amount: string;
+  accountNumber: string;
+  bankName: string;
+  transactionDate: string;
+  transactionTime: string;
+  link?: string;
 }
 
 export interface SendApprovalRequestReviewed {

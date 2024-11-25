@@ -1,32 +1,29 @@
-import { Service } from "typedi";
-import dayjs from 'dayjs'
-import jwt, { JwtPayload } from 'jsonwebtoken'
-import bcrypt, { compare } from 'bcryptjs';
-import EmailService from "@/modules/common/email.service";
-import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
-import Organization, { IOrganization } from "@/models/organization.model";
-import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
-import User, { KycStatus, UserStatus } from "@/models/user.model";
 import Device from "@/models/device.model";
-import Session from "@/models/session.model";
-import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
-import { LoginDto, ERole, RegisterDto, OtpDto, PasswordResetDto, ResendEmailDto, ResendOtpDto, CreateEmployeeDto, AddEmployeeDto, GetMembersQueryDto, UpdateEmployeeDto, UpdateProfileDto, PreRegisterDto } from "./dto/user.dto";
-import { AuthUser } from "@/modules/common/interfaces/auth-user";
-import Logger from "../common/utils/logger";
-import { createId } from "@paralleldrive/cuid2";
-import { PlanUsageService } from "../billing/plan-usage.service";
-import WalletService from "../wallet/wallet.service";
-import { WalletEntryScope } from "@/models/wallet-entry.model";
-import { S3Service } from "../common/aws/s3.service";
-import { Request } from "express";
+import Organization, { IOrganization } from "@/models/organization.model";
 import PreRegisterUser from "@/models/pre-register.model";
-import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
+import { EPermission } from "@/models/role-permission.model";
 import Role, { RoleType } from "@/models/role.model";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
+import Session from "@/models/session.model";
 import UserInvite from "@/models/user-invite.model";
-import { ApprovalService } from "../approvals/approvals.service";
-import { BudgetTransferService } from "../budget/budget-transfer.service";
-import { verifyToken } from "../common/middlewares/rbac.middleware";
+import User, { KycStatus, UserStatus } from "@/models/user.model";
+import { WalletEntryScope } from "@/models/wallet-entry.model";
+import { WalletType } from "@/models/wallet.model";
+import EmailService from "@/modules/common/email.service";
+import { AuthUser } from "@/modules/common/interfaces/auth-user";
+import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
+import { createId } from "@paralleldrive/cuid2";
+import bcrypt, { compare } from 'bcryptjs';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
+import { Service } from "typedi";
+import { PlanUsageService } from "../billing/plan-usage.service";
+import { S3Service } from "../common/aws/s3.service";
+import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
+import Logger from "../common/utils/logger";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
+import WalletService from "../wallet/wallet.service";
+import { AddEmployeeDto, CreateEmployeeDto, ERole, GetAllMembersQueryDto, GetMembersQueryDto, LoginDto, NewRegisterDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import TransferCategory from "@/models/transfer-category";
 
 const logger = new Logger('user-service')
@@ -41,8 +38,6 @@ export class UserService {
     private emailService: EmailService,
     private planUsageService: PlanUsageService,
     private slackNotificationService: SlackNotificationService,
-    private approvalService: ApprovalService,
-    private budgetTnxService: BudgetTransferService,
   ) { }
 
   static async verifyTransactionPin(id: string, pin: string) {
@@ -99,6 +94,7 @@ export class UserService {
       try {
         await WalletService.chargeWallet(invite.organization, {
           amount,
+          walletType: WalletType.General,
           narration: 'Reactivate organization user',
           scope: WalletEntryScope.PlanSubscription,
           currency: 'NGN',
@@ -121,6 +117,66 @@ export class UserService {
     await UserInvite.deleteOne({ _id: invite._id })
 
     return { success: true, message: 'User reactivated successfully' }
+  }
+
+  async createDefaultCategories(orgId: string) {
+    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
+    const categories = await TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
+    return categories
+  }
+
+  async createDefaultApprovalRules(orgId: string, userId: string) {
+    const defaultRules = [
+      {
+        name: "Transaction Rule",
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Transaction,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: "Expense Rule",
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Expense,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: "Budget Extension Rule",
+        amount: 0,
+        approvalType: ApprovalType.Everyone,
+        createdBy: userId,
+        workflowType: WorkflowType.BudgetExtension,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: "Fund Request",
+        amount: 0,
+        approvalType: ApprovalType.Anyone,
+        createdBy: userId,
+        workflowType: WorkflowType.FundRequest,
+        organization: orgId,
+        reviewers: [userId],
+      },
+      {
+        name: "Payroll",
+        amount: 0,
+        approvalType: ApprovalType.Anyone,
+        createdBy: userId,
+        workflowType: WorkflowType.Payroll,
+        organization: orgId,
+        reviewers: [userId],
+      },
+    ];
+    
+    const rules = await ApprovalRule.create(defaultRules);
+    console.log({ rules })
+    return rules 
   }
 
   async register(data: RegisterDto) {
@@ -175,50 +231,86 @@ export class UserService {
     })
     await user.updateOne({ organization: organization._id })
 
-    // create default approval rules
-    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
     await Promise.all([
-      ApprovalRule.create([
-        {
-          name: 'Transaction Rule',
-          amount: 0,
-          approvalType: ApprovalType.Everyone,
-          createdBy: user.id,
-          workflowType: WorkflowType.Transaction,
-          organization: organization.id,
-          reviewers: [user.id],
-        },
-        {
-          name: 'Expense Rule',
-          amount: 0,
-          approvalType: ApprovalType.Everyone,
-          createdBy: user.id,
-          workflowType: WorkflowType.Expense,
-          organization: organization.id,
-          reviewers: [user.id],
-        },
-        {
-          name: 'Budget Extension Rule',
-          amount: 0,
-          approvalType: ApprovalType.Everyone,
-          createdBy: user.id,
-          workflowType: WorkflowType.BudgetExtension,
-          organization: organization.id,
-          reviewers: [user.id],
-        },
-        {
-          name: 'Fund Request',
-          amount: 0,
-          approvalType: ApprovalType.Anyone,
-          createdBy: user.id,
-          workflowType: WorkflowType.FundRequest,
-          organization: organization.id,
-          reviewers: [user.id],
-        }
-      ]),
-      TransferCategory.create(cats.map(name => ({ name, organization: organization.id, type: 'default' })))
+      this.createDefaultApprovalRules(organization.id, user.id),
+      this.createDefaultCategories(organization.id)
     ])
 
+    const message = `${data.businessName}, with email: ${data.email} just signed up`;
+    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
+
+    const isOwner = user.role === ERole.Owner
+    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
+    this.emailService.sendVerifyEmail(data.email, {
+      customerName: isOwner ? organization.businessName : user.firstName,
+      otp: emailVerifyCode,
+      emailVerificationLink: link
+    })
+
+    return { message: "User created, check your email for verification link" };
+  }
+
+  async newRegister(data: NewRegisterDto) {
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    const userExists = await User.findOne({ email: { $regex } })
+    if (userExists) {
+      if (!userExists.emailVerified) {
+        const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
+        this.emailService.sendVerifyEmail(userExists.email, {
+          customerName: userExists.firstName,
+          otp: userExists.emailVerifyCode,
+          verificationLink: link
+        })
+        return { message: "User created, check your email for verification link" };
+      }
+      throw new BadRequestError('Account with same email already exists');
+    }
+
+    const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
+    if (!ownerRole) {
+      logger.error('role not found', { name: 'owner', type: 'default' })
+      throw new ServiceUnavailableError('Unable to complete registration at this time')
+    }
+
+    let emailVerifyCode = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiresAt = this.getOtpExpirationDate(10)
+
+    // TODO: remove
+    if (whiteListDevEmails.includes(data.email)) {
+      emailVerifyCode = 123456
+    }
+
+    const user = await User.create({
+      email: data.email,
+      password: await bcrypt.hash(data.password, 12),
+      emailVerifyCode,
+      otpExpiresAt,
+      role: ERole.Owner,
+      roleRef: ownerRole._id,
+      hashRt: '',
+      KYBStatus: KycStatus.NOT_STARTED,
+      status: UserStatus.PENDING,
+      avatar: '',
+      phone: data.phone,
+      firstName: data.firstName,
+      lastName: data.lastName
+    });
+
+    const organization = await Organization.create({
+      businessName: data.businessName,
+      admin: user._id,
+      email: data.email,
+      phone: data.phone,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      bvnVerified: false
+    })
+    await user.updateOne({ organization: organization._id })
+
+    await Promise.all([
+      this.createDefaultApprovalRules(organization.id, user.id),
+      this.createDefaultCategories(organization.id)
+    ])
 
     const message = `${data.businessName}, with email: ${data.email} just signed up`;
     this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
@@ -697,6 +789,7 @@ export class UserService {
       try {
         await WalletService.chargeWallet(orgId, {
           amount: usage.feature.costPerUnit.NGN,
+          walletType: WalletType.General,
           narration: 'Add organization user',
           scope: WalletEntryScope.PlanSubscription,
           currency: 'NGN',
@@ -748,6 +841,7 @@ export class UserService {
       try {
         await WalletService.chargeWallet(invite.organization, {
           amount: usage.feature.costPerUnit.NGN,
+          walletType: WalletType.General,
           narration: 'Add organization user',
           scope: WalletEntryScope.PlanSubscription,
           currency: 'NGN',
@@ -795,28 +889,36 @@ export class UserService {
   }
 
   async getMembers(auth: AuthUser, query: GetMembersQueryDto) {
-    const users = await User.paginate({
-      organization: auth.orgId,
-      _id: { $ne: auth.userId },
-      status: query.status
-    }, {
-      page: Number(query.page),
-      limit: query.limit,
-      lean: true,
-      populate: [
-        { path: 'roleRef', select: 'name description type' },
-        { path: 'manager', select: 'firstName lastName avatar' },
-      ],
-      select: 'firstName manager lastName email emailVerified role KYBStatus status avatar phone'
-    })
+    const isOwnerQuery = query.notOwner ? "owner" : "empty";
+    const users = await User.paginate(
+      {
+        organization: auth.orgId,
+        _id: { $ne: auth.userId },
+        status: query.status,
+        role: { $ne: isOwnerQuery },
+      },
+      {
+        page: Number(query.page),
+        limit: query.limit,
+        lean: true,
+        populate: [
+          { path: "roleRef", select: "name description type" },
+          { path: "manager", select: "firstName lastName avatar" },
+        ],
+        select:
+          "firstName employmentDate employementType manager lastName email emailVerified role KYBStatus status avatar phone",
+      }
+    );
     
     return users
   }
 
-  async getUnpaginatedMembers(auth: AuthUser) {
+  async getUnpaginatedMembers(auth: AuthUser, query: GetAllMembersQueryDto) {
+    const isOwnerQuery = query.notOwner ? 'owner' : 'empty'
     const users = await User.find({
       organization: auth.orgId,
       status: { $ne: UserStatus.DELETED },
+      role: { $ne: isOwnerQuery }
     }).select('firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone')
     
     return users
@@ -896,6 +998,10 @@ export class UserService {
     }
 
     await User.updateOne({ _id: id, organization: orgId }, { status: UserStatus.DELETED })
+    await ApprovalRule.updateMany(
+      { organization: orgId },
+      { $pull: { reviewers: id } }
+    );
 
     return { message: 'Member deleted' }
   }

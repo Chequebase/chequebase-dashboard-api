@@ -10,7 +10,13 @@ export interface InitiateTransferData {
     accountNumber: string
   }
   provider: TransferClientName
-  depositAcc: string
+  debitAccount?: string
+}
+
+export interface VerifyTransferData {
+  reference: string;
+  currency: string;
+  provider: TransferClientName;
 }
 
 export interface InitiateTransferResult {
@@ -25,6 +31,7 @@ export interface InitiateTransferResult {
 
 export enum TransferClientName {
   Anchor = 'anchor',
+  SafeHaven = 'safe-haven',
   SarePay = 'sarepay'
 }
 
