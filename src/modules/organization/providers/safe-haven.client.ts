@@ -17,12 +17,12 @@ export class SafeHavenIdentityClient {
 
   async initiateVerification(
     bvn: string
-    // type this
-  ): Promise<any> {
+  ){
     const body = {
       type: 'BVN',
       number: bvn,
       debitAccountNumber: settlementAccount,
+      async: false
     };
 
     try {
@@ -30,7 +30,7 @@ export class SafeHavenIdentityClient {
         "/identity/v2",
         body
       );
-      const success = data.responseCode === "00";
+      const success = data?.data?.status === "SUCCESS";
 
       this.logger.log("safe-haven initiate bvn check response", {
         payload: bvn,
@@ -38,9 +38,9 @@ export class SafeHavenIdentityClient {
         status,
       });
       return {
-        status: success ? "successful" : "pending",
+        status: success ? "successful" : "failed",
         identityId: data.data._id,
-        gatewayResponse: JSON.stringify(data.providerResponse),
+        gatewayResponse: JSON.stringify(data),
       };
     } catch (err: any) {
       this.logger.error("error processing bvn check", {
