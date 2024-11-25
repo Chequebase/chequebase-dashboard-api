@@ -284,10 +284,15 @@ export class OrganizationsService {
       throw new NotFoundError(`Organization with id ${id} not found`)
     }
     const bvnCheckResult = await this.safeHavenIdentityClient.initiateVerification(bvn);
-    if (bvnCheckResult.identityId) {
-      await organization.updateOne({ safeHavenIdentityId: bvnCheckResult.identityId, bvn, identityGatewayResponse: bvnCheckResult.gatewayResponse })
-      return { message: 'otp sent' }
+    if (bvnCheckResult.status === "successful" && bvnCheckResult.identityId) {
+      await organization.updateOne({
+        bvn,
+        safeHavenIdentityId: bvnCheckResult.identityId,
+        identityGatewayResponse: bvnCheckResult.gatewayResponse,
+      });
+      return { message: "otp sent" };
     }
+
     throw new ForbiddenError(`Unable to verify BVN`);
   }
 
