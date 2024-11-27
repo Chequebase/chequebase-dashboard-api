@@ -402,33 +402,33 @@ export default class WalletService {
   }
 }
 
-// async function run() {
-//   const vaClient = Container.get<SafeHavenVirtualAccountClient>(SAFE_HAVEN_VA_TOKEN)
+async function run() {
+  const vaClient = Container.get<SafeHavenVirtualAccountClient>(SAFE_HAVEN_VA_TOKEN)
 
-//   const baseWallet = BaseWalletType.NGN
-//   const walletId = new ObjectId()
-//   const virtualAccountId = new ObjectId()
+  const baseWallet = BaseWalletType.NGN
+  const walletId = new ObjectId()
+  const virtualAccountId = new ObjectId()
 
-//   const accountRef = `va-${createId()}`
-//   const provider = VirtualAccountClientName.SafeHaven;
-//   try {
-//     const account = await vaClient.createStaticVirtualAccount({
-//       type: "static",
-//       identity: {
-//         type: "bvn",
-//         number: '22264208983',
-//       },
-//       rcNumber: '2732903',
+  const accountRef = `va-${createId()}`
+  const provider = VirtualAccountClientName.SafeHaven;
+  try {
+    const account = await vaClient.createStaticVirtualAccount({
+      type: "static",
+      identity: {
+        type: "bvn",
+        number: '22229863499',
+      },
+      rcNumber: '2732903',
 
-//       currency: "NGN",
-//       email: 'shaokhancreatives@gmail.com',
-//       phone: '07066647649',
-//       name: 'Shaokhan Creatives',
-//       customerId: '67236940fee347549c52efc5',
-//       provider,
-//       reference: accountRef,
-//     });
-//     console.log({ account })
+      currency: "NGN",
+      email: 'queenbenson53@gmail.com',
+      phone: '09157632235',
+      name: 'Owerri Bole Foods',
+      customerId: '6741eece59160c05c35e28a7',
+      provider,
+      reference: accountRef,
+    });
+    console.log({ account })
     // const providerRef = account.providerRef || accountRef
     // const wallet = await Wallet.create({
     //   _id: walletId,
@@ -463,9 +463,9 @@ export default class WalletService {
     //     bankCode: virtualAccount.bankCode
     //   }
     // })
-// } catch (error) {
-//     console.log({ error })
-//   }
-// }
+} catch (error) {
+    console.log({ error })
+  }
+}
 
-// run()
+run()
