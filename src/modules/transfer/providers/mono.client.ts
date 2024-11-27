@@ -1,100 +1,116 @@
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { getEnvOrThrow } from "@/modules/common/utils";
-import { InitiateTransferData, InitiateTransferResult, TransferClient } from "./transfer.client";
+import { CreateMandateData, InitiateMandateData, InitiateTransferData, InitiateTransferResult, TransferClient } from "./transfer.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
-import { CreateCounterparty } from "@/modules/common/interfaces/anchor-service.interface";
 import { NotFoundError } from "routing-controllers";
+import dayjs from "dayjs";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 
 export const MONO_TOKEN = new Token('transfer.provider.mono')
 
+dayjs.extend(isSameOrAfter);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const tz = "Africa/Lagos";
+dayjs.tz.setDefault(tz);
+
 @Service({ id: MONO_TOKEN })
-export class MonoTransferClient implements TransferClient {
+export class MonoTransferClient {
   currencies = ['NGN']
   private logger = new Logger(MonoTransferClient.name)
   private http = axios.create({
     baseURL: getEnvOrThrow('MONO_BASE_URI'),
     headers: {
-      'x-mono-key': getEnvOrThrow('MONO_BASE_URI')
+      'mono-sec-key': getEnvOrThrow('MONO_API_KEY')
     }
   })
 
-  private async createCounterparty(payload: CreateCounterparty) {
+  async initiateMandate(payload: InitiateMandateData): Promise<InitiateTransferResult> {
+    const todayFormatted = dayjs().format('YYYY-MM-DD');
+    const tenYearsLaterFormatted = dayjs().add(10, 'year').format('YYYY-MM-DD');
     const data = {
-      type: "CounterParty",
-      attributes: {
-        accountName: payload.accountName,
-        accountNumber: payload.accountNumber,
-        bankCode: payload.bankCode,
-        verifyName: false
-      },
-      relationships: {
-        bank: {
-          data: {
-            id: payload.bankId,
-            type: "Bank"
-          }
-        }
-      }
+        amount: payload.amount,
+        type: "recurring-debit",
+        method: "mandate",
+        mandate_type: "emandate",
+        debit_type: "variable", 
+        description: `Initiate mandate`,
+        reference: payload.reference,
+        redirect_url: payload.redirectUrl,
+        customer: {
+            id: payload.customer
+        },
+        start_date: todayFormatted,
+        end_date: tenYearsLaterFormatted
     }
 
     try {
-      const res = await this.http.post('/api/v1/counterparties', { data })
-      const attributes = res.data.data.attributes
+      const res = await this.http.post('/v2/payments/initiate', { data })
+      console.log({ initiateMandate: res.data })
+      const result = res.data.data.attributes
+      const status = result.status.toLowerCase()
+      const message = status === 'failed' ?
+        'Transfer failed' : 'Processing transfer'
 
+      this.logger.log("mono initiate mandate response", {
+        payload: JSON.stringify(payload),
+        response: JSON.stringify(res.data),
+        status: res.status
+      });
       return {
-        id: res.data.data.id,
-        bankName: attributes.bank.name,
-        accountName: attributes.accountName,
-        accountNumber: attributes.accountNumber,
-        bankCode: attributes.bank.nipCode
+        status,
+        message,
+        providerRef: res.data.data.id,
+        currency: result.currency,
+        amount: result.amount,
+        reference: result.reference,
+        gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {
-      this.logger.error('error creating counterparty', {
+      this.logger.error('error processing transfer', {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
+        requestData: JSON.stringify(data),
         status: err.response.status
       });
 
-      throw new ServiceUnavailableError('Unable to create counterparty');
+      return {
+        status: 'failed',
+        currency: payload.currency,
+        amount: payload.amount,
+        reference: payload.reference,
+        message: err.response.data?.errors?.[0]?.detail || 'Unable to process transfer',
+        gatewayResponse: JSON.stringify(err.response.data)
+      }
     }
   }
 
-  async initiateTransfer(payload: InitiateTransferData): Promise<InitiateTransferResult> {
-    const counterparty = await this.createCounterparty({
-      accountName: payload.counterparty.accountName,
-      accountNumber: payload.counterparty.accountNumber,
-      bankCode: payload.counterparty.bankCode,
-      bankId: payload.counterparty.bankId
-    })
+  async createMandate(payload: CreateMandateData): Promise<InitiateTransferResult> {
+    const todayFormatted = dayjs().format('YYYY-MM-DD');
+    const tenYearsLaterFormatted = dayjs().add(10, 'year').format('YYYY-MM-DD');
 
     const data = {
-      type: "NIPTransfer",
-      attributes: {
-        currency: payload.currency,
         amount: payload.amount,
-        reason: payload.narration,
-        reference: payload.reference
-      },
-      relationships: {
-        account: {
-          data: {
-            type: "DepositAccount",
-            id: payload.debitAccount
-          }
-        },
-        counterParty: {
-          data: {
-            id: counterparty.id,
-            type: "CounterParty"
-          }
-        }
-      }
+        type: "recurring-debit",
+        method: "mandate",
+        mandate_type: "emandate",
+        debit_type: "variable", 
+        description: `Initiate mandate`,
+        reference: payload.reference,
+        account_number: payload.accountNumber,
+        bank_code: payload.bankCode,
+        customer: payload.customer,
+        start_date: todayFormatted,
+        end_date: tenYearsLaterFormatted
     }
 
     try {
-      const res = await this.http.post('/api/v1/transfers', { data })
+      const res = await this.http.post('/v3/payments/mandates', { data })
+      console.log({ CreateMandate: res.data })
       const result = res.data.data.attributes
       const status = result.status.toLowerCase()
       const message = status === 'failed' ?
@@ -133,34 +149,81 @@ export class MonoTransferClient implements TransferClient {
     }
   }
 
-  async verifyTransferById(id: string): Promise<InitiateTransferResult>  {
+  async verifyOtpMandate(payload: InitiateTransferData): Promise<InitiateTransferResult> {
+    const data = {
+        session: "string",
+        method: "string",
+        otp: "string",
+      }
+
     try {
-      const res = await this.http.get(`/api/v1/transfers/verify/${id}`)
+      const res = await this.http.post('/v3/payments/mandates/verify/otp', { data })
       const result = res.data.data.attributes
-      let status = result.status.toLowerCase()
-      if (status === 'completed') status = 'successful'
-      
+      const status = result.status.toLowerCase()
+      const message = status === 'failed' ?
+        'Transfer failed' : 'Processing transfer'
+
+      this.logger.log("anchor initiate transfer response", {
+        payload: JSON.stringify(payload),
+        response: JSON.stringify(res.data),
+        status: res.status
+      });
       return {
-        providerRef: res.data.data.id,
         status,
-        reference: result.reference,
-        amount: result.amount,
+        message,
+        providerRef: res.data.data.id,
         currency: result.currency,
-        message: result.reason,
+        amount: result.amount,
+        reference: result.reference,
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {
-      this.logger.error('error verify transfer', {
+      this.logger.error('error processing transfer', {
         reason: JSON.stringify(err.response?.data || err?.message),
-        transferId: id,
-        status: err.response?.status
+        payload: JSON.stringify(payload),
+        requestData: JSON.stringify(data),
+        status: err.response.status
       });
 
-      if (err.response.status === 404) {
-        throw new NotFoundError('Transfer not found')
+      return {
+        status: 'failed',
+        currency: payload.currency,
+        amount: payload.amount,
+        reference: payload.reference,
+        message: err.response.data?.errors?.[0]?.detail || 'Unable to process transfer',
+        gatewayResponse: JSON.stringify(err.response.data)
       }
-
-      throw new ServiceUnavailableError('Unable to verify transfer');
     }
   }
+
+//   async verifyTransferById(id: string): Promise<InitiateTransferResult>  {
+//     try {
+//       const res = await this.http.get(`/api/v1/transfers/verify/${id}`)
+//       const result = res.data.data.attributes
+//       let status = result.status.toLowerCase()
+//       if (status === 'completed') status = 'successful'
+      
+//       return {
+//         providerRef: res.data.data.id,
+//         status,
+//         reference: result.reference,
+//         amount: result.amount,
+//         currency: result.currency,
+//         message: result.reason,
+//         gatewayResponse: JSON.stringify(res.data)
+//       }
+//     } catch (err: any) {
+//       this.logger.error('error verify transfer', {
+//         reason: JSON.stringify(err.response?.data || err?.message),
+//         transferId: id,
+//         status: err.response?.status
+//       });
+
+//       if (err.response.status === 404) {
+//         throw new NotFoundError('Transfer not found')
+//       }
+
+//       throw new ServiceUnavailableError('Unable to verify transfer');
+//     }
+//   }
 }

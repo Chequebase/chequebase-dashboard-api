@@ -404,12 +404,12 @@ export default class WalletService {
   }
 }
 
-// async function run() {
-//   const vaClient = Container.get<SafeHavenVirtualAccountClient>(SAFE_HAVEN_VA_TOKEN)
+async function run() {
+  const vaClient = Container.get<SafeHavenVirtualAccountClient>(SAFE_HAVEN_VA_TOKEN)
 
-//   const baseWallet = BaseWalletType.NGN
-//   const walletId = new ObjectId()
-//   const virtualAccountId = new ObjectId()
+  const baseWallet = BaseWalletType.NGN
+  const walletId = new ObjectId()
+  const virtualAccountId = new ObjectId()
 
 //   const accountRef = `va-${createId()}`
 //   const provider = VirtualAccountClientName.SafeHaven;
@@ -465,9 +465,9 @@ export default class WalletService {
     //     bankCode: virtualAccount.bankCode
     //   }
     // })
-// } catch (error) {
-//     console.log({ error })
-//   }
-// }
+} catch (error) {
+    console.log({ error })
+  }
+}
 
-// run()
+run()
