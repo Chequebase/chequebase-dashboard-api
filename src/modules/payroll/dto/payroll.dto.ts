@@ -126,18 +126,18 @@ export class AddPayrollUserDto {
   @IsNotEmpty()
   lastName: string;
 
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @IsOptional()
   phoneNumber: string;
 
   @IsString()
   @IsOptional()
   email?: string;
 
+  @IsOptional()
   @IsDateString()
   @IsNotEmpty()
-  @IsOptional()
   employmentDate: string;
 
   @IsEnum(EmploymentType)
@@ -175,9 +175,9 @@ export class AddPayrollUserViaInviteDto {
   @IsNotEmpty()
   lastName: string;
 
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @IsOptional()
   phoneNumber: string;
 
   @IsString()
