@@ -177,6 +177,7 @@ export class AddPayrollUserViaInviteDto {
 
   @IsString()
   @IsNotEmpty()
+  @IsOptional()
   phoneNumber: string;
 
   @IsString()
