@@ -128,6 +128,7 @@ export class AddPayrollUserDto {
 
   @IsString()
   @IsNotEmpty()
+  @IsOptional()
   phoneNumber: string;
 
   @IsString()
@@ -136,6 +137,7 @@ export class AddPayrollUserDto {
 
   @IsDateString()
   @IsNotEmpty()
+  @IsOptional()
   employmentDate: string;
 
   @IsEnum(EmploymentType)
