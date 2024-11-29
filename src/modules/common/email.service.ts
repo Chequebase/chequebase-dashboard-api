@@ -28,7 +28,7 @@ export default class EmailService {
   async send(payload: T.SendEmail) {
     const data = {
       to: payload.to,
-      from: 'ChequeBase <sales@chequebase.io>',
+      from: 'ChequeBase <hello@chequebase.io>',
       subject: payload.subject,
       templateId: payload.templateId,
       dynamicTemplateData: payload.dynamicTemplateData,
@@ -381,3 +381,50 @@ export default class EmailService {
     })
   }
 }
+
+
+// async function run() {
+//   const sesClient = new SESService()
+//   try {
+//     const account = await sesClient.createTemplate({});
+//     console.log({ account })
+    // const providerRef = account.providerRef || accountRef
+    // const wallet = await Wallet.create({
+    //   _id: walletId,
+    //   organization: '66e2cd42bb0baa2b6d513349',
+    //   baseWallet: baseWallet,
+    //   currency: 'NGN',
+    //   balance: 0,
+    //   primary: true,
+    //   virtualAccounts: [virtualAccountId]
+    // })
+
+    // const virtualAccount = await VirtualAccount.create({
+    //   _id: virtualAccountId,
+    //   organization: '66e2cd42bb0baa2b6d513349',
+    //   wallet: wallet._id,
+    //   accountNumber: account.accountNumber,
+    //   bankCode: account.bankCode,
+    //   name: account.accountName,
+    //   bankName: account.bankName,
+    //   provider,
+    //   externalRef: providerRef,
+    // });
+
+    // console.log({
+    //   _id: wallet._id,
+    //   balance: wallet.balance,
+    //   currency: wallet.currency,
+    //   account: {
+    //     name: virtualAccount.name,
+    //     accountNumber: virtualAccount.accountNumber,
+    //     bankName: virtualAccount.bankName,
+    //     bankCode: virtualAccount.bankCode
+    //   }
+    // })
+// } catch (error) {
+//     console.log({ error })
+//   }
+// }
+
+// run()
