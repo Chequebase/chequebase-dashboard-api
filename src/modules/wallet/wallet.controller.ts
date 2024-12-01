@@ -11,7 +11,7 @@ import { EPermission } from "@/models/role-permission.model";
 import { logAuditTrail } from "../common/audit-logs/logs";
 import multer from "multer";
 import { LogAction } from "@/models/logs.model";
-import { InitiateTransferDto } from "../budget/dto/budget-transfer.dto";
+import { InitiateInternalTransferDto, InitiateTransferDto } from "../budget/dto/budget-transfer.dto";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { WalletTransferService } from "./wallet-transfer.service";
@@ -111,5 +111,16 @@ export default class WalletController {
     }
 
     return this.walletTransferService.initiateTransfer(auth, id, dto)
+  }
+
+  @Post('/:id/transfer/initiate/internal')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async initiateInternalTransfer(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Body() body: InitiateInternalTransferDto,
+  ) {
+    return this.walletTransferService.initiateInternalTransfer(auth, id, body)
   }
 }
