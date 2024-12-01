@@ -37,7 +37,7 @@ export interface CreateTransferRecord {
   wallet: IWallet
   counterparty: ICounterparty
   data: ApproveTransfer
-  category: string
+  category?: string
   amountToDeduct: number
   fee: number
   provider: string
@@ -57,7 +57,7 @@ export interface ApproveTransfer {
   accountNumber: string
   auth: AuthUser
   requester: string
-  category: string
+  category?: string
   saveRecipient?: boolean
   invoiceUrl?: string
 }
@@ -389,8 +389,7 @@ export class WalletTransferService {
         wallet: wallet._id.toString(),
         auth,
         requester: auth.userId,
-        category: 'internal',
-        saveRecipient: false
+        saveRecipient: false,
       })
     }
 
@@ -412,8 +411,7 @@ export class WalletTransferService {
           accountNumber: destinationVirtualAccount.accountNumber,
           amount: data.amount,
           bankCode: destinationVirtualAccount.bankCode,
-          bankName: destinationVirtualAccount.bankName,
-          category: 'internal'
+          bankName: destinationVirtualAccount.bankName
         }
       }
     })
@@ -431,7 +429,6 @@ export class WalletTransferService {
           avatar: user.avatar
         },
         workflowType: toTitleCase(request.workflowType),
-        category: 'internal',
         recipient: destinationVirtualAccount.name,
         recipientBank: destinationVirtualAccount.bankName,
       })
