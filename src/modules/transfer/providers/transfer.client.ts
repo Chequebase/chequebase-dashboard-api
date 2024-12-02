@@ -11,6 +11,7 @@ export interface InitiateTransferData {
   }
   provider: TransferClientName
   debitAccount?: string
+  to?: string
 }
 
 export interface VerifyTransferData {

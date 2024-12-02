@@ -259,7 +259,7 @@ export interface SendTransactionApprovalRequest {
   recipientBank: string
   budget?: string
   wallet?: string
-  category: string
+  category?: string
   beneficiaries?: { avatar: string }[]
   link: string
 }

@@ -15,7 +15,7 @@ import * as fastCsv from 'fast-csv';
 import { ObjectId } from 'mongodb';
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import { Service } from "typedi";
+import Container, { Service } from "typedi";
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
 import { cdb, isValidObjectId } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
@@ -25,6 +25,8 @@ import { VirtualAccountService } from "../virtual-account/virtual-account.servic
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
+import { BaseWalletType } from "../banksphere/providers/customer.client";
+import { SAFE_HAVEN_VA_TOKEN, SafeHavenVirtualAccountClient } from "../virtual-account/providers/safe-haven.client";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -182,7 +184,7 @@ export default class WalletService {
 
   async getWallets(orgId: string) {
     let wallets = await Wallet.find({ organization: orgId })
-      .select('primary currency balance ledgerBalance')
+      .select('primary currency balance ledgerBalance type')
       .populate({
         path: 'virtualAccounts',
         select: 'accountNumber bankName bankCode name'
@@ -416,15 +418,15 @@ export default class WalletService {
 //       type: "static",
 //       identity: {
 //         type: "bvn",
-//         number: '22264208983',
+//         number: '22158686738',
 //       },
-//       rcNumber: '2732903',
+//       rcNumber: '196011',
 
 //       currency: "NGN",
-//       email: 'shaokhancreatives@gmail.com',
-//       phone: '07066647649',
-//       name: 'Shaokhan Creatives',
-//       customerId: '67236940fee347549c52efc5',
+//       email: 'Uokezie@gmail.com',
+//       phone: '07036647732',
+//       name: 'St Therese of the Child Jesus Organisation',
+//       customerId: '6749b4cb7a46001b36cd2d0e',
 //       provider,
 //       reference: accountRef,
 //     });
