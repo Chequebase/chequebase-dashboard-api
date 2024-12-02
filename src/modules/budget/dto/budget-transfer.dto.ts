@@ -32,6 +32,22 @@ export class InitiateTransferDto {
   saveRecipient: boolean
 }
 
+export class InitiateInternalTransferDto {
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  amount: number
+
+  @IsString()
+  destination: string
+
+  invoice?: Buffer
+
+  fileExt?: string
+
+  @IsString()
+  pin: string
+}
+
 export class ResolveAccountDto {
   @IsString()
   @Length(10)

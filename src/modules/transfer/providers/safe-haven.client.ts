@@ -11,6 +11,18 @@ import {
   TransferClient
 } from "./transfer.client";
 
+interface TransferPayload {
+  nameEnquiryReference: string;
+  debitAccountNumber?: string;
+  beneficiaryBankCode: string;
+  beneficiaryAccountNumber: string;
+  amount: number;
+  saveBeneficiary: boolean;
+  narration: string;
+  paymentReference: string;
+  to?: string
+}
+
 export const SAFE_HAVEN_TRANSFER_TOKEN = new Token(
   "transfer.provider.safe-haven"
 );
@@ -53,7 +65,7 @@ export class SafeHavenTransferClient implements TransferClient {
     payload: InitiateTransferData
   ): Promise<InitiateTransferResult> {
     const nameEnquiryReference = await this.nameEnquiry(payload.counterparty);
-    const body = {
+    const body: TransferPayload = {
       nameEnquiryReference,
       debitAccountNumber: payload.debitAccount,
       beneficiaryBankCode: payload.counterparty.bankCode,
@@ -63,6 +75,9 @@ export class SafeHavenTransferClient implements TransferClient {
       narration: payload.narration,
       paymentReference: payload.reference,
     };
+    if (payload.to) {
+      body.to = payload.to
+    }
 
     try {
       const { data, status } = await this.httpClient.axios.post(

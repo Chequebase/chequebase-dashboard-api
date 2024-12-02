@@ -5,7 +5,7 @@ import { cdb } from "../common/mongoose"
 import { createId } from "@paralleldrive/cuid2"
 import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
-import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource } from "../budget/dto/budget-transfer.dto"
+import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource, InitiateInternalTransferDto } from "../budget/dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import { IWallet, WalletType } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
@@ -37,7 +37,7 @@ export interface CreateTransferRecord {
   wallet: IWallet
   counterparty: ICounterparty
   data: ApproveTransfer
-  category: string
+  category?: string
   amountToDeduct: number
   fee: number
   provider: string
@@ -57,7 +57,7 @@ export interface ApproveTransfer {
   accountNumber: string
   auth: AuthUser
   requester: string
-  category: string
+  category?: string
   saveRecipient?: boolean
   invoiceUrl?: string
 }
@@ -327,6 +327,110 @@ export class WalletTransferService {
         category: category.name,
         recipient: resolveRes.accountName,
         recipientBank: resolveRes.bankName,
+      })
+    });
+
+    return {
+      status: 'pending',
+      approvalRequired: true,
+      message: 'Transaction pending approval',
+    }
+  }
+
+  async initiateInternalTransfer(auth: AuthUser, walletId: string, data: InitiateInternalTransferDto) {
+    const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!validPin) {
+      throw new BadRequestError('Invalid pin')
+    }
+    
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    const destinationWallet = await this.getWallet(auth.orgId, data.destination)
+    if (!wallet || !destinationWallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+    const organization = wallet.organization
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(organization.toString())
+    if (!org) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const rules = await ApprovalRule.find({
+      organization: auth.orgId,
+      workflowType: WorkflowType.Transaction,
+      amount: { $lte: data.amount }
+    })
+
+    const rule = rules[0]
+    let noApprovalRequired = !rule
+    if (rule) {
+      const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
+      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+    }
+
+    const destinationVirtualAccount = (<IVirtualAccount>destinationWallet.virtualAccounts[0])
+    if (noApprovalRequired) {
+      return this.approveTransfer({
+        accountNumber: destinationVirtualAccount.accountNumber,
+        amount: data.amount,
+        bankCode: destinationVirtualAccount.bankCode,
+        wallet: wallet._id.toString(),
+        auth,
+        requester: auth.userId,
+        saveRecipient: false,
+      })
+    }
+
+    const request = await ApprovalRequest.create({
+      organization: auth.orgId,
+      workflowType: rule.workflowType,
+      approvalType: rule.approvalType,
+      requester: auth.userId,
+      approvalRule: rule._id,
+      priority: ApprovalRequestPriority.High,
+      reviews: rule!.reviewers.map(user => ({
+        user,
+        status: user.equals(auth.userId) ? 'approved' : 'pending'
+      })),
+      properties: {
+        wallet: wallet._id,
+        transaction: {
+          accountName: destinationVirtualAccount.name,
+          accountNumber: destinationVirtualAccount.accountNumber,
+          amount: data.amount,
+          bankCode: destinationVirtualAccount.bankCode,
+          bankName: destinationVirtualAccount.bankName
+        }
+      }
+    })
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+
+    rule!.reviewers.forEach(reviewer => {
+      this.emailService.sendTransactionApprovalRequest(reviewer.email, {
+        amount: formatMoney(data.amount),
+        currency: wallet.currency,
+        wallet: virtualAccount.name,
+        employeeName: reviewer.firstName,
+        link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+        requester: {
+          name: `${user.firstName} ${user.lastName}`,
+          avatar: user.avatar
+        },
+        workflowType: toTitleCase(request.workflowType),
+        recipient: destinationVirtualAccount.name,
+        recipientBank: destinationVirtualAccount.bankName,
       })
     });
 
