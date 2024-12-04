@@ -43,6 +43,29 @@ export interface CreateTransferRecord {
   provider: string
 }
 
+interface TransferRecordData {
+  auth: { orgId: string; userId: string }
+  wallet: IWallet
+  data: ApproveTransfer
+  category?: string
+  amountToDeduct: number
+  fee: number
+  provider: string
+  invoiceUrl?: string
+  to?: string
+}
+
+interface InitiateTransferPayload {
+  debitAccount: string,
+  reference: string,
+  amount: number,
+  counterparty: { bankId: string; bankCode: string; accountName: string; accountNumber: string; },
+  currency: string,
+  narration: string,
+  provider: TransferClientName,
+  to?: string
+}
+
 export interface RunSecurityCheck {
   auth: { orgId: string; userId: string }
   wallet: any
@@ -57,6 +80,7 @@ export interface ApproveTransfer {
   accountNumber: string
   auth: AuthUser
   requester: string
+  to?: string
   category?: string
   saveRecipient?: boolean
   invoiceUrl?: string
@@ -337,12 +361,7 @@ export class WalletTransferService {
     }
   }
 
-  async initiateInternalTransfer(auth: AuthUser, walletId: string, data: InitiateInternalTransferDto) {
-    const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
-    if (!validPin) {
-      throw new BadRequestError('Invalid pin')
-    }
-    
+  async initiateInternalTransfer(auth: AuthUser, walletId: string, data: InitiateInternalTransferDto) {    
     const wallet = await this.getWallet(auth.orgId, walletId)
     const destinationWallet = await this.getWallet(auth.orgId, data.destination)
     if (!wallet || !destinationWallet) {
@@ -367,78 +386,17 @@ export class WalletTransferService {
       throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
     }
 
-    const rules = await ApprovalRule.find({
-      organization: auth.orgId,
-      workflowType: WorkflowType.Transaction,
-      amount: { $lte: data.amount }
-    })
-
-    const rule = rules[0]
-    let noApprovalRequired = !rule
-    if (rule) {
-      const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
-      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
-    }
-
     const destinationVirtualAccount = (<IVirtualAccount>destinationWallet.virtualAccounts[0])
-    if (noApprovalRequired) {
-      return this.approveTransfer({
-        accountNumber: destinationVirtualAccount.accountNumber,
-        amount: data.amount,
-        bankCode: destinationVirtualAccount.bankCode,
-        wallet: wallet._id.toString(),
-        auth,
-        requester: auth.userId,
-        saveRecipient: false,
-      })
-    }
-
-    const request = await ApprovalRequest.create({
-      organization: auth.orgId,
-      workflowType: rule.workflowType,
-      approvalType: rule.approvalType,
+    return this.approveTransfer({
+      to: destinationVirtualAccount.name,
+      accountNumber: destinationVirtualAccount.accountNumber,
+      amount: data.amount,
+      bankCode: destinationVirtualAccount.bankCode,
+      wallet: wallet._id.toString(),
+      auth,
       requester: auth.userId,
-      approvalRule: rule._id,
-      priority: ApprovalRequestPriority.High,
-      reviews: rule!.reviewers.map(user => ({
-        user,
-        status: user.equals(auth.userId) ? 'approved' : 'pending'
-      })),
-      properties: {
-        wallet: wallet._id,
-        transaction: {
-          accountName: destinationVirtualAccount.name,
-          accountNumber: destinationVirtualAccount.accountNumber,
-          amount: data.amount,
-          bankCode: destinationVirtualAccount.bankCode,
-          bankName: destinationVirtualAccount.bankName
-        }
-      }
+      saveRecipient: false,
     })
-    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
-
-    rule!.reviewers.forEach(reviewer => {
-      this.emailService.sendTransactionApprovalRequest(reviewer.email, {
-        amount: formatMoney(data.amount),
-        currency: wallet.currency,
-        wallet: virtualAccount.name,
-        employeeName: reviewer.firstName,
-        link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
-        requester: {
-          name: `${user.firstName} ${user.lastName}`,
-          avatar: user.avatar
-        },
-        workflowType: toTitleCase(request.workflowType),
-        recipient: destinationVirtualAccount.name,
-        recipientBank: destinationVirtualAccount.bankName,
-      })
-    });
-
-    return {
-      status: 'pending',
-      approvalRequired: true,
-      message: 'Transaction pending approval',
-    }
   }
 
   async approveTransfer(data: ApproveTransfer) {
@@ -456,7 +414,7 @@ export class WalletTransferService {
     const fee = await this.calcTransferFee(orgId, data.amount, wallet.currency)
     const provider = TransferClientName.SafeHaven // could be dynamic in the future
     const amountToDeduct = numeral(data.amount).add(fee).value()!
-    const payload = {
+    const payload: TransferRecordData = {
       auth: { userId: data.auth.userId, orgId },
       category: data.category,
       wallet, data,
@@ -464,12 +422,18 @@ export class WalletTransferService {
       amountToDeduct, invoiceUrl: data.invoiceUrl
     }
 
+    // if it's internal transfer, handle 0 fees
+    if (data.to) {
+      payload.to = data.to
+      payload.fee = 0
+    }
+
     await this.runSecurityChecks(payload)
     const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber, true, data.saveRecipient)
     const entry = await this.createTransferRecord({ ...payload, counterparty })
 
     const debitAccount = wallet.virtualAccounts[0].accountNumber
-    const transferResponse = await this.transferService.initiateTransfer({
+    const transferBody: InitiateTransferPayload = {
       debitAccount,
       reference: entry.reference,
       amount: data.amount,
@@ -477,7 +441,12 @@ export class WalletTransferService {
       currency: wallet.currency,
       narration: entry.narration,
       provider
-    })
+    }
+    // if it's internal transfer, handle 0 fees
+    if (data.to) {
+      transferBody.to = data.to
+    }
+    const transferResponse = await this.transferService.initiateTransfer(transferBody)
 
     if ('providerRef' in transferResponse && transferResponse.providerRef) {
       await WalletEntry.updateOne({ _id: entry._id }, {
