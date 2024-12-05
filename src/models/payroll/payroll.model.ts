@@ -17,6 +17,11 @@ export enum PayrollStatus {
   Completed = "completed",
 }
 
+export enum PayrollScheduleMode {
+  Fixed = "fixed",
+  LastBusinessDay = "last_business_day",
+}
+
 export interface IPayroll {
   _id: ObjectId;
   organization: any;
@@ -31,6 +36,7 @@ export interface IPayroll {
   totalGrossAmount: number;
   totalEmployees: number;
   wallet: any;
+  excludedPayrollUsers: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +71,12 @@ const PayrollSchema = new Schema<IPayroll>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "ApprovalRequest",
     },
+    excludedPayrollUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PayrollUser",
+      },
+    ],
     periodStartDate: { type: Date, required: true },
     periodEndDate: { type: Date, required: true },
     totalEmployees: Number,

@@ -1,4 +1,3 @@
-import { PayrollScheduleMode } from "@/models/payroll/payroll-settings.model";
 import { EmploymentType } from "@/models/user.model";
 import { Type } from "class-transformer";
 import {
@@ -8,6 +7,7 @@ import {
   IsDateString,
   IsDefined,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -18,6 +18,11 @@ import {
   ValidateIf,
   ValidateNested,
 } from "class-validator";
+
+export enum PayrollScheduleMode {
+  Fixed = "fixed",
+  LastBusinessDay = "last_business_day",
+}
 
 export class GetHistoryDto {
   @IsNumber()
@@ -49,13 +54,21 @@ class Earning {
   amount: number;
 }
 
-class Schedule {
+export class PayrollSchedule {
   @IsEnum(PayrollScheduleMode, {
     message: `Schedule mode must be one of: ${Object.values(
       PayrollScheduleMode
     ).join(", ")}.`,
   })
   mode: PayrollScheduleMode;
+
+  @IsInt()
+  @Min(0)
+  @Max(12)
+  month: number
+
+  @IsInt()
+  year: number
 
   @ValidateIf((o) => o.mode === PayrollScheduleMode.Fixed)
   @IsNumber({}, { message: "Day of month must be a valid number." })
@@ -69,10 +82,6 @@ export class UpdatePayrollSettingDto {
   @ValidateNested({ each: true })
   @Type(() => Deduction)
   deductions: Deduction[];
-
-  @ValidateNested()
-  @Type(() => Schedule)
-  schedule: Schedule;
 }
 
 export class AddSalaryBankAccountDto {
@@ -114,9 +123,22 @@ export class ProcessPayrollDto {
   @IsString()
   pin: string;
 
+  @ValidateNested()
+  @Type(() => PayrollSchedule)
+  schedule: PayrollSchedule;
+
+  @IsArray()
+  excludedUsers: string[];
+
   @IsString()
-  payroll: string;
+  payrollId?: string
 }
+
+export class PreviewPayrollRunDto {
+  @IsArray()
+  excludedUsers: string[];
+}
+
 export class AddPayrollUserDto {
   @IsString()
   @IsNotEmpty()
