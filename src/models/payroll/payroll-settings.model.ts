@@ -4,11 +4,6 @@ import { ObjectId } from "mongodb";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
 
-export enum PayrollScheduleMode {
-  Fixed = "fixed",
-  LastBusinessDay = "last_business_day",
-}
-
 export interface IPayrollSetting {
   _id: ObjectId;
   organization: any;
@@ -16,11 +11,6 @@ export interface IPayrollSetting {
     name: string;
     percentage: number;
   }>;
-  schedule: {
-    nextRunDate: Date
-    mode: PayrollScheduleMode;
-    dayOfMonth?: number;
-  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,15 +33,6 @@ const PayrollSettingSchema = new Schema<IPayrollSetting>(
         percentage: Number,
       },
     ],
-    schedule: {
-      nextRunDate: Date,
-      dayOfMonth: Number,
-      mode: {
-        type: String,
-        default: PayrollScheduleMode.LastBusinessDay,
-        enum: Object.values(PayrollScheduleMode),
-      },
-    },
   },
   { timestamps: true }
 );
