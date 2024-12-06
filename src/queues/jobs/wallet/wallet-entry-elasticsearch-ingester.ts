@@ -108,31 +108,31 @@ async function processWalletEntryToElasticsearch(job: Job) {
 }
 
 async function addWalletEntriesForIngestionToElastic(job: Job) {
-  const logger = new Logger(addWalletEntriesForIngestionToElastic.name)
+  // const logger = new Logger(addWalletEntriesForIngestionToElastic.name)
 
-  const walletEntries = await WalletEntry.find({ createdAt: { $gte: dayjs().subtract(5, 'minute').toDate() } })
-      .populate({ path: 'budget', model: Budget })
-      .populate({ path: 'category', model: TransferCategory })
-      .populate({ path: 'initiatedBy', model: User });
+  // const walletEntries = await WalletEntry.find({ createdAt: { $gte: dayjs().subtract(5, 'minute').toDate() } })
+  //     .populate({ path: 'budget', model: Budget })
+  //     .populate({ path: 'category', model: TransferCategory })
+  //     .populate({ path: 'initiatedBy', model: User });
 
-  logger.log('fetched entries for ingestion', { entries: walletEntries.length })
-  if (!walletEntries.length) {
-    return { message: 'no entries for ingestion found' }
-  }
+  // logger.log('fetched entries for ingestion', { entries: walletEntries.length })
+  // if (!walletEntries.length) {
+  //   return { message: 'no entries for ingestion found' }
+  // }
 
-  const bulk = walletEntries.map((entry) => ({
-    name: 'processWalletEntryToElasticsearch',
-    data: transformWalletEntry(entry),
-  }))
+  // const bulk = walletEntries.map((entry) => ({
+  //   name: 'processWalletEntryToElasticsearch',
+  //   data: transformWalletEntry(entry),
+  // }))
 
-  await job.queue.addBulk(bulk)
+  // await job.queue.addBulk(bulk)
 
-  const slackMssage = `:rocket: Indexing to ElasticSearch Queued For - transaction-analytics :rocket: \n\n
-    *Number of Txs indexed*: ${walletEntries.length}
-  `;
-  await slackService.sendMessage(AllowedSlackWebhooks.analytics, slackMssage)
+  // const slackMssage = `:rocket: Indexing to ElasticSearch Queued For - transaction-analytics :rocket: \n\n
+  //   *Number of Txs indexed*: ${walletEntries.length}
+  // `;
+  // await slackService.sendMessage(AllowedSlackWebhooks.analytics, slackMssage)
 
-  return { message: 'queued entries for ingestion' }
+  // return { message: 'queued entries for ingestion' }
 }
 
 export {
