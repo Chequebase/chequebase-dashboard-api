@@ -43,9 +43,6 @@ export class InitiateInternalTransferDto {
   invoice?: Buffer
 
   fileExt?: string
-
-  @IsString()
-  pin: string
 }
 
 export class ResolveAccountDto {
