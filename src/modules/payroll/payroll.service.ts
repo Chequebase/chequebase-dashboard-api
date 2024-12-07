@@ -66,7 +66,6 @@ import { VirtualAccountService } from "../virtual-account/virtual-account.servic
 import redis from "../common/redis";
 import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 import PayrollSetting from "@/models/payroll/payroll-settings.model";
-import { Document } from "mongoose";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
@@ -487,13 +486,13 @@ export class PayrollService {
       getOrganizationPlan(orgId),
     ]);
 
+    const employeeCount = users.length
     users = users.filter(
       (u) =>
         !dto.excludedUsers.includes(u._id.toString()) &&
         (u.salary && u.salary?.netAmount && u.bank)
     );
     const breakdown = this.getPayrollBreakdown(users, plan);
-    let employeeCount = users.length;
     let currentDeduction = breakdown.gross - breakdown.net;
     let currentAmount = breakdown.net;
 
@@ -719,9 +718,13 @@ export class PayrollService {
     const plan = await getOrganizationPlan(auth.orgId);
     let users = (await this.getPayrollUsers(auth.orgId)).filter(
       (u) =>
-        !dto.excludedUsers.includes(u._id.toString()) &&
-        (u.salary && u.salary.netAmount && u.bank)
+        !dto.excludedUsers.includes(u._id.toString())
     );
+
+    const noSalary = users.some((u) => (!u.salary?.netAmount || !u.bank))
+    if (noSalary) {
+      throw new BadRequestError('One or more employees does not have a bank account or salary')
+    }
 
     if (!users.length) {
       throw new BadRequestError(
@@ -1161,6 +1164,8 @@ export class PayrollService {
   ): { net: number; fee: 0; amount: number; gross: number } {
     return users.reduce(
       (a, u) => {
+        const gross = u?.salary?.grossAmount || 0;
+        const net = u?.salary?.netAmount || 0;
         const fee = this.getTransferFee(
           plan,
           u.salary.netAmount,
@@ -1168,10 +1173,10 @@ export class PayrollService {
         );
 
         return {
-          gross: a.gross + u.salary.grossAmount,
-          net: a.net + u.salary.netAmount,
+          gross: a.gross + gross,
+          net: a.net + net,
           fee: a.fee + fee,
-          amount: a.amount + u.salary.netAmount + fee,
+          amount: a.amount + net + fee,
         };
       },
       { net: 0, fee: 0, amount: 0, gross: 0 }
