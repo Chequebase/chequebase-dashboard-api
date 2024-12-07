@@ -489,7 +489,7 @@ export class PayrollService {
 
     users = users.filter(
       (u) =>
-        !dto.excludedUsers.includes(u._id.toString()) ||
+        !dto.excludedUsers.includes(u._id.toString()) &&
         (u.salary && u.salary?.netAmount && u.bank)
     );
     const breakdown = this.getPayrollBreakdown(users, plan);
@@ -719,7 +719,7 @@ export class PayrollService {
     const plan = await getOrganizationPlan(auth.orgId);
     let users = (await this.getPayrollUsers(auth.orgId)).filter(
       (u) =>
-        !dto.excludedUsers.includes(u._id.toString()) ||
+        !dto.excludedUsers.includes(u._id.toString()) &&
         (u.salary && u.salary.netAmount && u.bank)
     );
 
