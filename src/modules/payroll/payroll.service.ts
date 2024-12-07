@@ -351,7 +351,7 @@ export class PayrollService {
   private getTransferFee(
     plan: ISubscriptionPlan,
     amount: number,
-    currency: string
+    currency = 'NGN'
   ) {
     const fee = plan.transferFee.budget.find(
       (f) =>
@@ -1168,8 +1168,8 @@ export class PayrollService {
         const net = u?.salary?.netAmount || 0;
         const fee = this.getTransferFee(
           plan,
-          u.salary.netAmount,
-          u.salary.currency
+          net,
+          u.salary?.currency
         );
 
         return {

@@ -36,8 +36,6 @@ export function getPercentageDiff(previousValue = 0, currentValue = 0) {
     return { value: currentValue, percentageDiff: 0 };
   }
 
-  console.log({previousValue, currentValue})
-
   const diff = numeral(currentValue).subtract(previousValue).value()!;
   const percentageDiff = numeral(diff).divide(previousValue).multiply(100).value()!;
 
