@@ -131,6 +131,7 @@ export class ProcessPayrollDto {
   excludedUsers: string[];
 
   @IsString()
+  @IsOptional()
   payrollId?: string
 }
 
