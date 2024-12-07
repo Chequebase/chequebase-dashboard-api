@@ -490,7 +490,7 @@ export class PayrollService {
     users = users.filter(
       (u) =>
         !dto.excludedUsers.includes(u._id.toString()) ||
-        (u.salary && u.salary.netAmount && u.bank)
+        (u.salary && u.salary?.netAmount && u.bank)
     );
     const breakdown = this.getPayrollBreakdown(users, plan);
     let employeeCount = users.length;
