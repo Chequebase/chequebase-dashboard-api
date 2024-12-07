@@ -28,9 +28,15 @@ export function escapeRegExp(str = '') {
 }
 
 export function getPercentageDiff(previousValue = 0, currentValue = 0) {
-  if (currentValue === previousValue) {
+  if (
+    currentValue === previousValue ||
+    Number.isNaN(currentValue) ||
+    Number.isNaN(previousValue)
+  ) {
     return { value: currentValue, percentageDiff: 0 };
   }
+
+  console.log({previousValue, currentValue})
 
   const diff = numeral(currentValue).subtract(previousValue).value()!;
   const percentageDiff = numeral(diff).divide(previousValue).multiply(100).value()!;

@@ -329,8 +329,8 @@ export class PayrollService {
       nextRunDate = currentPayroll.date;
       nextRunNet = getPercentageDiff(
         previousPayroll?.totalNetAmount &&
-          previousPayroll.totalNetAmount + previousPayroll.totalFee,
-        currentPayroll.totalNetAmount + currentPayroll.totalFee
+          previousPayroll.totalNetAmount + (previousPayroll.totalFee || 0),
+        currentPayroll.totalNetAmount + (currentPayroll.totalFee || 0)
       );
 
       nextRunDeductions = getPercentageDiff(
