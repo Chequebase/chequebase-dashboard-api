@@ -1,5 +1,5 @@
 import ApprovalRequest, {
-  ApprovalRequestPriority,
+  ApprovalRequestPriority
 } from "@/models/approval-request.model";
 import ApprovalRule, {
   ApprovalType,
@@ -10,25 +10,26 @@ import Organization, { IOrganization } from "@/models/organization.model";
 import PayrollPayout, {
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
-import PayrollSetting, {
-  PayrollScheduleMode,
-} from "@/models/payroll/payroll-settings.model";
+import PayrollSetting from "@/models/payroll/payroll-settings.model";
 import PayrollUser, { IPayrollUser } from "@/models/payroll/payroll-user.model";
 import Payroll, {
+  IPayroll,
   PayrollApprovalStatus,
   PayrollStatus,
 } from "@/models/payroll/payroll.model";
-import User, { UserStatus } from "@/models/user.model";
+import { ISubscriptionPlan } from "@/models/subscription-plan.model";
+import User, { IUser, UserStatus } from "@/models/user.model";
 import VirtualAccount, {
   IVirtualAccount,
 } from "@/models/virtual-account.model";
-import Wallet, { WalletType } from "@/models/wallet.model";
+import Wallet, { IWallet, WalletType } from "@/models/wallet.model";
 import { payrollQueue } from "@/queues";
 import { IProcessPayroll } from "@/queues/jobs/payroll/process-payroll.job";
 import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import timezone from "dayjs/plugin/timezone";
+import isBetween from "dayjs/plugin/isBetween";
 import utc from "dayjs/plugin/utc";
 import * as fastCsv from "fast-csv";
 import { ObjectId } from "mongodb";
@@ -36,9 +37,10 @@ import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { Service } from "typedi";
 import { AnchorService } from "../common/anchor.service";
+import EmailService from "../common/email.service";
 import { AuthUser } from "../common/interfaces/auth-user";
+import redis from "../common/redis";
 import {
-  findDuplicates,
   formatMoney,
   getEnvOrThrow,
   getLastBusinessDay,
@@ -48,7 +50,9 @@ import {
 } from "../common/utils";
 import { getDates } from "../common/utils/date";
 import { TransferClientName } from "../transfer/providers/transfer.client";
+import { UserService } from "../user/user.service";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
+import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import {
   AddBulkPayrollUserDto,
   AddPayrollUserDto,
@@ -56,16 +60,15 @@ import {
   AddSalaryBankAccountDto,
   EditPayrollUserDto,
   GetHistoryDto,
+  PayrollSchedule,
+  PayrollScheduleMode,
+  PreviewPayrollRunDto,
   ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
-import EmailService from "../common/email.service";
-import { UserService } from "../user/user.service";
-import { VirtualAccountService } from "../virtual-account/virtual-account.service";
-import redis from "../common/redis";
-import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 
 dayjs.extend(isSameOrAfter);
+dayjs.extend(isBetween);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 const tz = "Africa/Lagos";
@@ -183,82 +186,15 @@ export class PayrollService {
     };
   }
 
-  private async getPayrollStats(orgId: string, payrollId: string) {
-    const currentPayroll = await Payroll.findOne({
-      _id: payrollId,
-      organization: orgId,
-    });
-    if (!currentPayroll) {
-      throw new BadRequestError("Payroll not found");
-    }
+  getNextPayrollRunDate(schedule: PayrollSchedule) {
+    const { mode, dayOfMonth, month, year } = schedule;
 
-    const previousPayroll = await Payroll.findOne({
-      organization: orgId,
-      date: { $lt: currentPayroll.date },
-    }).sort("-createdAt");
-
-    const payoutStats = await PayrollPayout.aggregate()
-      .match({
-        organization: new ObjectId(orgId),
-        payroll: new ObjectId(payrollId),
-      })
-      .group({ _id: "$status", count: { $sum: 1 } });
-
-    return {
-      periodStartDate: currentPayroll.periodStartDate,
-      periodEndDate: currentPayroll.periodEndDate,
-      runDate: currentPayroll.date,
-      approvalStatus: currentPayroll.approvalStatus,
-      status: currentPayroll.status,
-      amount: getPercentageDiff(
-        previousPayroll?.totalNetAmount,
-        currentPayroll.totalNetAmount
-      ),
-      deductions: getPercentageDiff(
-        previousPayroll
-          ? previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount
-          : undefined,
-        currentPayroll.totalGrossAmount - currentPayroll.totalNetAmount
-      ),
-      settled:
-        payoutStats?.find((p: any) => p._id === PayrollPayoutStatus.Settled)
-          ?.count || 0,
-      processing:
-        payoutStats?.find((p: any) => p._id === PayrollPayoutStatus.Processing)
-          ?.count || 0,
-      failed:
-        payoutStats?.find((p: any) => p._id === PayrollPayoutStatus.Failed)
-          ?.count || 0,
-    };
-  }
-
-  async getNextPayrollRunDate(orgId: string, onlyFutureDate = false, refDate = new Date()) {
-    let payrollSetting = await PayrollSetting.findOne({ organization: orgId });
-    if (!payrollSetting) {
-      payrollSetting = await PayrollSetting.create({ organization: orgId });
-    }
-
-    const { mode, dayOfMonth } = payrollSetting.schedule;
-
-    const today = dayjs(refDate).tz(tz);
-    const month = today.month();
-    const year = today.year();
     if (mode === PayrollScheduleMode.Fixed && dayOfMonth) {
       let fixedRunDate = dayjs(new Date(year, month, dayOfMonth)).tz(tz, true);
-      if (onlyFutureDate && today.isAfter(fixedRunDate, "date")) {
-        fixedRunDate = dayjs(new Date(year, month + 1, dayOfMonth)).tz(
-          tz,
-          true
-        );
-      }
-
       return fixedRunDate.toDate();
     }
 
     let lastRunDate = getLastBusinessDay(year, month);
-    if (onlyFutureDate && today.isAfter(lastRunDate, "day")) {
-      lastRunDate = getLastBusinessDay(year, month + 1);
-    }
 
     return lastRunDate.toDate();
   }
@@ -269,7 +205,7 @@ export class PayrollService {
       .match({
         organization: new ObjectId(orgId),
         deletedAt: { $exists: false },
-        salary: { $exists: true }
+        salary: { $exists: true },
       })
       .lookup({
         from: "users",
@@ -343,18 +279,18 @@ export class PayrollService {
       .unwind("$payout")
       .group({
         _id: {
-          date: { $dateToString: { format: "%Y-%m", date: "$date" } },
+          date: { $dateToString: { format: "%Y-%m", date: "$date", timezone: tz } },
           currency: "$payout.currency",
         },
         amount: { $sum: "$payout.amount" },
       });
 
-    const from = dayjs().startOf("year").toDate();
-    const to = dayjs().endOf("year").toDate();
+    const from = dayjs.tz().startOf("year").toDate();
+    const to = dayjs.tz().endOf("year").toDate();
     const boundaries = getDates(from, to, "month");
-    const trend = boundaries.map((boundary: any) => {
+    const trend = boundaries.map((boundary) => {
       const match = result.filter((t) =>
-        dayjs(t.date).isBetween(boundary.from, boundary.to, null, "[]")
+        dayjs.tz(t._id.date).isBetween(boundary.from, boundary.to, null, "[]")
       );
 
       return {
@@ -368,86 +304,62 @@ export class PayrollService {
   }
 
   async payrollMetrics(orgId: string) {
-    let [nextRunDate, wallet, users, previousPayroll, currentPayroll] =
-      await Promise.all([
-        this.getNextPayrollRunDate(orgId, true),
-        Wallet.findOne({
-          organization: orgId,
-          type: WalletType.Payroll,
-          currency: "NGN",
-        }),
-        this.getPayrollUsers(orgId),
-        Payroll.findOne({
-          organization: orgId,
-          status: PayrollStatus.Completed,
-          date: { $lt: dayjs().tz().endOf("month").toDate() },
-        }).sort("-createdAt"),
-        Payroll.findOne({
-          organization: orgId,
-          status: { $ne: PayrollStatus.Completed },
-          date: { $gte: dayjs().tz().startOf("month").toDate() },
-        }).sort("-createdAt"),
-      ]);
+    let [wallet, previousPayroll, currentPayroll] = await Promise.all([
+      Wallet.findOne({
+        organization: orgId,
+        type: WalletType.Payroll,
+        currency: "NGN",
+      }),
+      Payroll.findOne({
+        organization: orgId,
+        status: PayrollStatus.Completed,
+        date: { $lt: dayjs().tz().endOf("month").toDate() },
+      }).sort("-createdAt"),
+      Payroll.findOne({
+        organization: orgId,
+        status: { $ne: PayrollStatus.Completed },
+        date: { $gte: dayjs().tz().startOf("month").toDate() },
+      }).sort("-createdAt"),
+    ]);
 
-    users = users.filter((u) => u.salary && u.salary.netAmount);
-    const totalNet =
-      currentPayroll?.totalNetAmount ||
-      users.reduce((acc, user) => acc + user.salary.netAmount, 0);
-    const totalGross =
-      currentPayroll?.totalGrossAmount ||
-      users.reduce((acc, user) => acc + user.salary.grossAmount, 0);
+    let nextRunNet = null,
+      nextRunDeductions = null,
+      nextRunDate = null;
 
-    let totalFee = currentPayroll?.totalFee;
-    if (typeof totalFee !== "number") {
-      const plan = await getOrganizationPlan(orgId);
-      totalFee = users.reduce(
-        (acc, user) =>
-          acc +
-          this.getTransferFee(
-            plan,
-            user.salary.netAmount || 0,
-            user.salary.currency || "NGN"
-          ),
-        0
+    if (currentPayroll) {
+      nextRunDate = currentPayroll.date;
+      nextRunNet = getPercentageDiff(
+        previousPayroll?.totalNetAmount &&
+          previousPayroll.totalNetAmount + (previousPayroll.totalFee || 0),
+        currentPayroll.totalNetAmount + (currentPayroll.totalFee || 0)
+      );
+
+      nextRunDeductions = getPercentageDiff(
+        previousPayroll?.totalGrossAmount &&
+          previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount,
+        currentPayroll.totalGrossAmount - currentPayroll.totalNetAmount
       );
     }
 
-    if (currentPayroll && dayjs(nextRunDate).isSame(currentPayroll.date, 'month')) {
-      const refDate = dayjs(currentPayroll.date).endOf('month').toDate();
-      nextRunDate = await this.getNextPayrollRunDate(orgId, true, refDate);
-    }
-
     return {
-      balance: {
-        amount: wallet?.balance || 0,
-        currency: wallet?.currency || "NGN",
-      },
-      nextRunNet: getPercentageDiff(
-        previousPayroll?.totalNetAmount &&
-          previousPayroll.totalNetAmount + (previousPayroll?.totalFee || 0),
-        totalNet + totalFee
-      ),
-      nextRunDeductions: getPercentageDiff(
-        previousPayroll
-          ? previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount
-          : undefined,
-        totalGross - totalNet
-      ),
+      nextRunNet,
+      nextRunDeductions,
       nextRunDate,
+      balance: { amount: wallet?.balance, currency: wallet?.currency },
     };
   }
 
   private getTransferFee(
     plan: ISubscriptionPlan,
     amount: number,
-    currency: string
+    currency = 'NGN'
   ) {
     const fee = plan.transferFee.budget.find(
       (f) =>
         amount >= f.lowerBound &&
         (amount <= f.upperBound || f.upperBound === -1)
     );
-    const flatAmount = fee?.flatAmount?.[(currency || 'NGN').toUpperCase()];
+    const flatAmount = fee?.flatAmount?.[(currency || "NGN").toUpperCase()];
 
     if (typeof flatAmount !== "number") {
       return 0;
@@ -457,11 +369,7 @@ export class PayrollService {
   }
 
   async history(orgId: string, query: GetHistoryDto) {
-    const filter = {
-      organization: orgId,
-      approvalStatus: { $ne: PayrollApprovalStatus.Rejected },
-    };
-
+    const filter = { organization: orgId };
     const result = await Payroll.paginate(filter, {
       limit: 12,
       page: Number(query.page),
@@ -473,6 +381,28 @@ export class PayrollService {
   }
 
   async payrollDetails(orgId: string, payrollId: string) {
+    const payroll = await Payroll.findOne({
+      _id: payrollId,
+      organization: orgId,
+    }).populate("excludedPayrollUsers", "_id");
+    if (!payroll) {
+      throw new BadRequestError("Payroll not found");
+    }
+
+    const lastMonth = dayjs().tz().subtract(1, "month");
+    const previousPayroll = await Payroll.findOne({
+      organization: orgId,
+      periodStartDate: lastMonth.startOf("month"),
+      periodEndDate: lastMonth.endOf("month"),
+    });
+
+    const payoutStatsAggr = PayrollPayout.aggregate()
+      .match({
+        organization: new ObjectId(orgId),
+        payroll: new ObjectId(payrollId),
+      })
+      .group({ _id: "$status", count: { $sum: 1 } });
+
     const payoutsAggr = PayrollPayout.find({
       organization: orgId,
       payroll: payrollId,
@@ -489,12 +419,100 @@ export class PayrollService {
       })
       .select("salary bank status");
 
-    const [payouts, stats] = await Promise.all([
+    const [payouts, payoutStats, users] = await Promise.all([
       payoutsAggr,
-      this.getPayrollStats(orgId, payrollId),
+      payoutStatsAggr,
+      this.getPayrollUsers(orgId),
     ]);
 
-    return { stats, payouts };
+    const getStatusCount = (status: PayrollPayoutStatus) =>
+      payoutStats?.find((p: any) => p._id === status)?.count || 0;
+
+    let employeeCount = payouts.length;
+    let currentDeduction = payroll.totalGrossAmount - payroll.totalNetAmount;
+    let currentAmount = payroll.totalNetAmount;
+
+    const inconclusive = [
+      PayrollApprovalStatus.Rejected,
+      PayrollApprovalStatus.Pending,
+    ];
+    if (inconclusive.includes(payroll.approvalStatus)) {
+      employeeCount = users.length;
+      const plan = await getOrganizationPlan(orgId);
+      const breakdown = this.getPayrollBreakdown(users, plan);
+      currentAmount = breakdown.net;
+      currentDeduction = breakdown.gross - breakdown.net;
+    }
+
+    let amount = getPercentageDiff(
+      previousPayroll?.totalNetAmount ?? 0,
+      currentAmount
+    );
+    let deductions = getPercentageDiff(
+      previousPayroll
+        ? previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount
+        : undefined,
+      currentDeduction
+    );
+
+    return {
+      employeeCount,
+      payouts,
+      users,
+      excludedUsers: payroll.excludedPayrollUsers,
+      periodStartDate: payroll.periodStartDate,
+      periodEndDate: payroll.periodEndDate,
+      runDate: payroll.date,
+      approvalStatus: payroll.approvalStatus,
+      status: payroll.status,
+      amount,
+      deductions,
+      settled: getStatusCount(PayrollPayoutStatus.Settled),
+      processing: getStatusCount(PayrollPayoutStatus.Processing),
+      failed: getStatusCount(PayrollPayoutStatus.Failed),
+    };
+  }
+
+  async previewNewPayrollDetails(orgId: string, dto: PreviewPayrollRunDto) {
+    const lastMonth = dayjs().tz().subtract(1, "month");
+    const previousPayroll = await Payroll.findOne({
+      organization: orgId,
+      periodStartDate: lastMonth.startOf("month"),
+      periodEndDate: lastMonth.endOf("month"),
+    });
+
+    let [users, plan] = await Promise.all([
+      this.getPayrollUsers(orgId),
+      getOrganizationPlan(orgId),
+    ]);
+
+    const employeeCount = users.length
+    users = users.filter(
+      (u) =>
+        !dto.excludedUsers.includes(u._id.toString()) &&
+        (u.salary && u.salary?.netAmount && u.bank)
+    );
+    const breakdown = this.getPayrollBreakdown(users, plan);
+    let currentDeduction = breakdown.gross - breakdown.net;
+    let currentAmount = breakdown.net;
+
+    let amount = getPercentageDiff(
+      previousPayroll?.totalNetAmount ?? 0,
+      currentAmount
+    );
+    let deductions = getPercentageDiff(
+      previousPayroll
+        ? previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount
+        : undefined,
+      currentDeduction
+    );
+
+    return {
+      employeeCount,
+      users,
+      amount,
+      deductions,
+    };
   }
 
   async getPayrollSetting(orgId: string) {
@@ -507,36 +525,18 @@ export class PayrollService {
   }
 
   async updatePayrollSetting(orgId: string, payload: UpdatePayrollSettingDto) {
-    let setting = await PayrollSetting.findOne({ organization: orgId });
-    if (!setting) {
-      setting = await PayrollSetting.create({ organization: orgId });
-    }
-
-    let nextRunDate = await this.getNextPayrollRunDate(orgId);
-    setting = await PayrollSetting.findByIdAndUpdate(
-      setting._id,
-      {
-        deductions: payload.deductions,
-        schedule: { ...payload.schedule, nextRunDate },
-      },
+    let setting = await PayrollSetting.findOneAndUpdate(
+      { organization: orgId },
+      { deductions: payload.deductions },
       { new: true }
     ).lean();
 
-    const today = dayjs().tz(tz);
-    await Payroll.findOneAndUpdate(
-      {
+    if (!setting) {
+      setting = await PayrollSetting.create({
         organization: orgId,
-        periodStartDate: today.startOf("month").toDate(),
-        periodEndDate: today.endOf("month").toDate(),
-        approvalStatus: {
-          $nin: [
-            PayrollApprovalStatus.InReview,
-            PayrollApprovalStatus.Approved,
-          ],
-        },
-      },
-      { date: nextRunDate }
-    );
+        deduction: payload.deductions,
+      });
+    }
 
     return setting;
   }
@@ -693,132 +693,46 @@ export class PayrollService {
     };
   }
 
-  async initiatePayrollRun(auth: AuthUser) {
-    const { orgId } = auth;
-    const today = dayjs().tz(tz);
-    const pendingPayroll = await Payroll.findOne({
-      organization: orgId,
-      periodStartDate: today.startOf("month").toDate(),
-      periodEndDate: today.endOf("month").toDate(),
-    });
-    if (pendingPayroll) {
-      return {
-        message: "A payroll has already been submitted for this month",
-        payroll: pendingPayroll._id,
-      };
-    }
-
-    let wallet = await Wallet.findOne({
-      organization: orgId,
-      type: WalletType.Payroll,
-    });
-    if (!wallet) {
-      throw new BadRequestError("Wallet is currently not available");
-    }
-
-    let users = await this.getPayrollUsers(orgId);
-    users = users.filter((u) => u.salary && u.salary.netAmount && u.bank);
-    const totalNet = users.reduce(
-      (acc, user) => acc + user.salary.netAmount,
-      0
-    );
-    const totalGross = users.reduce(
-      (acc, user) => acc + user.salary.grossAmount,
-      0
-    );
-    if (!users.length) {
-      throw new BadRequestError(
-        "Unable to create payroll, ensure your employees have salary and bank account"
-      );
-    }
-
-    if (totalNet > wallet.balance) {
-      throw new BadRequestError(
-        "Insufficient fund to process payroll run. Please keep your payroll account(s) funded at least 24 hours before your next run date"
-      );
-    }
-
-    const nextRunDate = await this.getNextPayrollRunDate(orgId);
-    const payroll = await Payroll.create({
-      organization: orgId,
-      wallet: wallet._id,
-      date: nextRunDate,
-      periodEndDate: today.endOf("month").toDate(),
-      periodStartDate: today.startOf("month").toDate(),
-      totalNetAmount: totalNet,
-      totalGrossAmount: totalGross,
-      totalEmployees: users.length,
-      status: PayrollStatus.Pending,
-      approvalStatus: PayrollApprovalStatus.Pending,
-    });
-
-    return {
-      message: "Payroll created successfully",
-      payroll: payroll._id,
-    };
-  }
-
   async processPayroll(auth: AuthUser, dto: ProcessPayrollDto) {
     const valid = await UserService.verifyTransactionPin(auth.userId, dto.pin);
     if (!valid) {
       throw new BadRequestError("Invalid pin");
     }
 
-    const plan = await getOrganizationPlan(auth.orgId)
-    const payroll = await Payroll.findOne({
-      _id: dto.payroll,
+    let wallet = await Wallet.findOne({
       organization: auth.orgId,
-    }).populate("wallet");
-    if (!payroll) {
-      throw new BadRequestError("Payroll run not found");
-    }
-    if (!payroll.wallet) {
-      throw new BadRequestError("Wallet does not exist");
+      type: WalletType.Payroll,
+    });
+    if (!wallet) {
+      throw new BadRequestError("Wallet is currently not available");
     }
 
-    if (payroll.approvalStatus === PayrollApprovalStatus.Approved) {
-      const [aggregatedPayout] = await PayrollPayout.aggregate()
-        .match({
-          payroll: payroll._id,
-          status: {
-            $in: [PayrollPayoutStatus.Pending, PayrollPayoutStatus.Failed],
-          },
-        })
-        .group({
-          _id: null,
-          totalAmount: { $sum: "$amount" },
-        });
-
-      const totalAmount = aggregatedPayout?.totalAmount ?? 0;
-      if (totalAmount > payroll.wallet.balance) {
-        throw new BadRequestError("Insufficient fund to process payroll run");
-      }
-
-      if (dayjs().tz(tz).isSameOrAfter(payroll.date, "date")) {
-        // this will be ran from the cron
-        await payrollQueue.add("processPayroll", {
-          payroll: payroll._id.toString(),
-          orgId: auth.orgId,
-          initiatedBy: auth.userId,
-        } as IProcessPayroll);
-      }
-
-      return {
-        message: "Payroll payments are processing",
-        approvalRequired: false,
-      };
-    }
-
+    const plan = await getOrganizationPlan(auth.orgId);
     let users = (await this.getPayrollUsers(auth.orgId)).filter(
-      (u) => u.salary && u.salary.netAmount && u.bank
+      (u) =>
+        !dto.excludedUsers.includes(u._id.toString())
     );
-    const totalNet = users.reduce((acc, u) => acc + u.salary.netAmount, 0);
-    const totalGross = users.reduce((acc, u) => acc + u.salary.grossAmount, 0);
-    if (totalNet > payroll.wallet.balance) {
+
+    const noSalary = users.some((u) => (!u.salary?.netAmount || !u.bank))
+    if (noSalary) {
+      throw new BadRequestError('One or more employees does not have a bank account or salary')
+    }
+
+    if (!users.length) {
+      throw new BadRequestError(
+        "Unable to create payroll, ensure your employees have salary and bank account"
+      );
+    }
+
+    const breakdown = this.getPayrollBreakdown(users, plan);
+    if (breakdown.amount > wallet.balance) {
       throw new BadRequestError(
         "Insufficient fund to process payroll run. Please keep your payroll account(s) funded at least 24 hours before your next run date"
       );
     }
+
+    const data = { users, breakdown, wallet, ...auth, ...dto };
+    const payroll = await this.getOrCreatePayroll(data);
 
     const rule = await ApprovalRule.findOne({
       organization: auth.orgId,
@@ -835,39 +749,18 @@ export class PayrollService {
     }
 
     const requestId = new ObjectId();
-    const payouts = await PayrollPayout.create(
-      users.map((user) => ({
-        id: `po_${createId()}`,
-        approvalRequest: requestId,
-        payroll: payroll._id,
-        organization: payroll.organization,
-        wallet: payroll.wallet._id,
-        payrollUser: user._id,
-        fee: this.getTransferFee(plan, user.salary.netAmount, user.salary.currency || "NGN"),
-        status: PayrollPayoutStatus.Pending,
-        amount: user.salary.netAmount,
-        currency: user.salary.currency || "NGN",
-        provider: TransferClientName.SafeHaven,
-        bank: user.bank,
-        salary: {
-          // TODO: calculate deduction for days not worked for employees that didn't complete a full month
-          netAmount: user.salary.netAmount,
-          grossAmount: user.salary.grossAmount,
-          earnings: user.salary.earnings,
-          deductions: user.salary.deductions,
-        },
-      }))
+    await this.createPayouts(
+      users,
+      noApprovalRequired ? null : requestId,
+      payroll,
+      wallet,
+      plan
     );
 
     if (noApprovalRequired) {
       return this.approvePayroll(payroll.id, auth.userId);
     }
 
-    if (payroll.approvalStatus === PayrollApprovalStatus.InReview) {
-      return { message: "payroll already in review", approvalRequired: true };
-    }
-
-    const totalFee = payouts.reduce((a, b) => a + b.fee, 0);
     await Promise.all([
       ApprovalRequest.create({
         _id: requestId,
@@ -883,19 +776,18 @@ export class PayrollService {
         })),
         properties: {
           payroll: payroll._id,
-          payrollTotalEmployees: users.length,
-          payrollTotalNetAmount: totalNet,
-          payrollTotalGrossAmount: totalGross,
-          payrollTotalFee: totalFee,
+          payrollPeriodStartDate: payroll.periodStartDate,
+          payrollPeriodEndDate: payroll.periodEndDate,
+          payrollDate: payroll.date,
+          payrollTotalEmployees: payroll.totalEmployees,
+          payrollTotalNetAmount: payroll.totalNetAmount,
+          payrollTotalGrossAmount: payroll.totalGrossAmount,
+          payrollTotalFee: payroll.totalFee,
         },
       }),
       payroll.updateOne({
         approvalStatus: PayrollApprovalStatus.InReview,
         approvalRequest: requestId,
-        totalEmployees: users.length,
-        totalGrossAmount: totalGross,
-        totalNetAmount: totalNet,
-        totalFee,
       }),
     ]);
 
@@ -909,30 +801,98 @@ export class PayrollService {
     return { message: "approval request sent", approvalRequired: true };
   }
 
+  async retryPayollRun(auth: AuthUser, payrollId: string) {
+    const payroll = await Payroll.findOne({
+      _id: payrollId,
+      organization: auth.orgId,
+    }).populate("wallet");
+    if (!payroll) {
+      throw new BadRequestError("Payroll not found");
+    }
+
+    if (payroll.approvalStatus !== PayrollApprovalStatus.Approved) {
+      throw new BadRequestError("Payroll is not approved");
+    }
+
+    const [aggregatedPayout] = await PayrollPayout.aggregate()
+      .match({
+        payroll: payroll._id,
+        status: {
+          $in: [PayrollPayoutStatus.Pending, PayrollPayoutStatus.Failed],
+        },
+      })
+      .group({
+        _id: null,
+        totalAmount: { $sum: "$amount" },
+      });
+
+    const totalAmount = aggregatedPayout?.totalAmount ?? 0;
+    if (!totalAmount) {
+      throw new BadRequestError("No pending/failed payout to run");
+    }
+
+    if (totalAmount > payroll.wallet.balance) {
+      throw new BadRequestError("Insufficient fund to process payroll run");
+    }
+
+    if (dayjs().tz(tz).isSameOrAfter(payroll.date, "date")) {
+      await payrollQueue.add("processPayroll", {
+        payroll: payroll._id.toString(),
+        orgId: auth.orgId,
+        initiatedBy: auth.userId,
+      } as IProcessPayroll);
+    }
+
+    return {
+      message: "Payroll payments are processing",
+    };
+  }
+
+  async getAvailableMonths(orgId: string) {
+    const availableMonths: { year: number; month: number }[] = [];
+    const minMonthsAgo = 5;
+    const startDate = dayjs().subtract(minMonthsAgo, "month");
+    const payrolls = await Payroll.find({
+      organization: orgId,
+      date: { $gte: startDate.toDate() },
+    })
+      .select("periodEndDate")
+      .sort("periodEndDate")
+      .lean();
+
+    const existingMonths = payrolls.map((p) => ({
+      year: dayjs.tz(p.periodEndDate, "Africa/Lagos").year(),
+      month: dayjs.tz(p.periodEndDate, "Africa/Lagos").month(),
+    }));
+
+    let currentDate = startDate;
+    while (currentDate.isBefore(dayjs().endOf("month"))) {
+      const year = currentDate.year();
+      const month = currentDate.month();
+      if (!existingMonths.some((i) => i.month === month && i.year === year)) {
+        availableMonths.push({ year, month });
+      }
+
+      currentDate = currentDate.add(1, "month");
+    }
+
+    return availableMonths;
+  }
+
   async approvePayroll(payrollId: string, initiatedBy: string) {
     const payroll = await Payroll.findById(payrollId).populate("wallet");
     if (!payroll) {
       throw new BadRequestError("Payroll run not found");
     }
 
-    let users = (await this.getPayrollUsers(payroll.organization)).filter(
-      (u) => u.salary && u.salary.netAmount && u.bank
-    );
-    const totalNet = users.reduce(
-      (acc, user) => acc + user.salary.netAmount,
-      0
-    );
-    if (totalNet > payroll.wallet.balance) {
+    const amount = payroll.totalNetAmount + payroll.totalFee;
+    if (amount > payroll.wallet.balance) {
       throw new BadRequestError(
         "Insufficient fund to process payroll run. Please keep your payroll account(s) funded at least 24 hours before your next run date"
       );
     }
 
-    await payroll.updateOne({
-      $set: {
-        approvalStatus: PayrollApprovalStatus.Approved,
-      },
-    });
+    await payroll.updateOne({ approvalStatus: PayrollApprovalStatus.Approved });
 
     // this will be ran from the cron
     if (dayjs().tz(tz).isSameOrAfter(payroll.date, "date")) {
@@ -1153,5 +1113,142 @@ export class PayrollService {
     await redis.set(key, JSON.stringify({ orgId }), "EX", sevenDaysInSecs);
 
     return code;
+  }
+
+  private async createPayouts(
+    users: any[],
+    requestId: null | ObjectId,
+    payroll: IPayroll,
+    wallet: IWallet,
+    plan: ISubscriptionPlan
+  ) {
+    await PayrollPayout.create(
+      users.map((user) => ({
+        id: `po_${createId()}`,
+        approvalRequest: requestId,
+        payroll: payroll._id,
+        organization: payroll.organization,
+        wallet: wallet._id,
+        payrollUser: user._id,
+        fee: this.getTransferFee(
+          plan,
+          user.salary.netAmount,
+          user.salary.currency || "NGN"
+        ),
+        status: PayrollPayoutStatus.Pending,
+        amount: user.salary.netAmount,
+        currency: user.salary.currency || "NGN",
+        provider: TransferClientName.SafeHaven,
+        bank: user.bank,
+        salary: {
+          netAmount: user.salary.netAmount,
+          grossAmount: user.salary.grossAmount,
+          earnings: user.salary.earnings,
+          deductions: user.salary.deductions,
+        },
+      }))
+    );
+  }
+
+  private getPayrollBreakdown(
+    users: any[],
+    plan: ISubscriptionPlan
+  ): { net: number; fee: 0; amount: number; gross: number } {
+    return users.reduce(
+      (a, u) => {
+        const gross = u?.salary?.grossAmount || 0;
+        const net = u?.salary?.netAmount || 0;
+        const fee = this.getTransferFee(
+          plan,
+          net,
+          u.salary?.currency
+        );
+
+        return {
+          gross: a.gross + gross,
+          net: a.net + net,
+          fee: a.fee + fee,
+          amount: a.amount + net + fee,
+        };
+      },
+      { net: 0, fee: 0, amount: 0, gross: 0 }
+    );
+  }
+
+  private async getOrCreatePayroll(
+    data: {
+      users: IUser[];
+      wallet: IWallet;
+      breakdown: { net: number; fee: number; amount: number; gross: number };
+    } & ProcessPayrollDto &
+      AuthUser
+  ) {
+    const { payrollId, breakdown, wallet, orgId } = data;
+    const { year, month } = data.schedule;
+    const period = dayjs(new Date(year, month)).tz(tz, true);
+
+    const details = {
+      periodEndDate: period.endOf("month").toDate(),
+      periodStartDate: period.startOf("month").toDate(),
+      totalEmployees: data.users.length,
+      totalGrossAmount: breakdown.gross,
+      totalNetAmount: breakdown.net,
+      totalFee: breakdown.fee,
+      excludedPayrollUsers: data.excludedUsers,
+      date: this.getNextPayrollRunDate(data.schedule),
+    };
+
+    if (!payrollId) {
+      await this.assertSchedule(orgId, data);
+      return await Payroll.create({
+        organization: orgId,
+        wallet: wallet._id,
+        status: PayrollStatus.Pending,
+        ...details,
+      });
+    }
+
+    const payroll = await Payroll.findOne({
+      _id: payrollId,
+      status: PayrollStatus.Pending,
+      approvalStatus: PayrollApprovalStatus.Rejected,
+    });
+
+    if (!payroll) {
+      throw new BadRequestError("Payroll can not be processed");
+    }
+
+    if (!period.isSame(payroll.periodEndDate, "month")) {
+      await this.assertSchedule(orgId, data);
+    }
+
+    await payroll.set(details).save();
+
+    return payroll;
+  }
+
+  private async assertSchedule(orgId: string, dto: ProcessPayrollDto) {
+    const { month, year } = dto.schedule;
+    const period = dayjs(new Date(year, month)).tz(tz, true);
+
+    const existingPayroll = await Payroll.findOne({
+      organization: orgId,
+      periodStartDate: period.startOf("month").toDate(),
+      periodEndDate: period.endOf("month").toDate(),
+    });
+
+    if (existingPayroll) {
+      throw new BadRequestError("Payroll already exists");
+    }
+
+    const availableDate = await this.getAvailableMonths(orgId);
+    if (!availableDate.some((i) => i.year === year && i.month === month)) {
+      const monthStr = dayjs(new Date(year, month))
+        .tz(tz, true)
+        .format("YYYY MMM");
+      throw new BadRequestError(
+        `The month ${monthStr} is not available for new payroll`
+      );
+    }
   }
 }

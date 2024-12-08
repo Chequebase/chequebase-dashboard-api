@@ -1,3 +1,4 @@
+import { TransferClientName } from "@/modules/transfer/providers/transfer.client";
 import { Transform } from "class-transformer";
 import { IsBoolean, IsInt, IsOptional, IsString, Length } from "class-validator";
 
@@ -16,6 +17,9 @@ export class InitiateTransferDto {
 
   @IsString()
   bankCode: string
+
+  @IsString()
+  provider: TransferClientName
 
   invoice?: Buffer
 
@@ -39,6 +43,9 @@ export class InitiateInternalTransferDto {
 
   @IsString()
   destination: string
+
+  @IsString()
+  provider: TransferClientName
 
   invoice?: Buffer
 

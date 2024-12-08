@@ -80,6 +80,7 @@ export interface ApproveTransfer {
   accountNumber: string
   auth: AuthUser
   requester: string
+  provider: TransferClientName
   to?: string
   category?: string
   saveRecipient?: boolean
@@ -298,6 +299,7 @@ export class WalletTransferService {
         bankCode: data.bankCode,
         wallet: wallet._id.toString(),
         auth,
+        provider: data.provider,
         requester: auth.userId,
         category: data.category,
         invoiceUrl,
@@ -330,7 +332,8 @@ export class WalletTransferService {
           bankCode: data.bankCode,
           bankName: resolveRes.bankName,
           invoice: invoiceUrl,
-          category: category._id
+          category: category._id,
+          provider: data.provider
         }
       }
     })
@@ -394,6 +397,7 @@ export class WalletTransferService {
       bankCode: destinationVirtualAccount.bankCode,
       wallet: wallet._id.toString(),
       auth,
+      provider: data.provider,
       requester: auth.userId,
       saveRecipient: false,
     })
@@ -412,7 +416,8 @@ export class WalletTransferService {
       throw new NotFoundError('Organization does not exist')
     }
     const fee = await this.calcTransferFee(orgId, data.amount, wallet.currency)
-    const provider = TransferClientName.SafeHaven // could be dynamic in the future
+    // const provider = TransferClientName.SafeHaven
+    const provider = data.provider
     const amountToDeduct = numeral(data.amount).add(fee).value()!
     const payload: TransferRecordData = {
       auth: { userId: data.auth.userId, orgId },
