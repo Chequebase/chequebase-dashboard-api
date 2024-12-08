@@ -350,6 +350,7 @@ export class BudgetTransferService {
         bankCode: data.bankCode,
         budget: budgetId,
         auth,
+        provider: data.provider,
         requester: auth.userId,
         category: data.category,
         invoiceUrl,
@@ -381,6 +382,7 @@ export class BudgetTransferService {
           amount: data.amount,
           bankCode: data.bankCode,
           bankName: resolveRes.bankName,
+          provider: data.provider,
           invoice: invoiceUrl,
           category: category._id
         }
@@ -436,7 +438,8 @@ export class BudgetTransferService {
       throw new NotFoundError('Organization does not exist')
     }
     const fee = await this.calcTransferFee(orgId, data.amount, budget.currency)
-    const provider = TransferClientName.SafeHaven // could be dynamic in the future
+    // const provider = TransferClientName.SafeHaven
+    const provider = data.provider
     const amountToDeduct = numeral(data.amount).add(fee).value()!
     const payload = {
       auth: { userId: data.auth.userId, orgId },
