@@ -73,7 +73,7 @@ export class PayrollSchedule {
   @ValidateIf((o) => o.mode === PayrollScheduleMode.Fixed)
   @IsNumber({}, { message: "Day of month must be a valid number." })
   @Min(1, { message: "Day of month must be at least 1." })
-  @Max(28, { message: "Day of month cannot exceed 28." })
+  @Max(31, { message: "Day of month cannot exceed 31." })
   dayOfMonth?: number;
 }
 
