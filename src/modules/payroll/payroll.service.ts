@@ -1,6 +1,5 @@
 import ApprovalRequest, {
-  ApprovalRequestPriority,
-  ApprovalRequestReviewStatus,
+  ApprovalRequestPriority
 } from "@/models/approval-request.model";
 import ApprovalRule, {
   ApprovalType,
@@ -11,12 +10,14 @@ import Organization, { IOrganization } from "@/models/organization.model";
 import PayrollPayout, {
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
+import PayrollSetting from "@/models/payroll/payroll-settings.model";
 import PayrollUser, { IPayrollUser } from "@/models/payroll/payroll-user.model";
 import Payroll, {
   IPayroll,
   PayrollApprovalStatus,
   PayrollStatus,
 } from "@/models/payroll/payroll.model";
+import { ISubscriptionPlan } from "@/models/subscription-plan.model";
 import User, { IUser, UserStatus } from "@/models/user.model";
 import VirtualAccount, {
   IVirtualAccount,
@@ -28,14 +29,17 @@ import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import timezone from "dayjs/plugin/timezone";
+import isBetween from "dayjs/plugin/isBetween";
 import utc from "dayjs/plugin/utc";
 import * as fastCsv from "fast-csv";
 import { ObjectId } from "mongodb";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import Container, { Service } from "typedi";
+import { Service } from "typedi";
 import { AnchorService } from "../common/anchor.service";
+import EmailService from "../common/email.service";
 import { AuthUser } from "../common/interfaces/auth-user";
+import redis from "../common/redis";
 import {
   formatMoney,
   getEnvOrThrow,
@@ -46,7 +50,9 @@ import {
 } from "../common/utils";
 import { getDates } from "../common/utils/date";
 import { TransferClientName } from "../transfer/providers/transfer.client";
+import { UserService } from "../user/user.service";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
+import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import {
   AddBulkPayrollUserDto,
   AddPayrollUserDto,
@@ -60,14 +66,9 @@ import {
   ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
-import EmailService from "../common/email.service";
-import { UserService } from "../user/user.service";
-import { VirtualAccountService } from "../virtual-account/virtual-account.service";
-import redis from "../common/redis";
-import { ISubscriptionPlan } from "@/models/subscription-plan.model";
-import PayrollSetting from "@/models/payroll/payroll-settings.model";
 
 dayjs.extend(isSameOrAfter);
+dayjs.extend(isBetween);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 const tz = "Africa/Lagos";
@@ -278,18 +279,18 @@ export class PayrollService {
       .unwind("$payout")
       .group({
         _id: {
-          date: { $dateToString: { format: "%Y-%m", date: "$date" } },
+          date: { $dateToString: { format: "%Y-%m", date: "$date", timezone: tz } },
           currency: "$payout.currency",
         },
         amount: { $sum: "$payout.amount" },
       });
 
-    const from = dayjs().startOf("year").toDate();
-    const to = dayjs().endOf("year").toDate();
+    const from = dayjs.tz().startOf("year").toDate();
+    const to = dayjs.tz().endOf("year").toDate();
     const boundaries = getDates(from, to, "month");
-    const trend = boundaries.map((boundary: any) => {
+    const trend = boundaries.map((boundary) => {
       const match = result.filter((t) =>
-        dayjs(t.date).isBetween(boundary.from, boundary.to, null, "[]")
+        dayjs.tz(t._id.date).isBetween(boundary.from, boundary.to, null, "[]")
       );
 
       return {
