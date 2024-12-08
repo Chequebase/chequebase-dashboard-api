@@ -1047,7 +1047,7 @@ export class PayrollService {
       return { message: "Payroll already setup", completed: true };
     }
 
-    await this.createWallet(organization);
+    // await this.createWallet(organization);
     await this.migrateInternalUsers(orgId);
     await PayrollSetting.create({ organization: orgId });
 
