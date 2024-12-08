@@ -138,7 +138,7 @@ export default class MonoWebhookHandler {
   }
 
   processWebhook(body: any, headers: any) {
-    const expectedHmac = headers['x-mono-signature']
+    const expectedHmac = headers['mono-webhook-secret']
     const calcuatedHmac = this.createHmac(body)
     if (calcuatedHmac !== expectedHmac) {
       this.logger.error('invalid webhhook', { expectedHmac, calcuatedHmac })
@@ -154,16 +154,12 @@ export default class MonoWebhookHandler {
 
 
     switch (data.type as  typeof allowedWebooks[number]) {
-      case 'payment.settled':
-        return this.onPaymentSettled(body)
-      case 'nip.transfer.successful':
-      case 'nip.transfer.failed':
-      case 'nip.transfer.reversed':
-        return this.onTransferEvent(body)
-      // case 'book.transfer.successful':
-      // case 'book.transfer.failed':
-      // case 'book.transfer.reversed':
-      //   return this.onBookTransferEvent(body)
+      case 'events.mandates.created':
+      case 'events.mandates.approved':
+      case 'events.mandates.ready':
+      case 'events.mandates.debit.processing':
+      case 'events.mandates.debit.success':
+      case 'events.mandates.debit.successful':
       default:
         this.logger.log('unhandled event', { event: data.type })
         break;
@@ -174,20 +170,10 @@ export default class MonoWebhookHandler {
 }
 
 const allowedWebooks = [
-  "nip.transfer.failed",
-  "nip.transfer.successful",
-  "nip.transfer.reversed",
-  // "book.transfer.failed",
-  // "book.transfer.successful",
-  // "book.transfer.reversed",
-  "payment.settled",
-  "customer.created",
-  "customer.identification.awaitingDocument",
-  "customer.identification.approved",
-  "customer.identification.rejected",
-  "document.approved",
-  "document.rejected",
-  // "account.closed",
-  // "account.frozen",
-  // "account.unfrozen",
+  "events.mandates.created",
+  "events.mandates.approved",
+  "events.mandates.ready",
+  "events.mandates.debit.processing",
+  "events.mandates.debit.success",
+  "events.mandates.debit.successful",
 ] as const

@@ -418,15 +418,15 @@ export default class WalletService {
 //       type: "static",
 //       identity: {
 //         type: "bvn",
-//         number: '22158686738',
+//         number: '22268655835',
 //       },
-//       rcNumber: '196011',
+//       // rcNumber: '196011',
 
 //       currency: "NGN",
 //       email: 'Uokezie@gmail.com',
 //       phone: '07036647732',
-//       name: 'St Therese of the Child Jesus Organisation',
-//       customerId: '6749b4cb7a46001b36cd2d0e',
+//       name: 'Business Name Po',
+//       customerId: '6724cc4a0cc11ef3a0fc5387',
 //       provider,
 //       reference: accountRef,
 //     });

@@ -7,7 +7,7 @@ export class AnchorHeaderDto {
 
 export class MonoHeaderDto {
   @IsString()
-  'x-mono-signature': string
+  'mono-webhook-secret': string
 }
 
 export class PaystackHeaderDto {
