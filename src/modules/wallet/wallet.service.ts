@@ -187,7 +187,7 @@ export default class WalletService {
       .select('primary currency balance ledgerBalance type')
       .populate({
         path: 'virtualAccounts',
-        select: 'accountNumber bankName bankCode name'
+        select: 'accountNumber bankName bankCode name provider'
       })
       .lean()
 
