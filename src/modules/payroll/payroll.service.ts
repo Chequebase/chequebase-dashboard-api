@@ -428,7 +428,6 @@ export class PayrollService {
       payoutStats?.find((p: any) => p._id === status)?.count || 0;
 
     let employeeCount = payouts.length;
-
     let currentDeduction = payroll.totalGrossAmount - payroll.totalNetAmount;
     let currentAmount = payroll.totalNetAmount;
 
