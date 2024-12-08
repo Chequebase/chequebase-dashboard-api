@@ -817,7 +817,7 @@ export class PayrollService {
       throw new BadRequestError("Payroll not found");
     }
 
-    if (payroll.approvalStatus === PayrollApprovalStatus.Approved) {
+    if (payroll.approvalStatus !== PayrollApprovalStatus.Approved) {
       throw new BadRequestError("Payroll is not approved");
     }
 
