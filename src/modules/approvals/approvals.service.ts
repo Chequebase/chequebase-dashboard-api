@@ -332,6 +332,7 @@ export class ApprovalService {
             bankCode: trnx.bankCode,
             budget: budgetId,
             auth,
+            provider: trnx.provider,
             requester: request.requester._id,
             category: trnx.category
           })
@@ -343,9 +344,10 @@ export class ApprovalService {
             amount: trnx.amount,
             bankCode: trnx.bankCode,
             auth,
+            provider: trnx.provider,
             requester: request.requester._id,
-            category: trnx.category
-          })
+            category: trnx.category,
+          });
         }
         break;
       case WorkflowType.Payroll:
