@@ -525,26 +525,18 @@ export class PayrollService {
   }
 
   async updatePayrollSetting(orgId: string, payload: UpdatePayrollSettingDto) {
-    let setting = await PayrollSetting.findOne({ organization: orgId });
-    if (!setting) {
-      setting = await PayrollSetting.create({ organization: orgId });
-    }
-
-    setting = await PayrollSetting.findByIdAndUpdate(
-      setting._id,
+    let setting = await PayrollSetting.findOneAndUpdate(
+      { organization: orgId },
       { deductions: payload.deductions },
       { new: true }
     ).lean();
 
-    const today = dayjs().tz(tz);
-    await Payroll.findOneAndUpdate({
-      organization: orgId,
-      periodStartDate: today.startOf("month").toDate(),
-      periodEndDate: today.endOf("month").toDate(),
-      approvalStatus: {
-        $nin: [PayrollApprovalStatus.InReview, PayrollApprovalStatus.Approved],
-      },
-    });
+    if (!setting) {
+      setting = await PayrollSetting.create({
+        organization: orgId,
+        deduction: payload.deductions,
+      });
+    }
 
     return setting;
   }
