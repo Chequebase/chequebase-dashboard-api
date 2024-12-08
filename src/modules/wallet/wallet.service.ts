@@ -199,7 +199,7 @@ export default class WalletService {
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
       .populate({
         path: 'virtualAccounts',
-        select: 'accountNumber bankName bankCode name'
+        select: 'accountNumber bankName bankCode name provider'
       })
       .lean()
     if (!wallet) {
