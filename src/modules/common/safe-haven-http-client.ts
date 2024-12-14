@@ -24,7 +24,7 @@ export class SafeHavenHttpClient {
     this.logger = new Logger(SafeHavenHttpClient.name);
     this.axios = axios.create({ baseURL });
     this.axios.interceptors.request.use(this.injectTokenInterceptor, (err) => {
-      this.logger.error("failedd to inject acess token", {
+      this.logger.error("failed to inject acess token", {
         message: err?.message,
       });
       return Promise.reject(err);
