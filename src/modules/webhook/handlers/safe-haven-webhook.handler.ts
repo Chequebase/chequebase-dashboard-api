@@ -63,7 +63,7 @@ export default class SafeHavenWebhookHandler {
   processWebhook(body: any) {
     const { data, type } = body;
     if (!allowedWebooks.includes(type)) {
-      this.logger.log("event type not allowed", { event: type });
+      this.logger.log("event type not allowedd", { event: type });
       return { message: "webhook_logged" };
     }
 
