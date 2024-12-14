@@ -1,6 +1,6 @@
-import { TransferClientName } from "@/modules/transfer/providers/transfer.client";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
 import { Transform } from "class-transformer";
-import { IsBoolean, IsInt, IsOptional, IsString, Length } from "class-validator";
+import { IsBoolean, IsInt, IsString, Length } from "class-validator";
 
 export const enum IPaymentSource {
   WALLET = 'wallet',

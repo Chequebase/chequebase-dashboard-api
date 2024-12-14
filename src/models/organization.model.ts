@@ -96,6 +96,7 @@ export interface IOrganization {
   kycRejectionLevel: string
   kycRejectionDescription: string
   kycRejectReason?: string
+  sudoCustomerId: string
   createdAt: Date
   updatedAt: Date
 }
@@ -184,6 +185,7 @@ const organizationSchma = new Schema<IOrganization>(
     anchor: anchorSchema,
     kycRejectionLevel: String,
     kycRejectionDescription: String,
+    sudoCustomerId: String,
     subscription: {
       _id: false,
       type: {

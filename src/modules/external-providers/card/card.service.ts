@@ -1,17 +1,17 @@
 import Container, { Service } from "typedi";
 import ProviderRegistry from "./provider-registry";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
-import Logger from "../common/utils/logger";
 import { BadRequestError } from "routing-controllers";
 import {
   InitiateTransferData,
-  TransferClient,
+  CardClient,
   VerifyTransferData,
-} from "./providers/transfer.client";
+} from "./providers/card.client";
+import Logger from "@/modules/common/utils/logger";
+import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 
 @Service()
-export class TransferService {
-  logger = new Logger(TransferService.name);
+export class CardService {
+  logger = new Logger(CardService.name);
 
   private getClient(provider: string, currency: string) {
     const token = ProviderRegistry.get(provider);
@@ -20,7 +20,7 @@ export class TransferService {
       throw new ServiceUnavailableError("Provider is not unavailable");
     }
 
-    const client = Container.get<TransferClient>(token);
+    const client = Container.get<CardClient>(token);
     if (!client.currencies.includes(currency)) {
       this.logger.error("provider not supported", { provider, currency });
       throw new BadRequestError("Currency not supported by provider");

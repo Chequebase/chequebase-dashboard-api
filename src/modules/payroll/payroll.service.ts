@@ -27,9 +27,9 @@ import { payrollQueue } from "@/queues";
 import { IProcessPayroll } from "@/queues/jobs/payroll/process-payroll.job";
 import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
+import isBetween from "dayjs/plugin/isBetween";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import timezone from "dayjs/plugin/timezone";
-import isBetween from "dayjs/plugin/isBetween";
 import utc from "dayjs/plugin/utc";
 import * as fastCsv from "fast-csv";
 import { ObjectId } from "mongodb";
@@ -49,10 +49,7 @@ import {
   toTitleCase,
 } from "../common/utils";
 import { getDates } from "../common/utils/date";
-import { TransferClientName } from "../transfer/providers/transfer.client";
 import { UserService } from "../user/user.service";
-import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
-import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import {
   AddBulkPayrollUserDto,
   AddPayrollUserDto,
@@ -66,6 +63,9 @@ import {
   ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
+import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
+import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
+import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isBetween);

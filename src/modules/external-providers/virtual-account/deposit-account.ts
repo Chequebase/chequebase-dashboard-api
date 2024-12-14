@@ -1,9 +1,9 @@
 import { BadRequestError } from "routing-controllers";
 import Container, { Service } from "typedi";
-import Logger from "../common/utils/logger";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
 import ProviderRegistry from "./provider-registry";
 import { CreateDepositAccountData, DepositAccountClient } from "./providers/virtual-account.client";
+import Logger from "@/modules/common/utils/logger";
+import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 
 @Service()
 export class DepositAccountService {

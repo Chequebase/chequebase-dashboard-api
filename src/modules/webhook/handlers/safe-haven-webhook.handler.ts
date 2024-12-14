@@ -1,6 +1,6 @@
 import { AllowedSlackWebhooks, SlackNotificationService } from "@/modules/common/slack/slackNotification.service";
 import Logger from "@/modules/common/utils/logger";
-import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/transfer/providers/safe-haven.client";
+import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/external-providers/transfer/providers/safe-haven.client";
 import { walletQueue } from "@/queues";
 import {
   WalletInflowData, WalletInflowDataNotification

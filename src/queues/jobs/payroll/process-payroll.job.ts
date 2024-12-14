@@ -3,19 +3,17 @@ import PayrollPayout, {
   PayrollPayoutStatus,
 } from "@/models/payroll/payroll-payout.model";
 import Payroll, { PayrollStatus } from "@/models/payroll/payroll.model";
+import { IVirtualAccount } from "@/models/virtual-account.model";
 import WalletEntry, {
-  IWalletEntry,
   WalletEntryScope,
   WalletEntryStatus,
-  WalletEntryType,
+  WalletEntryType
 } from "@/models/wallet-entry.model";
 import Wallet from "@/models/wallet.model";
 import { BudgetTransferService } from "@/modules/budget/budget-transfer.service";
 import { cdb } from "@/modules/common/mongoose";
 import { transactionOpts } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
-import { InitiateTransferData } from "@/modules/transfer/providers/transfer.client";
-import { TransferService } from "@/modules/transfer/transfer.service";
 import { walletQueue } from "@/queues";
 import { createId } from "@paralleldrive/cuid2";
 import { Job } from "bull";
@@ -27,8 +25,9 @@ import numeral from "numeral";
 import { BadRequestError } from "routing-controllers";
 import Container from "typedi";
 import { RequeryOutflowJobData } from "../wallet/requery-outflow.job";
-import { IVirtualAccount } from "@/models/virtual-account.model";
 import payoutReconciliation from "./payout-reconciliation";
+import { TransferService } from "@/modules/external-providers/transfer/transfer.service";
+import { InitiateTransferData } from "@/modules/external-providers/transfer/providers/transfer.client";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

@@ -15,18 +15,16 @@ import * as fastCsv from 'fast-csv';
 import { ObjectId } from 'mongodb';
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import Container, { Service } from "typedi";
+import { Service } from "typedi";
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
 import { cdb, isValidObjectId } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
-import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
-import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
-import { BaseWalletType } from "../banksphere/providers/customer.client";
-import { SAFE_HAVEN_VA_TOKEN, SafeHavenVirtualAccountClient } from "../virtual-account/providers/safe-haven.client";
+import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
+import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)

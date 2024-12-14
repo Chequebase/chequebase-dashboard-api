@@ -11,7 +11,7 @@ import {
   TransferClient
 } from "./transfer.client";
 
-interface TransferPayload {
+export interface TransferPayload {
   nameEnquiryReference: string;
   debitAccountNumber?: string;
   beneficiaryBankCode: string;

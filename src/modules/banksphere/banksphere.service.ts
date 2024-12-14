@@ -1,6 +1,5 @@
 import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
-import { ObjectId } from 'mongodb'
 import { S3Service } from '@/modules/common/aws/s3.service';
 import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto, RejectKYCDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
@@ -12,7 +11,6 @@ import { ServiceUnavailableError } from '../common/utils/service-errors';
 import Logger from '../common/utils/logger';
 import { BaseWalletType, CustomerClient, CustomerClientName, KycValidation, UploadCustomerDocuments } from './providers/customer.client';
 import WalletService from '../wallet/wallet.service';
-import { VirtualAccountClientName } from '../virtual-account/providers/virtual-account.client';
 import EmailService from '../common/email.service';
 import { createId } from '@paralleldrive/cuid2';
 import dayjs from 'dayjs';
@@ -24,6 +22,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { WalletType } from '@/models/wallet.model';
+import { VirtualAccountClientName } from '../external-providers/virtual-account/providers/virtual-account.client';
 
 
 @Service()
