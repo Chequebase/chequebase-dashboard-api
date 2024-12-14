@@ -1,4 +1,5 @@
 export type CreateCustomerData = {
+  provider: CardClientName
   name: string;
   firstName: string
   lastName: string
@@ -22,6 +23,7 @@ export type CreateCustomerResponse= {
 }
 
 export type CreateCardData = {
+  provider: CardClientName
   customerId: string;
   type: 'virtual' | 'physical';
   brand: "verve" | "mastercard" | "visa";
