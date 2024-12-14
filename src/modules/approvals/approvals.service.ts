@@ -358,7 +358,7 @@ export class ApprovalService {
         };
         break;
       default:
-        logger.error('invalid workflow type', { request: request._id, workflowType: request.workflowType })
+        logger.error('invalid workkflow type', { request: request._id, workflowType: request.workflowType })
         throw new BadRequestError("Something went wrong")
     }
 
