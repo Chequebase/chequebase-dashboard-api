@@ -267,6 +267,7 @@ export class UserService {
     }
 
     const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
+    console.log({ ownerRole })
     if (!ownerRole) {
       logger.error('role not found', { name: 'owner', type: 'default' })
       throw new ServiceUnavailableError('Unable to complete registration at this time')
