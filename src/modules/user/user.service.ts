@@ -252,7 +252,9 @@ export class UserService {
 
   async newRegister(data: NewRegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    console.log({ email: $regex, data })
     const userExists = await User.findOne({ email: { $regex } })
+    console.log({ userExists })
     if (userExists) {
       if (!userExists.emailVerified) {
         const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
