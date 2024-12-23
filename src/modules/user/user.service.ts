@@ -22,7 +22,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/
 import Logger from "../common/utils/logger";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import WalletService from "../wallet/wallet.service";
-import { AddEmployeeDto, CreateEmployeeDto, ERole, GetAllMembersQueryDto, GetMembersQueryDto, LoginDto, NewRegisterDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
+import { AddEmployeeDto, CreateEmployeeDto, ERole, GetAllMembersQueryDto, GetMembersQueryDto, LoginDto, NewRegisterDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, RegisterIndividualDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import TransferCategory from "@/models/transfer-category";
 
@@ -329,7 +329,7 @@ export class UserService {
     return { message: "User created, check your email for verification link" };
   }
 
-  async registerIndividual(data: NewRegisterDto) {
+  async registerIndividual(data: RegisterIndividualDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     console.log({ email: $regex, data })
     const userExists = await User.findOne({ email: { $regex } })
