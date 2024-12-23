@@ -73,10 +73,6 @@ export class RegisterIndividualDto {
   phone: string
 
   @IsString()
-  @IsOptional()
-  businessName: string
-
-  @IsString()
   @MinLength(6)
   password: string;
 
