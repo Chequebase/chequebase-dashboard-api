@@ -34,6 +34,7 @@ import {
   PreRegisterDto,
   GetAllMembersQueryDto,
   NewRegisterDto,
+  RegisterIndividualDto,
 } from "./dto/user.dto";
 import { UserService } from "./user.service";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
@@ -105,6 +106,11 @@ export default class UserController {
   @Post("/register-new")
   newRegister(@Body() newRegisterDto: NewRegisterDto) {
     return this.userService.newRegister(newRegisterDto);
+  }
+
+  @Post("/individual/register")
+  registerIndividual(@Body() registerIndividualDto: RegisterIndividualDto) {
+    return this.userService.registerIndividual(registerIndividualDto);
   }
 
   @Post("/login")
