@@ -91,7 +91,7 @@ export class MonoTransferClient {
 
   async createMandate(payload: CreateMandateData): Promise<InitiateTransferResult> {
     const todayFormatted = dayjs().format('YYYY-MM-DD');
-    const tenYearsLaterFormatted = dayjs().add(10, 'year').format('YYYY-MM-DD');
+    const oneYearsLaterFormatted = dayjs().add(1, 'year').format('YYYY-MM-DD');
 
     const data = {
         amount: payload.amount,
@@ -105,7 +105,7 @@ export class MonoTransferClient {
         bank_code: payload.bankCode,
         customer: payload.customer,
         start_date: todayFormatted,
-        end_date: tenYearsLaterFormatted
+        end_date: oneYearsLaterFormatted
     }
 
     try {

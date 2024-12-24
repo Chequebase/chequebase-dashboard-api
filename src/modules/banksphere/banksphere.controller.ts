@@ -41,6 +41,13 @@ export default class BanksphereController {
     return this.banksphereService.createCustomer(data)
   }
 
+  @Post('/compliance/submit-mono')
+  @UseBefore(publicApiGuard)
+  @Authorized(BanksphereRole.Admin)
+  createMonoCustomer(@Body() data: CreateCustomerDto) {
+    return this.banksphereService.createMonoCustomer(data)
+  }
+
   @Put('/compliance/update-requirements')
   @UseBefore(publicApiGuard)
   @Authorized(BanksphereRole.Admin)
