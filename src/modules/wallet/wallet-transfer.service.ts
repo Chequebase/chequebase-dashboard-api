@@ -31,7 +31,7 @@ import EmailService from "../common/email.service"
 import { IVirtualAccount } from "@/models/virtual-account.model";
 import { walletQueue } from "@/queues"
 import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
-import { MONO_TOKEN, MonoTransferClient } from "../transfer/providers/mono.client";
+import { MonoService } from "../common/mono.service";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -106,7 +106,7 @@ export class WalletTransferService {
     private transferService: TransferService,
     private s3Service: S3Service,
     private anchorService: AnchorService,
-    private monoClient: MonoTransferClient,
+    private monoClient: MonoService,
     private emailService: EmailService,
   ) { }
 

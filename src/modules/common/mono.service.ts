@@ -1,7 +1,6 @@
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { getEnvOrThrow } from "@/modules/common/utils";
-import { CreateMandateData, InitiateDirectDebit, InitiateMandateData, InitiateMandateResult, InitiateTransferData, InitiateTransferResult, TransferClient } from "./transfer.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { NotFoundError } from "routing-controllers";
@@ -9,8 +8,7 @@ import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-
-export const MONO_TOKEN = new Token('transfer.provider.mono')
+import { InitiateDirectDebit, InitiateMandateData, InitiateMandateResult } from "../transfer/providers/transfer.client";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
@@ -18,10 +16,10 @@ dayjs.extend(timezone);
 const tz = "Africa/Lagos";
 dayjs.tz.setDefault(tz);
 
-@Service({ id: MONO_TOKEN })
-export class MonoTransferClient {
+@Service()
+export class MonoService {
   currencies = ['NGN']
-  private logger = new Logger(MonoTransferClient.name)
+  private logger = new Logger(MonoService.name)
   private http = axios.create({
     baseURL: getEnvOrThrow('MONO_BASE_URI'),
     headers: {
