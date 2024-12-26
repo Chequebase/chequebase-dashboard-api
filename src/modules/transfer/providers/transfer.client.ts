@@ -19,10 +19,21 @@ export interface InitiateMandateData {
   reference: string
   currency: string
   narration: string
-  redirectUrl: string
+  redirectUrl?: string
   customer: string
 }
 
+export interface InitiateDirectDebit {
+  amount: number
+  mandateId: string
+  reference: string
+  currency: string
+  narration: string
+  beneficiary: {
+    bankCode: string
+    accountNumber: string
+  }
+}
 export interface CreateMandateData {
   amount: number
   reference: string
@@ -49,10 +60,21 @@ export interface InitiateTransferResult {
   gatewayResponse: string
 }
 
+
+export interface InitiateMandateResult {
+  mandateId?: string
+  url?: string
+  status: string
+  reference: string
+  message: string
+  gatewayResponse: string
+}
+
 export enum TransferClientName {
   Anchor = 'anchor',
   SafeHaven = 'safe-haven',
-  SarePay = 'sarepay'
+  SarePay = 'sarepay',
+  Mono = 'mono'
 }
 
 export abstract class TransferClient {

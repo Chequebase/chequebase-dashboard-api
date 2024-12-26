@@ -123,4 +123,31 @@ export default class WalletController {
   ) {
     return this.walletTransferService.initiateInternalTransfer(auth, id, body)
   }
+
+  @Post('/linked/initiate')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async initiateAccountLink(
+    @CurrentUser() auth: AuthUser,
+  ) {
+
+    return this.walletTransferService.initiateAccountLink(auth)
+  }
+
+  @Post('/linked/debit')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(multer().single('invoice'))
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async initiateDirectDebit(
+    @CurrentUser() auth: AuthUser,
+    @Req() req: Request,
+  ) {
+    const file = req.file as any
+    const dto = plainToInstance(InitiateTransferDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', invoice: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) {
+      throw { errors }
+    }
+    return this.walletTransferService.initiateDirectDebit(auth, dto)
+  }
 }
