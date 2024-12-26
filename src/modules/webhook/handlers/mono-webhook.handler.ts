@@ -10,13 +10,13 @@ import { BadRequestError, UnauthorizedError } from 'routing-controllers';
 import { RequiredDocumentsJobData, KYCProviderData } from '@/queues/jobs/organization/processRequiredDocuments';
 import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common/slack/slackNotification.service';
 import WalletEntry from '@/models/wallet-entry.model';
-import { MONO_TOKEN, MonoTransferClient } from '@/modules/transfer/providers/mono.client';
+import { MonoService } from '@/modules/common/mono.service';
 
 @Service()
 export default class MonoWebhookHandler {
   private logger = new Logger(MonoWebhookHandler.name)
 
-  constructor (@Inject(MONO_TOKEN) private monoTransferClient: MonoTransferClient, private slackNotificationService: SlackNotificationService) { }
+  constructor (private monoTransferClient: MonoService, private slackNotificationService: SlackNotificationService) { }
 
   private async onPaymentSettled(body: any) {
     const payment = body.data.attributes.payment
