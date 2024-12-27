@@ -140,6 +140,7 @@ export default class MonoWebhookHandler {
   processWebhook(body: any, headers: any) {
     const expectedHmac = headers['mono-webhook-secret']
     const calcuatedHmac = this.createHmac(body)
+    console.log({ body })
     if (calcuatedHmac !== expectedHmac) {
       this.logger.error('invalid webhhook', { expectedHmac, calcuatedHmac })
       throw new UnauthorizedError('Invalid webhook')
@@ -147,6 +148,7 @@ export default class MonoWebhookHandler {
 
     body = JSON.parse(body)
     const { data } = body;
+    console.log({ data })
     if (!allowedWebooks.includes(data.type)) {
       this.logger.log('event type not allowed', { event: data.type })
       return { message: 'webhook_logged' }
