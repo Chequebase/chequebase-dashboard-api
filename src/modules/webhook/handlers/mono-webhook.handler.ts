@@ -138,6 +138,7 @@ export default class MonoWebhookHandler {
   }
 
   processWebhook(body: any, headers: any) {
+    console.log({ body, headers })
     const expectedHmac = headers['mono-webhook-secret']
     const calcuatedHmac = this.createHmac(body)
     console.log({ body })
