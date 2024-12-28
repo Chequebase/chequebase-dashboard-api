@@ -17,7 +17,7 @@ dayjs.extend(timezone);
 const tz = "Africa/Lagos";
 dayjs.tz.setDefault(tz);
 
-@Service({ id: MONO_TOKEN })
+@Service()
 export class MonoService {
   currencies = ['NGN']
   private logger = new Logger(MonoService.name)
