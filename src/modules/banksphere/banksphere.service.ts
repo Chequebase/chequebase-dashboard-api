@@ -677,7 +677,7 @@ export class BanksphereService {
 // async function run() {
 //   const vaClient = Container.get<MonoCustomerClient>(MONO_TOKEN)
 
-//   const organization = await Organization.findById('67247d0aab9ba70661ca2169').lean()
+//   const organization = await Organization.findById('674b69bc83f04a05e67aacfd').lean()
 //   if (!organization) throw new NotFoundError('Organization not found')
 //   // const baseWallet = BaseWalletType.NGN
 //   // const walletId = new ObjectId()

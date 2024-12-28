@@ -29,8 +29,9 @@ export class MonoService {
   })
 
   async initiateMandate(payload: InitiateMandateData): Promise<InitiateMandateResult> {
-    const todayFormatted = dayjs().add(2, 'day').format('YYYY-MM-DD');
-    const tenYearsLaterFormatted = dayjs().add(3, 'day').format('YYYY-MM-DD');
+    const todayFormatted = dayjs().format('YYYY-MM-DD');
+    // TODO: remeber to change to 1 year
+    const tenYearsLaterFormatted = dayjs().add(1, 'day').format('YYYY-MM-DD');
     const data = {
         amount: payload.amount,
         type: "recurring-debit",

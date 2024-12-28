@@ -890,17 +890,17 @@ export class WalletTransferService {
 // async function run() {
 //   const vClient = Container.get<MonoService>(MONO_TOKEN)
 //   try {
-//     const user = await User.findById('67247d0aab9ba70661ca2167').lean()
-//     if (!user) {
-//       throw new NotFoundError('User does not exist')
-//     }
+//     // const user = await User.findById('67247d0aab9ba70661ca2167').lean()
+//     // if (!user) {
+//     //   throw new NotFoundError('User does not exist')
+//     // }
 
-//     const org = await Organization.findById('67247d0aab9ba70661ca2169')
+//     const org = await Organization.findById('674b69bc83f04a05e67aacfd')
 //     if (!org) {
 //       throw new NotFoundError('Wallet does not exist')
 //     }
 
-//     if (!org.mono?.customerId) {
+//     if (!org.monoCustomerId) {
 //       throw new NotFoundError('Mono Customer does not exist')
 //     }
 
@@ -908,9 +908,9 @@ export class WalletTransferService {
 //       throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
 //     }
 
-//     if (user.KYBStatus === KycStatus.NO_DEBIT) {
-//       throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
-//     }
+//     // if (user.KYBStatus === KycStatus.NO_DEBIT) {
+//     //   throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+//     // }
 
 //     const xx = [];
 //     let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -926,19 +926,13 @@ export class WalletTransferService {
 //       reference: `md${randomS}`,
 //       currency: 'NGN', /* make dynamic */
 //       narration: 'initiate mandate',
-//       customer: org.mono?.customerId,
+//       customer: org.monoCustomerId,
 //     })
 
-//     // also check the amount and status of the mandate
-//     const newOrg = await Organization.updateOne({ _id: org._id }, {
-//       mono: {
-//       ...(org.mono || {}),
-//       mandateId: result.mandateId,
-//       url: result.url,
-//       status: 'pending'
-//     }
-//   })
-//   console.log({ newOrg, result })
+//     console.log({ url: result.url })
+//     await Organization.updateOne({ _id: org._id }, {
+//       monoAuthUrl: result.url
+//     })
 //   return result.url
 // } catch (error) {
 //     console.log({ error })
