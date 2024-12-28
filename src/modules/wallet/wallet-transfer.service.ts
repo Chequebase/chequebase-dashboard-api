@@ -417,7 +417,7 @@ export class WalletTransferService {
       throw new NotFoundError('Wallet does not exist')
     }
 
-    if (!org.mono?.customerId) {
+    if (!org?.monoCustomerId) {
       throw new NotFoundError('Mono Customer does not exist')
     }
 
@@ -434,17 +434,12 @@ export class WalletTransferService {
       reference: `md${this.generateRandomString(12)}`,
       currency: 'NGN', /* make dynamic */
       narration: 'initiate mandate',
-      customer: org.mono?.customerId,
+      customer: org?.monoCustomerId,
     })
 
     // also check the amount and status of the mandate
   await Organization.updateOne({ _id: org._id }, {
-    mono: {
-      ...(org.mono || {}),
-      mandateId: result.mandateId,
-      url: result.url,
-      status: 'pending'
-    }
+    monoAuthUrl: result.url
   })
 
     return {
@@ -454,13 +449,17 @@ export class WalletTransferService {
     }
   }
 
-  async initiateDirectDebit(auth: AuthUser, data: InitiateTransferDto) {
+  async initiateDirectDebit(auth: AuthUser, walletId: string, data: InitiateTransferDto) {
     const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
     if (!validPin) {
       throw new BadRequestError('Invalid pin')
     }
 
-    // add wallet checks
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new NotFoundError('User does not exist')
@@ -470,7 +469,8 @@ export class WalletTransferService {
     if (!org) {
       throw new NotFoundError('Org does not exist')
     }
-    if (!org.mono?.mandateId) {
+
+    if (!(virtualAccount.externalRef && wallet.type === WalletType.LinkedAccount)) {
       throw new NotFoundError('Mandate does not exist')
     }
 
@@ -502,7 +502,7 @@ export class WalletTransferService {
 
     let invoiceUrl
     if (data.invoice) {
-      const key = `direct/${org.mono?.mandateId}/${createId()}.${data.fileExt || 'pdf'}`;
+      const key = `direct/${virtualAccount.externalRef}/${createId()}.${data.fileExt || 'pdf'}`;
       invoiceUrl = await this.s3Service.uploadObject(
         getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
         key,
@@ -515,7 +515,7 @@ export class WalletTransferService {
         accountNumber: data.accountNumber,
         amount: data.amount,
         bankCode: data.bankCode,
-        wallet: org.mono?.mandateId,
+        wallet: wallet._id.toString(),
         auth,
         provider: data.provider,
         requester: auth.userId,
@@ -542,7 +542,7 @@ export class WalletTransferService {
         status: user.equals(auth.userId) ? 'approved' : 'pending'
       })),
       properties: {
-        wallet: org.mono.mandateId,
+        wallet: wallet._id.toString(),
         transaction: {
           accountName: resolveRes.accountName,
           accountNumber: data.accountNumber,
@@ -560,7 +560,7 @@ export class WalletTransferService {
       this.emailService.sendTransactionApprovalRequest(reviewer.email, {
         amount: formatMoney(data.amount),
         currency: 'NGN',
-        wallet: org.mono?.mandateId,
+        wallet: wallet._id.toString(),
         employeeName: reviewer.firstName,
         link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
         requester: {
@@ -589,13 +589,19 @@ export class WalletTransferService {
       throw new NotFoundError('Organization does not exist')
     }
 
-    if (!organization.mono?.mandateId) {
+    const wallet = await this.getWallet(orgId, data.wallet)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+
+    if (!virtualAccount.externalRef) {
       throw new NotFoundError('Mandate does not exist')
     }
     // const provider = TransferClientName.SafeHaven
     const provider = data.provider
     const payload = {
-      wallet: organization.mono?.mandateId,
+      wallet: data.wallet,
       auth: { userId: data.auth.userId, orgId },
       category: data.category, data,
       provider, fee: 0,
@@ -606,7 +612,7 @@ export class WalletTransferService {
     const entry = await this.createDirectDebitRecord({ ...payload, counterparty })
     const transferResponse = await this.monoClient.initiateDirectDebit({
       amount: data.amount,
-      mandateId: organization.mono?.mandateId,
+      mandateId: virtualAccount.externalRef,
       reference: entry.reference,
       currency: 'NGN',
       narration: data.narration || 'initiate direct debit',

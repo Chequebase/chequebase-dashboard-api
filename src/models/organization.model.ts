@@ -104,6 +104,7 @@ export interface IOrganization {
   monoCustomerId?: string
   readyToDebit?: boolean
   mandateApproved?: boolean
+  monoAuthUrl?: string
   kycRejectionLevel: string
   kycRejectionDescription: string
   kycRejectReason?: string
@@ -202,6 +203,7 @@ const organizationSchma = new Schema<IOrganization>(
     anchor: anchorSchema,
     mono: monoSchema,
     monoCustomerId: String,
+    monoAuthUrl: String,
     readyToDebit: Boolean,
     mandateApproved: Boolean,
     kycRejectionLevel: String,

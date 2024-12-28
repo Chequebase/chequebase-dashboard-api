@@ -134,12 +134,13 @@ export default class WalletController {
     return this.walletTransferService.initiateAccountLink(auth)
   }
 
-  @Post('/linked/debit')
+  @Post('/linked/:id/debit')
   @Authorized(EPermission.WalletTransfer)
   @UseBefore(multer().single('invoice'))
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
   async initiateDirectDebit(
     @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
     @Req() req: Request,
   ) {
     const file = req.file as any
@@ -148,6 +149,6 @@ export default class WalletController {
     if (errors.length) {
       throw { errors }
     }
-    return this.walletTransferService.initiateDirectDebit(auth, dto)
+    return this.walletTransferService.initiateDirectDebit(auth, id, dto)
   }
 }

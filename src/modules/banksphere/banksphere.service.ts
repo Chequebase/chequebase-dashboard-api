@@ -235,10 +235,9 @@ export class BanksphereService {
         if (organization.businessName === 'default-') {
           const result = await client.createIndividualCustomer({ organization, provider: data.provider })
           await Organization.updateOne({ _id: organization._id }, {
-            monoCustomerId: result.id, 
+            monoCustomerId: result.id,
             readyToDebit: false,
-            mandateApproved: false,
-            mono: { customerId: result.id }
+            mandateApproved: false
           })
           return result
         }
@@ -247,8 +246,7 @@ export class BanksphereService {
         await Organization.updateOne({ _id: organization._id }, {
           monoCustomerId: result.id,
           readyToDebit: false,
-          mandateApproved: false,
-          mono: { customerId: result.id }
+          mandateApproved: false
         })
         return result
       } catch (err: any) {
