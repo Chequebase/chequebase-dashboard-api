@@ -9,6 +9,7 @@ import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { InitiateDirectDebit, InitiateMandateData, InitiateMandateResult } from "../transfer/providers/transfer.client";
+import { MONO_TOKEN } from "../banksphere/providers/mono.client";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
@@ -16,7 +17,7 @@ dayjs.extend(timezone);
 const tz = "Africa/Lagos";
 dayjs.tz.setDefault(tz);
 
-@Service()
+@Service({ id: MONO_TOKEN })
 export class MonoService {
   currencies = ['NGN']
   private logger = new Logger(MonoService.name)

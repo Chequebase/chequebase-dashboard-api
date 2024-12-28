@@ -140,29 +140,32 @@ export default class MonoWebhookHandler {
   processWebhook(body: any, headers: any) {
     console.log({ body, headers })
     const expectedHmac = headers['mono-webhook-secret']
-    const calcuatedHmac = this.createHmac(body)
-    console.log({ body })
-    if (calcuatedHmac !== expectedHmac) {
-      this.logger.error('invalid webhhook', { expectedHmac, calcuatedHmac })
+    // const calcuatedHmac = this.createHmac(body)
+    const sec = getEnvOrThrow('MONO_WEBHOOK_SECRET')
+    if (sec !== expectedHmac) {
+      this.logger.error('invalid webhhook', { expectedHmac, sec })
       throw new UnauthorizedError('Invalid webhook')
     }
 
     body = JSON.parse(body)
-    const { data } = body;
+    const { data, event } = body;
     console.log({ data })
-    if (!allowedWebooks.includes(data.type)) {
+    if (!allowedWebooks.includes(event)) {
       this.logger.log('event type not allowed', { event: data.type })
       return { message: 'webhook_logged' }
     }
 
 
-    switch (data.type as  typeof allowedWebooks[number]) {
-      case 'events.mandates.created':
-      case 'events.mandates.approved':
-      case 'events.mandates.ready':
-      case 'events.mandates.debit.processing':
-      case 'events.mandates.debit.success':
-      case 'events.mandates.debit.successful':
+    switch (event as  typeof allowedWebooks[number]) {
+      case 'mono.events.mandates.created':
+      case 'mono.events.mandates.approved':
+        console.log({ data, message: 'mandate approved!' })
+        // update organization qeueue
+      case 'mono.events.mandates.ready':
+        console.log({ data, message: 'mandate approved!' })
+      case 'mono.events.mandates.debit.processing':
+      case 'mono.events.mandates.debit.success':
+      case 'mono.events.mandates.debit.successful':
       default:
         this.logger.log('unhandled event', { event: data.type })
         break;
@@ -173,10 +176,10 @@ export default class MonoWebhookHandler {
 }
 
 const allowedWebooks = [
-  "events.mandates.created",
-  "events.mandates.approved",
-  "events.mandates.ready",
-  "events.mandates.debit.processing",
-  "events.mandates.debit.success",
-  "events.mandates.debit.successful",
+  "mono.events.mandates.created",
+  "mono.events.mandates.approved",
+  "mono.events.mandates.ready",
+  "mono.events.mandates.debit.processing",
+  "mono.events.mandates.debit.success",
+  "mono.events.mandates.debit.successful",
 ] as const

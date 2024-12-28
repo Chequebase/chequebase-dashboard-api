@@ -32,6 +32,7 @@ import { IVirtualAccount } from "@/models/virtual-account.model";
 import { walletQueue } from "@/queues"
 import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
 import { MonoService } from "../common/mono.service";
+import { MONO_TOKEN } from "../banksphere/providers/mono.client";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -880,7 +881,7 @@ export class WalletTransferService {
 }
 
 // async function run() {
-//   const vClient = Container.get<MonoTransferClient>(MONO_TOKEN)
+//   const vClient = Container.get<MonoService>(MONO_TOKEN)
 //   try {
 //     const user = await User.findById('67247d0aab9ba70661ca2167').lean()
 //     if (!user) {
