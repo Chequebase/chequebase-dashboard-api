@@ -7,6 +7,7 @@ import { IOrganization } from './organization.model';
 export enum WalletType {
   General = 'general',
   Payroll = 'payroll',
+  LinkedAccount = 'linked-account',
 }
 
 export interface IWallet {

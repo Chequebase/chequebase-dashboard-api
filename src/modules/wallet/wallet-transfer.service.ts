@@ -460,6 +460,7 @@ export class WalletTransferService {
       throw new BadRequestError('Invalid pin')
     }
 
+    // add wallet checks
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new NotFoundError('User does not exist')
@@ -911,6 +912,8 @@ export class WalletTransferService {
 //     for (var i = 0; i < 12; i++) {
 //       xx.push(characters.charAt(Math.floor(Math.random() * charactersLength)));
 //     }
+//     // const can = await vClient.cancelMandate('676f45603953e23495bf51d9')
+//     // console.log({ can })
 //     const randomS = xx.join('');
 //     const result = await vClient.initiateMandate({
 //       amount: 2500000000,
@@ -921,7 +924,7 @@ export class WalletTransferService {
 //     })
 
 //     // also check the amount and status of the mandate
-//     await Organization.updateOne({ _id: org._id }, {
+//     const newOrg = await Organization.updateOne({ _id: org._id }, {
 //       mono: {
 //       ...(org.mono || {}),
 //       mandateId: result.mandateId,
@@ -929,6 +932,8 @@ export class WalletTransferService {
 //       status: 'pending'
 //     }
 //   })
+//   console.log({ newOrg, result })
+//   return result.url
 // } catch (error) {
 //     console.log({ error })
 //   }

@@ -17,7 +17,7 @@ dayjs.extend(timezone);
 const tz = "Africa/Lagos";
 dayjs.tz.setDefault(tz);
 
-@Service()
+@Service({ id: MONO_TOKEN })
 export class MonoService {
   currencies = ['NGN']
   private logger = new Logger(MonoService.name)
@@ -29,8 +29,8 @@ export class MonoService {
   })
 
   async initiateMandate(payload: InitiateMandateData): Promise<InitiateMandateResult> {
-    const todayFormatted = dayjs().format('YYYY-MM-DD');
-    const tenYearsLaterFormatted = dayjs().add(1, 'year').format('YYYY-MM-DD');
+    const todayFormatted = dayjs().add(2, 'day').format('YYYY-MM-DD');
+    const tenYearsLaterFormatted = dayjs().add(3, 'day').format('YYYY-MM-DD');
     const data = {
         amount: payload.amount,
         type: "recurring-debit",
@@ -78,6 +78,44 @@ export class MonoService {
       return {
         status: 'failed',
         reference: payload.reference,
+        message: err.response.data?.errors?.[0]?.detail || 'Unable to process transfer',
+        gatewayResponse: JSON.stringify(err.response.data)
+      }
+    }
+  }
+
+  async cancelMandate(id: string): Promise<InitiateMandateResult> {
+    try {
+      const res = await this.http.patch(`/v3/payments/mandates/${id}/cancel`)
+      const result = res.data.data
+      const status = res.data.status.toLowerCase()
+      const message = status === 'failed' ?
+        'Transfer failed' : 'Processing transfer'
+
+      this.logger.log("mono initiate mandate response", {
+        payload: JSON.stringify(id),
+        response: JSON.stringify(res.data.data),
+        status
+      });
+      return {
+        status,
+        message,
+        url: result.mono_url,
+        mandateId: result.mandate_id,
+        reference: result.reference,
+        gatewayResponse: JSON.stringify(res.data)
+      }
+    } catch (err: any) {
+      this.logger.error('error processing transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        payload: JSON.stringify(id),
+        requestData: JSON.stringify(id),
+        status: err.response.status
+      });
+
+      return {
+        status: 'failed',
+        reference: id,
         message: err.response.data?.errors?.[0]?.detail || 'Unable to process transfer',
         gatewayResponse: JSON.stringify(err.response.data)
       }

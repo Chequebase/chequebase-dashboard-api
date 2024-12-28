@@ -2,51 +2,18 @@ import crypto from 'crypto'
 import { Inject, Service, Token } from "typedi";
 import Logger from "@/modules/common/utils/logger";
 import { organizationQueue, walletQueue } from "@/queues";
-import { WalletInflowData, WalletInflowDataNotification } from "@/queues/jobs/wallet/wallet-inflow.job";
-import { BookWalletOutflowDataNotification, WalletOutflowData, WalletOutflowDataNotification } from "@/queues/jobs/wallet/wallet-outflow.job";
-import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { BadRequestError, UnauthorizedError } from 'routing-controllers';
-import { RequiredDocumentsJobData, KYCProviderData } from '@/queues/jobs/organization/processRequiredDocuments';
 import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common/slack/slackNotification.service';
-import WalletEntry from '@/models/wallet-entry.model';
 import { MonoService } from '@/modules/common/mono.service';
+import { MandateApprovedData } from '@/queues/jobs/wallet/mandate-approved.job';
+import { MandateDebitReadyData } from '@/queues/jobs/wallet/mandate-ready-debit.job';
 
 @Service()
 export default class MonoWebhookHandler {
   private logger = new Logger(MonoWebhookHandler.name)
 
   constructor (private monoTransferClient: MonoService, private slackNotificationService: SlackNotificationService) { }
-
-  private async onPaymentSettled(body: any) {
-    const payment = body.data.attributes.payment
-
-    const jobData: WalletInflowData = {
-      amount: payment.amount,
-      accountNumber: payment.virtualNuban.accountNumber,
-      currency: payment.currency,
-      gatewayResponse: JSON.stringify(body),
-      narration: payment.narration,
-      reference: payment.paymentId,
-      providerRef: payment.paymentId,
-      paymentMethod: payment.type,
-      sourceAccount: {
-        accountName: payment.counterParty?.accountName,
-        accountNumber: payment.counterParty?.accountNumber,
-        bankName: payment.counterParty?.bank?.name
-      }
-    }
-
-    await walletQueue.add('processWalletInflow', jobData)
-
-    await this.onPaymentSettledNotification({
-      ...jobData,
-      customerId: payment.virtualNuban.accountId,
-      businessName: payment.virtualNuban.accountName
-    })
-
-    return { message: 'payment queued' }
-  }
 
   private createHmac(body: string) {
     const secret = getEnvOrThrow('MONO_WEBHOOK_SECRET')
@@ -57,84 +24,67 @@ export default class MonoWebhookHandler {
     const base64 = Buffer.from(hash).toString('base64');
     return base64
   }
-
-  private async onTransferEvent(body: any) {
-    // const transferId = body.data.relationships.transfer.data.id
-    // const verifyResponse = await this.monoTransferClient.verifyTransferById(transferId)
-
-    // const jobData: WalletOutflowData = {
-    //   amount: verifyResponse.amount,
-    //   currency: verifyResponse.currency,
-    //   gatewayResponse: verifyResponse.gatewayResponse,
-    //   reference: verifyResponse.reference,
-    //   status: verifyResponse.status as WalletOutflowData['status']
-    // }
-
-    // await walletQueue.add('processWalletOutflow', jobData)
-    // const receipient = body.included.find((x: any) => x.type === 'CounterParty')
-    // const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
-
-    // await this.onTransferEventNotification({ ...jobData, businessName: businessCustomer.attributes.detail.businessName, customerId: body.data.relationships.customer.data.id, accountName: receipient.attributes.accountName, accountNumber: receipient.attributes.accountNumber, bankName: receipient.attributes.bank.name })
-    // return { message: 'transfer event queued' }
-  }
-  private async onPaymentSettledNotification(notification: WalletInflowDataNotification): Promise<void> {
-    const { amount, sourceAccount: { accountName, accountNumber, bankName }, paymentMethod, reference, customerId, businessName } = notification;
-    const correctAmount = +amount / 100;
-    const message = `:rocket: Merchant Wallet Inflow :rocket: \n\n
-      *Merchant*: ${businessName} (${customerId})
-      *Reference*: ${reference}
-      *Amount*: ${correctAmount}
-      *Paymentmethod*: ${paymentMethod}
-      *SourceAccountNumber*: ${accountNumber}
-      *SourceAccountName*: ${accountName}
-      *SourceBank*: ${bankName}
+  private async onMandateApprovedNotification(notification: MandateApprovedData): Promise<void> {
+    const { account_name, bank, account_number, customer } = notification;
+    const message = `New Account Linked :rocket: \n\n
+      *Merchant*: ${customer}
+      *Account Name*: ${account_name}
+      *Bank*: ${bank}
+      *Acc Number*: ${account_number}
     `;
-    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.inflow, message);
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.linkedAccounts, message);
   }
 
-  private async onTransferEventNotification(notification: WalletOutflowDataNotification): Promise<any> {
-    const { amount, status, reference, customerId, accountName, accountNumber, bankName, businessName } = notification;
-    const correctAmount = +amount / 100;
-    const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
-    const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
-    const reversedTopic = ':alert: Merchant Wallet Outflow Reversed :alert:'
-    console.log({ status, correctAmount })
-    switch (status) {
-      case 'successful':
-        const successMessage = `${successTopic} \n\n
-        *Merchant*: ${businessName} ${customerId}
-        *Reference*: ${reference}
-        *Amount*: ${correctAmount}
-        *AccountName*: ${accountName}
-        *AccountNumber*: ${accountNumber}
-        *BankName*: ${bankName}
-        *Status*: ${status}
-      `;
-        console.log({ successMessage })
-        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, successMessage);
-      case 'failed':
-        const failedNessage = `${failureTopic} \n\n
-        *Merchant*: ${businessName} ${customerId}
-        *Reference*: ${reference}
-        *Amount*: ${correctAmount}
-        *AccountName*: ${accountName}
-        *AccountNumber*: ${accountNumber}
-        *BankName*: ${bankName}
-        *Status*: ${status}
-      `;
-        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, failedNessage);
-      case 'reversed':
-        const reversedMessage = `${reversedTopic} \n\n
-        *Merchant*: ${businessName} ${customerId}
-        *Reference*: ${reference}
-        *Amount*: ${correctAmount}
-        *AccountName*: ${accountName}
-        *AccountNumber*: ${accountNumber}
-        *BankName*: ${bankName}
-        *Status*: ${status}
-      `;
-        return await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, reversedMessage);
-    }
+  private async onMandateDebitReadyNotification(notification: MandateDebitReadyData): Promise<void> {
+    const { account_name, bank, account_number, customer } = notification;
+    const message = `Linked Account Ready For Debit :rocket: :rocket: \n\n
+      *Merchant*: ${customer}
+      *Account Name*: ${account_name}
+      *Bank*: ${bank}
+      *Acc Number*: ${account_number}
+    `;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.linkedAccounts, message);
+  }
+  private async OnMandateApproved(body: any) {
+    const jobData: MandateApprovedData = {
+      mandateId: body.id,
+      debit_type: body.debit_type,
+      ready_to_debit: body.ready_to_debit,
+      approved: body.approved,
+      reference: body.reference,
+      account_name: body.account_name,
+      account_number: body.account_number,
+      bank: body.bank,
+      bank_code: body.bank_code,
+      customer: body.customer,
+    };
+
+    await walletQueue.add("processMandateApproved", jobData);
+
+    await this.onMandateApprovedNotification(jobData);
+
+    return { message: "mandate approved queued" };
+  }
+
+  private async OnMandateDebitReady(body: any) {
+    const jobData: MandateDebitReadyData = {
+      mandateId: body.id,
+      debit_type: body.debit_type,
+      ready_to_debit: body.ready_to_debit,
+      approved: body.approved,
+      reference: body.reference,
+      account_name: body.account_name,
+      account_number: body.account_number,
+      bank: body.bank,
+      bank_code: body.bank_code,
+      customer: body.customer,
+    };
+
+    await walletQueue.add("processMandateDebitReady", jobData);
+
+    await this.onMandateDebitReadyNotification(jobData);
+
+    return { message: "mandate debit ready queued" };
   }
 
   processWebhook(body: any, headers: any) {
@@ -151,23 +101,24 @@ export default class MonoWebhookHandler {
     const { data, event } = body;
     console.log({ data })
     if (!allowedWebooks.includes(event)) {
-      this.logger.log('event type not allowed', { event: data.type })
+      this.logger.log('event type not allowed', { event })
       return { message: 'webhook_logged' }
     }
 
 
     switch (event as  typeof allowedWebooks[number]) {
-      case 'mono.events.mandates.created':
-      case 'mono.events.mandates.approved':
-        console.log({ data, message: 'mandate approved!' })
-        // update organization qeueue
-      case 'mono.events.mandates.ready':
-        console.log({ data, message: 'mandate approved!' })
-      case 'mono.events.mandates.debit.processing':
-      case 'mono.events.mandates.debit.success':
-      case 'mono.events.mandates.debit.successful':
+      case 'events.mandates.created':
+      case 'events.mandates.approved':
+        return this.OnMandateApproved(data)
+      case 'events.mandates.ready':
+        return this.OnMandateDebitReady(data)
+      case 'events.mandates.debit.processing':
+      case 'events.mandates.debit.success':
+        // notify us to add to our wallet-entries
+      case 'events.mandates.debit.successful':
+        // notify us to update success delivery
       default:
-        this.logger.log('unhandled event', { event: data.type })
+        this.logger.log('unhandled event', { event })
         break;
     }
 
@@ -176,10 +127,10 @@ export default class MonoWebhookHandler {
 }
 
 const allowedWebooks = [
-  "mono.events.mandates.created",
-  "mono.events.mandates.approved",
-  "mono.events.mandates.ready",
-  "mono.events.mandates.debit.processing",
-  "mono.events.mandates.debit.success",
-  "mono.events.mandates.debit.successful",
+  "events.mandates.created",
+  "events.mandates.approved",
+  "events.mandates.ready",
+  "events.mandates.debit.processing",
+  "events.mandates.debit.success",
+  "events.mandates.debit.successful",
 ] as const

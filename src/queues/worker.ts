@@ -22,6 +22,8 @@ import processPayroll from './jobs/payroll/process-payroll.job';
 import fetchDuePayrolls from './jobs/payroll/fetch-due-payrolls';
 import requeryOutflow from './jobs/wallet/requery-outflow.job';
 import sweepSafeHavenRevenue from './jobs/wallet/sweep-safe-haven-revenue.job';
+import processMandateApproved from './jobs/wallet/mandate-approved.job';
+import processMandateDebitReady from './jobs/wallet/mandate-ready-debit.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -34,6 +36,8 @@ function setupQueues() {
     organizationQueue.process('processKycApproved', processKycApproved)
     organizationQueue.process('processKycRejected', processKycRejected)
 
+    walletQueue.process('processMandateApproved', 1, processMandateApproved)
+    walletQueue.process('processMandateDebitReady', 1, processMandateDebitReady)
     walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 1, processWalletInflow)
     walletQueue.process('processWalletOutflow', 1, processWalletOutflow)

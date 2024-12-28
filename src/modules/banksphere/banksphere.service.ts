@@ -234,12 +234,22 @@ export class BanksphereService {
         // if it is an individual
         if (organization.businessName === 'default-') {
           const result = await client.createIndividualCustomer({ organization, provider: data.provider })
-          await Organization.updateOne({ _id: organization._id }, { mono: { customerId: result.id } })
+          await Organization.updateOne({ _id: organization._id }, {
+            monoCustomerId: result.id, 
+            readyToDebit: false,
+            mandateApproved: false,
+            mono: { customerId: result.id }
+          })
           return result
         }
         const result = await client.createBusinessCustomer({ organization, provider: data.provider })
 
-        await Organization.updateOne({ _id: organization._id }, { mono: { customerId: result.id } })
+        await Organization.updateOne({ _id: organization._id }, {
+          monoCustomerId: result.id,
+          readyToDebit: false,
+          mandateApproved: false,
+          mono: { customerId: result.id }
+        })
         return result
       } catch (err: any) {
         this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
