@@ -16,6 +16,7 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 export interface MandateApprovedData {
+  status: string
   mandateId: string
   debit_type: string
   ready_to_debit: boolean

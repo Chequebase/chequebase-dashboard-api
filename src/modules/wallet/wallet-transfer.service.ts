@@ -930,7 +930,7 @@ export class WalletTransferService {
 //     })
 
 //     console.log({ url: result.url })
-//     await Organization.updateOne({ _id: org._id }, {
+//     await Organization.updateOne({ _id: '674b69bc83f04a05e67aacfd' }, {
 //       monoAuthUrl: result.url
 //     })
 //   return result.url

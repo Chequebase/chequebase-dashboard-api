@@ -25,8 +25,8 @@ export default class MonoWebhookHandler {
     return base64
   }
   private async onMandateApprovedNotification(notification: MandateApprovedData): Promise<void> {
-    const { account_name, bank, account_number, customer } = notification;
-    const message = `New Account Linked :rocket: \n\n
+    const { account_name, bank, account_number, customer, status } = notification;
+    const message = `New Account Linking ${status} :rocket: \n\n
       *Merchant*: ${customer}
       *Account Name*: ${account_name}
       *Bank*: ${bank}
@@ -47,6 +47,7 @@ export default class MonoWebhookHandler {
   }
   private async OnMandateApproved(body: any) {
     const jobData: MandateApprovedData = {
+      status: body.status,
       mandateId: body.id,
       debit_type: body.debit_type,
       ready_to_debit: body.ready_to_debit,
