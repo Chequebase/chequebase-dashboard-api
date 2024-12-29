@@ -705,6 +705,7 @@ export class WalletTransferService {
     if (data.to) {
       payload.to = data.to
       payload.fee = 0
+      payload.amountToDeduct = data.amount
     }
 
     await this.runSecurityChecks(payload)
@@ -726,6 +727,8 @@ export class WalletTransferService {
       transferBody.to = data.to
     }
     const transferResponse = await this.transferService.initiateTransfer(transferBody)
+
+    console.log({ transferRes: transferResponse })
 
     if ('providerRef' in transferResponse && transferResponse.providerRef) {
       await WalletEntry.updateOne({ _id: entry._id }, {

@@ -80,6 +80,7 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
     }
 
     let inflowFee = calculateInflowFee(amount)
+    // if it's internal fee is 0
     const creditedAmount = amount - inflowFee;
     const wallet = virtualAccount.wallet
     const organization = virtualAccount.organization
