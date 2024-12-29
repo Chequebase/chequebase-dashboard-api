@@ -300,7 +300,6 @@ export class BanksphereService {
           baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.SafeHaven, organization: accountId,
           walletType: WalletType.General
         })
-        console.log({ wallet })
         this.emailService.sendKYCApprovedEmail(admin.email, {
           loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
           businessName: organization.businessName

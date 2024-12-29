@@ -36,7 +36,6 @@ export default class SafeHavenWebhookHandler {
       body.data.sessionId
     );
     const gatewayResponse = JSON.parse(response.gatewayResponse);
-    console.log({ response, gatewayResponse })
     const jobData: WalletInflowData = {
       amount: response.amount,
       accountNumber: gatewayResponse.data.creditAccountNumber,
@@ -46,6 +45,7 @@ export default class SafeHavenWebhookHandler {
       reference: gatewayResponse.data.sessionId,
       providerRef: gatewayResponse.data.sessionId,
       paymentMethod: "transfer",
+      providerChannel: gatewayResponse.data.providerChannel,
       sourceAccount: {
         accountName: gatewayResponse.data.debitAccountName,
         accountNumber: gatewayResponse.data.debitAccountNumber,

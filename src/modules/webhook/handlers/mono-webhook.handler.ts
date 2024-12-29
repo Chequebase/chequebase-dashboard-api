@@ -118,7 +118,6 @@ export default class MonoWebhookHandler {
   }
 
   processWebhook(body: any, headers: any) {
-    console.log({ body, headers })
     const expectedHmac = headers['mono-webhook-secret']
     // const calcuatedHmac = this.createHmac(body)
     const sec = getEnvOrThrow('MONO_WEBHOOK_SECRET')
@@ -129,7 +128,6 @@ export default class MonoWebhookHandler {
 
     body = JSON.parse(body)
     const { data, event } = body;
-    console.log({ data })
     if (!allowedWebooks.includes(event)) {
       this.logger.log('event type not allowed', { event })
       return { message: 'webhook_logged' }
