@@ -14,8 +14,8 @@ import {
 interface TransferPayload {
   nameEnquiryReference: string;
   debitAccountNumber?: string;
-  beneficiaryBankCode?: string;
-  beneficiaryAccountNumber?: string;
+  beneficiaryBankCode: string;
+  beneficiaryAccountNumber: string;
   amount: number;
   saveBeneficiary: boolean;
   narration: string;
@@ -79,7 +79,7 @@ export class SafeHavenTransferClient implements TransferClient {
       try {
         const { data, status } = await this.httpClient.axios.post(
           "/transfers/tqs",
-          { sessionId: nameEnquiryReference }
+          { sessionId: nameEnquiryReference, to: payload.to }
         );
 
         console.log({ data })
