@@ -14,8 +14,8 @@ import {
 interface TransferPayload {
   nameEnquiryReference: string;
   debitAccountNumber?: string;
-  beneficiaryBankCode: string;
-  beneficiaryAccountNumber: string;
+  beneficiaryBankCode?: string;
+  beneficiaryAccountNumber?: string;
   amount: number;
   saveBeneficiary: boolean;
   narration: string;
@@ -76,46 +76,7 @@ export class SafeHavenTransferClient implements TransferClient {
       paymentReference: payload.reference,
     };
     if (payload.to) {
-      try {
-        const { data, status } = await this.httpClient.axios.post(
-          "/transfers/tqs",
-          { sessionId: nameEnquiryReference, to: payload.to }
-        );
-
-        console.log({ data })
-  
-        if (data.statusCode === 400) {
-          throw data;
-        }
-  
-        const success = data.responseCode === "00";
-        this.logger.log("safe-haven initiate transfer response", {
-          body: JSON.stringify(body),
-          response: JSON.stringify(data),
-          status,
-        });
-  
-        return {
-          status: success ? "successful" : "pending",
-          message: success ? "Processing transfer" : "Transfer failed",
-          providerRef: data.data.sessionId,
-          currency: payload.currency,
-          amount: payload.amount,
-          reference: payload.reference,
-          gatewayResponse: JSON.stringify(data),
-        };
-      } catch (err: any) {
-        const error = this.handleError("error initiating transfer", body, err);
-  
-        return {
-          status: "failed",
-          currency: payload.currency,
-          amount: payload.amount,
-          reference: payload.reference,
-          message: "Unable to process transfer",
-          gatewayResponse: JSON.stringify(error),
-        };
-      }
+      body.to = payload.to
     }
 
     try {
