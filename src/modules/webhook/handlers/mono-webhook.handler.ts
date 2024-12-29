@@ -45,6 +45,17 @@ export default class MonoWebhookHandler {
     `;
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.linkedAccounts, message);
   }
+
+  private async onMandateDebitNotification(notification: MandateDebitReadyData): Promise<void> {
+    const { account_name, bank, account_number, customer } = notification;
+    const message = `Linked Account Debited! :rocket: :rocket: \n\n
+      *Merchant*: ${customer}
+      *Account Name*: ${account_name}
+      *Bank*: ${bank}
+      *Acc Number*: ${account_number}
+    `;
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.linkedAccounts, message);
+  }
   private async OnMandateApproved(body: any) {
     const jobData: MandateApprovedData = {
       status: body.status,
@@ -88,6 +99,24 @@ export default class MonoWebhookHandler {
     return { message: "mandate debit ready queued" };
   }
 
+  private async onDirectDebitEvent(body: any) {
+    const jobData: MandateDebitReadyData = {
+      mandateId: body.id,
+      debit_type: body.debit_type,
+      ready_to_debit: body.ready_to_debit,
+      approved: body.approved,
+      reference: body.reference,
+      account_name: body.account_name,
+      account_number: body.account_number,
+      bank: body.bank,
+      bank_code: body.bank_code,
+      customer: body.customer,
+    };
+
+    await this.onMandateDebitNotification(jobData)
+    return { message: 'debit event' }
+  }
+
   processWebhook(body: any, headers: any) {
     console.log({ body, headers })
     const expectedHmac = headers['mono-webhook-secret']
@@ -113,11 +142,8 @@ export default class MonoWebhookHandler {
         return this.OnMandateApproved(data)
       case 'events.mandates.ready':
         return this.OnMandateDebitReady(data)
-      case 'events.mandates.debit.processing':
-      case 'events.mandates.debit.success':
-        // notify us to add to our wallet-entries
       case 'events.mandates.debit.successful':
-        // notify us to update success delivery
+        return this.onDirectDebitEvent(data)
       default:
         this.logger.log('unhandled event', { event })
         break;
@@ -131,7 +157,7 @@ const allowedWebooks = [
   "events.mandates.created",
   "events.mandates.approved",
   "events.mandates.ready",
-  "events.mandates.debit.processing",
-  "events.mandates.debit.success",
+  // "events.mandates.debit.processing",
+  // "events.mandates.debit.success",
   "events.mandates.debit.successful",
 ] as const
