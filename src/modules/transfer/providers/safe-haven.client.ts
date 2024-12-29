@@ -77,8 +77,6 @@ export class SafeHavenTransferClient implements TransferClient {
     };
     if (payload.to) {
       body.to = payload.to
-      delete body.beneficiaryAccountNumber
-      delete body.beneficiaryBankCode
     }
 
     try {
