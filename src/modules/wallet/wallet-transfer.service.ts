@@ -728,8 +728,6 @@ export class WalletTransferService {
     }
     const transferResponse = await this.transferService.initiateTransfer(transferBody)
 
-    console.log({ transferRes: transferResponse })
-
     if ('providerRef' in transferResponse && transferResponse.providerRef) {
       await WalletEntry.updateOne({ _id: entry._id }, {
         providerRef: transferResponse.providerRef
