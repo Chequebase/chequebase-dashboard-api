@@ -14,8 +14,8 @@ import {
 interface TransferPayload {
   nameEnquiryReference: string;
   debitAccountNumber?: string;
-  beneficiaryBankCode: string;
-  beneficiaryAccountNumber: string;
+  beneficiaryBankCode?: string;
+  beneficiaryAccountNumber?: string;
   amount: number;
   saveBeneficiary: boolean;
   narration: string;
@@ -77,6 +77,8 @@ export class SafeHavenTransferClient implements TransferClient {
     };
     if (payload.to) {
       body.to = payload.to
+      delete body.beneficiaryAccountNumber
+      delete body.beneficiaryBankCode
     }
 
     try {
