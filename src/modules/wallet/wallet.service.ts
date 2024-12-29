@@ -5,7 +5,7 @@ import Organization from "@/models/organization.model";
 import User from "@/models/user.model";
 import VirtualAccount from "@/models/virtual-account.model";
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
-import Wallet from "@/models/wallet.model";
+import Wallet, { WalletType } from "@/models/wallet.model";
 import { walletQueue } from "@/queues";
 import { createId } from '@paralleldrive/cuid2';
 import dayjs from "dayjs";
@@ -22,7 +22,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import { BaseWalletType } from "../banksphere/providers/customer.client";
@@ -182,8 +182,115 @@ export default class WalletService {
     }
   }
 
+  async createSubaccount(auth: AuthUser, data: CreateSubaccoubtDto) {
+    const organization = await Organization.findById(auth.orgId).lean()
+    if (!organization) {
+      throw new NotFoundError('Organization not found')
+    }
+
+    if (organization.status !== 'approved') {
+      throw new BadRequestError('Organization is not verified')
+    }
+
+    const baseWallet = await BaseWallet.findOne({ currency: "NGN" })
+    if (!baseWallet) {
+      throw new NotFoundError('Base wallet not found')
+    }
+
+    const wallets = await Wallet.find({
+      organization: organization._id,
+      baseWallet: baseWallet._id
+    })
+
+    try {
+      const walletId = new ObjectId()
+      const virtualAccountId = new ObjectId()
+      const reference = `va-${createId()}`
+      // console.log({ payload: {
+      //   type: 'static',
+      //   email: organization.email,
+      //   name: organization.businessName,
+      //   provider: data.provider,
+      //   reference,
+      //   currency: baseWallet.currency,
+      //   identity: {
+      //     type: 'bvn',
+      //     number: organization.owners[0]?.bvn,
+      //   },
+      //   phone: organization.phone,
+      //   rcNumber: organization.rcNumber
+      // }})
+
+      const accountRef = `va-${createId()}`
+      const provider = VirtualAccountClientName.SafeHaven;
+      const account = await this.vaService.createAccount({
+        currency: baseWallet.currency,
+        email: organization.email,
+        phone: organization.phone,
+        name: organization.businessName,
+        type: "static",
+        customerId: organization.safeHavenIdentityId,
+        provider,
+        reference: accountRef,
+        rcNumber: organization.rcNumber
+      });
+      const providerRef = account.providerRef || accountRef
+      const wallet = await Wallet.create({
+        _id: walletId,
+        name: data.name,
+        description: data.description,
+        type: WalletType.SubAccount,
+        organization: organization._id,
+        baseWallet: baseWallet._id,
+        currency: baseWallet.currency,
+        balance: 0,
+        primary: !wallets.length,
+        virtualAccounts: [virtualAccountId]
+      })
+
+      const virtualAccount = await VirtualAccount.create({
+        _id: virtualAccountId,
+        organization: organization._id,
+        wallet: wallet._id,
+        accountNumber: account.accountNumber,
+        bankCode: account.bankCode,
+        name: account.accountName,
+        bankName: account.bankName,
+        provider,
+        externalRef: providerRef,
+      });
+
+      return {
+        _id: wallet._id,
+        balance: wallet.balance,
+        currency: wallet.currency,
+        name: data.name,
+        account: {
+          name: virtualAccount.name,
+          accountNumber: virtualAccount.accountNumber,
+          bankName: virtualAccount.bankName,
+          bankCode: virtualAccount.bankCode
+        }
+      }
+    } catch (error: any) {
+      console.log(error)
+    }
+  }
+
   async getWallets(orgId: string) {
     let wallets = await Wallet.find({ organization: orgId })
+      .select('primary currency balance ledgerBalance type')
+      .populate({
+        path: 'virtualAccounts',
+        select: 'accountNumber bankName bankCode name provider'
+      })
+      .lean()
+
+    return wallets
+  }
+
+  async getSubaccounts(orgId: string) {
+    let wallets = await Wallet.find({ organization: orgId, type: WalletType.SubAccount })
       .select('primary currency balance ledgerBalance type')
       .populate({
         path: 'virtualAccounts',

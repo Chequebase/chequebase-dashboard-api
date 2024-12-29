@@ -2,7 +2,7 @@ import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryP
 import { Service } from "typedi";
 import { Request } from "express";
 import WalletService from "./wallet.service";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Response } from "express";
@@ -15,6 +15,7 @@ import { InitiateInternalTransferDto, InitiateTransferDto } from "../budget/dto/
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { WalletTransferService } from "./wallet-transfer.service";
+import { PlanUsageService } from "../billing/plan-usage.service";
 
 const whitelist = [
   'image/png',
@@ -25,12 +26,37 @@ const whitelist = [
 @Service()
 @JsonController('/wallet', { transformResponse: false })
 export default class WalletController {
-  constructor (private walletService: WalletService, private walletTransferService: WalletTransferService) { }
+  constructor (private walletService: WalletService, private walletTransferService: WalletTransferService, private usageService: PlanUsageService) { }
   
   @Post('/')
   @UseBefore(publicApiGuard)
   createWallet(@Body() dto: CreateWalletDto) {
     return this.walletService.createWallet(dto)
+  }
+
+  @Post('/subaccount')
+  @UseBefore(publicApiGuard)
+  async createSubaccount(@CurrentUser() auth: AuthUser, @Body() dto: CreateSubaccoubtDto) {
+    await this.usageService.checkSubaccountsUsage(auth.orgId);
+    return this.walletService.createSubaccount(auth, dto)
+  }
+
+  @Get('/subaccount')
+  @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
+  getSubaccounts(@CurrentUser() auth: AuthUser) {
+    return this.walletService.getSubaccounts(auth.orgId)
+  }
+
+  @Get('/subaccount/:id')
+  @Authorized(EPermission.TransactionRead)
+  getSubaccount(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.walletService.getWallet(auth.orgId, id)
+  }
+
+  @Get('/subaccount/history/:id')
+  @Authorized(EPermission.TransactionRead)
+  getSubaccountHistoryId(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.walletService.getWalletEntry(auth.orgId, id)
   }
 
   @Get('/')
