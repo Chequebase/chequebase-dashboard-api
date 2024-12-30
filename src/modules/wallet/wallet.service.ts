@@ -294,7 +294,7 @@ export default class WalletService {
       .select('primary currency balance ledgerBalance type')
       .populate({
         path: 'virtualAccounts',
-        select: 'accountNumber bankName bankCode name provider'
+        select: 'accountNumber bankName bankCode name provider readyToDebit mandateApproved'
       })
       .lean()
 
@@ -318,7 +318,7 @@ export default class WalletService {
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
       .populate({
         path: 'virtualAccounts',
-        select: 'accountNumber bankName bankCode name provider'
+        select: 'accountNumber bankName bankCode name provider readyToDebit mandateApproved'
       })
       .lean()
     if (!wallet) {

@@ -788,7 +788,7 @@ export class WalletTransferService {
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
       .populate<{ virtualAccounts: IVirtualAccount[] }>({
         path: 'virtualAccounts',
-        select: 'accountNumber bankName bankCode name'
+        select: 'accountNumber bankName bankCode name readyToDebit mandateApproved'
       })
       .lean()
     if (!wallet) {
