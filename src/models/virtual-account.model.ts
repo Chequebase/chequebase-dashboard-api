@@ -9,6 +9,8 @@ export interface IVirtualAccount {
   name: string;
   bankCode: string;
   bankName: string;
+  readyToDebit?: boolean;
+  mandateApproved?: boolean;
   provider: string;
   externalRef: string
   createdAt: Date;
@@ -27,6 +29,8 @@ const virtualAccountSchema = new Schema<IVirtualAccount>(
       required: true,
       ref: "Wallet",
     },
+    readyToDebit: { type: Boolean, default: false },
+    mandateApproved: { type: Boolean, default: false },
     accountNumber: { type: String, required: true },
     name: { type: String, required: true },
     bankCode: { type: String, required: true },

@@ -27,6 +27,7 @@ import { ChargeWallet } from "./interfaces/wallet.interface";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import { BaseWalletType } from "../banksphere/providers/customer.client";
 import { SAFE_HAVEN_VA_TOKEN, SafeHavenVirtualAccountClient } from "../virtual-account/providers/safe-haven.client";
+import slugify from 'slugify';
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -197,6 +198,16 @@ export default class WalletService {
       throw new NotFoundError('Base wallet not found')
     }
 
+    const slugifiedName = slugify(data.name)
+    const existingWallet = await Wallet.findOne({
+      organization: organization._id,
+      baseWallet: baseWallet._id,
+      slugifiedName
+    })
+    if (!existingWallet) {
+      throw new BadRequestError(`Sub account with name: ${data.name} already exists`)
+    }
+
     const wallets = await Wallet.find({
       organization: organization._id,
       baseWallet: baseWallet._id
@@ -244,6 +255,7 @@ export default class WalletService {
         baseWallet: baseWallet._id,
         currency: baseWallet.currency,
         balance: 0,
+        slugifiedName,
         primary: !wallets.length,
         virtualAccounts: [virtualAccountId]
       })
@@ -290,7 +302,7 @@ export default class WalletService {
   }
 
   async getSubaccounts(orgId: string) {
-    let wallets = await Wallet.find({ organization: orgId, type: WalletType.SubAccount })
+    let wallets = await Wallet.find({ organization: orgId, type: { $in: [WalletType.SubAccount, WalletType.Payroll] } })
       .select('primary currency balance ledgerBalance type')
       .populate({
         path: 'virtualAccounts',

@@ -72,6 +72,8 @@ async function createWallet(data: MandateApprovedData) {
     bankName: data.bank,
     provider: VirtualAccountClientName.Mono,
     externalRef: data.mandateId,
+    readyToDebit: data.ready_to_debit,
+    mandateApproved: true
   });
 
   return {
@@ -83,22 +85,19 @@ async function createWallet(data: MandateApprovedData) {
       accountNumber: virtualAccount.accountNumber,
       bankCode: virtualAccount.bankCode,
       bankName: virtualAccount.bankName,
+      readyToDebit: virtualAccount.readyToDebit,
+      mandateApproved: true
     },
   };
 }
 
 async function processMandateApproved(job: Job<MandateApprovedData>) {
   const data = job.data
-  const { ready_to_debit, approved } = data;
+  const { approved } = data;
 
   try {
     if (approved) {
-      const wallet = await createWallet(data);
-      await Organization.updateOne({ _id: wallet.organizationId }, {
-        readyToDebit: ready_to_debit,
-        mandateApproved: approved
-      })
-
+      await createWallet(data);
       // const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss').split(' ')
       // emailService.sendFundedWalletEmail(organization.admin.email, {
       //   accountBalance: formatMoney(balanceAfter),

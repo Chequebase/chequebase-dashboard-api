@@ -66,6 +66,7 @@ import {
   ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
+import slugify from "slugify";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isBetween);
@@ -107,6 +108,16 @@ export class PayrollService {
       throw new NotFoundError("Base wallet not found");
     }
 
+    const slugifiedName = slugify('Payroll Account')
+    const existingWallet = await Wallet.findOne({
+      organization: org._id,
+      baseWallet: baseWallet._id,
+      slugifiedName
+    })
+    if (!existingWallet) {
+      throw new BadRequestError(`Payroll Account already exists`)
+    }
+
     const accountRef = `va-${createId()}`;
     const account = await this.vaService.createAccount({
       currency: "NGN",
@@ -125,6 +136,8 @@ export class PayrollService {
 
     const wallet = await Wallet.create({
       _id: walletId,
+      name: 'Payroll Account',
+      slugifiedName,
       organization: org._id,
       baseWallet: baseWallet._id,
       currency: baseWallet.currency,

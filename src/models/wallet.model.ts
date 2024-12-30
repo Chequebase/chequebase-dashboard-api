@@ -18,6 +18,7 @@ export interface IWallet {
   type: WalletType
   currency: string
   name?: string
+  slugifiedName?: string
   description?: string
   balance: number
   ledgerBalance: number
@@ -43,6 +44,7 @@ const walletSchema = new Schema<IWallet>(
     name: {
       type: String,
     },
+    slugifiedName: { type: String },
     description: {
       type: String,
     },

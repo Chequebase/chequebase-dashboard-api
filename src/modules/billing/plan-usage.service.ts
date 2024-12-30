@@ -63,7 +63,7 @@ export class PlanUsageService {
     }
 
     const plan = subscription.plan as ISubscriptionPlan
-    const subAccounts = await Wallet.countDocuments({ organization: orgId, type: WalletType.SubAccount })
+    const subAccounts = await Wallet.countDocuments({ organization: orgId, type: { $in: [WalletType.SubAccount, WalletType.Payroll] } })
     const feature = plan.features.find((f) => f.code === code)
     if (!feature || !feature.available) {
       logger.error('feature not found', { code, plan: plan._id })

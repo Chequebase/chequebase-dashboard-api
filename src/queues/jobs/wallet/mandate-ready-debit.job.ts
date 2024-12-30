@@ -6,6 +6,7 @@ import Logger from "@/modules/common/utils/logger";
 import Container from "typedi";
 import EmailService from "@/modules/common/email.service";
 import Organization from "@/models/organization.model";
+import VirtualAccount from "@/models/virtual-account.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -33,7 +34,7 @@ const emailService = Container.get(EmailService)
 
 async function processMandateDebitReady(job: Job<MandateDebitReadyData>) {
   const data = job.data
-  const { ready_to_debit, approved } = data;
+  const { ready_to_debit, approved, account_number } = data;
 
   try {
     if (approved && ready_to_debit) {
@@ -41,9 +42,8 @@ async function processMandateDebitReady(job: Job<MandateDebitReadyData>) {
         if (!org) {
             throw "Org not found";
         }
-        await Organization.updateOne({ _id: org.id }, {
-        readyToDebit: ready_to_debit,
-        mandateApproved: approved
+        await VirtualAccount.updateOne({ accountNumber: account_number, organization: org._id }, {
+          readyToDebit: ready_to_debit,
         })
 
       // const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss').split(' ')
