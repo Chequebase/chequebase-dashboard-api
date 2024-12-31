@@ -59,6 +59,12 @@ export class ReportTransactionDto {
   reason: string
 }
 
+export class GetLinkedAccountDto {
+  @IsString()
+  @IsEnum(WalletType)
+  @IsOptional()
+  type?: WalletType
+}
 export class GetWalletEntriesDto {
   @IsString()
   @IsOptional()

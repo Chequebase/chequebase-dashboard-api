@@ -2,7 +2,7 @@ import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryP
 import { Service } from "typedi";
 import { Request } from "express";
 import WalletService from "./wallet.service";
-import { CreateSubaccoubtDto, CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Response } from "express";
@@ -62,7 +62,7 @@ export default class WalletController {
 
   @Get('/')
   @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
-  getWallets(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletEntriesDto) {
+  getWallets(@CurrentUser() auth: AuthUser, @QueryParams() query: GetLinkedAccountDto) {
     return this.walletService.getWallets(auth.orgId, query)
   }
 

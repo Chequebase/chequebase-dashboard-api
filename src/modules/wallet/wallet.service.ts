@@ -22,7 +22,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
 import { VirtualAccountService } from "../virtual-account/virtual-account.service";
-import { CreateSubaccoubtDto, CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
 import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
 import { BaseWalletType } from "../banksphere/providers/customer.client";
@@ -289,7 +289,7 @@ export default class WalletService {
     }
   }
 
-  async getWallets(orgId: string, dto: GetWalletEntriesDto) {
+  async getWallets(orgId: string, dto: GetLinkedAccountDto) {
     const query = {} as any
     if (dto.type) {
       query.type = dto.type
