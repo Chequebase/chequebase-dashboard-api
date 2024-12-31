@@ -204,7 +204,7 @@ export default class WalletService {
       baseWallet: baseWallet._id,
       slugifiedName
     })
-    if (!existingWallet) {
+    if (existingWallet) {
       throw new BadRequestError(`Sub account with name: ${data.name} already exists`)
     }
 
