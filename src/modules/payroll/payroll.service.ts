@@ -108,7 +108,7 @@ export class PayrollService {
       throw new NotFoundError("Base wallet not found");
     }
 
-    const slugifiedName = slugify('Payroll Account')
+    const slugifiedName = slugify('Payroll Account'.toLowerCase())
     const existingWallet = await Wallet.findOne({
       organization: org._id,
       baseWallet: baseWallet._id,

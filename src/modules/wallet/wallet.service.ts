@@ -198,7 +198,7 @@ export default class WalletService {
       throw new NotFoundError('Base wallet not found')
     }
 
-    const slugifiedName = slugify(data.name)
+    const slugifiedName = slugify(data.name.toLowerCase())
     const existingWallet = await Wallet.findOne({
       organization: organization._id,
       baseWallet: baseWallet._id,
