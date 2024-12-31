@@ -303,7 +303,7 @@ export default class WalletService {
 
   async getSubaccounts(orgId: string) {
     let wallets = await Wallet.find({ organization: orgId, type: { $in: [WalletType.SubAccount, WalletType.Payroll] } })
-      .select('primary currency balance ledgerBalance type')
+      .select('primary currency balance ledgerBalance type name')
       .populate({
         path: 'virtualAccounts',
         select: 'accountNumber bankName bankCode name provider'
