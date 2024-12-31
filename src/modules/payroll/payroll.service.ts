@@ -136,7 +136,7 @@ export class PayrollService {
 
     const wallet = await Wallet.create({
       _id: walletId,
-      name: 'Payroll Account',
+      name: 'Payroll',
       slugifiedName,
       organization: org._id,
       baseWallet: baseWallet._id,
