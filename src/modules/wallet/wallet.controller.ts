@@ -62,8 +62,8 @@ export default class WalletController {
 
   @Get('/')
   @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
-  getWallets(@CurrentUser() auth: AuthUser) {
-    return this.walletService.getWallets(auth.orgId)
+  getWallets(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletEntriesDto) {
+    return this.walletService.getWallets(auth.orgId, query)
   }
 
   @Get('/history')

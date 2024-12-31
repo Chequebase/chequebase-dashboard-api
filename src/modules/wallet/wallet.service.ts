@@ -289,8 +289,12 @@ export default class WalletService {
     }
   }
 
-  async getWallets(orgId: string) {
-    let wallets = await Wallet.find({ organization: orgId })
+  async getWallets(orgId: string, dto: GetWalletEntriesDto) {
+    const query = {} as any
+    if (dto.type) {
+      query.type = dto.type
+    }
+    let wallets = await Wallet.find({ organization: orgId, ...query })
       .select('primary currency balance ledgerBalance type name')
       .populate({
         path: 'virtualAccounts',
