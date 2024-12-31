@@ -669,60 +669,60 @@ export class BanksphereService {
   }
 }
 
-async function run() {
-  const vaClient = Container.get<MonoCustomerClient>(MONO_TOKEN)
+// async function run() {
+//   const vaClient = Container.get<MonoCustomerClient>(MONO_TOKEN)
 
-  const organization = await Organization.findById('672e1283a6c46901f10886f5').lean()
-  if (!organization) throw new NotFoundError('Organization not found')
-  // const baseWallet = BaseWalletType.NGN
-  // const walletId = new ObjectId()
-  // const virtualAccountId = new ObjectId()
+//   const organization = await Organization.findById('672e1283a6c46901f10886f5').lean()
+//   if (!organization) throw new NotFoundError('Organization not found')
+//   // const baseWallet = BaseWalletType.NGN
+//   // const walletId = new ObjectId()
+//   // const virtualAccountId = new ObjectId()
 
-  // const accountRef = `va-${createId()}`
-  const provider = CustomerClientName.Mono;
-  try {
-    const account = await vaClient.createIndividualCustomer({
-      organization,
-      provider,
-    });
-    console.log({ account })
-    // const providerRef = account.providerRef || accountRef
-    // const wallet = await Wallet.create({
-    //   _id: walletId,
-    //   organization: '66e2cd42bb0baa2b6d513349',
-    //   baseWallet: baseWallet,
-    //   currency: 'NGN',
-    //   balance: 0,
-    //   primary: true,
-    //   virtualAccounts: [virtualAccountId]
-    // })
+//   // const accountRef = `va-${createId()}`
+//   const provider = CustomerClientName.Mono;
+//   try {
+//     const account = await vaClient.createIndividualCustomer({
+//       organization,
+//       provider,
+//     });
+//     console.log({ account })
+//     // const providerRef = account.providerRef || accountRef
+//     // const wallet = await Wallet.create({
+//     //   _id: walletId,
+//     //   organization: '66e2cd42bb0baa2b6d513349',
+//     //   baseWallet: baseWallet,
+//     //   currency: 'NGN',
+//     //   balance: 0,
+//     //   primary: true,
+//     //   virtualAccounts: [virtualAccountId]
+//     // })
 
-    // const virtualAccount = await VirtualAccount.create({
-    //   _id: virtualAccountId,
-    //   organization: '66e2cd42bb0baa2b6d513349',
-    //   wallet: wallet._id,
-    //   accountNumber: account.accountNumber,
-    //   bankCode: account.bankCode,
-    //   name: account.accountName,
-    //   bankName: account.bankName,
-    //   provider,
-    //   externalRef: providerRef,
-    // });
+//     // const virtualAccount = await VirtualAccount.create({
+//     //   _id: virtualAccountId,
+//     //   organization: '66e2cd42bb0baa2b6d513349',
+//     //   wallet: wallet._id,
+//     //   accountNumber: account.accountNumber,
+//     //   bankCode: account.bankCode,
+//     //   name: account.accountName,
+//     //   bankName: account.bankName,
+//     //   provider,
+//     //   externalRef: providerRef,
+//     // });
 
-    // console.log({
-    //   _id: wallet._id,
-    //   balance: wallet.balance,
-    //   currency: wallet.currency,
-    //   account: {
-    //     name: virtualAccount.name,
-    //     accountNumber: virtualAccount.accountNumber,
-    //     bankName: virtualAccount.bankName,
-    //     bankCode: virtualAccount.bankCode
-    //   }
-    // })
-} catch (error) {
-    console.log({ error })
-  }
-}
+//     // console.log({
+//     //   _id: wallet._id,
+//     //   balance: wallet.balance,
+//     //   currency: wallet.currency,
+//     //   account: {
+//     //     name: virtualAccount.name,
+//     //     accountNumber: virtualAccount.accountNumber,
+//     //     bankName: virtualAccount.bankName,
+//     //     bankCode: virtualAccount.bankCode
+//     //   }
+//     // })
+// } catch (error) {
+//     console.log({ error })
+//   }
+// }
 
-run()
+// run()
