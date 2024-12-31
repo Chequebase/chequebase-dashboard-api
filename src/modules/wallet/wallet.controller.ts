@@ -36,6 +36,7 @@ export default class WalletController {
 
   @Post('/subaccount')
   // @UseBefore(publicApiGuard)
+  @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
   async createSubaccount(@CurrentUser() auth: AuthUser, @Body() dto: CreateSubaccoubtDto) {
     await this.usageService.checkSubaccountsUsage(auth.orgId);
     return this.walletService.createSubaccount(auth, dto)
