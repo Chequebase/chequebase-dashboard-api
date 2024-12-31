@@ -443,9 +443,8 @@ export class WalletTransferService {
   })
 
     return {
+      monoAuthUrl: result.url,
       status: 'pending',
-      approvalRequired: true,
-      message: 'Transaction pending approval',
     }
   }
 
