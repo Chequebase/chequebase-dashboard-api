@@ -24,6 +24,7 @@ import requeryOutflow from './jobs/wallet/requery-outflow.job';
 import sweepSafeHavenRevenue from './jobs/wallet/sweep-safe-haven-revenue.job';
 import processMandateApproved from './jobs/wallet/mandate-approved.job';
 import processMandateDebitReady from './jobs/wallet/mandate-ready-debit.job';
+import processMandateExpired from './jobs/wallet/mandate-expired.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -45,6 +46,10 @@ function setupQueues() {
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
     walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
     walletQueue.add('addWalletEntriesForClearance', null, {
+      repeat: { cron: '0  * * * *', tz } // every hour
+    })
+    walletQueue.process('processMandateExpired', processMandateExpired)
+    walletQueue.add('processMandateExpired', null, {
       repeat: { cron: '0  * * * *', tz } // every hour
     })
     walletQueue.process('processWalletEntryToElasticsearch', 5, processWalletEntryToElasticsearch)

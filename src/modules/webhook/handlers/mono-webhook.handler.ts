@@ -155,6 +155,7 @@ const allowedWebooks = [
   "events.mandates.created",
   "events.mandates.approved",
   "events.mandates.ready",
+  // "events.mandates.expired",
   // "events.mandates.debit.processing",
   // "events.mandates.debit.success",
   "events.mandates.debit.successful",
