@@ -469,14 +469,6 @@ export class WalletTransferService {
       throw new NotFoundError('Org does not exist')
     }
 
-    if (!virtualAccount.externalRef) {
-      throw new NotFoundError('Mandate is not allowed')
-    }
-
-    if (wallet.type !== WalletType.LinkedAccount) {
-      throw new NotFoundError('Wallet Type not allowed')
-    }
-
     if (org.status === KycStatus.NO_DEBIT) {
       throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
     }
@@ -591,7 +583,6 @@ export class WalletTransferService {
       throw new NotFoundError('Wallet does not exist')
     }
 
-    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
     const user = await User.findById(auth.userId).lean()
     if (!user) {
       throw new NotFoundError('User does not exist')
@@ -600,14 +591,6 @@ export class WalletTransferService {
     const org = await Organization.findById(auth.orgId)
     if (!org) {
       throw new NotFoundError('Org does not exist')
-    }
-
-    if (!virtualAccount.externalRef) {
-      throw new NotFoundError('Mandate is not allowed')
-    }
-
-    if (wallet.type !== WalletType.LinkedAccount) {
-      throw new NotFoundError('Wallet Type not allowed')
     }
 
     if (org.status === KycStatus.NO_DEBIT) {
@@ -620,7 +603,6 @@ export class WalletTransferService {
 
     const destinationVirtualAccount = (<IVirtualAccount>destinationWallet.virtualAccounts[0])
     return this.approveDirectDebit({
-      to: destinationVirtualAccount.name,
       accountNumber: destinationVirtualAccount.accountNumber,
       amount: data.amount,
       bankCode: destinationVirtualAccount.bankCode,
@@ -646,8 +628,12 @@ export class WalletTransferService {
     }
     const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
 
-    if (!virtualAccount.externalRef && !data.to) {
-      throw new NotFoundError('Mandate does not exist')
+    if (!virtualAccount.mandateApproved || !virtualAccount.readyToDebit) {
+      throw new NotFoundError('Mandate is not allowed')
+    }
+
+    if (wallet.type !== WalletType.LinkedAccount) {
+      throw new NotFoundError('Wallet Type not allowed')
     }
     // const provider = TransferClientName.SafeHaven
     const provider = data.provider
