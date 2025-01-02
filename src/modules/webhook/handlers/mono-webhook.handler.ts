@@ -8,6 +8,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common
 import { MonoService } from '@/modules/common/mono.service';
 import { MandateApprovedData } from '@/queues/jobs/wallet/mandate-approved.job';
 import { MandateDebitReadyData } from '@/queues/jobs/wallet/mandate-ready-debit.job';
+import { WalletOutflowData } from '@/queues/jobs/wallet/wallet-outflow.job';
 
 @Service()
 export default class MonoWebhookHandler {
@@ -46,16 +47,38 @@ export default class MonoWebhookHandler {
     await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.linkedAccounts, message);
   }
 
-  private async onMandateDebitNotification(notification: MandateDebitReadyData): Promise<void> {
-    const { account_name, bank, account_number, customer } = notification;
-    const message = `Linked Account Debited! :rocket: :rocket: \n\n
-      *Merchant*: ${customer}
-      *Account Name*: ${account_name}
-      *Bank*: ${bank}
-      *Acc Number*: ${account_number}
-    `;
-    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.linkedAccounts, message);
+  private async onTransferEventNotification(notification: WalletOutflowData): Promise<any> {
+    const slackService = new SlackNotificationService();
+    const { amount, status, reference } = notification;
+    const correctAmount = +amount / 100;
+    const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
+    const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
+    const reversedTopic = ':alert: Merchant Wallet Outflow Reversed :alert:'
+    switch (status) {
+      case 'successful':
+        const successMessage = `${successTopic} \n\n
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
+        *Status*: ${status}
+      `;
+        return await slackService.sendMessage(AllowedSlackWebhooks.outflow, successMessage);
+      case 'failed':
+        const failedNessage = `${failureTopic} \n\n
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
+        *Status*: ${status}
+      `;
+        return await slackService.sendMessage(AllowedSlackWebhooks.outflow, failedNessage);
+      case 'reversed':
+        const reversedMessage = `${reversedTopic} \n\n
+        *Reference*: ${reference}
+        *Amount*: ${correctAmount}
+        *Status*: ${status}
+      `;
+        return await slackService.sendMessage(AllowedSlackWebhooks.outflow, reversedMessage);
+    }
   }
+
   private async OnMandateApproved(body: any) {
     const jobData: MandateApprovedData = {
       status: body.status,
@@ -100,20 +123,16 @@ export default class MonoWebhookHandler {
   }
 
   private async onDirectDebitEvent(body: any) {
-    const jobData: MandateDebitReadyData = {
-      mandateId: body.id,
-      debit_type: body.debit_type,
-      ready_to_debit: body.ready_to_debit,
-      approved: body.approved,
-      reference: body.reference,
-      account_name: body.account_name,
-      account_number: body.account_number,
-      bank: body.bank,
-      bank_code: body.bank_code,
-      customer: body.customer,
+    const jobData: WalletOutflowData = {
+      amount: body.amount,
+      currency: body.currency || "NGN",
+      gatewayResponse: body.gatewayResponse,
+      reference: body.reference_number,
+      status: body.status as WalletOutflowData["status"],
     };
 
-    await this.onMandateDebitNotification(jobData)
+    await walletQueue.add("processWalletOutflow", jobData);
+    await this.onTransferEventNotification(jobData)
     return { message: 'debit event' }
   }
 
