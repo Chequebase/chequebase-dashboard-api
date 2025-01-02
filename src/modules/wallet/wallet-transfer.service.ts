@@ -620,6 +620,7 @@ export class WalletTransferService {
 
     const destinationVirtualAccount = (<IVirtualAccount>destinationWallet.virtualAccounts[0])
     return this.approveDirectDebit({
+      to: destinationVirtualAccount.name,
       accountNumber: destinationVirtualAccount.accountNumber,
       amount: data.amount,
       bankCode: destinationVirtualAccount.bankCode,
@@ -645,7 +646,7 @@ export class WalletTransferService {
     }
     const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
 
-    if (!virtualAccount.externalRef) {
+    if (!virtualAccount.externalRef && !data.to) {
       throw new NotFoundError('Mandate does not exist')
     }
     // const provider = TransferClientName.SafeHaven
