@@ -32,7 +32,9 @@ async function processMandateExpired() {
         logger.log('No mandates to update', {})
         return { message: 'no expired mandates' }
     }
+    const orgIds = exists.map(x=>x.organization)
     const entries = await VirtualAccount.updateMany(filter, { mandateApproved: false })
+    await Organization.updateMany({ _id: { $in: orgIds } }, { monoAuthUrl: '' })
 
     logger.log('udpated expired mandates - ', {exists})
     console.log(`Number of mandates expired: ${exists.length}`)
