@@ -32,7 +32,7 @@ async function processMandateExpired() {
         logger.log('No mandates to update', {})
         return { message: 'no expired mandates' }
     }
-    const entries = await VirtualAccount.updateMany(filter, { mandateApproved: false, readyToDebit: false })
+    const entries = await VirtualAccount.updateMany(filter, { mandateApproved: false })
 
     logger.log('udpated expired mandates - ', {exists})
     console.log(`Number of mandates expired: ${exists.length}`)
