@@ -97,7 +97,8 @@ async function processMandateApproved(job: Job<MandateApprovedData>) {
 
   try {
     if (approved) {
-      await createWallet(data);
+      const wallet = await createWallet(data);
+      await Organization.updateOne({ _id: wallet.organizationId }, { monoAuthUrl: '' })
       // const [date, time] = dayjs().tz('Africa/Lagos').format('YYYY-MM-DD HH:mm:ss').split(' ')
       // emailService.sendFundedWalletEmail(organization.admin.email, {
       //   accountBalance: formatMoney(balanceAfter),
