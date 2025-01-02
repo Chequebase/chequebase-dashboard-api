@@ -581,11 +581,6 @@ export class WalletTransferService {
   }
 
   async initiateLinkedInflow(auth: AuthUser, walletId: string, data: InitiateInternalTransferDto) {
-    const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
-    if (!validPin) {
-      throw new BadRequestError('Invalid pin')
-    }
-
     const wallet = await this.getWallet(auth.orgId, walletId)
     const destinationWallet = await this.getWallet(auth.orgId, data.destination)
     if (!wallet || !destinationWallet) {

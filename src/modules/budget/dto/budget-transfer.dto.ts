@@ -37,10 +37,6 @@ export class InitiateTransferDto {
 }
 
 export class InitiateInternalTransferDto {
-  @IsOptional()
-  @IsString()
-  pin: string
-
   @IsInt()
   @Transform((n) => Number(n.value))
   amount: number
