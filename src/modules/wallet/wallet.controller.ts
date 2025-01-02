@@ -178,4 +178,15 @@ export default class WalletController {
     }
     return this.walletTransferService.initiateDirectDebit(auth, id, dto)
   }
+
+  @Post('/linked/:id/inflow')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async initiateLinkedInflow(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Body() body: InitiateInternalTransferDto,
+  ) {
+    return this.walletTransferService.initiateLinkedInflow(auth, id, body)
+  }
 }

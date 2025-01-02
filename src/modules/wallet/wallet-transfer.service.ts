@@ -580,6 +580,54 @@ export class WalletTransferService {
     }
   }
 
+  async initiateLinkedInflow(auth: AuthUser, walletId: string, data: InitiateInternalTransferDto) {
+    const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!validPin) {
+      throw new BadRequestError('Invalid pin')
+    }
+
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    const destinationWallet = await this.getWallet(auth.orgId, data.destination)
+    if (!wallet || !destinationWallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(auth.orgId)
+    if (!org) {
+      throw new NotFoundError('Org does not exist')
+    }
+
+    if (!(virtualAccount.externalRef && wallet.type === WalletType.LinkedAccount)) {
+      throw new NotFoundError('Mandate does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const destinationVirtualAccount = (<IVirtualAccount>destinationWallet.virtualAccounts[0])
+    return this.approveDirectDebit({
+      accountNumber: destinationVirtualAccount.accountNumber,
+      amount: data.amount,
+      bankCode: destinationVirtualAccount.bankCode,
+      wallet: wallet._id.toString(),
+      auth,
+      provider: data.provider,
+      requester: auth.userId,
+      saveRecipient: false,
+    })
+  }
+
   async approveDirectDebit(data: ApproveTransfer) {
     const orgId = data.auth.orgId;
     const organization = await Organization.findById(orgId).lean();
