@@ -469,8 +469,12 @@ export class WalletTransferService {
       throw new NotFoundError('Org does not exist')
     }
 
-    if (!(virtualAccount.externalRef && wallet.type === WalletType.LinkedAccount)) {
-      throw new NotFoundError('Mandate does not exist')
+    if (!virtualAccount.externalRef) {
+      throw new NotFoundError('Mandate is not allowed')
+    }
+
+    if (wallet.type !== WalletType.LinkedAccount) {
+      throw new NotFoundError('Wallet Type not allowed')
     }
 
     if (org.status === KycStatus.NO_DEBIT) {
@@ -598,8 +602,12 @@ export class WalletTransferService {
       throw new NotFoundError('Org does not exist')
     }
 
-    if (!(virtualAccount.externalRef && wallet.type === WalletType.LinkedAccount)) {
-      throw new NotFoundError('Mandate does not exist')
+    if (!virtualAccount.externalRef) {
+      throw new NotFoundError('Mandate is not allowed')
+    }
+
+    if (wallet.type !== WalletType.LinkedAccount) {
+      throw new NotFoundError('Wallet Type not allowed')
     }
 
     if (org.status === KycStatus.NO_DEBIT) {
