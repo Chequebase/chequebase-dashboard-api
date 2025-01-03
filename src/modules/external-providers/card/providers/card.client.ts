@@ -1,11 +1,13 @@
+import { CardType } from "@/models/card.model";
+
 export type CreateCustomerData = {
-  provider: CardClientName
+  provider: CardClientName;
   name: string;
-  firstName: string
-  lastName: string
+  firstName: string;
+  lastName: string;
   phoneNumber: string;
   emailAddress?: string;
-  bvn: string
+  bvn: string;
   billingAddress: {
     street: string;
     city: string;
@@ -13,36 +15,41 @@ export type CreateCustomerData = {
     country: string;
     postalCode: string;
   };
-}
+};
 
-export type CreateCustomerResponse= {
+export type CreateCustomerResponse = {
   successful: boolean;
   data: {
     customerId: string;
   } | null;
-}
+};
 
 export type CreateCardData = {
-  provider: CardClientName
+  provider: CardClientName;
   customerId: string;
-  type: 'virtual' | 'physical';
+  type: CardType;
   brand: "verve" | "mastercard" | "visa";
   PAN?: string;
   currency: string;
-  metadata: Record<string, never>;
-}
+  metadata: Record<string, unknown>;
+};
+
+export type UpdateCardData = {
+  provider: CardClientName;
+  cardId: string;
+};
 
 export type CreateCardResponse = {
   successful: boolean;
   data: {
     type: string;
     brand: string;
-    currency: string
-    maskedPan: string
-    expiryMonth: string,
-    expiryYear: string,
-  } | null
-}
+    currency: string;
+    maskedPan: string;
+    expiryMonth: string;
+    expiryYear: string;
+  } | null;
+};
 
 export enum CardClientName {
   Sudo = "sudo",
@@ -50,6 +57,14 @@ export enum CardClientName {
 
 export abstract class CardClient {
   abstract currencies: string[];
-  abstract createCustomer(payload: CreateCustomerData): Promise<CreateCustomerResponse>;
+  abstract createCustomer(
+    payload: CreateCustomerData
+  ): Promise<CreateCustomerResponse>;
   abstract createCard(payload: CreateCardData): Promise<CreateCardResponse>;
+  abstract freezeCard(
+    payload: UpdateCardData
+  ): Promise<{ successful: boolean }>;
+  abstract unfreezeCard(
+    payload: UpdateCardData
+  ): Promise<{ successful: boolean }>;
 }

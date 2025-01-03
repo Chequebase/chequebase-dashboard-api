@@ -8,6 +8,7 @@ import {
   CreateCardResponse,
   CreateCustomerData,
   CreateCustomerResponse,
+  UpdateCardData,
 } from "./card.client";
 
 
@@ -131,6 +132,81 @@ export class SudoCardClient implements CardClient {
         successful: false,
         data: null,
       };
+    }
+  }
+
+  async freezeCard(payload: UpdateCardData): Promise<CreateCardResponse> {
+    const body = { status: "inactive" };
+
+    try {
+      const { data, status } = await this.httpClient.post(`/cards/${payload.cardId}`, body);
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
+      this.logger.log("sudo freeze card response", {
+        body: JSON.stringify(body),
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return {
+        successful: data.responseCode === "00",
+        data: null,
+      };
+    } catch (err: any) {
+      this.handleError("error freezing card", body, err);
+      return { successful: false, data: null };
+    }
+  }
+
+  async unfreezeCard(payload: UpdateCardData): Promise<CreateCardResponse> {
+    const body = { status: "active" };
+
+    try {
+      const { data, status } = await this.httpClient.post(`/cards/${payload.cardId}`, body);
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
+      this.logger.log("sudo unfreeze card response", {
+        body: JSON.stringify(body),
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return {
+        successful: data.responseCode === "00",
+        data: null,
+      };
+    } catch (err: any) {
+      this.handleError("error unfreezing card", body, err);
+      return { successful: false, data: null };
+    }
+  }
+
+  async blockCard(payload: UpdateCardData): Promise<CreateCardResponse> {
+    const body = { status: "canceled" };
+
+    try {
+      const { data, status } = await this.httpClient.post(`/cards/${payload.cardId}`, body);
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
+      this.logger.log("sudo block card response", {
+        body: JSON.stringify(body),
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return {
+        successful: data.responseCode === "00",
+        data: null,
+      };
+    } catch (err: any) {
+      this.handleError("error blocking card", body, err);
+      return { successful: false, data: null };
     }
   }
 

@@ -7,6 +7,7 @@ import {
   CardClient,
   CreateCardData,
   CreateCustomerData,
+  UpdateCardData,
 } from "./providers/card.client";
 
 @Service()
@@ -41,8 +42,49 @@ export class CardService {
       });
 
       return {
-        status: "failed",
+        successful: false,
         message: "Provider failure, could not create card",
+        data: null,
+        gatewayResponse: err.message,
+      };
+    }
+  }
+
+  async freezeCard(data: UpdateCardData) {
+    try {
+      const client = this.getClient(data.provider);
+      const result = await client.freezeCard(data);
+      return result;
+    } catch (err: any) {
+      this.logger.error("error freezing card", {
+        payload: JSON.stringify(data),
+        reason: err.message,
+      });
+
+      return {
+        successful: false,
+        message: "Provider failure, could not freeze card",
+        data: null,
+        gatewayResponse: err.message,
+      };
+    }
+  }
+
+  async unfreezeCard(data: UpdateCardData) {
+    try {
+      const client = this.getClient(data.provider);
+      const result = await client.unfreezeCard(data);
+      return result;
+    } catch (err: any) {
+      this.logger.error("error unfreezing card", {
+        payload: JSON.stringify(data),
+        reason: err.message,
+      });
+
+      return {
+        successful: false,
+        message: "Provider failure, could not activate card",
+        data: null,
         gatewayResponse: err.message,
       };
     }
@@ -59,11 +101,7 @@ export class CardService {
         reason: err.message,
       });
 
-      return {
-        status: "failed",
-        message: "Client failure, could not create customer",
-        gatewayResponse: err.message,
-      };
+      return { successful: false, data: null };
     }
   }
 }

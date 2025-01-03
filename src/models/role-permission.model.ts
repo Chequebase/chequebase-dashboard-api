@@ -32,6 +32,8 @@ export enum EPermission {
   LicenseEdit = 'license:edit',
   PayrollRead = 'payroll:read',
   PayrollEdit = 'payroll:edit',
+  CardEdit = 'card:edit',
+  CardRead = 'card:read',
 }
 
 export interface IRolePermission {

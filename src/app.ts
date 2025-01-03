@@ -26,6 +26,7 @@ import UserController from "./modules/user/user.controller";
 import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
 import PayrollController from './modules/payroll/payroll.controller';
+import OrganizationCardController from './modules/organization-card/organization-card.controller';
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
@@ -62,7 +63,8 @@ const rcOptions: RoutingControllersOptions = {
     BanksphereController,
     LogController,
     ProviderController,
-    PayrollController
+    PayrollController,
+    OrganizationCardController
   ],
   middlewares: [ExceptionFilter],
   interceptors: [],
