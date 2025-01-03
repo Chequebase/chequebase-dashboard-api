@@ -457,6 +457,7 @@ export class WalletTransferService {
     if (!validPin) {
       throw new BadRequestError('Invalid pin')
     }
+    const amount = +data.amount / 100
 
     const wallet = await this.getWallet(auth.orgId, walletId)
     if (!wallet) {
@@ -489,7 +490,7 @@ export class WalletTransferService {
     const rules = await ApprovalRule.find({
       organization: auth.orgId,
       workflowType: WorkflowType.Transaction,
-      amount: { $lte: data.amount }
+      amount: { $lte: amount }
     })
 
     const rule = rules[0]
@@ -512,7 +513,7 @@ export class WalletTransferService {
     if (noApprovalRequired) {
       return this.approveDirectDebit({
         accountNumber: data.accountNumber,
-        amount: data.amount,
+        amount,
         bankCode: data.bankCode,
         wallet: wallet._id.toString(),
         auth,
@@ -545,7 +546,7 @@ export class WalletTransferService {
         transaction: {
           accountName: resolveRes.accountName,
           accountNumber: data.accountNumber,
-          amount: data.amount,
+          amount,
           bankCode: data.bankCode,
           bankName: resolveRes.bankName,
           invoice: invoiceUrl,
@@ -829,7 +830,7 @@ export class WalletTransferService {
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
       .populate<{ virtualAccounts: IVirtualAccount[] }>({
         path: 'virtualAccounts',
-        select: 'accountNumber bankName bankCode name readyToDebit mandateApproved'
+        select: 'accountNumber bankName bankCode name readyToDebit mandateApproved externalRef'
       })
       .lean()
     if (!wallet) {

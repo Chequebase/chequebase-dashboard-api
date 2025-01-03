@@ -133,7 +133,6 @@ export class MonoService {
             nuban: payload.beneficiary.accountNumber
         },
     }
-    console.log({ payload, data })
 
     try {
       const res = await this.http.post(`/v3/payments/mandates/${payload.mandateId}/debit`, data)
