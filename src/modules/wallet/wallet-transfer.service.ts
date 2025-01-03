@@ -663,6 +663,9 @@ export class WalletTransferService {
         accountNumber: data.accountNumber
       }
     })
+    if (transferResponse.status === 'failed') {
+      throw new ServiceUnavailableError(transferResponse.message)
+    }
     return {
       status: transferResponse.status,
       approvalRequired: false,
