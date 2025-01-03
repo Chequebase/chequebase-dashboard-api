@@ -11,8 +11,6 @@ import { IWallet, WalletType } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget from "@/models/budget.model"
 import Wallet from "@/models/wallet.model"
-import { TransferService } from "../transfer/transfer.service"
-import { TransferClientName } from "../transfer/providers/transfer.client"
 import { AnchorService } from "../common/anchor.service"
 import User, { KycStatus } from "@/models/user.model"
 import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
@@ -28,6 +26,13 @@ import { walletQueue } from "@/queues"
 import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
 import { MonoService } from "../common/mono.service";
 import { MONO_TOKEN } from "../banksphere/providers/mono.client";
+import { TransferService } from "../external-providers/transfer/transfer.service";
+import { S3Service } from "../common/aws/s3.service";
+import EmailService from "../common/email.service";
+import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
+import { UserService } from "../user/user.service";
+import TransferCategory from "@/models/transfer-category";
+import { IVirtualAccount } from "@/models/virtual-account.model";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }

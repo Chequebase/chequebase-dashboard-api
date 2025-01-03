@@ -10,7 +10,7 @@ import EmailService from "@/modules/common/email.service";
 import Organization, { IOrganization } from "@/models/organization.model";
 import BaseWallet from "@/models/base-wallet.model";
 import { ObjectId } from "mongodb";
-import { VirtualAccountClientName } from "@/modules/virtual-account/providers/virtual-account.client";
+import { VirtualAccountClientName } from "@/modules/external-providers/virtual-account/providers/virtual-account.client";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)

@@ -8,8 +8,7 @@ import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { InitiateDirectDebit, InitiateMandateData, InitiateMandateResult } from "../transfer/providers/transfer.client";
-import { MONO_TOKEN } from "../banksphere/providers/mono.client";
+import { InitiateDirectDebit, InitiateMandateData, InitiateMandateResult } from "../external-providers/transfer/providers/transfer.client";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);

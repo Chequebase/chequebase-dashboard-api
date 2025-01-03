@@ -21,13 +21,11 @@ import { cdb, isValidObjectId } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
-import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
-import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
-import { BaseWalletType } from "../banksphere/providers/customer.client";
-import { SAFE_HAVEN_VA_TOKEN, SafeHavenVirtualAccountClient } from "../virtual-account/providers/safe-haven.client";
 import slugify from 'slugify';
+import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
+import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
