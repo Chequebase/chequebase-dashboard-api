@@ -22,7 +22,7 @@ import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/
 import Logger from "../common/utils/logger";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import WalletService from "../wallet/wallet.service";
-import { AddEmployeeDto, CreateEmployeeDto, ERole, GetAllMembersQueryDto, GetMembersQueryDto, LoginDto, NewRegisterDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
+import { AddEmployeeDto, CreateEmployeeDto, ERole, GetAllMembersQueryDto, GetMembersQueryDto, LoginDto, NewRegisterDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, RegisterIndividualDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
 import TransferCategory from "@/models/transfer-category";
 
@@ -252,7 +252,9 @@ export class UserService {
 
   async newRegister(data: NewRegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    console.log({ email: $regex, data })
     const userExists = await User.findOne({ email: { $regex } })
+    console.log({ userExists, db: process.env.DB_URI })
     if (userExists) {
       if (!userExists.emailVerified) {
         const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
@@ -267,6 +269,7 @@ export class UserService {
     }
 
     const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
+    console.log({ ownerRole })
     if (!ownerRole) {
       logger.error('role not found', { name: 'owner', type: 'default' })
       throw new ServiceUnavailableError('Unable to complete registration at this time')
@@ -319,6 +322,85 @@ export class UserService {
     const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
     this.emailService.sendVerifyEmail(data.email, {
       customerName: isOwner ? organization.businessName : user.firstName,
+      otp: emailVerifyCode,
+      emailVerificationLink: link
+    })
+
+    return { message: "User created, check your email for verification link" };
+  }
+
+  async registerIndividual(data: RegisterIndividualDto) {
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
+    console.log({ email: $regex, data })
+    const userExists = await User.findOne({ email: { $regex } })
+    console.log({ userExists, db: process.env.DB_URI })
+    if (userExists) {
+      if (!userExists.emailVerified) {
+        const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
+        this.emailService.sendVerifyEmail(userExists.email, {
+          customerName: userExists.firstName,
+          otp: userExists.emailVerifyCode,
+          verificationLink: link
+        })
+        return { message: "User created, check your email for verification link" };
+      }
+      throw new BadRequestError('Account with same email already exists');
+    }
+
+    const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
+    console.log({ ownerRole })
+    if (!ownerRole) {
+      logger.error('role not found', { name: 'owner', type: 'default' })
+      throw new ServiceUnavailableError('Unable to complete registration at this time')
+    }
+
+    let emailVerifyCode = Math.floor(100000 + Math.random() * 900000);
+    const otpExpiresAt = this.getOtpExpirationDate(10)
+
+    // TODO: remove
+    if (whiteListDevEmails.includes(data.email)) {
+      emailVerifyCode = 123456
+    }
+
+    const user = await User.create({
+      email: data.email,
+      password: await bcrypt.hash(data.password, 12),
+      emailVerifyCode,
+      otpExpiresAt,
+      role: ERole.Owner,
+      roleRef: ownerRole._id,
+      hashRt: '',
+      KYBStatus: KycStatus.NOT_STARTED,
+      status: UserStatus.PENDING,
+      avatar: '',
+      phone: data.phone,
+      firstName: data.firstName,
+      lastName: data.lastName
+    });
+
+    const organization = await Organization.create({
+      businessName: 'default-',
+      admin: user._id,
+      email: data.email,
+      phone: data.phone,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      bvnVerified: false
+    })
+    await user.updateOne({ organization: organization._id })
+
+    await Promise.all([
+      this.createDefaultApprovalRules(organization.id, user.id),
+      this.createDefaultCategories(organization.id)
+    ])
+
+    const message = `${data.firstName}, with email: ${data.email} just signed up`;
+    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
+
+    const isOwner = user.role === ERole.Owner
+    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
+    this.emailService.sendVerifyEmail(data.email, {
+      customerName: (isOwner && organization.businessName !== 'default-') ? organization.businessName : user.firstName,
       otp: emailVerifyCode,
       emailVerificationLink: link
     })

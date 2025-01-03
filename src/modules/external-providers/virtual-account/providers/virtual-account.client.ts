@@ -45,7 +45,8 @@ export enum VirtualAccountClientName {
   Anchor = 'anchor',
   SafeHaven = 'safe-haven',
   Paystack = 'paystack',
-  SarePay = 'sarepay'
+  SarePay = 'sarepay',
+  Mono = 'Mono'
 }
 
 export abstract class VirtualAccountClient {

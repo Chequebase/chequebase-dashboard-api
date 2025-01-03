@@ -45,6 +45,7 @@ export default class SafeHavenWebhookHandler {
       reference: gatewayResponse.data.sessionId,
       providerRef: gatewayResponse.data.sessionId,
       paymentMethod: "transfer",
+      providerChannel: gatewayResponse.data.providerChannel,
       sourceAccount: {
         accountName: gatewayResponse.data.debitAccountName,
         accountNumber: gatewayResponse.data.debitAccountNumber,

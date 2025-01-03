@@ -2,6 +2,7 @@ import { WalletEntryType } from "@/models/wallet-entry.model";
 import { WalletType } from "@/models/wallet.model";
 import { VirtualAccountClientName } from "@/modules/external-providers/virtual-account/providers/virtual-account.client";
 import { IsBoolean, IsDateString, IsEnum, IsHexadecimal, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { BaseWalletType } from "@/modules/banksphere/providers/customer.client";
 
 export class CreateWalletDto {
   @IsString()
@@ -23,6 +24,29 @@ export class CreateWalletDto {
   organization: string;
 }
 
+export class CreateSubaccoubtDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  @IsEnum(BaseWalletType)
+  @IsOptional()
+  currency = BaseWalletType.NGN;
+
+  @IsString()
+  @IsEnum(VirtualAccountClientName)
+  @IsOptional()
+  provider = VirtualAccountClientName.SafeHaven;
+
+  @IsString()
+  @IsEnum(WalletType)
+  @IsOptional()
+  walletType = WalletType.SubAccount;
+
+  @IsString()
+  description: string;
+}
+
 export class ReportTransactionDto {
   @IsString()
   @IsHexadecimal()
@@ -35,6 +59,12 @@ export class ReportTransactionDto {
   reason: string
 }
 
+export class GetLinkedAccountDto {
+  @IsString()
+  @IsEnum(WalletType)
+  @IsOptional()
+  type?: WalletType
+}
 export class GetWalletEntriesDto {
   @IsString()
   @IsOptional()

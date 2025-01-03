@@ -5,7 +5,7 @@ import Organization from "@/models/organization.model";
 import User from "@/models/user.model";
 import VirtualAccount from "@/models/virtual-account.model";
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
-import Wallet from "@/models/wallet.model";
+import Wallet, { WalletType } from "@/models/wallet.model";
 import { walletQueue } from "@/queues";
 import { createId } from '@paralleldrive/cuid2';
 import dayjs from "dayjs";
@@ -15,16 +15,19 @@ import * as fastCsv from 'fast-csv';
 import { ObjectId } from 'mongodb';
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
-import { Service } from "typedi";
+import Container, { Service } from "typedi";
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
 import { cdb, isValidObjectId } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { VirtualAccountService } from "../virtual-account/virtual-account.service";
+import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
-import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
-import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
+import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
+import { BaseWalletType } from "../banksphere/providers/customer.client";
+import { SAFE_HAVEN_VA_TOKEN, SafeHavenVirtualAccountClient } from "../virtual-account/providers/safe-haven.client";
+import slugify from 'slugify';
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -180,9 +183,131 @@ export default class WalletService {
     }
   }
 
-  async getWallets(orgId: string) {
-    let wallets = await Wallet.find({ organization: orgId })
-      .select('primary currency balance ledgerBalance type')
+  async createSubaccount(auth: AuthUser, data: CreateSubaccoubtDto) {
+    const organization = await Organization.findById(auth.orgId).lean()
+    if (!organization) {
+      throw new NotFoundError('Organization not found')
+    }
+
+    if (organization.status !== 'approved') {
+      throw new BadRequestError('Organization is not verified')
+    }
+
+    const baseWallet = await BaseWallet.findOne({ currency: "NGN" })
+    if (!baseWallet) {
+      throw new NotFoundError('Base wallet not found')
+    }
+
+    const slugifiedName = slugify(data.name.toLowerCase())
+    const existingWallet = await Wallet.findOne({
+      organization: organization._id,
+      baseWallet: baseWallet._id,
+      slugifiedName
+    })
+    if (existingWallet) {
+      throw new BadRequestError(`Sub account with name: ${data.name} already exists`)
+    }
+
+    const wallets = await Wallet.find({
+      organization: organization._id,
+      baseWallet: baseWallet._id
+    })
+
+    try {
+      const walletId = new ObjectId()
+      const virtualAccountId = new ObjectId()
+      const reference = `va-${createId()}`
+      // console.log({ payload: {
+      //   type: 'static',
+      //   email: organization.email,
+      //   name: organization.businessName,
+      //   provider: data.provider,
+      //   reference,
+      //   currency: baseWallet.currency,
+      //   identity: {
+      //     type: 'bvn',
+      //     number: organization.owners[0]?.bvn,
+      //   },
+      //   phone: organization.phone,
+      //   rcNumber: organization.rcNumber
+      // }})
+
+      const accountRef = `va-${createId()}`
+      const provider = VirtualAccountClientName.SafeHaven;
+      const account = await this.vaService.createAccount({
+        currency: baseWallet.currency,
+        email: organization.email,
+        phone: organization.phone,
+        name: organization.businessName,
+        type: "static",
+        customerId: organization.safeHavenIdentityId,
+        provider,
+        reference: accountRef,
+        rcNumber: organization.rcNumber
+      });
+      const providerRef = account.providerRef || accountRef
+      const wallet = await Wallet.create({
+        _id: walletId,
+        name: data.name,
+        description: data.description,
+        type: WalletType.SubAccount,
+        organization: organization._id,
+        baseWallet: baseWallet._id,
+        currency: baseWallet.currency,
+        balance: 0,
+        slugifiedName,
+        primary: !wallets.length,
+        virtualAccounts: [virtualAccountId]
+      })
+
+      const virtualAccount = await VirtualAccount.create({
+        _id: virtualAccountId,
+        organization: organization._id,
+        wallet: wallet._id,
+        accountNumber: account.accountNumber,
+        bankCode: account.bankCode,
+        name: account.accountName,
+        bankName: account.bankName,
+        provider,
+        externalRef: providerRef,
+      });
+
+      return {
+        _id: wallet._id,
+        balance: wallet.balance,
+        currency: wallet.currency,
+        name: data.name,
+        account: {
+          name: virtualAccount.name,
+          accountNumber: virtualAccount.accountNumber,
+          bankName: virtualAccount.bankName,
+          bankCode: virtualAccount.bankCode
+        }
+      }
+    } catch (error: any) {
+      console.log(error)
+    }
+  }
+
+  async getWallets(orgId: string, dto: GetLinkedAccountDto) {
+    const query = {} as any
+    if (dto.type) {
+      query.type = dto.type
+    }
+    let wallets = await Wallet.find({ organization: orgId, ...query })
+      .select('primary currency balance ledgerBalance type name')
+      .populate({
+        path: 'virtualAccounts',
+        select: 'accountNumber bankName bankCode name provider readyToDebit mandateApproved'
+      })
+      .lean()
+
+    return wallets
+  }
+
+  async getSubaccounts(orgId: string) {
+    let wallets = await Wallet.find({ organization: orgId, type: { $in: [WalletType.SubAccount, WalletType.Payroll] } })
+      .select('primary currency balance ledgerBalance type name')
       .populate({
         path: 'virtualAccounts',
         select: 'accountNumber bankName bankCode name provider'
@@ -197,7 +322,7 @@ export default class WalletService {
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
       .populate({
         path: 'virtualAccounts',
-        select: 'accountNumber bankName bankCode name provider'
+        select: 'accountNumber bankName bankCode name provider readyToDebit mandateApproved'
       })
       .lean()
     if (!wallet) {
@@ -416,15 +541,15 @@ export default class WalletService {
 //       type: "static",
 //       identity: {
 //         type: "bvn",
-//         number: '22158686738',
+//         number: '22268655835',
 //       },
-//       rcNumber: '196011',
+//       // rcNumber: '196011',
 
 //       currency: "NGN",
 //       email: 'Uokezie@gmail.com',
 //       phone: '07036647732',
-//       name: 'St Therese of the Child Jesus Organisation',
-//       customerId: '6749b4cb7a46001b36cd2d0e',
+//       name: 'Business Name Po',
+//       customerId: '6724cc4a0cc11ef3a0fc5387',
 //       provider,
 //       reference: accountRef,
 //     });
