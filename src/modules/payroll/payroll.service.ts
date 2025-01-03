@@ -695,6 +695,7 @@ export class PayrollService {
 
     const virtualAccount = existingWallet.virtualAccounts[0] as IVirtualAccount;
     return {
+      id: existingWallet.id,
       balance: existingWallet.balance,
       currency: existingWallet.currency,
       account: {
