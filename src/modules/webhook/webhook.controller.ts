@@ -4,8 +4,9 @@ import AnchorWebhookHandler from "./handlers/anchor-webhook.handler";
 import { raw } from "express";
 import Logger from "../common/utils/logger";
 import { PaystackWebhookHandler } from "./handlers/paystack-webhook.handler";
-import { AnchorHeaderDto, PaystackHeaderDto } from "./dto/webhook.dto";
+import { AnchorHeaderDto, MonoHeaderDto, PaystackHeaderDto } from "./dto/webhook.dto";
 import SafeHavenWebhookHandler from "./handlers/safe-haven-webhook.handler";
+import MonoWebhookHandler from "./handlers/mono-webhook.handler";
 
 const logger = new Logger('webhook-controller')
 
@@ -15,7 +16,8 @@ export default class WebhookController {
   constructor (
     private anchorHandler: AnchorWebhookHandler,
     private paystackHandler: PaystackWebhookHandler,
-    private safeHavenHandler: SafeHavenWebhookHandler
+    private safeHavenHandler: SafeHavenWebhookHandler,
+    private monoHandler: MonoWebhookHandler,
   ) { }
 
   @Post('/anchor')
@@ -47,5 +49,16 @@ export default class WebhookController {
     })
 
     return this.paystackHandler.processWebhook(body, headers)
+  }
+
+  @Post('/mono')
+  @UseBefore(raw({ type: "application/json" }))
+  async processMono(@Body() body: any, @HeaderParams() headers: MonoHeaderDto) {
+    logger.log('received mono webhook', {
+      body: body.toString('utf-8'),
+      headers: JSON.stringify(headers)
+    })
+
+    return this.monoHandler.processWebhook(body, headers)
   }
 }

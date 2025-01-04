@@ -1,39 +1,52 @@
-import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model"
-import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model"
-import Bank from "@/models/bank.model"
-import Budget from "@/models/budget.model"
+import Container, { Service, Token } from "typedi"
+import { BadRequestError, NotFoundError } from "routing-controllers"
+import dayjs from "dayjs"
+import { cdb } from "../common/mongoose"
+import { createId } from "@paralleldrive/cuid2"
+import numeral from "numeral"
+import { AuthUser } from "../common/interfaces/auth-user"
+import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource, InitiateInternalTransferDto } from "../budget/dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
-import Organization from "@/models/organization.model"
-import { ISubscriptionPlan } from "@/models/subscription-plan.model"
-import { ISubscription } from "@/models/subscription.model"
-import TransferCategory from "@/models/transfer-category"
-import User, { KycStatus } from "@/models/user.model"
-import { IVirtualAccount } from "@/models/virtual-account.model"
+import { IWallet, WalletType } from "@/models/wallet.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
-import Wallet, { IWallet } from "@/models/wallet.model"
+import Budget from "@/models/budget.model"
+import Wallet from "@/models/wallet.model"
+import { AnchorService } from "../common/anchor.service"
+import User, { KycStatus } from "@/models/user.model"
+import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
+import Organization from "@/models/organization.model"
+import { ISubscription } from "@/models/subscription.model"
+import { ISubscriptionPlan } from "@/models/subscription-plan.model"
+import { ServiceUnavailableError } from "../common/utils/service-errors"
+import Logger from "../common/utils/logger"
+import Bank from "@/models/bank.model"
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model"
+import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model"
 import { walletQueue } from "@/queues"
 import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
-import { createId } from "@paralleldrive/cuid2"
-import dayjs from "dayjs"
-import numeral from "numeral"
-import { BadRequestError, NotFoundError } from "routing-controllers"
-import { Service } from "typedi"
-import { GetTransferFee, IPaymentSource, InitiateInternalTransferDto, InitiateTransferDto, ResolveAccountDto, UpdateRecipient } from "../budget/dto/budget-transfer.dto"
-import { AnchorService } from "../common/anchor.service"
-import { S3Service } from "../common/aws/s3.service"
-import EmailService from "../common/email.service"
-import { AuthUser } from "../common/interfaces/auth-user"
-import { cdb } from "../common/mongoose"
-import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
-import Logger from "../common/utils/logger"
-import { ServiceUnavailableError } from "../common/utils/service-errors"
-import { UserService } from "../user/user.service"
-import { TransferClientName } from "../external-providers/transfer/providers/transfer.client"
-import { TransferService } from "../external-providers/transfer/transfer.service"
+import { MonoService } from "../common/mono.service";
+import { MONO_TOKEN } from "../banksphere/providers/mono.client";
+import { TransferService } from "../external-providers/transfer/transfer.service";
+import { S3Service } from "../common/aws/s3.service";
+import EmailService from "../common/email.service";
+import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
+import { UserService } from "../user/user.service";
+import TransferCategory from "@/models/transfer-category";
+import { IVirtualAccount } from "@/models/virtual-account.model";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
   wallet: IWallet
+  counterparty: ICounterparty
+  data: ApproveTransfer
+  category?: string
+  amountToDeduct: number
+  fee: number
+  provider: string
+}
+
+export interface CreateDirectDebitRecord {
+  auth: { orgId: string; userId: string }
   counterparty: ICounterparty
   data: ApproveTransfer
   category?: string
@@ -84,16 +97,17 @@ export interface ApproveTransfer {
   category?: string
   saveRecipient?: boolean
   invoiceUrl?: string
+  narration?: string,
 }
 
 const logger = new Logger('wallet-transfer-service')
-
 @Service()
 export class WalletTransferService {
   constructor (
     private transferService: TransferService,
     private s3Service: S3Service,
     private anchorService: AnchorService,
+    private monoClient: MonoService,
     private emailService: EmailService,
   ) { }
 
@@ -174,6 +188,39 @@ export class WalletTransferService {
         narration: 'Wallet Transfer',
         paymentMethod: 'transfer',
         reference: `wt_${createId()}`,
+        provider: payload.provider,
+        invoiceUrl: data.invoiceUrl,
+        category: data.category,
+        meta: {
+          counterparty: payload.counterparty,
+        }
+      }], { session })
+    }, transactionOpts)
+
+    return entry!
+  }
+
+  private async createDirectDebitRecord(payload: CreateDirectDebitRecord) {
+    let { auth, data, amountToDeduct, category } = payload
+
+    let entry: IWalletEntry
+    await cdb.transaction(async (session) => {
+      [entry] = await WalletEntry.create([{
+        organization: auth.orgId,
+        status: WalletEntryStatus.Pending,
+        currency: 'NGN',
+        amount: data.amount,
+        fee: payload.fee,
+        ledgerBalanceAfter: 0,
+        ledgerBalanceBefore: 0,
+        balanceBefore: 0,
+        balanceAfter: 0,
+        initiatedBy: payload.data.requester,
+        scope: WalletEntryScope.LinkedAccTransfer,
+        type: WalletEntryType.Debit,
+        narration: 'Wallet Transfer',
+        paymentMethod: 'transfer',
+        reference: `wt${this.generateRandomString(12)}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
         category: data.category,
@@ -363,6 +410,279 @@ export class WalletTransferService {
     }
   }
 
+  async initiateAccountLink(auth: AuthUser) {    
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(auth.orgId)
+    if (!org) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+
+    if (!org?.monoCustomerId) {
+      throw new NotFoundError('Mono Customer does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const result = await this.monoClient.initiateMandate({
+      amount: 2500000000,
+      reference: `md${this.generateRandomString(12)}`,
+      currency: 'NGN', /* make dynamic */
+      narration: 'initiate mandate',
+      customer: org?.monoCustomerId,
+    })
+
+    // also check the amount and status of the mandate
+  await Organization.updateOne({ _id: org._id }, {
+    monoAuthUrl: result.url
+  })
+
+    return {
+      monoAuthUrl: result.url,
+      status: 'pending',
+    }
+  }
+
+  async initiateDirectDebit(auth: AuthUser, walletId: string, data: InitiateTransferDto) {
+    const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!validPin) {
+      throw new BadRequestError('Invalid pin')
+    }
+    const amount = +data.amount / 100
+
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(auth.orgId)
+    if (!org) {
+      throw new NotFoundError('Org does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const category = await TransferCategory.findOne({ _id: data.category, organization: auth.orgId }).lean()
+    if (!category) {
+      throw new NotFoundError('Category does not exist')
+    }
+
+    const rules = await ApprovalRule.find({
+      organization: auth.orgId,
+      workflowType: WorkflowType.Transaction,
+      amount: { $lte: amount }
+    })
+
+    const rule = rules[0]
+    let noApprovalRequired = !rule
+    if (rule) {
+      const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
+      noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+    }
+
+    let invoiceUrl
+    if (data.invoice) {
+      const key = `direct/${virtualAccount.externalRef}/${createId()}.${data.fileExt || 'pdf'}`;
+      invoiceUrl = await this.s3Service.uploadObject(
+        getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+        key,
+        data.invoice
+      );
+    }
+
+    if (noApprovalRequired) {
+      return this.approveDirectDebit({
+        accountNumber: data.accountNumber,
+        amount,
+        bankCode: data.bankCode,
+        wallet: wallet._id.toString(),
+        auth,
+        provider: data.provider,
+        requester: auth.userId,
+        category: data.category,
+        invoiceUrl,
+        saveRecipient: data.saveRecipient
+      })
+    }
+
+    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+
+    if (data.saveRecipient) {
+      await this.saveCounterParty(auth.orgId, data.bankCode, data.accountNumber, true)
+    }
+    const request = await ApprovalRequest.create({
+      organization: auth.orgId,
+      workflowType: rule.workflowType,
+      approvalType: rule.approvalType,
+      requester: auth.userId,
+      approvalRule: rule._id,
+      priority: ApprovalRequestPriority.High,
+      reviews: rule!.reviewers.map(user => ({
+        user,
+        status: user.equals(auth.userId) ? 'approved' : 'pending'
+      })),
+      properties: {
+        wallet: wallet._id.toString(),
+        transaction: {
+          accountName: resolveRes.accountName,
+          accountNumber: data.accountNumber,
+          amount,
+          bankCode: data.bankCode,
+          bankName: resolveRes.bankName,
+          invoice: invoiceUrl,
+          category: category._id,
+          provider: data.provider
+        }
+      }
+    })
+
+    rule!.reviewers.forEach(reviewer => {
+      this.emailService.sendTransactionApprovalRequest(reviewer.email, {
+        amount: formatMoney(data.amount),
+        currency: 'NGN',
+        wallet: wallet._id.toString(),
+        employeeName: reviewer.firstName,
+        link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+        requester: {
+          name: `${user.firstName} ${user.lastName}`,
+          avatar: user.avatar
+        },
+        workflowType: toTitleCase(request.workflowType),
+        category: category.name,
+        recipient: resolveRes.accountName,
+        recipientBank: resolveRes.bankName,
+      })
+    });
+
+    return {
+      status: 'pending',
+      approvalRequired: true,
+      message: 'Transaction pending approval',
+    }
+  }
+
+  async initiateLinkedInflow(auth: AuthUser, walletId: string, data: InitiateInternalTransferDto) {
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    const destinationWallet = await this.getWallet(auth.orgId, data.destination)
+    if (!wallet || !destinationWallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(auth.orgId)
+    if (!org) {
+      throw new NotFoundError('Org does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const destinationVirtualAccount = (<IVirtualAccount>destinationWallet.virtualAccounts[0])
+    return this.approveDirectDebit({
+      accountNumber: destinationVirtualAccount.accountNumber,
+      amount: data.amount,
+      bankCode: destinationVirtualAccount.bankCode,
+      wallet: wallet._id.toString(),
+      auth,
+      provider: data.provider,
+      requester: auth.userId,
+      saveRecipient: false,
+    })
+  }
+
+  async approveDirectDebit(data: ApproveTransfer) {
+    const orgId = data.auth.orgId;
+    const organization = await Organization.findById(orgId).lean();
+
+    if (!organization) {
+      throw new NotFoundError('Organization does not exist')
+    }
+
+    const wallet = await this.getWallet(orgId, data.wallet)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+
+    if (!virtualAccount.mandateApproved || !virtualAccount.readyToDebit) {
+      throw new NotFoundError('Mandate is not allowed')
+    }
+
+    if (wallet.type !== WalletType.LinkedAccount) {
+      throw new NotFoundError('Wallet Type not allowed')
+    }
+    // const provider = TransferClientName.SafeHaven
+    const provider = data.provider
+    const payload = {
+      wallet: data.wallet,
+      auth: { userId: data.auth.userId, orgId },
+      category: data.category, data,
+      provider, fee: 0,
+      amountToDeduct: data.amount, invoiceUrl: data.invoiceUrl
+    }
+    await this.runTransferWindowCheck(payload)
+    const counterparty = await this.getCounterparty(orgId, data.bankCode, data.accountNumber, true, data.saveRecipient)
+    const entry = await this.createDirectDebitRecord({ ...payload, counterparty })
+    const transferResponse = await this.monoClient.initiateDirectDebit({
+      amount: data.amount,
+      mandateId: virtualAccount.externalRef,
+      reference: entry.reference,
+      currency: 'NGN',
+      narration: data.narration || 'initiate direct debit',
+      beneficiary: {
+        bankCode: data.bankCode,
+        accountNumber: data.accountNumber
+      }
+    })
+    if (transferResponse.status === 'failed') {
+      throw new ServiceUnavailableError(transferResponse.message)
+    }
+    return {
+      status: transferResponse.status,
+      approvalRequired: false,
+      message: transferResponse.message
+    }
+  }
+
+  private generateRandomString(length: number): string {
+    const result = [];
+    let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const charactersLength = characters.length;
+    for (var i = 0; i < length; i++) {
+      result.push(characters.charAt(Math.floor(Math.random() * charactersLength)));
+    }
+    return result.join('');
+  }
+
   async initiateInternalTransfer(auth: AuthUser, walletId: string, data: InitiateInternalTransferDto) {    
     const wallet = await this.getWallet(auth.orgId, walletId)
     const destinationWallet = await this.getWallet(auth.orgId, data.destination)
@@ -430,6 +750,7 @@ export class WalletTransferService {
     if (data.to) {
       payload.to = data.to
       payload.fee = 0
+      payload.amountToDeduct = data.amount
     }
 
     await this.runSecurityChecks(payload)
@@ -512,7 +833,7 @@ export class WalletTransferService {
     let wallet = await Wallet.findOne({ organization: orgId, ...filter })
       .populate<{ virtualAccounts: IVirtualAccount[] }>({
         path: 'virtualAccounts',
-        select: 'accountNumber bankName bankCode name'
+        select: 'accountNumber bankName bankCode name readyToDebit mandateApproved externalRef'
       })
       .lean()
     if (!wallet) {
@@ -611,3 +932,57 @@ export class WalletTransferService {
     return TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
   }
 }
+
+// async function run() {
+//   const vClient = Container.get<MonoService>(MONO_TOKEN)
+//   try {
+//     // const user = await User.findById('67247d0aab9ba70661ca2167').lean()
+//     // if (!user) {
+//     //   throw new NotFoundError('User does not exist')
+//     // }
+
+//     const org = await Organization.findById('674b69bc83f04a05e67aacfd')
+//     if (!org) {
+//       throw new NotFoundError('Wallet does not exist')
+//     }
+
+//     if (!org.monoCustomerId) {
+//       throw new NotFoundError('Mono Customer does not exist')
+//     }
+
+//     if (org.status === KycStatus.NO_DEBIT) {
+//       throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+//     }
+
+//     // if (user.KYBStatus === KycStatus.NO_DEBIT) {
+//     //   throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+//     // }
+
+//     const xx = [];
+//     let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+//     const charactersLength = characters.length;
+//     for (var i = 0; i < 12; i++) {
+//       xx.push(characters.charAt(Math.floor(Math.random() * charactersLength)));
+//     }
+//     // const can = await vClient.cancelMandate('676f45603953e23495bf51d9')
+//     // console.log({ can })
+//     const randomS = xx.join('');
+//     const result = await vClient.initiateMandate({
+//       amount: 2500000000,
+//       reference: `md${randomS}`,
+//       currency: 'NGN', /* make dynamic */
+//       narration: 'initiate mandate',
+//       customer: org.monoCustomerId,
+//     })
+
+//     console.log({ url: result.url })
+//     await Organization.updateOne({ _id: '674b69bc83f04a05e67aacfd' }, {
+//       monoAuthUrl: result.url
+//     })
+//   return result.url
+// } catch (error) {
+//     console.log({ error })
+//   }
+// }
+
+// run()

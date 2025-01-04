@@ -11,11 +11,11 @@ import {
   TransferClient
 } from "./transfer.client";
 
-export interface TransferPayload {
+interface TransferPayload {
   nameEnquiryReference: string;
   debitAccountNumber?: string;
-  beneficiaryBankCode: string;
-  beneficiaryAccountNumber: string;
+  beneficiaryBankCode?: string;
+  beneficiaryAccountNumber?: string;
   amount: number;
   saveBeneficiary: boolean;
   narration: string;

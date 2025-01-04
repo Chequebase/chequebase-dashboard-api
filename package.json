@@ -50,6 +50,7 @@
     "reflect-metadata": "^0.1.13",
     "routing-controllers": "^0.10.4",
     "routing-controllers-openapi": "^4.0.0",
+    "slugify": "^1.6.6",
     "speakeasy": "^2.0.0",
     "swagger-ui-express": "^5.0.0",
     "typedi": "^0.10.0",

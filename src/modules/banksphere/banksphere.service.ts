@@ -23,6 +23,7 @@ import os from 'os';
 import path from 'path';
 import { WalletType } from '@/models/wallet.model';
 import { VirtualAccountClientName } from '../external-providers/virtual-account/providers/virtual-account.client';
+import { MONO_TOKEN, MonoCustomerClient } from './providers/mono.client';
 
 
 @Service()
@@ -217,6 +218,43 @@ export class BanksphereService {
       }
   }
 
+  async createMonoCustomer(data: CreateCustomerDto) {
+    const organization = await Organization.findById(data.organization).lean()
+    if (!organization) throw new NotFoundError('Organization not found')
+      try {
+        const token = ProviderRegistry.get(data.provider)
+        if (!token) {
+          this.logger.error('provider not found', { provider: data.provider })
+          throw new ServiceUnavailableError('Provider is not unavailable')
+        }
+  
+        const client = Container.get<MonoCustomerClient>(token)
+
+        // if it is an individual
+        if (organization.businessName === 'default-') {
+          const result = await client.createIndividualCustomer({ organization, provider: data.provider })
+          await Organization.updateOne({ _id: organization._id }, {
+            monoCustomerId: result.id,
+          })
+          return result
+        }
+        const result = await client.createBusinessCustomer({ organization, provider: data.provider })
+
+        await Organization.updateOne({ _id: organization._id }, {
+          monoCustomerId: result.id,
+        })
+        return result
+      } catch (err: any) {
+        this.logger.error('error creating customer', { payload: JSON.stringify({ organization, provider:data.provider }), reason: err.message })
+  
+        throw {
+          status: 'failed',
+          message: 'Create Customer Failure, could not create customer',
+          gatewayResponse: err.message
+        }
+      }
+  }
+
   async updateCustomer(data: CreateCustomerDto) {
     const organization = await Organization.findById(data.organization).lean()
     if (!organization) throw new NotFoundError('Organization not found')
@@ -257,7 +295,6 @@ export class BanksphereService {
           baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.SafeHaven, organization: accountId,
           walletType: WalletType.General
         })
-        console.log({ wallet })
         this.emailService.sendKYCApprovedEmail(admin.email, {
           loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
           businessName: organization.businessName
@@ -630,3 +667,61 @@ export class BanksphereService {
     return { message: 'Organization deleted' }
   }
 }
+
+// async function run() {
+//   const vaClient = Container.get<MonoCustomerClient>(MONO_TOKEN)
+
+//   const organization = await Organization.findById('672e1283a6c46901f10886f5').lean()
+//   if (!organization) throw new NotFoundError('Organization not found')
+//   // const baseWallet = BaseWalletType.NGN
+//   // const walletId = new ObjectId()
+//   // const virtualAccountId = new ObjectId()
+
+//   // const accountRef = `va-${createId()}`
+//   const provider = CustomerClientName.Mono;
+//   try {
+//     const account = await vaClient.createIndividualCustomer({
+//       organization,
+//       provider,
+//     });
+//     console.log({ account })
+//     // const providerRef = account.providerRef || accountRef
+//     // const wallet = await Wallet.create({
+//     //   _id: walletId,
+//     //   organization: '66e2cd42bb0baa2b6d513349',
+//     //   baseWallet: baseWallet,
+//     //   currency: 'NGN',
+//     //   balance: 0,
+//     //   primary: true,
+//     //   virtualAccounts: [virtualAccountId]
+//     // })
+
+//     // const virtualAccount = await VirtualAccount.create({
+//     //   _id: virtualAccountId,
+//     //   organization: '66e2cd42bb0baa2b6d513349',
+//     //   wallet: wallet._id,
+//     //   accountNumber: account.accountNumber,
+//     //   bankCode: account.bankCode,
+//     //   name: account.accountName,
+//     //   bankName: account.bankName,
+//     //   provider,
+//     //   externalRef: providerRef,
+//     // });
+
+//     // console.log({
+//     //   _id: wallet._id,
+//     //   balance: wallet.balance,
+//     //   currency: wallet.currency,
+//     //   account: {
+//     //     name: virtualAccount.name,
+//     //     accountNumber: virtualAccount.accountNumber,
+//     //     bankName: virtualAccount.bankName,
+//     //     bankCode: virtualAccount.bankCode
+//     //   }
+//     // })
+// } catch (error) {
+//     console.log({ error })
+//   }
+// }
+
+// run()

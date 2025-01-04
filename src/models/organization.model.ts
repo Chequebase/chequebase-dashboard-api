@@ -46,6 +46,13 @@ export interface Anchor {
   verified: boolean
 }
 
+export interface Mono {
+  customerId: string
+  mandateId: string
+  status: string
+  url: string
+}
+
 export interface IOrganization {
   _id: ObjectId
   admin: ObjectId | IUser
@@ -93,6 +100,9 @@ export interface IOrganization {
   owners: Shareholder[]
   owner: any
   anchor?: Anchor
+  mono?: Mono
+  monoCustomerId?: string
+  monoAuthUrl?: string
   kycRejectionLevel: string
   kycRejectionDescription: string
   kycRejectReason?: string
@@ -133,6 +143,13 @@ const anchorSchema = new Schema<Anchor>({
   requiredDocuments: [requiredDocumentsSchema],
   customerId: String,
   verified: Boolean
+})
+
+const monoSchema = new Schema<Mono>({
+  customerId: String,
+  mandateId: String,
+  status: String,
+  url: String
 })
 
 interface OrganizationModel extends
@@ -183,6 +200,9 @@ const organizationSchma = new Schema<IOrganization>(
     identityDocument: String,
     kycRejectReason: String,
     anchor: anchorSchema,
+    mono: monoSchema,
+    monoCustomerId: String,
+    monoAuthUrl: String,
     kycRejectionLevel: String,
     kycRejectionDescription: String,
     sudoCustomerId: String,

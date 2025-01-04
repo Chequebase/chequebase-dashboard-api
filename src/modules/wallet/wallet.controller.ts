@@ -2,7 +2,7 @@ import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryP
 import { Service } from "typedi";
 import { Request } from "express";
 import WalletService from "./wallet.service";
-import { CreateWalletDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Response } from "express";
@@ -15,6 +15,7 @@ import { InitiateInternalTransferDto, InitiateTransferDto } from "../budget/dto/
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { WalletTransferService } from "./wallet-transfer.service";
+import { PlanUsageService } from "../billing/plan-usage.service";
 
 const whitelist = [
   'image/png',
@@ -25,7 +26,7 @@ const whitelist = [
 @Service()
 @JsonController('/wallet', { transformResponse: false })
 export default class WalletController {
-  constructor (private walletService: WalletService, private walletTransferService: WalletTransferService) { }
+  constructor (private walletService: WalletService, private walletTransferService: WalletTransferService, private usageService: PlanUsageService) { }
   
   @Post('/')
   @UseBefore(publicApiGuard)
@@ -33,10 +34,36 @@ export default class WalletController {
     return this.walletService.createWallet(dto)
   }
 
+  @Post('/subaccount')
+  // @UseBefore(publicApiGuard)
+  @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
+  async createSubaccount(@CurrentUser() auth: AuthUser, @Body() dto: CreateSubaccoubtDto) {
+    await this.usageService.checkSubaccountsUsage(auth.orgId);
+    return this.walletService.createSubaccount(auth, dto)
+  }
+
+  @Get('/subaccount')
+  @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
+  getSubaccounts(@CurrentUser() auth: AuthUser) {
+    return this.walletService.getSubaccounts(auth.orgId)
+  }
+
+  @Get('/subaccount/:id')
+  @Authorized(EPermission.TransactionRead)
+  getSubaccount(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.walletService.getWallet(auth.orgId, id)
+  }
+
+  @Get('/subaccount/history/:id')
+  @Authorized(EPermission.TransactionRead)
+  getSubaccountHistoryId(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.walletService.getWalletEntry(auth.orgId, id)
+  }
+
   @Get('/')
   @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
-  getWallets(@CurrentUser() auth: AuthUser) {
-    return this.walletService.getWallets(auth.orgId)
+  getWallets(@CurrentUser() auth: AuthUser, @QueryParams() query: GetLinkedAccountDto) {
+    return this.walletService.getWallets(auth.orgId, query)
   }
 
   @Get('/history')
@@ -122,5 +149,44 @@ export default class WalletController {
     @Body() body: InitiateInternalTransferDto,
   ) {
     return this.walletTransferService.initiateInternalTransfer(auth, id, body)
+  }
+
+  @Post('/linked/initiate')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async initiateAccountLink(
+    @CurrentUser() auth: AuthUser,
+  ) {
+
+    return this.walletTransferService.initiateAccountLink(auth)
+  }
+
+  @Post('/linked/:id/debit')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(multer().single('invoice'))
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async initiateDirectDebit(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const file = req.file as any
+    const dto = plainToInstance(InitiateTransferDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', invoice: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) {
+      throw { errors }
+    }
+    return this.walletTransferService.initiateDirectDebit(auth, id, dto)
+  }
+
+  @Post('/linked/:id/inflow')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async initiateLinkedInflow(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Body() body: InitiateInternalTransferDto,
+  ) {
+    return this.walletTransferService.initiateLinkedInflow(auth, id, body)
   }
 }
