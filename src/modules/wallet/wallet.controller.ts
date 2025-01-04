@@ -36,26 +36,26 @@ export default class WalletController {
 
   @Post('/subaccount')
   // @UseBefore(publicApiGuard)
-  @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
+  @Authorized([EPermission.WalletSubaccountCreate])
   async createSubaccount(@CurrentUser() auth: AuthUser, @Body() dto: CreateSubaccoubtDto) {
     await this.usageService.checkSubaccountsUsage(auth.orgId);
     return this.walletService.createSubaccount(auth, dto)
   }
 
   @Get('/subaccount')
-  @Authorized([EPermission.WalletFund, EPermission.WalletTransfer])
+  @Authorized([EPermission.WalletSubaccountCreate])
   getSubaccounts(@CurrentUser() auth: AuthUser) {
     return this.walletService.getSubaccounts(auth.orgId)
   }
 
   @Get('/subaccount/:id')
-  @Authorized(EPermission.TransactionRead)
+  @Authorized(EPermission.WalletSubaccountCreate)
   getSubaccount(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWallet(auth.orgId, id)
   }
 
   @Get('/subaccount/history/:id')
-  @Authorized(EPermission.TransactionRead)
+  @Authorized(EPermission.WalletSubaccountCreate)
   getSubaccountHistoryId(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
     return this.walletService.getWalletEntry(auth.orgId, id)
   }
@@ -141,7 +141,7 @@ export default class WalletController {
   }
 
   @Post('/:id/transfer/initiate/internal')
-  @Authorized(EPermission.WalletTransfer)
+  @Authorized(EPermission.WalletTransferOwnAccount)
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
   async initiateInternalTransfer(
     @CurrentUser() auth: AuthUser,
@@ -152,7 +152,7 @@ export default class WalletController {
   }
 
   @Post('/linked/initiate')
-  @Authorized(EPermission.WalletTransfer)
+  @Authorized(EPermission.WalletLinkedaccountCreate)
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
   async initiateAccountLink(
     @CurrentUser() auth: AuthUser,
@@ -162,7 +162,7 @@ export default class WalletController {
   }
 
   @Post('/linked/:id/debit')
-  @Authorized(EPermission.WalletTransfer)
+  @Authorized(EPermission.WalletLinkedaccountDebit)
   @UseBefore(multer().single('invoice'))
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
   async initiateDirectDebit(
@@ -180,7 +180,7 @@ export default class WalletController {
   }
 
   @Post('/linked/:id/inflow')
-  @Authorized(EPermission.WalletTransfer)
+  @Authorized(EPermission.WalletLinkedaccountDebit)
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
   async initiateLinkedInflow(
     @CurrentUser() auth: AuthUser,
