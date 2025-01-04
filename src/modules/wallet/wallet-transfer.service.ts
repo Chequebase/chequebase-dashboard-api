@@ -434,7 +434,7 @@ export class WalletTransferService {
     }
 
     const result = await this.monoClient.initiateMandate({
-      amount: 2500000000,
+      amount: 1000000000,
       reference: `md${this.generateRandomString(12)}`,
       currency: 'NGN', /* make dynamic */
       narration: 'initiate mandate',
