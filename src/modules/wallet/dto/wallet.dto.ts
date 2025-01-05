@@ -20,6 +20,10 @@ export class CreateWalletDto {
   walletType = WalletType.General;
 
   @IsString()
+  @IsOptional()
+  name: string;
+
+  @IsString()
   @IsHexadecimal()
   organization: string;
 }

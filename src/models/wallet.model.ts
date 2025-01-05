@@ -8,7 +8,8 @@ export enum WalletType {
   General = 'general',
   Payroll = 'payroll',
   LinkedAccount = 'linked-account',
-  SubAccount = 'sub-account'
+  SubAccount = 'sub-account',
+  EscrowAccount = 'escrow-account'
 }
 
 export interface IWallet {

@@ -110,7 +110,7 @@ export default class WalletService {
     })
 
     if (wallets.some((w) => w.type === data.walletType && w.baseWallet.equals(baseWallet._id))) {
-      throw new BadRequestError(`Organization already has a wallet for ${baseWallet.currency}`)
+      throw new BadRequestError(`Organization already has a ${data.walletType} wallet for ${baseWallet.currency}`)
     }
 
     try {
@@ -148,6 +148,7 @@ export default class WalletService {
       const providerRef = account.providerRef || accountRef
       const wallet = await Wallet.create({
         _id: walletId,
+        name: data.name,
         organization: organization._id,
         baseWallet: baseWallet._id,
         currency: baseWallet.currency,
@@ -307,7 +308,7 @@ export default class WalletService {
   }
 
   async getSubaccounts(orgId: string) {
-    let wallets = await Wallet.find({ organization: orgId, type: { $in: [WalletType.SubAccount, WalletType.Payroll] } })
+    let wallets = await Wallet.find({ organization: orgId, type: { $in: [WalletType.SubAccount, WalletType.Payroll, WalletType.EscrowAccount] } })
       .select('primary currency balance ledgerBalance type name')
       .populate({
         path: 'virtualAccounts',

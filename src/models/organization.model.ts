@@ -5,6 +5,7 @@ import { IUser } from './user.model';
 import { ISubscriptionPlan } from './subscription-plan.model';
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
+import { OrgType } from '@/modules/banksphere/dto/banksphere.dto';
 
 export enum BillingMethod {
   Wallet = 'wallet',
@@ -87,6 +88,7 @@ export interface IOrganization {
   safeHavenIdentityId: string
   identityGatewayResponse: string
   bvnVerified: boolean
+  type: OrgType
   depositAccount: string
   phone: string
   cacUrl: string
@@ -193,6 +195,10 @@ const organizationSchma = new Schema<IOrganization>(
     cacItNumber: String,
     owners: [shareholderSchema],
     owner: Object,
+    type: {
+      type: String,
+      enum: Object.values(OrgType)
+    },
     anchorCustomerId: String,
     safeHavenIdentityId: String,
     identityGatewayResponse: String,

@@ -66,7 +66,6 @@ import {
 import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
 import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
 import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
-import slugify from "slugify";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isBetween);
@@ -108,14 +107,13 @@ export class PayrollService {
       throw new NotFoundError("Base wallet not found");
     }
 
-    const slugifiedName = slugify("payroll".toLowerCase());
-    const existingWallet = await Wallet.findOne({
+    const existingPayrollWallet = await Wallet.findOne({
       organization: org._id,
       baseWallet: baseWallet._id,
-      slugifiedName,
-    });
-    if (!existingWallet) {
-      throw new BadRequestError(`Payroll Account already exists`);
+      type: WalletType.Payroll
+    })
+    if (!existingPayrollWallet) {
+      throw new BadRequestError(`Payroll Account already exists`)
     }
 
     const accountRef = `va-${createId()}`;
@@ -136,8 +134,7 @@ export class PayrollService {
 
     const wallet = await Wallet.create({
       _id: walletId,
-      name: "Payroll",
-      slugifiedName,
+      name: 'Payroll',
       organization: org._id,
       baseWallet: baseWallet._id,
       currency: baseWallet.currency,

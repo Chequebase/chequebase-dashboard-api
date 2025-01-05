@@ -1,7 +1,7 @@
 import User, { KycStatus, UserStatus } from '@/models/user.model';
 import Container, { Service } from 'typedi';
 import { S3Service } from '@/modules/common/aws/s3.service';
-import { AddTeamMemberDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto, RejectKYCDto } from './dto/banksphere.dto';
+import { AddTeamMemberDto, ApproveAccountDto, BankSphereLoginDto, BankSphereOtpDto, BankSphereResendOtpDto, BanksphereRole, CreateCustomerDto, CreateTeamMemeberDto, GetAccountUsersDto, GetAccountsDto, GetTeamMembersQueryDto, OrgType, RejectKYCDto } from './dto/banksphere.dto';
 import QueryFilter from '../common/utils/query-filter';
 import { BadRequestError, NotFoundError, UnauthorizedError } from 'routing-controllers';
 import Organization, { RequiredDocuments } from '@/models/organization.model';
@@ -21,7 +21,7 @@ import { Duplex } from 'stream';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { WalletType } from '@/models/wallet.model';
+import Wallet, { WalletType } from '@/models/wallet.model';
 import { VirtualAccountClientName } from '../external-providers/virtual-account/providers/virtual-account.client';
 import { MONO_TOKEN, MonoCustomerClient } from './providers/mono.client';
 
@@ -281,20 +281,26 @@ export class BanksphereService {
       }
   }
 
-  async approveAccount(accountId: string) {
+  async approveAccount(accountId: string, data: ApproveAccountDto) {
     const organization = await Organization.findById(accountId).lean()
     if (!organization) throw new NotFoundError('Organization not found')
     const admin = await User.findById(organization.admin).lean()
     if (!admin) throw new NotFoundError('Admin not found')
       try {
         await User.updateOne({ _id: admin._id }, { KYBStatus: KycStatus.APPROVED })
-        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.APPROVED })
+        await Organization.updateOne({ _id: organization._id }, { status: KycStatus.APPROVED, type: data.type || OrgType.BUSINESS })
         // TODO: hard coding base wallet for now
         // TODO: check if anchor is verified first
         const wallet = await this.walletService.createWallet({
           baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.SafeHaven, organization: accountId,
-          walletType: WalletType.General
+          walletType: WalletType.General, name: 'Main'
         })
+        if (data.type === OrgType.PARTNER) {
+          await this.walletService.createWallet({
+            baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.SafeHaven, organization: accountId,
+            walletType: WalletType.EscrowAccount, name: 'Escrow', 
+          })
+        }
         this.emailService.sendKYCApprovedEmail(admin.email, {
           loginLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signin`,
           businessName: organization.businessName
