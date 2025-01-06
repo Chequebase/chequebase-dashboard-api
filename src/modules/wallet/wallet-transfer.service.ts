@@ -5,10 +5,10 @@ import { cdb } from "../common/mongoose"
 import { createId } from "@paralleldrive/cuid2"
 import numeral from "numeral"
 import { AuthUser } from "../common/interfaces/auth-user"
-import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource, InitiateInternalTransferDto } from "../budget/dto/budget-transfer.dto"
+import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource, InitiateInternalTransferDto, CompleteVendorPaymentDto } from "../budget/dto/budget-transfer.dto"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
 import { IWallet, WalletType } from "@/models/wallet.model"
-import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
+import WalletEntry, { IWalletEntry, PaymentEntryStatus, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Budget from "@/models/budget.model"
 import Wallet from "@/models/wallet.model"
 import { AnchorService } from "../common/anchor.service"
@@ -33,6 +33,9 @@ import { TransferClientName } from "../external-providers/transfer/providers/tra
 import { UserService } from "../user/user.service";
 import TransferCategory from "@/models/transfer-category";
 import { IVirtualAccount } from "@/models/virtual-account.model";
+import { PayVendorDto } from "./dto/wallet.dto";
+import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
+import { BaseWalletType } from "../banksphere/providers/customer.client";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -40,6 +43,7 @@ export interface CreateTransferRecord {
   counterparty: ICounterparty
   data: ApproveTransfer
   category?: string
+  paymentMethod?: string
   amountToDeduct: number
   fee: number
   provider: string
@@ -154,6 +158,19 @@ export class WalletTransferService {
     return { ...counterparty, bankId: resolveRes.bankId }
   }
 
+  private async getMerchantCounterparty(orgId: string, merchantId: string, merchantType: string, merchantName: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
+    if (saveRecipient) {
+      await this.saveMerchantCounterparty(orgId, merchantId, merchantType, merchantName, true)
+    }
+    return {
+      organization: orgId,
+      merchantId,
+      merchantType,
+      accountName: merchantName,
+      isRecipient
+    } as unknown as ICounterparty
+  }
+
   private async createTransferRecord(payload: CreateTransferRecord) {
     let { auth, data, wallet, amountToDeduct, category } = payload
 
@@ -190,6 +207,45 @@ export class WalletTransferService {
         reference: `wt_${createId()}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
+        category: data.category,
+        meta: {
+          counterparty: payload.counterparty,
+        }
+      }], { session })
+    }, transactionOpts)
+
+    return entry!
+  }
+
+  private async createVendorTransferRecord(payload: CreateTransferRecord) {
+    let { auth, data, wallet, paymentMethod } = payload
+
+    let entry: IWalletEntry
+    await cdb.transaction(async (session) => {
+      const fetchedWallet = await Wallet.findById(wallet._id)
+
+      if (!fetchedWallet) {
+        throw new BadRequestError("No wallet")
+      }
+      [entry] = await WalletEntry.create([{
+        organization: auth.orgId,
+        status: WalletEntryStatus.Validating,
+        paymentStatus: PaymentEntryStatus.Pending,
+        currency: fetchedWallet.currency,
+        wallet: fetchedWallet._id,
+        amount: data.amount,
+        fee: payload.fee,
+        initiatedBy: payload.data.requester,
+        ledgerBalanceAfter: fetchedWallet.ledgerBalance,
+        ledgerBalanceBefore: fetchedWallet.ledgerBalance,
+        balanceBefore: fetchedWallet.balance,
+        balanceAfter: fetchedWallet.balance,
+        scope: WalletEntryScope.VendorTransfer,
+        type: WalletEntryType.Debit,
+        narration: 'Wallet Transfer',
+        paymentMethod,
+        reference: `wt_${createId()}`,
+        provider: payload.provider,
         category: data.category,
         meta: {
           counterparty: payload.counterparty,
@@ -279,6 +335,18 @@ export class WalletTransferService {
     })
 
     return { ...counterparty, bankId: resolveRes.bankId }
+  }
+
+  private async saveMerchantCounterparty(orgId: string, merchantId: string, merchantType: string, merchantName: string, isRecipient: boolean = true) {
+    let counterparty = await Counterparty.create({
+      organization: orgId,
+      merchantId,
+      merchantType,
+      accountName: merchantName,
+      isRecipient
+    })
+
+    return counterparty
   }
 
   async initiateTransfer(auth: AuthUser, walletId: string, data: InitiateTransferDto) {
@@ -619,6 +687,83 @@ export class WalletTransferService {
     })
   }
 
+  async completeVendorPayment(auth: AuthUser, data: CompleteVendorPaymentDto) {
+    const wallet = await this.getWallet(auth.orgId, data.source)
+    const transaction = await WalletEntry.findById(data.transactionId).lean()
+    if (!wallet || !transaction) {
+      throw new NotFoundError('Wallet or Transaction does not exist')
+    }
+
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(auth.orgId)
+    const partner = await Organization.findById(data.partnerId)
+    if (!org || !partner) {
+      throw new NotFoundError('Org or Partner does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const escrowWallet = await Wallet.findOne({
+      organization: auth.orgId,
+      currency: BaseWalletType.NGN,
+      type: WalletType.EscrowAccount,
+    }).populate<IVirtualAccount>("virtualAccounts");;
+
+    if (!escrowWallet) {
+      logger.error('Escrow wallet not found', { currency: BaseWalletType.NGN, orgId: partner.id })
+      throw new BadRequestError(`Organization does not have an escrow wallet for ${BaseWalletType.NGN}`)
+    }
+
+    const destinationVirtualAccount = (<IVirtualAccount>escrowWallet.virtualAccounts[0])
+
+    switch (wallet.type) {
+      case WalletType.LinkedAccount:
+        await this.approveDirectDebit({
+          accountNumber: destinationVirtualAccount.accountNumber,
+          amount: transaction.amount,
+          bankCode: destinationVirtualAccount.bankCode,
+          wallet: wallet._id.toString(),
+          auth,
+          provider: data.provider,
+          requester: auth.userId,
+          saveRecipient: false,
+        })
+      case WalletType.General:
+      case WalletType.Payroll:
+      case WalletType.SubAccount:
+        await this.approveTransfer({
+          to: destinationVirtualAccount.name,
+          accountNumber: destinationVirtualAccount.accountNumber,
+          amount: transaction.amount,
+          bankCode: destinationVirtualAccount.bankCode,
+          wallet: wallet._id.toString(),
+          auth,
+          provider: data.provider,
+          requester: auth.userId,
+          category: transaction.category,
+          saveRecipient: false
+        })
+      default:
+        break;
+    }
+
+    // check if successful ---
+    await WalletEntry.updateOne({ _id: transaction._id }, {
+      status: WalletEntryStatus.Processing,
+      paymentStatus: PaymentEntryStatus.Paid
+    })
+  }
+
   async approveDirectDebit(data: ApproveTransfer) {
     const orgId = data.auth.orgId;
     const organization = await Organization.findById(orgId).lean();
@@ -930,6 +1075,119 @@ export class WalletTransferService {
   async createDefaultCategories(orgId: string) {
     const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
     return TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
+  }
+
+  async payVendor(auth: AuthUser, walletId: string, data: PayVendorDto) {
+    const validPin = await UserService.verifyTransactionPin(auth.userId, data.pin)
+    if (!validPin) {
+      throw new BadRequestError('Invalid pin')
+    }
+    
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+    const organization = wallet.organization
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(organization.toString())
+    if (!org) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const category = await TransferCategory.findOne({ _id: data.category, organization: auth.orgId }).lean()
+    if (!category) {
+      throw new NotFoundError('Category does not exist')
+    }
+
+    // const rules = await ApprovalRule.find({
+    //   organization: auth.orgId,
+    //   workflowType: WorkflowType.Transaction,
+    //   amount: { $lte: data.amount }
+    // })
+
+    // const rule = rules[0]
+    // let noApprovalRequired = !rule
+    // if (rule) {
+    //   const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
+    //   noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
+    // }
+
+    const provider = TransferClientName.SafeHaven
+    const payload: any = {
+      auth: { userId: auth.userId, orgId: org.id },
+      category: data.category,
+      wallet, data,
+      provider, fee: 0,
+      amountToDeduct: data.amount
+    }
+
+    // await this.runSecurityChecks(payload)
+    const counterparty = await this.getMerchantCounterparty(org.id, data.merchantId, data.merchantType, data.merchantName, true, data.saveRecipient)
+    const entry = await this.createVendorTransferRecord({ ...payload, counterparty })
+
+    // const request = await ApprovalRequest.create({
+    //   organization: auth.orgId,
+    //   workflowType: rule.workflowType,
+    //   approvalType: rule.approvalType,
+    //   requester: auth.userId,
+    //   approvalRule: rule._id,
+    //   priority: ApprovalRequestPriority.High,
+    //   reviews: rule!.reviewers.map(user => ({
+    //     user,
+    //     status: user.equals(auth.userId) ? 'approved' : 'pending'
+    //   })),
+    //   properties: {
+    //     wallet: wallet._id,
+    //     transaction: {
+    //       accountName: resolveRes.accountName,
+    //       accountNumber: data.accountNumber,
+    //       amount: data.amount,
+    //       bankCode: data.bankCode,
+    //       bankName: resolveRes.bankName,
+    //       invoice: invoiceUrl,
+    //       category: category._id,
+    //       provider: data.provider
+    //     }
+    //   }
+    // })
+    // const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+
+    // rule!.reviewers.forEach(reviewer => {
+    //   this.emailService.sendTransactionApprovalRequest(reviewer.email, {
+    //     amount: formatMoney(data.amount),
+    //     currency: wallet.currency,
+    //     wallet: virtualAccount.name,
+    //     employeeName: reviewer.firstName,
+    //     link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
+    //     requester: {
+    //       name: `${user.firstName} ${user.lastName}`,
+    //       avatar: user.avatar
+    //     },
+    //     workflowType: toTitleCase(request.workflowType),
+    //     category: category.name,
+    //     recipient: resolveRes.accountName,
+    //     recipientBank: resolveRes.bankName,
+    //   })
+    // });
+
+    return {
+      transactionId: entry._id.toString(),
+      status: 'pending',
+      approvalRequired: true,
+      message: 'Request Submitted',
+    }
   }
 }
 

@@ -52,6 +52,19 @@ export class InitiateInternalTransferDto {
   fileExt?: string
 }
 
+export class CompleteVendorPaymentDto {
+  @IsString()
+  source: string
+
+  @IsString()
+  partnerId: string
+
+  @IsString()
+  provider: TransferClientName
+
+  transactionId?: string
+}
+
 export class ResolveAccountDto {
   @IsString()
   @Length(10)

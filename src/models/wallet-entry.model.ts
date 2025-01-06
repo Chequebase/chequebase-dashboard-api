@@ -9,11 +9,25 @@ export enum WalletEntryType {
   Debit = 'debit'
 }
 
+export enum WalletEntryUpdateAction {
+  AcceptRate = 'accept',
+  CancelRate = 'cancel',
+  SubmitRate = 'submit',
+  CompleteTx = 'complete'
+}
+
 export enum WalletEntryStatus {
   Successful = 'successful',
   Processing = 'processing',
   Pending = 'pending',
-  Failed = 'failed'
+  Failed = 'failed',
+  Validating = 'validating',
+  Cancelled = 'cancelled'
+}
+
+export enum PaymentEntryStatus {
+  Pending = 'pending',
+  Paid = 'paid'
 }
 
 export enum WalletEntryScope {
@@ -24,6 +38,7 @@ export enum WalletEntryScope {
   WalletTransfer = 'wallet_transfer',
   CardCreation = 'card_creation',
   LinkedAccTransfer = 'linked_acc_transfer',
+  VendorTransfer = 'vendor_transfer',
   BudgetFunding = 'budget_funding',
   BudgetClosure = 'budget_closure',
   ProjectFunding = 'project_funding',
@@ -63,6 +78,7 @@ export interface IWalletEntry {
   narration: string;
   reference: string;
   status: WalletEntryStatus;
+  paymentStatus: PaymentEntryStatus;
   category: any;
   invoiceUrl?: string;
   meta: { [key: string]: any };
@@ -139,6 +155,10 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     fee: { type: Number, default: 0 },
     gatewayResponse: String,
     paymentMethod: String,
+    paymentStatus: {
+      type: String,
+      enum: Object.values(PaymentEntryStatus),
+    },
     provider: { type: String, required: true, default: "wallet" },
     providerRef: { type: String },
     narration: String,

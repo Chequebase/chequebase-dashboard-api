@@ -1,8 +1,8 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Param, Post, QueryParams, Req, Res, UseBefore } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Get, JsonController, Param, Patch, Post, QueryParams, Req, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import { Request } from "express";
 import WalletService from "./wallet.service";
-import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, PayVendorDto, ReportTransactionDto, UpdateWalletEntry } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Response } from "express";
@@ -11,7 +11,7 @@ import { EPermission } from "@/models/role-permission.model";
 import { logAuditTrail } from "../common/audit-logs/logs";
 import multer from "multer";
 import { LogAction } from "@/models/logs.model";
-import { InitiateInternalTransferDto, InitiateTransferDto } from "../budget/dto/budget-transfer.dto";
+import { CompleteVendorPaymentDto, InitiateInternalTransferDto, InitiateTransferDto } from "../budget/dto/budget-transfer.dto";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { WalletTransferService } from "./wallet-transfer.service";
@@ -188,5 +188,33 @@ export default class WalletController {
     @Body() body: InitiateInternalTransferDto,
   ) {
     return this.walletTransferService.initiateLinkedInflow(auth, id, body)
+  }
+
+  @Post('/:id/vendor/pay')
+  @Authorized(EPermission.WalletTransfer)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async payVendor(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+    @Body() body: PayVendorDto,
+  ) {
+
+    return this.walletTransferService.payVendor(auth, id, body)
+  }
+
+  @Patch('/history/:id')
+  @Authorized(EPermission.TransactionRead)
+  updateWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string, dto: UpdateWalletEntry) {
+    return this.walletService.updateWalletEntry(auth.orgId, id, dto)
+  }
+
+  @Post('/vendor/complete')
+  @Authorized(EPermission.WalletLinkedaccountDebit)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async fundPartner(
+    @CurrentUser() auth: AuthUser,
+    @Body() body: CompleteVendorPaymentDto,
+  ) {
+    return this.walletTransferService.completeVendorPayment(auth, body)
   }
 }

@@ -21,7 +21,7 @@ import { cdb, isValidObjectId } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
 import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
-import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto, UpdateWalletEntry } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
 import slugify from 'slugify';
 import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
@@ -405,6 +405,9 @@ export default class WalletService {
     if (!ParentOwnershipGetAll.includes(user.roleRef.name)) {
       filter.set('initiatedBy', user._id)
     }
+    if (query.scope) {
+      filter.set('scope', query.scope)
+    }
     if (query.search) {
       const search = escapeRegExp(query.search)
       filter.set('$or', [{ reference: { $regex: search } }])
@@ -418,7 +421,7 @@ export default class WalletService {
       })
     }
 
-    let selectQuery = `status currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
+    let selectQuery = `status paymentStatus currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
     selectQuery = query.budget ? `${selectQuery} meta.budgetBalanceBefore meta.budgetBalanceAfter` : `${selectQuery} ledgerBalanceBefore ledgerBalanceAfter`
     const history = await WalletEntry.paginate(filter.object, {
       select: selectQuery,
@@ -522,6 +525,27 @@ export default class WalletService {
     }
 
     return entry
+  }
+
+  async updateWalletEntry(orgId: string, entryId: string, dto: UpdateWalletEntry) {
+    // switch dto.actions, and do stuff
+    //  accept, cancel, submit-rate, complete
+    await cdb.transaction(async (session) => {
+      await WalletEntry.updateOne({ _id: entryId }, {
+        $set: {
+          // gatewayResponse: transferResponse?.gatewayResponse,
+          // status: WalletEntryStatus.Failed
+        },
+        $inc: {
+          // 'meta.budgetBalanceAfter': reverseAmount
+        }
+      }, { session })
+
+      // await Budget.updateOne({ _id: entry.budget }, {
+      //   $inc: { amountUsed: -reverseAmount, balance: reverseAmount }
+      // }, { session })
+
+    }, transactionOpts)
   }
 
   async reportTransactionToSlack(orgId: string, data: ReportTransactionDto) {

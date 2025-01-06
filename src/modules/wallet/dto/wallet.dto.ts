@@ -1,8 +1,9 @@
-import { WalletEntryType } from "@/models/wallet-entry.model";
+import { WalletEntryScope, WalletEntryType, WalletEntryUpdateAction } from "@/models/wallet-entry.model";
 import { WalletType } from "@/models/wallet.model";
 import { VirtualAccountClientName } from "@/modules/external-providers/virtual-account/providers/virtual-account.client";
-import { IsBoolean, IsDateString, IsEnum, IsHexadecimal, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { IsBoolean, IsDateString, IsEnum, IsHexadecimal, IsInt, IsOptional, IsString, Length, Min } from "class-validator";
 import { BaseWalletType } from "@/modules/banksphere/providers/customer.client";
+import { Transform } from "class-transformer";
 
 export class CreateWalletDto {
   @IsString()
@@ -80,6 +81,11 @@ export class GetWalletEntriesDto {
   type?: WalletEntryType
 
   @IsString()
+  @IsEnum(WalletEntryScope)
+  @IsOptional()
+  scope?: WalletEntryScope
+
+  @IsString()
   @IsOptional()
   wallet?: string
 
@@ -127,4 +133,42 @@ export class GetWalletStatementDto {
   @IsString()
   @IsOptional()
   wallet: string
+}
+
+export class PayVendorDto {
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  amount: number
+
+  @IsString()
+  merchantId: string
+
+  @IsString()
+  merchantName: string
+
+  @IsString()
+  merchantType: string
+
+  @IsString()
+  paymentMethod: string
+
+  @IsString()
+  recipient: string
+
+  @IsString()
+  category: string
+
+  @IsString()
+  pin: string
+
+  @IsBoolean()
+  @Transform(({ value }) => value === "true" || value === true || value === 1)
+  saveRecipient: boolean
+}
+
+export class UpdateWalletEntry {
+  @IsString()
+  @IsEnum(WalletEntryUpdateAction)
+  @IsOptional()
+  action: string
 }

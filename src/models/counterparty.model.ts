@@ -11,6 +11,8 @@ export interface ICounterparty {
   isRecipient: boolean
   bankName: string
   description: string
+  merchantId?: string
+  merchantType?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -31,6 +33,12 @@ const counterpartySchema = new Schema<ICounterparty>(
     accountNumber: {
       type: String,
       required: true
+    },
+    merchantId: {
+      type: String,
+    },
+    merchantType: {
+      type: String,
     },
     bankCode: {
       type: String,
