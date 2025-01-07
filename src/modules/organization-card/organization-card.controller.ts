@@ -7,12 +7,19 @@ import {
   JsonController,
   Param,
   Post,
-  QueryParams
+  QueryParams,
 } from "routing-controllers";
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { OrganizationCardService } from "./organization-card.service";
-import { ChangePinBody, CreateCardDto, GetCardsQuery, LinkCardDto, SetSpendLimit } from "./dto/organization-card.dto";
+import {
+  ChangePinBody,
+  CreateCardDto,
+  GetCardsQuery,
+  LinkCardDto,
+  SetSpendChannels,
+  SetSpendLimit,
+} from "./dto/organization-card.dto";
 import { ERole } from "../user/dto/user.dto";
 
 @Service()
@@ -64,13 +71,31 @@ export default class OrganizationCardController {
 
   @Post("/:id/spend-limit")
   @Authorized(ERole.Owner)
-  setSpendLimit(@CurrentUser() auth: AuthUser, @Param("id") id: string, @Body() dto: SetSpendLimit) {
+  setSpendLimit(
+    @CurrentUser() auth: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: SetSpendLimit
+  ) {
     return this.orgCardService.setSpendLimit(auth, id, dto);
   }
 
-  @Post("/:id/spend-limit")
+  @Post("/:id/change-pin")
   @Authorized(ERole.Owner)
-  changePin(@CurrentUser() auth: AuthUser, @Param("id") id: string, @Body() dto: ChangePinBody) {
+  changePin(
+    @CurrentUser() auth: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: ChangePinBody
+  ) {
     return this.orgCardService.changePin(auth, id, dto);
+  }
+
+  @Post("/:id/spend-channels")
+  @Authorized(ERole.Owner)
+  setSpendChannel(
+    @CurrentUser() auth: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: SetSpendChannels
+  ) {
+    return this.orgCardService.setSpendChannel(auth, id, dto);
   }
 }

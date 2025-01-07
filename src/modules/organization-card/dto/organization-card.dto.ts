@@ -1,6 +1,6 @@
 import { CardCurrency, CardSpendLimitInterval, CardType } from "@/models/card.model";
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Matches, ValidateIf, ValidateNested } from "class-validator";
+import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Matches, ValidateIf, ValidateNested } from "class-validator";
 
 export class DeliveryAddresss {
   @IsString() @IsNotEmpty() state: string
@@ -65,6 +65,17 @@ export class SetSpendLimit {
 
   @IsEnum(CardSpendLimitInterval)
   interval: CardSpendLimitInterval;
+}
+
+export class SetSpendChannels {
+  @IsBoolean()
+  web: boolean;
+  @IsBoolean()
+  mobile: boolean;
+  @IsBoolean()
+  atm: boolean;
+  @IsBoolean()
+  pos: boolean;
 }
 
 export class ChangePinBody {

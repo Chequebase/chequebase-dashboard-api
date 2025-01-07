@@ -59,6 +59,15 @@ export type CreateCardResponse = {
   } | null;
 };
 
+export type SetSpendChannel = {
+  cardId: string;
+  provider: CardClientName
+  web: boolean;
+  atm: boolean;
+  mobile: boolean
+  pos: boolean
+};
+
 export enum CardClientName {
   Sudo = "sudo",
 }
@@ -77,4 +86,7 @@ export abstract class CardClient {
   ): Promise<{ successful: boolean }>;
   abstract blockCard(payload: UpdateCardData): Promise<{ successful: boolean }>;
   abstract changePin(payload: ChangePinData): Promise<{ successful: boolean }>;
+  abstract setSpendChannel(
+    payload: SetSpendChannel
+  ): Promise<{ successful: boolean }>;
 }

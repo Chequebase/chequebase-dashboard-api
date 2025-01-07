@@ -6,6 +6,7 @@ import {
   CreateCardDto,
   GetCardsQuery,
   LinkCardDto,
+  SetSpendChannels,
   SetSpendLimit,
 } from "./dto/organization-card.dto";
 import Organization, { IOrganization } from "@/models/organization.model";
@@ -13,7 +14,7 @@ import { BadRequestError } from "routing-controllers";
 import { CardClientName } from "../external-providers/card/providers/card.client";
 import { Service } from "typedi";
 import Department from "@/models/department.model";
-import Budget from "@/models/budget.model";
+import Budget, { IBudget } from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
 import { escapeRegExp } from "../common/utils";
 import User from "@/models/user.model";
@@ -110,13 +111,14 @@ export class OrganizationCardService {
       throw new BadRequestError("Card is blocked");
     }
 
+    let budget: null | IBudget = null;
     if (payload.budget) {
-      const exists = await Budget.exists({
-        _id: payload.budget,
-        organization: auth.orgId,
-      });
+       budget = await Budget.findOne({
+         _id: payload.budget,
+         organization: auth.orgId,
+       }).select('wallet');
 
-      if (!exists) {
+      if (!budget) {
         throw new BadRequestError("Budget not found");
       }
     }
@@ -147,7 +149,7 @@ export class OrganizationCardService {
       .set({
         department: payload.department,
         budget: payload.budget,
-        wallet: payload.walletId,
+        wallet: payload.walletId || budget?.wallet,
       })
       .save();
 
@@ -172,6 +174,7 @@ export class OrganizationCardService {
           select: "avatar firstName lastName",
         },
       })
+      .sort("-createdAt")
       .lean();
 
     const populatedCards = await Promise.all(
@@ -217,7 +220,7 @@ export class OrganizationCardService {
     const filter = await this.buildGetCardFilter(auth, { _id: cardId });
     let card = await Card.findOne(filter)
       .select(
-        "cardName deliveryAddress providerRef provider spendLimit currency expiryMonth expiryYear maskedPan activatedAt blocked"
+        "cardName spendChannels deliveryAddress providerRef provider spendLimit currency expiryMonth expiryYear maskedPan activatedAt blocked"
       )
       .populate("budget", "name")
       .populate("department", "name")
@@ -362,12 +365,61 @@ export class OrganizationCardService {
       throw new BadRequestError("Card not found");
     }
 
+    if (card.blocked) {
+      throw new BadRequestError("Card is blocked");
+    }
+    
     await Card.updateOne(
       { _id: card._id },
       { spendLimit: { amount: payload.amount, interval: payload.interval } }
     );
-    
-    return {message: "Spend limit updated"}
+
+    return { message: "Spend limit updated" };
+  }
+
+  async setSpendChannel(
+    auth: AuthUser,
+    cardId: string,
+    payload: SetSpendChannels
+  ) {
+    const card = await Card.findOne({
+      _id: cardId,
+      organization: auth.orgId,
+    });
+    if (!card) {
+      throw new BadRequestError("Card not found");
+    }
+
+    if (card.blocked) {
+      throw new BadRequestError("Card is blocked");
+    }
+
+    const result = await this.cardService.setSpendChannel({
+      cardId: card.providerRef,
+      provider: card.provider,
+      mobile: payload.mobile,
+      pos: payload.pos,
+      web: payload.web,
+      atm: payload.atm,
+    })
+
+    if (!result.successful) {
+      throw new BadRequestError("Failed to update spend channels")
+    }
+
+    await Card.updateOne(
+      { _id: card._id },
+      {
+        spendChannels: {
+          web: payload.web,
+          pos: payload.pos,
+          mobile: payload.mobile,
+          atm: payload.atm,
+        },
+      }
+    );
+
+    return { message: "Spend channels updated" };
   }
 
   async buildGetCardFilter(auth: AuthUser, initial = {}) {

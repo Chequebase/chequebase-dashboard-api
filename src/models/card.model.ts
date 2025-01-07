@@ -43,6 +43,12 @@ export interface ICard {
   expiryYear?: string;
   blocked: boolean;
   createdBy: any;
+  spendChannels: {
+    web: boolean;
+    mobile: boolean;
+    pos: boolean;
+    atm: boolean;
+  };
   deliveryAddress: {
     state: string;
     city: string;
@@ -89,6 +95,21 @@ const CardSchema = new Schema<ICard>(
       ref: "Organization",
       required: true,
       index: true,
+    },
+    spendChannels: {
+      _id: false,
+      type: {
+        web: { type: Boolean, default: true },
+        mobile: { type: Boolean, default: true },
+        pos: { type: Boolean, default: true },
+        atm: { type: Boolean, default: true },
+      },
+      default: {
+        web: true, 
+        mobile: true, 
+        pos: true,
+        atm: true
+      }
     },
     freeze: { type: Boolean, default: false },
     design: String,

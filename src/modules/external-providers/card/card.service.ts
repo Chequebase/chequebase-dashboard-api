@@ -8,6 +8,7 @@ import {
   ChangePinData,
   CreateCardData,
   CreateCustomerData,
+  SetSpendChannel,
   UpdateCardData,
 } from "./providers/card.client";
 
@@ -125,6 +126,26 @@ export class CardService {
       return {
         successful: false,
         message: "Provider failure, could not change card pin",
+        data: null,
+        gatewayResponse: err.message,
+      };
+    }
+  }
+
+  async setSpendChannel(data: SetSpendChannel) {
+    try {
+      const client = this.getClient(data.provider);
+      const result = await client.setSpendChannel(data);
+      return result;
+    } catch (err: any) {
+      this.logger.error("error updating spend channel pin", {
+        payload: JSON.stringify(data),
+        reason: err.message,
+      });
+
+      return {
+        successful: false,
+        message: "Provider failure, could not update spend channels",
         data: null,
         gatewayResponse: err.message,
       };

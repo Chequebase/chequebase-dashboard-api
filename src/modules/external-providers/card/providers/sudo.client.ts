@@ -9,6 +9,7 @@ import {
   CreateCardResponse,
   CreateCustomerData,
   CreateCustomerResponse,
+  SetSpendChannel,
   UpdateCardData,
 } from "./card.client";
 
@@ -222,7 +223,7 @@ export class SudoCardClient implements CardClient {
     }
   }
 
-  async changePin(payload: ChangePinData): Promise<CreateCardResponse> {
+  async changePin(payload: ChangePinData) {
     const body = { oldPin: payload.oldPin, newPin: payload.newPin };
 
     try {
@@ -250,6 +251,68 @@ export class SudoCardClient implements CardClient {
     }
   }
 
+  async getCard(cardId: string) {
+    try {
+      const { data, status } = await this.httpClient.get(`/cards/${cardId}`);
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
+      this.logger.log("sudo fetch card response", {
+        cardId,
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return data.data
+    } catch (err: any) {
+      this.handleError("error fetching card", cardId, err);
+      throw err;
+    }
+  }
+
+  async setSpendChannel(payload: SetSpendChannel) {
+    const card = await this.getCard(payload.cardId)
+    const body = {
+      status: card.status,
+      spendingControls: {
+        allowedCategories: card.spendingControls.allowedCategories,
+        spendingLimits: card.spendingControls.spendingLimits,
+        blockedCategories: card.spendingControls.blockedCategories,
+        channels: {
+          web: payload.web,
+          atm: payload.atm,
+          mobile: payload.mobile,
+          pos: payload.pos,
+        },
+      },
+    };
+
+    try {
+      const { data, status } = await this.httpClient.put(
+        `/cards/${payload.cardId}`,
+        body
+      );
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
+      this.logger.log("sudo set spend channel response", {
+        body: JSON.stringify(body),
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return {
+        successful: data.statusCode === 200,
+        data: null,
+      };
+    } catch (err: any) {
+      this.handleError("error setting spend channel", body, err);
+      return { successful: false, data: null };
+    }
+  }
+
   private handleError(message: string, request: any, error: any) {
     let data: any, status: any, responseMsg: string | undefined;
     if (isAxiosError(error)) {
@@ -272,3 +335,59 @@ export class SudoCardClient implements CardClient {
     return { data, status, message: responseMsg || message };
   }
 }
+
+const a = {
+  statusCode: 400,
+  error: "Bad Request",
+  message: [
+    {
+      target: {
+        spendingControls: {
+          channels: { web: true, atm: true, mobile: true, pos: true },
+        },
+      },
+      property: "status",
+      children: [],
+      constraints: {
+        isIn: "status must be one of the following values: active, inactive, canceled",
+        isNotEmpty: "status should not be empty",
+        isString: "status must be a string",
+      },
+    },
+    {
+      target: {
+        spendingControls: {
+          channels: { web: true, atm: true, mobile: true, pos: true },
+        },
+      },
+      value: { channels: { web: true, atm: true, mobile: true, pos: true } },
+      property: "spendingControls",
+      children: [
+        {
+          target: {
+            channels: { web: true, atm: true, mobile: true, pos: true },
+          },
+          property: "allowedCategories",
+          children: [],
+          constraints: { isArray: "allowedCategories must be an array" },
+        },
+        {
+          target: {
+            channels: { web: true, atm: true, mobile: true, pos: true },
+          },
+          property: "blockedCategories",
+          children: [],
+          constraints: { isArray: "blockedCategories must be an array" },
+        },
+        {
+          target: {
+            channels: { web: true, atm: true, mobile: true, pos: true },
+          },
+          property: "spendingLimits",
+          children: [],
+          constraints: { isArray: "spendingLimits must be an array" },
+        },
+      ],
+    },
+  ],
+};
