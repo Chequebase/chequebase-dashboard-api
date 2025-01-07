@@ -149,25 +149,9 @@ export class OrganizationCardService {
   }
 
   async getCards(auth: AuthUser, query: GetCardsQuery) {
-    const user = await User.findById(auth.userId).select("departments");
-    if (!user) {
-      throw new BadRequestError("User not found");
-    }
-
-    const filter: any = { organization: auth.orgId };
+    const filter: any = this.buildGetCardFilter(auth);
     if (query.search) {
-      filter.cardName = { $regex: escapeRegExp(query.search), $options: "i" };
-    }
-
-    if (!auth.isOwner) {
-      filter.$or = [];
-      filter.$or.push({ department: { $in: user.departments } });
-
-      const budgets = await Budget.find({
-        organization: auth.orgId,
-        "beneficiaries.user": auth.userId,
-      }).select("_id");
-      filter.$or.push({ budget: { $in: budgets.map((b) => b._id) } });
+      filter.search = { $regex: escapeRegExp(query.search), $options: "i" };
     }
 
     let cards = await Card.find(filter)
@@ -224,7 +208,31 @@ export class OrganizationCardService {
   }
 
   async getCard(auth: AuthUser, cardId: string) {
-    const filter: any = { _id: cardId, organization: auth.orgId };
+    const filter = this.buildGetCardFilter(auth, { _id: cardId });
+    let card = await Card.findOne(filter)
+      .select(
+        "cardName currency expiryMonth expiryYear maskedPan activatedAt blocked"
+      )
+      .populate("budget", "name")
+      .populate("department", "name")
+      .populate("wallet", "type name")
+      .lean();
+
+    if (!card) {
+      throw new BadRequestError("Card not found");
+    }
+
+    let last4: null | string = null;
+    if (card.maskedPan) {
+      last4 = card.maskedPan && card.maskedPan.slice(-4);
+      delete card.maskedPan;
+    }
+
+    return { ...card, last4 };
+  }
+
+  async buildGetCardFilter(auth: AuthUser, initial = {}) {
+    const filter: any = { organization: auth.orgId, ...initial };
     const user = await User.findById(auth.userId).select("departments");
     if (!user) {
       throw new BadRequestError("User not found");
@@ -241,26 +249,7 @@ export class OrganizationCardService {
       filter.$or.push({ budget: { $in: budgets.map((b) => b._id) } });
     }
 
-    let card = await Card.findOne(filter)
-      .select(
-        "cardName currency expiryMonth expiryYear maskedPan activatedAt blocked"
-      )
-      .populate('budget', 'name')
-      .populate('department', 'name')
-      .populate('wallet', 'type name')
-      .lean();
-    
-    if (!card) {
-      throw new BadRequestError("Card not found")
-    }
-
-    let last4: null | string = null
-    if (card.maskedPan) {
-      last4 = card.maskedPan && card.maskedPan.slice(-4);
-      delete card.maskedPan;
-    }
-    
-    return {...card, last4}
+    return filter
   }
 
   async createCustomer(org: IOrganization, provider: CardClientName) {

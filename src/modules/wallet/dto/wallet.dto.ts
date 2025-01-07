@@ -85,6 +85,10 @@ export class GetWalletEntriesDto {
 
   @IsString()
   @IsOptional()
+  card?: string
+
+  @IsString()
+  @IsOptional()
   project?: string
 
   @IsString()

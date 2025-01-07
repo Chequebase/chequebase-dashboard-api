@@ -1,6 +1,6 @@
 import { CardCurrency, CardType } from "@/models/card.model";
 import { Type } from "class-transformer";
-import { Allow, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from "class-validator";
+import { Allow, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateIf } from "class-validator";
 
 export class DeliveryAddresss {
   @IsString() @IsNotEmpty() state: string

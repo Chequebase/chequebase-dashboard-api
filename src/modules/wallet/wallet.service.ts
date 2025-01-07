@@ -26,6 +26,8 @@ import { ChargeWallet } from "./interfaces/wallet.interface";
 import slugify from 'slugify';
 import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
 import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
+import { OrganizationCardService } from "../organization-card/organization-card.service";
+import Card from "@/models/card.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -34,7 +36,8 @@ dayjs.extend(timezone)
 export default class WalletService {
   constructor (
     private vaService: VirtualAccountService,
-    private slackService: SlackNotificationService
+    private slackService: SlackNotificationService,
+    private orgCardService: OrganizationCardService
   ) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
@@ -361,6 +364,13 @@ export default class WalletService {
     const user = await User.findById(auth.userId).populate('roleRef').lean()
     if (!user) {
       throw new BadRequestError("User not found")
+    }
+
+    if (query.card) {
+      const cardFilter = await this.orgCardService.buildGetCardFilter(auth);
+      if (!(await Card.exists(cardFilter))) {
+        throw new BadRequestError("Card not found");
+      }
     }
 
     const from = query.from ?? dayjs().subtract(30, 'days').toDate()
