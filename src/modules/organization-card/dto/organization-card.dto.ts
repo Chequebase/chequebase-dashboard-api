@@ -1,6 +1,6 @@
 import { CardCurrency, CardSpendLimitInterval, CardType } from "@/models/card.model";
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Matches, ValidateIf } from "class-validator";
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Matches, ValidateIf, ValidateNested } from "class-validator";
 
 export class DeliveryAddresss {
   @IsString() @IsNotEmpty() state: string
@@ -28,6 +28,7 @@ export class CreateCardDto {
 
   @Type(() => DeliveryAddresss)
   @ValidateIf(o => o.type === CardType.Physical)
+  @ValidateNested()
   deliveryAddress: DeliveryAddresss
 }
 
