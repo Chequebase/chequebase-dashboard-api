@@ -1,6 +1,6 @@
 import { CardCurrency, CardSpendLimitInterval, CardType } from "@/models/card.model";
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, ValidateIf } from "class-validator";
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Matches, ValidateIf } from "class-validator";
 
 export class DeliveryAddresss {
   @IsString() @IsNotEmpty() state: string
@@ -64,4 +64,12 @@ export class SetSpendLimit {
 
   @IsEnum(CardSpendLimitInterval)
   interval: CardSpendLimitInterval;
+}
+
+export class ChangePinBody {
+  @Matches(/^\d{4}$/, { message: "Old PIN must be a 4-digit number" })
+  oldPin: string;
+
+  @Matches(/^\d{4}$/, { message: "New PIN must be a 4-digit number" })
+  newPin: string;
 }

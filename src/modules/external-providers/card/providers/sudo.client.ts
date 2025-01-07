@@ -4,6 +4,7 @@ import Axios, { AxiosInstance, isAxiosError } from "axios";
 import { Service, Token } from "typedi";
 import {
   CardClient,
+  ChangePinData,
   CreateCardData,
   CreateCardResponse,
   CreateCustomerData,
@@ -217,6 +218,34 @@ export class SudoCardClient implements CardClient {
       };
     } catch (err: any) {
       this.handleError("error blocking card", body, err);
+      return { successful: false, data: null };
+    }
+  }
+
+  async changePin(payload: ChangePinData): Promise<CreateCardResponse> {
+    const body = { oldPin: payload.oldPin, newPin: payload.newPin };
+
+    try {
+      const { data, status } = await this.httpClient.put(
+        `/cards/${payload.cardId}/pin`,
+        body
+      );
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
+      this.logger.log("sudo change pin response", {
+        body: JSON.stringify(body),
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return {
+        successful: data.statusCode === 200,
+        data: null,
+      };
+    } catch (err: any) {
+      this.handleError("error changing card pin", body, err);
       return { successful: false, data: null };
     }
   }

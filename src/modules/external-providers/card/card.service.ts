@@ -5,6 +5,7 @@ import Container, { Service } from "typedi";
 import ProviderRegistry from "./provider-registry";
 import {
   CardClient,
+  ChangePinData,
   CreateCardData,
   CreateCustomerData,
   UpdateCardData,
@@ -104,6 +105,26 @@ export class CardService {
       return {
         successful: false,
         message: "Provider failure, could not block card",
+        data: null,
+        gatewayResponse: err.message,
+      };
+    }
+  }
+
+  async changePin(data: ChangePinData) {
+    try {
+      const client = this.getClient(data.provider);
+      const result = await client.changePin(data);
+      return result;
+    } catch (err: any) {
+      this.logger.error("error changing pin", {
+        payload: JSON.stringify(data),
+        reason: err.message,
+      });
+
+      return {
+        successful: false,
+        message: "Provider failure, could not change card pin",
         data: null,
         gatewayResponse: err.message,
       };

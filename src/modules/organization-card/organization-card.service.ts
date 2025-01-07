@@ -2,6 +2,7 @@ import Card, { CardBrand, CardType } from "@/models/card.model";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { CardService } from "../external-providers/card/card.service";
 import {
+  ChangePinBody,
   CreateCardDto,
   GetCardsQuery,
   LinkCardDto,
@@ -323,6 +324,33 @@ export class OrganizationCardService {
     await card.save();
 
     return { message: "Card was blocked successfully" };
+  }
+
+  async changePin(auth: AuthUser, cardId: string, payload: ChangePinBody) {
+    const card = await Card.findOne({
+      _id: cardId,
+      organization: auth.orgId,
+    });
+    if (!card) {
+      throw new BadRequestError("Card not found");
+    }
+
+    if (card.blocked) {
+      throw new BadRequestError("Card is blocked");
+    }
+
+    const result = await this.cardService.changePin({
+      cardId: card.providerRef,
+      provider: card.provider,
+      oldPin: payload.oldPin,
+      newPin: payload.newPin,
+    });
+
+    if (!result.successful) {
+      throw new BadRequestError("Failed to change pin");
+    }
+
+    return { message: "Card pin changed successfully" };
   }
 
   async setSpendLimit(auth: AuthUser, cardId: string, payload: SetSpendLimit) {

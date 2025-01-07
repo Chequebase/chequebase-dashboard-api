@@ -39,6 +39,13 @@ export type UpdateCardData = {
   cardId: string;
 };
 
+export type ChangePinData = {
+  provider: CardClientName;
+  oldPin: string
+  newPin: string
+  cardId: string;
+};
+
 export type CreateCardResponse = {
   successful: boolean;
   data: {
@@ -68,7 +75,6 @@ export abstract class CardClient {
   abstract unfreezeCard(
     payload: UpdateCardData
   ): Promise<{ successful: boolean }>;
-  abstract blockCard(
-    payload: UpdateCardData
-  ): Promise<{ successful: boolean }>;
+  abstract blockCard(payload: UpdateCardData): Promise<{ successful: boolean }>;
+  abstract changePin(payload: ChangePinData): Promise<{ successful: boolean }>;
 }
