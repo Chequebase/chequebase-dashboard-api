@@ -32,9 +32,9 @@ export interface ICard {
   budget: any;
   department: any;
   brand: CardBrand;
-  maskedPan: string;
-  expiryMonth: string;
-  expiryYear: string;
+  maskedPan?: string;
+  expiryMonth?: string;
+  expiryYear?: string;
   blocked: boolean;
   createdBy: any;
   deliveryAddress: {

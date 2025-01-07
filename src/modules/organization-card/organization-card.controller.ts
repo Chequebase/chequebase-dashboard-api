@@ -5,6 +5,7 @@ import {
   CurrentUser,
   Get,
   JsonController,
+  Param,
   Post,
   QueryParams
 } from "routing-controllers";
@@ -33,8 +34,14 @@ export default class OrganizationCardController {
   }
 
   @Get("/")
-  @Authorized(EPermission.CardEdit)
+  @Authorized(EPermission.CardRead)
   getCards(@CurrentUser() auth: AuthUser, @QueryParams() query: GetCardsQuery) {
     return this.orgCardService.getCards(auth, query);
+  }
+
+  @Get("/:id")
+  @Authorized(EPermission.CardRead)
+  getCard(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+    return this.orgCardService.getCard(auth, id);
   }
 }

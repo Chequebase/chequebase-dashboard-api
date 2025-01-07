@@ -149,7 +149,7 @@ export class OrganizationCardService {
   }
 
   async getCards(auth: AuthUser, query: GetCardsQuery) {
-    const user = await User.findById(auth.userId).select('departments');
+    const user = await User.findById(auth.userId).select("departments");
     if (!user) {
       throw new BadRequestError("User not found");
     }
@@ -171,49 +171,96 @@ export class OrganizationCardService {
     }
 
     let cards = await Card.find(filter)
-      .select("cardName currency expiryMonth expiryYear maskedPan activatedAt blocked")
+      .select(
+        "cardName currency expiryMonth expiryYear maskedPan activatedAt blocked"
+      )
       .populate({
         path: "budget",
         select: "beneficiaries",
-        populate: { path: "beneficiaries.user", select: "avatar firstName lastName" },
+        populate: {
+          path: "beneficiaries.user",
+          select: "avatar firstName lastName",
+        },
       })
       .lean();
 
-    const populatedCards = await Promise.all(cards.map(async (c) => {
-      const beneficiaries =  []
-      if (c.budget?.beneficiaries?.length) {
-        beneficiaries.push(c.budget.beneficiaries.map((b: any) => b.user));
-        delete c.budget;
-      }
+    const populatedCards = await Promise.all(
+      cards.map(async (c) => {
+        const beneficiaries = [];
+        if (c.budget?.beneficiaries?.length) {
+          beneficiaries.push(c.budget.beneficiaries.map((b: any) => b.user));
+          delete c.budget;
+        }
 
-      if (c.department) {
-        const users = await User.find({
-          organization: auth.orgId,
-          departments: c.department,
-        })
-          .select("firstName lastName avatar")
-          .lean();
-        
-        if (users.length) beneficiaries.push(users);
-      }
+        if (c.department) {
+          const users = await User.find({
+            organization: auth.orgId,
+            departments: c.department,
+          })
+            .select("firstName lastName avatar")
+            .lean();
 
-      const [totalSpent] = await WalletEntry.aggregate()
-        .match({
-          organization: auth.orgId,
-          card: c._id,
-        })
-        .group({ _id: null, totalSpent: { $sum: "amount" } });
-      
-      return {
-        ...c,
-        totalSpent: totalSpent ?? 0,
-        beneficiaries,
-        last4: c.maskedPan && c.maskedPan.slice(-4),
-        maskedPan: undefined,
-      };
-    }));
+          if (users.length) beneficiaries.push(users);
+        }
 
-    return populatedCards
+        const [totalSpent] = await WalletEntry.aggregate()
+          .match({
+            organization: auth.orgId,
+            card: c._id,
+          })
+          .group({ _id: null, totalSpent: { $sum: "amount" } });
+
+        return {
+          ...c,
+          totalSpent: totalSpent ?? 0,
+          beneficiaries,
+          last4: c.maskedPan && c.maskedPan.slice(-4),
+          maskedPan: undefined,
+        };
+      })
+    );
+
+    return populatedCards;
+  }
+
+  async getCard(auth: AuthUser, cardId: string) {
+    const filter: any = { _id: cardId, organization: auth.orgId };
+    const user = await User.findById(auth.userId).select("departments");
+    if (!user) {
+      throw new BadRequestError("User not found");
+    }
+
+    if (!auth.isOwner) {
+      filter.$or = [];
+      filter.$or.push({ department: { $in: user.departments } });
+
+      const budgets = await Budget.find({
+        organization: auth.orgId,
+        "beneficiaries.user": auth.userId,
+      }).select("_id");
+      filter.$or.push({ budget: { $in: budgets.map((b) => b._id) } });
+    }
+
+    let card = await Card.findOne(filter)
+      .select(
+        "cardName currency expiryMonth expiryYear maskedPan activatedAt blocked"
+      )
+      .populate('budget', 'name')
+      .populate('department', 'name')
+      .populate('wallet', 'type name')
+      .lean();
+    
+    if (!card) {
+      throw new BadRequestError("Card not found")
+    }
+
+    let last4: null | string = null
+    if (card.maskedPan) {
+      last4 = card.maskedPan && card.maskedPan.slice(-4);
+      delete card.maskedPan;
+    }
+    
+    return {...card, last4}
   }
 
   async createCustomer(org: IOrganization, provider: CardClientName) {
