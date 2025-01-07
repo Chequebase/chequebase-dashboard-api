@@ -12,7 +12,7 @@ import {
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { OrganizationCardService } from "./organization-card.service";
-import { CreateCardDto, GetCardsQuery, LinkCardDto } from "./dto/organization-card.dto";
+import { CreateCardDto, GetCardsQuery, LinkCardDto, SetSpendLimit } from "./dto/organization-card.dto";
 import { ERole } from "../user/dto/user.dto";
 
 @Service()
@@ -60,5 +60,11 @@ export default class OrganizationCardController {
   @Authorized(ERole.Owner)
   blockCard(@CurrentUser() auth: AuthUser, @Param("id") id: string) {
     return this.orgCardService.blockCard(auth, id);
+  }
+
+  @Post("/:id/spend-limit")
+  @Authorized(ERole.Owner)
+  setSpendLimit(@CurrentUser() auth: AuthUser, @Param("id") id: string, @Body() dto: SetSpendLimit) {
+    return this.orgCardService.setSpendLimit(auth, id, dto);
   }
 }

@@ -1,6 +1,6 @@
-import { CardCurrency, CardType } from "@/models/card.model";
+import { CardCurrency, CardSpendLimitInterval, CardType } from "@/models/card.model";
 import { Type } from "class-transformer";
-import { Allow, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateIf } from "class-validator";
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, ValidateIf } from "class-validator";
 
 export class DeliveryAddresss {
   @IsString() @IsNotEmpty() state: string
@@ -56,4 +56,12 @@ export class GetCardsQuery {
   @IsString()
   @IsOptional()
   search: string
+}
+
+export class SetSpendLimit {
+  @IsInt()
+  amount: number;
+
+  @IsEnum(CardSpendLimitInterval)
+  interval: CardSpendLimitInterval;
 }

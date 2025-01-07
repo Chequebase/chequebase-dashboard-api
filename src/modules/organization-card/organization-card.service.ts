@@ -5,6 +5,7 @@ import {
   CreateCardDto,
   GetCardsQuery,
   LinkCardDto,
+  SetSpendLimit,
 } from "./dto/organization-card.dto";
 import Organization, { IOrganization } from "@/models/organization.model";
 import { BadRequestError } from "routing-controllers";
@@ -153,7 +154,7 @@ export class OrganizationCardService {
   }
 
   async getCards(auth: AuthUser, query: GetCardsQuery) {
-    const filter: any = this.buildGetCardFilter(auth);
+    const filter: any = await this.buildGetCardFilter(auth);
     if (query.search) {
       filter.search = { $regex: escapeRegExp(query.search), $options: "i" };
     }
@@ -212,10 +213,10 @@ export class OrganizationCardService {
   }
 
   async getCard(auth: AuthUser, cardId: string) {
-    const filter = this.buildGetCardFilter(auth, { _id: cardId });
+    const filter = await this.buildGetCardFilter(auth, { _id: cardId });
     let card = await Card.findOne(filter)
       .select(
-        "cardName currency expiryMonth expiryYear maskedPan activatedAt blocked"
+        "cardName deliveryAddress providerRef provider spendLimit currency expiryMonth expiryYear maskedPan activatedAt blocked"
       )
       .populate("budget", "name")
       .populate("department", "name")
@@ -324,6 +325,44 @@ export class OrganizationCardService {
     return { message: "Card was blocked successfully" };
   }
 
+  async setSpendLimit(auth: AuthUser, cardId: string, payload: SetSpendLimit) {
+    const card = await Card.findOne({
+      _id: cardId,
+      organization: auth.orgId,
+    });
+    if (!card) {
+      throw new BadRequestError("Card not found");
+    }
+
+    await Card.updateOne(
+      { _id: card._id },
+      { spendLimit: { amount: payload.amount, interval: payload.interval } }
+    );
+    
+    return {message: "Spend limit updated"}
+  }
+
+  async buildGetCardFilter(auth: AuthUser, initial = {}) {
+    const filter: any = { organization: auth.orgId, ...initial };
+    const user = await User.findById(auth.userId).select("departments");
+    if (!user) {
+      throw new BadRequestError("User not found");
+    }
+
+    if (!auth.isOwner) {
+      filter.$or = [];
+      filter.$or.push({ department: { $in: user.departments } });
+
+      const budgets = await Budget.find({
+        organization: auth.orgId,
+        "beneficiaries.user": auth.userId,
+      }).select("_id");
+      filter.$or.push({ budget: { $in: budgets.map((b) => b._id) } });
+    }
+
+    return filter;
+  }
+
   private async createCustomer(org: IOrganization, provider: CardClientName) {
     const owner = org.owners[0];
     const result = await this.cardService.createCustomer({
@@ -350,26 +389,5 @@ export class OrganizationCardService {
     }
 
     return result.data!.customerId;
-  }
-
-  async buildGetCardFilter(auth: AuthUser, initial = {}) {
-    const filter: any = { organization: auth.orgId, ...initial };
-    const user = await User.findById(auth.userId).select("departments");
-    if (!user) {
-      throw new BadRequestError("User not found");
-    }
-
-    if (!auth.isOwner) {
-      filter.$or = [];
-      filter.$or.push({ department: { $in: user.departments } });
-
-      const budgets = await Budget.find({
-        organization: auth.orgId,
-        "beneficiaries.user": auth.userId,
-      }).select("_id");
-      filter.$or.push({ budget: { $in: budgets.map((b) => b._id) } });
-    }
-
-    return filter;
   }
 }

@@ -21,6 +21,12 @@ export enum CardCurrency {
   USD = "USD",
 }
 
+export enum CardSpendLimitInterval {
+  Daily = "daily",
+  Weekly = "weekly",
+  Monthly = "monthly",
+}
+
 export interface ICard {
   _id: ObjectId;
   organization: any;
@@ -42,6 +48,10 @@ export interface ICard {
     city: string;
     street: string;
     phone: string;
+  };
+  spendLimit: {
+    amount: number;
+    interval: CardSpendLimitInterval;
   };
   activatedAt: Date | null;
   provider: CardClientName;
@@ -92,6 +102,14 @@ const CardSchema = new Schema<ICard>(
     expiryMonth: { type: String, default: null },
     expiryYear: { type: String, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    spendLimit: {
+      _id: false,
+      default: null,
+      type: {
+        amount: Number,
+        interval: { type: String, enum: Object.values(CardSpendLimitInterval) },
+      },
+    },
     deliveryAddress: {
       required: false,
       type: {
