@@ -6,6 +6,9 @@ import Organization, { IOrganization } from "@/models/organization.model";
 import { BadRequestError } from "routing-controllers";
 import { CardClientName } from "../external-providers/card/providers/card.client";
 import { Service } from "typedi";
+import Department from "@/models/department.model";
+import Budget from "@/models/budget.model";
+import Wallet from "@/models/wallet.model";
 
 @Service()
 export class OrganizationCardService {
@@ -20,8 +23,8 @@ export class OrganizationCardService {
     let brand = CardBrand.Verve;
     const provider = CardClientName.Sudo;
     if (!org.sudoCustomerId && provider === CardClientName.Sudo) {
-      org.sudoCustomerId = await this.createCustomer(org, provider)
-      await org.save()
+      org.sudoCustomerId = await this.createCustomer(org, provider);
+      await org.save();
     }
 
     if (payload.type === CardType.Physical) {
@@ -92,6 +95,39 @@ export class OrganizationCardService {
     });
     if (!card) {
       throw new BadRequestError("Card not found");
+    }
+
+    if (payload.budget) {
+      const exists = (await Budget.exists({
+        _id: payload.budget,
+        organization: auth.orgId,
+      }));
+
+      if (!exists) {
+        throw new BadRequestError("Budget not found")
+      }
+    }
+
+    if (payload.walletId) {
+      const exists = (await Wallet.exists({
+        _id: payload.walletId,
+        organization: auth.orgId,
+      }));
+
+      if (!exists) {
+        throw new BadRequestError("Wallet not found")
+      }
+    }
+
+    if (payload.department) {
+      const exists = (await Department.exists({
+        _id: payload.department,
+        organization: auth.orgId,
+      }));
+
+      if (!exists) {
+        throw new BadRequestError("Department not found")
+      }
     }
 
     await card

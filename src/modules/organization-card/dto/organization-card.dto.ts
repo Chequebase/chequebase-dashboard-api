@@ -37,17 +37,14 @@ export class LinkCardDto {
   cardId: string;
 
   @IsString()
-  @IsOptional()
   @ValidateIf((o) => !o.walletId)
   budget: string | null;
 
   @IsString()
   @IsOptional()
-  @ValidateIf((o) => o.budget)
   department: string | null;
 
   @IsString()
-  @IsOptional()
   @ValidateIf((o) => !o.budget && !o.department)
   walletId: string;
 }
