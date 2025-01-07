@@ -68,4 +68,7 @@ export abstract class CardClient {
   abstract unfreezeCard(
     payload: UpdateCardData
   ): Promise<{ successful: boolean }>;
+  abstract blockCard(
+    payload: UpdateCardData
+  ): Promise<{ successful: boolean }>;
 }

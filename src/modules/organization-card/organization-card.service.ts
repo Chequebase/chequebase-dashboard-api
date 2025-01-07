@@ -104,6 +104,10 @@ export class OrganizationCardService {
       throw new BadRequestError("Card not found");
     }
 
+    if (card.blocked) {
+      throw new BadRequestError("Card is blocked");
+    }
+
     if (payload.budget) {
       const exists = await Budget.exists({
         _id: payload.budget,
@@ -231,28 +235,96 @@ export class OrganizationCardService {
     return { ...card, last4 };
   }
 
-  async buildGetCardFilter(auth: AuthUser, initial = {}) {
-    const filter: any = { organization: auth.orgId, ...initial };
-    const user = await User.findById(auth.userId).select("departments");
-    if (!user) {
-      throw new BadRequestError("User not found");
+  async freezeCard(auth: AuthUser, cardId: string) {
+    const card = await Card.findOne({ _id: cardId, organization: auth.orgId });
+    if (!card) {
+      throw new BadRequestError("Card not found");
     }
 
-    if (!auth.isOwner) {
-      filter.$or = [];
-      filter.$or.push({ department: { $in: user.departments } });
-
-      const budgets = await Budget.find({
-        organization: auth.orgId,
-        "beneficiaries.user": auth.userId,
-      }).select("_id");
-      filter.$or.push({ budget: { $in: budgets.map((b) => b._id) } });
+    if (card.blocked) {
+      throw new BadRequestError("Card is blocked");
     }
 
-    return filter
+    if (card.freeze) {
+      throw new BadRequestError("Card is already inactive");
+    }
+
+    const result = await this.cardService.freezeCard({
+      cardId: card.providerRef,
+      provider: card.provider,
+    });
+
+    if (!result.successful) {
+      throw new BadRequestError("Failed to deactivate card");
+    }
+
+    card.freeze = true;
+    await card.save();
+
+    return { message: "Card freeze successful" };
   }
 
-  async createCustomer(org: IOrganization, provider: CardClientName) {
+  async unfreezeCard(auth: AuthUser, cardId: string) {
+    const card = await Card.findOne({
+      _id: cardId,
+      organization: auth.orgId,
+    });
+    if (!card) {
+      throw new BadRequestError("Card not found");
+    }
+
+    if (card.blocked) {
+      throw new BadRequestError("Card is blocked");
+    }
+
+    if (!card.freeze) {
+      throw new BadRequestError("Card is already active");
+    }
+
+    const result = await this.cardService.unfreezeCard({
+      cardId: card.providerRef,
+      provider: card.provider,
+    });
+
+    if (!result.successful) {
+      throw new BadRequestError("Failed to activate card");
+    }
+
+    card.freeze = false;
+    await card.save();
+
+    return { message: "Card activated successful" };
+  }
+
+  async blockCard(auth: AuthUser, cardId: string) {
+    const card = await Card.findOne({
+      _id: cardId,
+      organization: auth.orgId,
+    });
+    if (!card) {
+      throw new BadRequestError("Card not found");
+    }
+
+    if (card.blocked) {
+      throw new BadRequestError("Card is blocked");
+    }
+
+    const result = await this.cardService.blockCard({
+      cardId: card.providerRef,
+      provider: card.provider,
+    });
+
+    if (!result.successful) {
+      throw new BadRequestError("Failed to freeze card");
+    }
+
+    card.blocked = true;
+    await card.save();
+
+    return { message: "Card was blocked successfully" };
+  }
+
+  private async createCustomer(org: IOrganization, provider: CardClientName) {
     const owner = org.owners[0];
     const result = await this.cardService.createCustomer({
       bvn: owner.bvn,
@@ -278,5 +350,26 @@ export class OrganizationCardService {
     }
 
     return result.data!.customerId;
+  }
+
+  async buildGetCardFilter(auth: AuthUser, initial = {}) {
+    const filter: any = { organization: auth.orgId, ...initial };
+    const user = await User.findById(auth.userId).select("departments");
+    if (!user) {
+      throw new BadRequestError("User not found");
+    }
+
+    if (!auth.isOwner) {
+      filter.$or = [];
+      filter.$or.push({ department: { $in: user.departments } });
+
+      const budgets = await Budget.find({
+        organization: auth.orgId,
+        "beneficiaries.user": auth.userId,
+      }).select("_id");
+      filter.$or.push({ budget: { $in: budgets.map((b) => b._id) } });
+    }
+
+    return filter;
   }
 }

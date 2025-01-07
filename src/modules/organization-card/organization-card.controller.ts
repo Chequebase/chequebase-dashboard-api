@@ -13,13 +13,12 @@ import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { OrganizationCardService } from "./organization-card.service";
 import { CreateCardDto, GetCardsQuery, LinkCardDto } from "./dto/organization-card.dto";
+import { ERole } from "../user/dto/user.dto";
 
 @Service()
 @JsonController("/cards", { transformResponse: false })
 export default class OrganizationCardController {
-  constructor(
-    private orgCardService: OrganizationCardService,
-  ) {}
+  constructor(private orgCardService: OrganizationCardService) {}
 
   @Post("/")
   @Authorized(EPermission.CardEdit)
@@ -41,7 +40,25 @@ export default class OrganizationCardController {
 
   @Get("/:id")
   @Authorized(EPermission.CardRead)
-  getCard(@CurrentUser() auth: AuthUser, @Param('id') id: string) {
+  getCard(@CurrentUser() auth: AuthUser, @Param("id") id: string) {
     return this.orgCardService.getCard(auth, id);
+  }
+
+  @Post("/:id/freeze")
+  @Authorized(ERole.Owner)
+  freezeCard(@CurrentUser() auth: AuthUser, @Param("id") id: string) {
+    return this.orgCardService.freezeCard(auth, id);
+  }
+
+  @Post("/:id/unfreeze")
+  @Authorized(ERole.Owner)
+  unfreezeCard(@CurrentUser() auth: AuthUser, @Param("id") id: string) {
+    return this.orgCardService.unfreezeCard(auth, id);
+  }
+
+  @Post("/:id/block")
+  @Authorized(ERole.Owner)
+  blockCard(@CurrentUser() auth: AuthUser, @Param("id") id: string) {
+    return this.orgCardService.blockCard(auth, id);
   }
 }

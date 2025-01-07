@@ -90,6 +90,26 @@ export class CardService {
     }
   }
 
+  async blockCard(data: UpdateCardData) {
+    try {
+      const client = this.getClient(data.provider);
+      const result = await client.blockCard(data);
+      return result;
+    } catch (err: any) {
+      this.logger.error("error blocking card", {
+        payload: JSON.stringify(data),
+        reason: err.message,
+      });
+
+      return {
+        successful: false,
+        message: "Provider failure, could not block card",
+        data: null,
+        gatewayResponse: err.message,
+      };
+    }
+  }
+
   async createCustomer(data: CreateCustomerData) {
     try {
       const client = this.getClient(data.provider);

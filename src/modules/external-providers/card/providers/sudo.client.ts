@@ -124,7 +124,7 @@ export class SudoCardClient implements CardClient {
           expiryMonth: data.data.expiryMonth,
           expiryYear: data.data.expiryYear,
           maskedPan: data.data.maskedPan,
-          providerRef: data.data._id
+          providerRef: data.data._id,
         },
       };
     } catch (err: any) {
@@ -141,7 +141,7 @@ export class SudoCardClient implements CardClient {
     const body = { status: "inactive" };
 
     try {
-      const { data, status } = await this.httpClient.post(
+      const { data, status } = await this.httpClient.put(
         `/cards/${payload.cardId}`,
         body
       );
@@ -156,7 +156,7 @@ export class SudoCardClient implements CardClient {
       });
 
       return {
-        successful: data.responseCode === "00",
+        successful: data.statusCode === 200,
         data: null,
       };
     } catch (err: any) {
@@ -169,7 +169,7 @@ export class SudoCardClient implements CardClient {
     const body = { status: "active" };
 
     try {
-      const { data, status } = await this.httpClient.post(
+      const { data, status } = await this.httpClient.put(
         `/cards/${payload.cardId}`,
         body
       );
@@ -184,7 +184,7 @@ export class SudoCardClient implements CardClient {
       });
 
       return {
-        successful: data.responseCode === "00",
+        successful: data.statusCode === 200,
         data: null,
       };
     } catch (err: any) {
@@ -197,7 +197,7 @@ export class SudoCardClient implements CardClient {
     const body = { status: "canceled" };
 
     try {
-      const { data, status } = await this.httpClient.post(
+      const { data, status } = await this.httpClient.put(
         `/cards/${payload.cardId}`,
         body
       );
@@ -212,7 +212,7 @@ export class SudoCardClient implements CardClient {
       });
 
       return {
-        successful: data.responseCode === "00",
+        successful: data.statusCode === 200,
         data: null,
       };
     } catch (err: any) {
