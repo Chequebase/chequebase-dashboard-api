@@ -1,7 +1,11 @@
 import Card, { CardBrand, CardType } from "@/models/card.model";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { CardService } from "../external-providers/card/card.service";
-import { CreateCardDto, LinkCardDto } from "./dto/organization-card.dto";
+import {
+  CreateCardDto,
+  GetCardsQuery,
+  LinkCardDto,
+} from "./dto/organization-card.dto";
 import Organization, { IOrganization } from "@/models/organization.model";
 import { BadRequestError } from "routing-controllers";
 import { CardClientName } from "../external-providers/card/providers/card.client";
@@ -9,6 +13,9 @@ import { Service } from "typedi";
 import Department from "@/models/department.model";
 import Budget from "@/models/budget.model";
 import Wallet from "@/models/wallet.model";
+import { escapeRegExp } from "../common/utils";
+import User from "@/models/user.model";
+import WalletEntry from "@/models/wallet-entry.model";
 
 @Service()
 export class OrganizationCardService {
@@ -98,35 +105,35 @@ export class OrganizationCardService {
     }
 
     if (payload.budget) {
-      const exists = (await Budget.exists({
+      const exists = await Budget.exists({
         _id: payload.budget,
         organization: auth.orgId,
-      }));
+      });
 
       if (!exists) {
-        throw new BadRequestError("Budget not found")
+        throw new BadRequestError("Budget not found");
       }
     }
 
     if (payload.walletId) {
-      const exists = (await Wallet.exists({
+      const exists = await Wallet.exists({
         _id: payload.walletId,
         organization: auth.orgId,
-      }));
+      });
 
       if (!exists) {
-        throw new BadRequestError("Wallet not found")
+        throw new BadRequestError("Wallet not found");
       }
     }
 
     if (payload.department) {
-      const exists = (await Department.exists({
+      const exists = await Department.exists({
         _id: payload.department,
         organization: auth.orgId,
-      }));
+      });
 
       if (!exists) {
-        throw new BadRequestError("Department not found")
+        throw new BadRequestError("Department not found");
       }
     }
 
@@ -139,6 +146,74 @@ export class OrganizationCardService {
       .save();
 
     return { message: "Card linked successfully" };
+  }
+
+  async getCards(auth: AuthUser, query: GetCardsQuery) {
+    const user = await User.findById(auth.userId).select('departments');
+    if (!user) {
+      throw new BadRequestError("User not found");
+    }
+
+    const filter: any = { organization: auth.orgId };
+    if (query.search) {
+      filter.cardName = { $regex: escapeRegExp(query.search), $options: "i" };
+    }
+
+    if (!auth.isOwner) {
+      filter.$or = [];
+      filter.$or.push({ department: { $in: user.departments } });
+
+      const budgets = await Budget.find({
+        organization: auth.orgId,
+        "beneficiaries.user": auth.userId,
+      }).select("_id");
+      filter.$or.push({ budget: { $in: budgets.map((b) => b._id) } });
+    }
+
+    let cards = await Card.find(filter)
+      .select("cardName currency expiryMonth expiryYear maskedPan activatedAt blocked")
+      .populate({
+        path: "budget",
+        select: "beneficiaries",
+        populate: { path: "beneficiaries.user", select: "avatar firstName lastName" },
+      })
+      .lean();
+
+    const populatedCards = await Promise.all(cards.map(async (c) => {
+      const beneficiaries =  []
+      if (c.budget?.beneficiaries?.length) {
+        beneficiaries.push(c.budget.beneficiaries.map((b: any) => b.user));
+        delete c.budget;
+      }
+
+      if (c.department) {
+        const users = await User.find({
+          organization: auth.orgId,
+          departments: c.department,
+        })
+          .select("firstName lastName avatar")
+          .lean();
+        
+        if (users.length) beneficiaries.push(users);
+      }
+
+      const [totalSpent] = await WalletEntry.aggregate()
+        .match({
+          organization: auth.orgId,
+          card: c._id,
+        })
+        .group({ _id: null, totalSpent: { $sum: "amount" } });
+      
+      return {
+        ...c,
+        totalSpent: totalSpent ?? 0,
+        beneficiaries,
+        last4: c.maskedPan && c.maskedPan.slice(-4),
+        maskedPan: undefined,
+      };
+    }));
+
+    return populatedCards
   }
 
   async createCustomer(org: IOrganization, provider: CardClientName) {

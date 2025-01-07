@@ -3,13 +3,15 @@ import {
   Authorized,
   Body,
   CurrentUser,
+  Get,
   JsonController,
-  Post
+  Post,
+  QueryParams
 } from "routing-controllers";
 import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { OrganizationCardService } from "./organization-card.service";
-import { CreateCardDto, LinkCardDto } from "./dto/organization-card.dto";
+import { CreateCardDto, GetCardsQuery, LinkCardDto } from "./dto/organization-card.dto";
 
 @Service()
 @JsonController("/cards", { transformResponse: false })
@@ -28,5 +30,11 @@ export default class OrganizationCardController {
   @Authorized(EPermission.CardEdit)
   linkCard(@CurrentUser() auth: AuthUser, @Body() dto: LinkCardDto) {
     return this.orgCardService.linkCard(auth, dto);
+  }
+
+  @Get("/")
+  @Authorized(EPermission.CardEdit)
+  getCards(@CurrentUser() auth: AuthUser, @QueryParams() query: GetCardsQuery) {
+    return this.orgCardService.getCards(auth, query);
   }
 }

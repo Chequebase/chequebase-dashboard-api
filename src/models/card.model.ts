@@ -6,19 +6,19 @@ import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
 
 export enum CardType {
-  Physical = 'physical',
-  Virtual = 'virtual',
+  Physical = "physical",
+  Virtual = "virtual",
 }
 
 export enum CardBrand {
-  Verve = 'verve',
-  MasterCard = 'mastercard',
-  Visa = 'visa',
+  Verve = "verve",
+  MasterCard = "mastercard",
+  Visa = "visa",
 }
 
 export enum CardCurrency {
-  NGN = 'NGN',
-  USD = 'USD',
+  NGN = "NGN",
+  USD = "USD",
 }
 
 export interface ICard {
@@ -45,7 +45,7 @@ export interface ICard {
   };
   activatedAt: Date | null;
   provider: CardClientName;
-  providerRef: string
+  providerRef: string;
   wallet: any;
   createdAt: Date;
   updatedAt: Date;
@@ -53,7 +53,7 @@ export interface ICard {
 
 interface CardModel
   extends mongoose.PaginateModel<ICard>,
-  mongoose.AggregatePaginateModel<ICard> { }
+    mongoose.AggregatePaginateModel<ICard> {}
 
 const CardSchema = new Schema<ICard>(
   {
@@ -63,7 +63,11 @@ const CardSchema = new Schema<ICard>(
       enum: Object.values(CardCurrency),
       required: true,
     },
-    provider: { type: String, required: true, enum: Object.values(CardClientName) },
+    provider: {
+      type: String,
+      required: true,
+      enum: Object.values(CardClientName),
+    },
     providerRef: { type: String, default: null },
     type: {
       type: String,
@@ -74,6 +78,7 @@ const CardSchema = new Schema<ICard>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true,
+      index: true,
     },
     freeze: { type: Boolean, default: false },
     design: String,
@@ -84,8 +89,8 @@ const CardSchema = new Schema<ICard>(
     maskedPan: { type: String },
     blocked: { type: Boolean, default: false },
     wallet: { type: mongoose.Schema.Types.ObjectId, ref: "Wallet" },
-    expiryMonth: { type: String },
-    expiryYear: { type: String },
+    expiryMonth: { type: String, default: null },
+    expiryYear: { type: String, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     deliveryAddress: {
       required: false,
@@ -103,9 +108,6 @@ const CardSchema = new Schema<ICard>(
 CardSchema.plugin(aggregatePaginate);
 CardSchema.plugin(mongoosePaginate);
 
-const Card = cdb.model<ICard, CardModel>(
-  "Card",
-  CardSchema
-);
+const Card = cdb.model<ICard, CardModel>("Card", CardSchema);
 
 export default Card;

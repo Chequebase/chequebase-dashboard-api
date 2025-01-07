@@ -48,3 +48,12 @@ export class LinkCardDto {
   @ValidateIf((o) => !o.budget && !o.department)
   walletId: string;
 }
+
+export class GetCardsQuery {
+  @IsEnum(CardType)
+  type: CardType
+
+  @IsString()
+  @IsOptional()
+  search: string
+}

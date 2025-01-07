@@ -40,9 +40,10 @@ export interface IWalletEntry {
   organization: any;
   budget?: any;
   project?: any;
-  wallet: any
-  payrollPayout: any
-  payroll: any
+  card: any;
+  wallet: any;
+  payrollPayout: any;
+  payroll: any;
   initiatedBy: any;
   currency: string;
   type: WalletEntryType;
@@ -79,22 +80,31 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       type: Schema.Types.ObjectId,
       required: true,
       ref: "Organization",
+      index: true,
     },
     initiatedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
     },
+    card: {
+      type: Schema.Types.ObjectId,
+      ref: "Card",
+      index: true,
+    },
     budget: {
       type: Schema.Types.ObjectId,
       ref: "Budget",
+      index: true,
     },
     payrollPayout: {
       type: Schema.Types.ObjectId,
       ref: "PayrollPayout",
+      index: true,
     },
     payroll: {
       type: Schema.Types.ObjectId,
       ref: "Payroll",
+      index: true,
     },
     project: {
       type: Schema.Types.ObjectId,
@@ -107,6 +117,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     wallet: {
       type: Schema.Types.ObjectId,
       ref: "Wallet",
+      index: true,
     },
     status: {
       type: String,
