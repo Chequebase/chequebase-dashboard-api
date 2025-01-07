@@ -1,4 +1,4 @@
-import { getEnvOrThrow } from "@/modules/common/utils";
+import { getEnvOrThrow, toTitleCase } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import Axios, { AxiosInstance, isAxiosError } from "axios";
 import { Service, Token } from "typedi";
@@ -10,7 +10,6 @@ import {
   CreateCustomerResponse,
   UpdateCardData,
 } from "./card.client";
-
 
 export const SUDO_CARD_TOKEN = new Token("card.provider.sudo");
 
@@ -30,7 +29,9 @@ export class SudoCardClient implements CardClient {
     });
   }
 
-  async createCustomer(payload: CreateCustomerData): Promise<CreateCustomerResponse> {
+  async createCustomer(
+    payload: CreateCustomerData
+  ): Promise<CreateCustomerResponse> {
     const body = {
       type: "individual",
       name: payload.name,
@@ -67,7 +68,7 @@ export class SudoCardClient implements CardClient {
       });
 
       return {
-        successful: data.responseCode === "00",
+        successful: !!data?.data?._id,
         data: {
           customerId: data.data._id,
         },
@@ -88,18 +89,18 @@ export class SudoCardClient implements CardClient {
       currency: payload.currency,
       issuerCountry: "NGA",
       status: "active",
-      brand: payload.brand,
+      brand: toTitleCase(payload.brand),
       metadata: payload.metadata,
       customerId: payload.customerId,
-      fundingSourceId: getEnvOrThrow('SUDO_FUNDING_SOURCE'),
-      debitAccountId: getEnvOrThrow('SUDO_NAIRA_FUNDING_DEBIT_ACCOUNT'),
+      fundingSourceId: getEnvOrThrow("SUDO_FUNDING_SOURCE"),
+      debitAccountId: getEnvOrThrow("SUDO_NAIRA_FUNDING_DEBIT_ACCOUNT"),
       sendPINSMS: true,
       spendingControls: {
-        channels: { atm: true, pos: true, web: true, mobile: true, },
+        channels: { atm: true, pos: true, web: true, mobile: true },
         blockedCategories: [],
         allowedCategories: [],
         spendingLimits: [],
-      }
+      },
     };
 
     try {
@@ -115,7 +116,7 @@ export class SudoCardClient implements CardClient {
       });
 
       return {
-        successful: data.responseCode === "00",
+        successful: !!data?.data?._id,
         data: {
           type: data.data.type.toLowerCase(),
           brand: data.data.brand.toLowerCase(),
@@ -123,6 +124,7 @@ export class SudoCardClient implements CardClient {
           expiryMonth: data.data.expiryMonth,
           expiryYear: data.data.expiryYear,
           maskedPan: data.data.maskedPan,
+          providerRef: data.data._id
         },
       };
     } catch (err: any) {
@@ -139,7 +141,10 @@ export class SudoCardClient implements CardClient {
     const body = { status: "inactive" };
 
     try {
-      const { data, status } = await this.httpClient.post(`/cards/${payload.cardId}`, body);
+      const { data, status } = await this.httpClient.post(
+        `/cards/${payload.cardId}`,
+        body
+      );
       if (data.statusCode === 400) {
         throw data;
       }
@@ -164,7 +169,10 @@ export class SudoCardClient implements CardClient {
     const body = { status: "active" };
 
     try {
-      const { data, status } = await this.httpClient.post(`/cards/${payload.cardId}`, body);
+      const { data, status } = await this.httpClient.post(
+        `/cards/${payload.cardId}`,
+        body
+      );
       if (data.statusCode === 400) {
         throw data;
       }
@@ -189,7 +197,10 @@ export class SudoCardClient implements CardClient {
     const body = { status: "canceled" };
 
     try {
-      const { data, status } = await this.httpClient.post(`/cards/${payload.cardId}`, body);
+      const { data, status } = await this.httpClient.post(
+        `/cards/${payload.cardId}`,
+        body
+      );
       if (data.statusCode === 400) {
         throw data;
       }

@@ -45,6 +45,7 @@ export interface ICard {
   };
   activatedAt: Date | null;
   provider: CardClientName;
+  providerRef: string
   wallet: any;
   createdAt: Date;
   updatedAt: Date;
@@ -63,6 +64,7 @@ const CardSchema = new Schema<ICard>(
       required: true,
     },
     provider: { type: String, required: true, enum: Object.values(CardClientName) },
+    providerRef: { type: String, default: null },
     type: {
       type: String,
       enum: Object.values(CardType),
@@ -79,11 +81,11 @@ const CardSchema = new Schema<ICard>(
     budget: { type: mongoose.Schema.Types.ObjectId, ref: "Budget" },
     department: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
     brand: { type: String, required: true },
-    maskedPan: { type: String, required: true },
+    maskedPan: { type: String },
     blocked: { type: Boolean, default: false },
     wallet: { type: mongoose.Schema.Types.ObjectId, ref: "Wallet" },
-    expiryMonth: { type: String, required: true },
-    expiryYear: { type: String, required: true },
+    expiryMonth: { type: String },
+    expiryYear: { type: String },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     deliveryAddress: {
       required: false,

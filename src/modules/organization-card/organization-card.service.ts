@@ -5,7 +5,9 @@ import { CreateCardDto, LinkCardDto } from "./dto/organization-card.dto";
 import Organization, { IOrganization } from "@/models/organization.model";
 import { BadRequestError } from "routing-controllers";
 import { CardClientName } from "../external-providers/card/providers/card.client";
+import { Service } from "typedi";
 
+@Service()
 export class OrganizationCardService {
   constructor(private cardService: CardService) {}
 
@@ -17,6 +19,10 @@ export class OrganizationCardService {
 
     let brand = CardBrand.Verve;
     const provider = CardClientName.Sudo;
+    if (!org.sudoCustomerId && provider === CardClientName.Sudo) {
+      org.sudoCustomerId = await this.createCustomer(org, provider)
+      await org.save()
+    }
 
     if (payload.type === CardType.Physical) {
       if (payload.currency !== "NGN") {
@@ -37,7 +43,7 @@ export class OrganizationCardService {
         design: payload.design,
       });
 
-      return { message: "Physical card requested", cardId: physcialCard };
+      return { message: "Physical card requested", cardId: physcialCard._id };
     }
 
     const result = await this.cardService.createCard({
@@ -49,7 +55,7 @@ export class OrganizationCardService {
       metadata: { organization: org._id, requestedBy: auth.userId },
     });
 
-    if (!result.successful || !("data" in payload)) {
+    if (!result.successful || !("data" in result)) {
       throw new BadRequestError("Card creation failed");
     }
 
@@ -58,6 +64,7 @@ export class OrganizationCardService {
       const card = await Card.create({
         organization: org._id,
         provider,
+        providerRef: result.data.providerRef,
         activatedAt: new Date(),
         type: payload.type,
         freeze: false,

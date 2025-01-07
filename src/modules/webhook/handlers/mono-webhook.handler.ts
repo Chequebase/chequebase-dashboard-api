@@ -6,8 +6,8 @@ import { getEnvOrThrow } from '@/modules/common/utils';
 import { BadRequestError, UnauthorizedError } from 'routing-controllers';
 import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common/slack/slackNotification.service';
 import { MonoService } from '@/modules/common/mono.service';
-import { MandateApprovedData } from '@/queues/jobs/wallet/mandate-approved.job';
-import { MandateDebitReadyData } from '@/queues/jobs/wallet/mandate-ready-debit.job';
+import { MandateApprovedData } from '@/queues/jobs/mandate/mandate-approved.job';
+import { MandateDebitReadyData } from '@/queues/jobs/mandate/mandate-ready-debit.job';
 import { WalletOutflowData } from '@/queues/jobs/wallet/wallet-outflow.job';
 
 @Service()

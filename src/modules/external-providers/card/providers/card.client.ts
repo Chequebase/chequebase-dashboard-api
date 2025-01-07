@@ -42,6 +42,7 @@ export type UpdateCardData = {
 export type CreateCardResponse = {
   successful: boolean;
   data: {
+    providerRef: string
     type: string;
     brand: string;
     currency: string;
