@@ -98,4 +98,10 @@ export default class OrganizationCardController {
   ) {
     return this.orgCardService.setSpendChannel(auth, id, dto);
   }
+
+  @Get("/:id/token")
+  @Authorized(EPermission.CardRead)
+  getCardToken(@CurrentUser() auth: AuthUser, @Param("id") id: string) {
+    return this.orgCardService.getCardToken(auth, id);
+  }
 }

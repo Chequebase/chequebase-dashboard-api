@@ -68,6 +68,11 @@ export type SetSpendChannel = {
   pos: boolean
 };
 
+export type GenerateToken = {
+  cardId: string;
+  provider: CardClientName
+};
+
 export enum CardClientName {
   Sudo = "sudo",
 }
@@ -89,4 +94,7 @@ export abstract class CardClient {
   abstract setSpendChannel(
     payload: SetSpendChannel
   ): Promise<{ successful: boolean }>;
+  abstract generateToken(
+    payload: GenerateToken
+  ): Promise<{ successful: boolean; data: { token: string } | null }>;
 }

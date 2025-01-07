@@ -19,6 +19,7 @@ import Wallet from "@/models/wallet.model";
 import { escapeRegExp } from "../common/utils";
 import User from "@/models/user.model";
 import WalletEntry from "@/models/wallet-entry.model";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
 
 @Service()
 export class OrganizationCardService {
@@ -420,6 +421,20 @@ export class OrganizationCardService {
     );
 
     return { message: "Spend channels updated" };
+  }
+
+  async getCardToken(auth: AuthUser, cardId: string) {
+    const card = await this.getCard(auth, cardId)
+    const result = await this.cardService.generateToken({
+      provider: card.provider,
+      cardId: card.providerRef
+    })
+
+    if (!result.successful) {
+      throw new ServiceUnavailableError('Feature is unavailable')
+    }
+
+    return result.data!.token
   }
 
   async buildGetCardFilter(auth: AuthUser, initial = {}) {

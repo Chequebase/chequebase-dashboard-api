@@ -8,6 +8,7 @@ import {
   ChangePinData,
   CreateCardData,
   CreateCustomerData,
+  GenerateToken,
   SetSpendChannel,
   UpdateCardData,
 } from "./providers/card.client";
@@ -146,6 +147,26 @@ export class CardService {
       return {
         successful: false,
         message: "Provider failure, could not update spend channels",
+        data: null,
+        gatewayResponse: err.message,
+      };
+    }
+  }
+
+  async generateToken(data: GenerateToken) {
+    try {
+      const client = this.getClient(data.provider);
+      const result = await client.generateToken(data);
+      return result;
+    } catch (err: any) {
+      this.logger.error("error generating token", {
+        payload: JSON.stringify(data),
+        reason: err.message,
+      });
+
+      return {
+        successful: false,
+        message: "Provider failure, could generate token",
         data: null,
         gatewayResponse: err.message,
       };

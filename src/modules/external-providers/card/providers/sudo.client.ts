@@ -9,6 +9,7 @@ import {
   CreateCardResponse,
   CreateCustomerData,
   CreateCustomerResponse,
+  GenerateToken,
   SetSpendChannel,
   UpdateCardData,
 } from "./card.client";
@@ -247,6 +248,31 @@ export class SudoCardClient implements CardClient {
       };
     } catch (err: any) {
       this.handleError("error changing card pin", body, err);
+      return { successful: false, data: null };
+    }
+  }
+
+  async generateToken(payload: GenerateToken) {
+    try {
+      const { data, status } = await this.httpClient.get(
+        `/cards/${payload.cardId}/token`,
+      );
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
+      this.logger.log("sudo generate token response", {
+        cardId:payload.cardId,
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return {
+        successful: data.statusCode === 200,
+        data: { token: data.data.token },
+      };
+    } catch (err: any) {
+      this.handleError("error generating card token", payload, err);
       return { successful: false, data: null };
     }
   }
