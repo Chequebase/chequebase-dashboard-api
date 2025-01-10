@@ -1,4 +1,4 @@
-import Card, { CardBrand, CardType } from "@/models/card.model";
+import Card, { CardBrand, CardCurrency, CardType } from "@/models/card.model";
 import { AuthUser } from "../common/interfaces/auth-user";
 import { CardService } from "../external-providers/card/card.service";
 import {
@@ -32,6 +32,10 @@ export class OrganizationCardService {
     }
 
     let brand = CardBrand.Verve;
+    if (payload.currency === CardCurrency.USD) {
+      brand = CardBrand.Visa
+    }
+
     const provider = CardClientName.Sudo;
     if (!org.sudoCustomerId && provider === CardClientName.Sudo) {
       org.sudoCustomerId = await this.createCustomer(org, provider);
@@ -91,6 +95,9 @@ export class OrganizationCardService {
         expiryMonth: result.data!.expiryMonth,
         expiryYear: result.data!.expiryYear,
         createdBy: auth.userId,
+        account: result.data.account,
+        balance: result.data.account?.balance,
+        fundable: payload.type === CardType.Virtual && payload.currency === CardCurrency.USD
       });
 
       cardId = card._id;

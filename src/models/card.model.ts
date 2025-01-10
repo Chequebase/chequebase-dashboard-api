@@ -31,6 +31,13 @@ export interface ICard {
   _id: ObjectId;
   organization: any;
   type: CardType;
+  balance: number;
+  account: {
+    accountName: string;
+    accountNumber: string;
+    bankCode: string;
+    bankName: string;
+  };
   freeze: boolean;
   design: string;
   cardName: string;
@@ -43,6 +50,7 @@ export interface ICard {
   expiryYear?: string;
   blocked: boolean;
   createdBy: any;
+  fundable: boolean
   spendChannels: {
     web: boolean;
     mobile: boolean;
@@ -74,6 +82,13 @@ interface CardModel
 const CardSchema = new Schema<ICard>(
   {
     activatedAt: { type: Date, default: null },
+    balance: { type: Number, default: null },
+    account: {
+      accountName: String,
+      accountNumber: String,
+      bankCode: String,
+      bankName: String,
+    },
     currency: {
       type: String,
       enum: Object.values(CardCurrency),
@@ -105,11 +120,11 @@ const CardSchema = new Schema<ICard>(
         atm: { type: Boolean, default: true },
       },
       default: {
-        web: true, 
-        mobile: true, 
+        web: true,
+        mobile: true,
         pos: true,
-        atm: true
-      }
+        atm: true,
+      },
     },
     freeze: { type: Boolean, default: false },
     design: String,
@@ -131,6 +146,7 @@ const CardSchema = new Schema<ICard>(
         interval: { type: String, enum: Object.values(CardSpendLimitInterval) },
       },
     },
+    fundable: {type: Boolean, default: false},
     deliveryAddress: {
       required: false,
       type: {

@@ -1,4 +1,5 @@
-import { getEnvOrThrow, toTitleCase } from "@/modules/common/utils";
+import { CardBrand } from "@/models/card.model";
+import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
 import Axios, { AxiosInstance, isAxiosError } from "axios";
 import { Service, Token } from "typedi";
@@ -18,7 +19,7 @@ export const SUDO_CARD_TOKEN = new Token("card.provider.sudo");
 
 @Service({ id: SUDO_CARD_TOKEN })
 export class SudoCardClient implements CardClient {
-  currencies = ["NGN"];
+  currencies = ["NGN", "USD"];
   logger = new Logger(SudoCardClient.name);
 
   private readonly httpClient: AxiosInstance;
@@ -87,12 +88,18 @@ export class SudoCardClient implements CardClient {
   }
 
   async createCard(payload: CreateCardData): Promise<CreateCardResponse> {
+    const brandMap = {
+      [CardBrand.Verve]: "Verve",
+      [CardBrand.MasterCard]: "MasterCard",
+      [CardBrand.Visa]: "Visa",
+    };
+
     const body = {
       type: payload.type,
       currency: payload.currency,
       issuerCountry: "NGA",
       status: "active",
-      brand: toTitleCase(payload.brand),
+      brand: brandMap[payload.brand],
       metadata: payload.metadata,
       customerId: payload.customerId,
       fundingSourceId: getEnvOrThrow("SUDO_FUNDING_SOURCE"),
@@ -128,6 +135,14 @@ export class SudoCardClient implements CardClient {
           expiryYear: data.data.expiryYear,
           maskedPan: data.data.maskedPan,
           providerRef: data.data._id,
+          account: {
+            accountName: data.data?.account?.accountName,
+            accountNumber: data.data?.account?.accountNumber,
+            balance: data.data?.account?.availableBalance,
+            bankCode: data.data?.account?.bankCode,
+            bankName: data.data?.account?.provider,
+            currency: data.data?.account?.currency,
+          },
         },
       };
     } catch (err: any) {
@@ -255,14 +270,14 @@ export class SudoCardClient implements CardClient {
   async generateToken(payload: GenerateToken) {
     try {
       const { data, status } = await this.httpClient.get(
-        `/cards/${payload.cardId}/token`,
+        `/cards/${payload.cardId}/token`
       );
       if (data.statusCode === 400) {
         throw data;
       }
 
       this.logger.log("sudo generate token response", {
-        cardId:payload.cardId,
+        cardId: payload.cardId,
         response: JSON.stringify(data),
         status,
       });
@@ -290,7 +305,7 @@ export class SudoCardClient implements CardClient {
         status,
       });
 
-      return data.data
+      return data.data;
     } catch (err: any) {
       this.handleError("error fetching card", cardId, err);
       throw err;
@@ -298,7 +313,7 @@ export class SudoCardClient implements CardClient {
   }
 
   async setSpendChannel(payload: SetSpendChannel) {
-    const card = await this.getCard(payload.cardId)
+    const card = await this.getCard(payload.cardId);
     const body = {
       status: card.status,
       spendingControls: {
@@ -361,59 +376,3 @@ export class SudoCardClient implements CardClient {
     return { data, status, message: responseMsg || message };
   }
 }
-
-const a = {
-  statusCode: 400,
-  error: "Bad Request",
-  message: [
-    {
-      target: {
-        spendingControls: {
-          channels: { web: true, atm: true, mobile: true, pos: true },
-        },
-      },
-      property: "status",
-      children: [],
-      constraints: {
-        isIn: "status must be one of the following values: active, inactive, canceled",
-        isNotEmpty: "status should not be empty",
-        isString: "status must be a string",
-      },
-    },
-    {
-      target: {
-        spendingControls: {
-          channels: { web: true, atm: true, mobile: true, pos: true },
-        },
-      },
-      value: { channels: { web: true, atm: true, mobile: true, pos: true } },
-      property: "spendingControls",
-      children: [
-        {
-          target: {
-            channels: { web: true, atm: true, mobile: true, pos: true },
-          },
-          property: "allowedCategories",
-          children: [],
-          constraints: { isArray: "allowedCategories must be an array" },
-        },
-        {
-          target: {
-            channels: { web: true, atm: true, mobile: true, pos: true },
-          },
-          property: "blockedCategories",
-          children: [],
-          constraints: { isArray: "blockedCategories must be an array" },
-        },
-        {
-          target: {
-            channels: { web: true, atm: true, mobile: true, pos: true },
-          },
-          property: "spendingLimits",
-          children: [],
-          constraints: { isArray: "spendingLimits must be an array" },
-        },
-      ],
-    },
-  ],
-};

@@ -1,4 +1,4 @@
-import { CardType } from "@/models/card.model";
+import { CardBrand, CardType } from "@/models/card.model";
 
 export type CreateCustomerData = {
   provider: CardClientName;
@@ -28,7 +28,7 @@ export type CreateCardData = {
   provider: CardClientName;
   customerId: string;
   type: CardType;
-  brand: "verve" | "mastercard" | "visa";
+  brand: CardBrand
   PAN?: string;
   currency: string;
   metadata: Record<string, unknown>;
@@ -49,7 +49,15 @@ export type ChangePinData = {
 export type CreateCardResponse = {
   successful: boolean;
   data: {
-    providerRef: string
+    account?: {
+      currency: string;
+      accountName: string;
+      bankCode: string;
+      bankName: string
+      accountNumber: string;
+      balance: 0;
+    };
+    providerRef: string;
     type: string;
     brand: string;
     currency: string;
