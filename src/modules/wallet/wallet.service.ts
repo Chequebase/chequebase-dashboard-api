@@ -481,6 +481,118 @@ export default class WalletService {
     })) };
   }
 
+  async getPartnerWalletEntries(auth: AuthUser, query: GetWalletEntriesDto) {
+    const user = await User.findById(auth.userId).populate('roleRef').lean()
+    if (!user) {
+      throw new BadRequestError("User not found")
+    }
+
+    const from = query.from ?? dayjs().subtract(30, 'days').toDate()
+    const to = query.to ?? dayjs()
+    const filter = new QueryFilter({ partnerId: query.partnerId })
+      .set('wallet', query.wallet)
+      .set('type', query.type)
+      .set('budget', query.budget)
+      .set('project', query.project)
+      .set('createdAt', {
+        $gte: dayjs(from).startOf('day').toDate(),
+        $lte: dayjs(to).endOf('day').toDate()
+      })
+
+    if (!ParentOwnershipGetAll.includes(user.roleRef.name)) {
+      filter.set('initiatedBy', user._id)
+    }
+    if (query.scope) {
+      filter.set('scope', query.scope)
+    } else {
+      filter.set('scope', {
+        $in: [
+          WalletEntryScope.PlanSubscription,
+          WalletEntryScope.WalletFunding,
+          WalletEntryScope.BudgetTransfer,
+          WalletEntryScope.WalletTransfer,
+          WalletEntryScope.BudgetFunding
+        ]
+      })
+    }
+    if (query.vendorStatus) {
+      switch (query.vendorStatus) {
+        case 'recent':
+          filter.set('status', {
+            $in: [
+              'pending',
+              'validating',
+              'processing',
+            ]
+          })
+          break;
+        case 'onGoing':
+          filter.set('status', {
+            $in: [
+              'pending',
+              'processing',
+            ]
+          })
+          break;
+        case 'completed':
+          filter.set('status', {
+            $in: [
+              'successful',
+              'failed',
+              'cancelled'
+            ]
+          })
+          break;
+      }
+    } else {
+      filter.set('status', {
+        $in: [
+          'pending',
+          'successful',
+          'validating',
+          'failed',
+          'processing',
+          'cancelled'
+        ]
+      })
+    }
+    if (query.partnerId) {
+      filter.set('partnerId', query.partnerId)
+    }
+    if (query.search) {
+      const search = escapeRegExp(query.search)
+      filter.set('$or', [{ reference: { $regex: search } }])
+      filter.append('$or', {
+        $expr: {
+          $regexMatch: {
+            input: { $toString: '$_id' },
+            regex: search
+          }
+        }
+      })
+    }
+
+    let selectQuery = `status partnerId paymentStatus exchangeRate currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
+    selectQuery = query.budget ? `${selectQuery} meta.budgetBalanceBefore meta.budgetBalanceAfter` : `${selectQuery} ledgerBalanceBefore ledgerBalanceAfter`
+    const history = await WalletEntry.paginate(filter.object, {
+      select: selectQuery,
+      populate: [
+        { path: 'budget', select: 'name' },
+        { path: 'category', select: 'name' },
+      ],
+      sort: '-createdAt',
+      page: Number(query.page),
+      limit: query.limit,
+      lean: true
+    })
+
+    return { ...history, docs: history.docs.map(doc => ({
+      ...doc,
+      // TODO: Remove sourceAccount from data returned
+      meta: { ...doc.meta, counterparty: doc.meta?.sourceAccount || doc.meta?.counterparty }
+    })) };
+  }
+
   async getWalletStatement(orgId: string, query: GetWalletStatementDto) {
     const filter: any = {
       organization: orgId,

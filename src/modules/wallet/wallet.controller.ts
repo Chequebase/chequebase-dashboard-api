@@ -72,6 +72,12 @@ export default class WalletController {
     return this.walletService.getWalletEntries(auth, query)
   }
 
+  @Get('/partner/history')
+  @Authorized(EPermission.TransactionRead)
+  getPartnerWalletHistory(@CurrentUser() auth: AuthUser, @QueryParams() query: GetWalletEntriesDto) {
+    return this.walletService.getPartnerWalletEntries(auth, query)
+  }
+
   @Get('/statement/csv')
   @Authorized(EPermission.TransactionDownload)
   async getWalletStatement(
