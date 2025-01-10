@@ -383,7 +383,10 @@ export default class WalletService {
         $in: [
           'successful',
           'pending',
-          'failed'
+          'failed',
+          'validating',
+          'processing',
+          'cancelled'
         ]
       })
       .set('budget', query.budget)
