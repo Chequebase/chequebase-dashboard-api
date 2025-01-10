@@ -28,6 +28,7 @@ import { VirtualAccountClientName } from "../external-providers/virtual-account/
 import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
 import { OrganizationCardService } from "../organization-card/organization-card.service";
 import Card from "@/models/card.model";
+import { OrgType } from "../banksphere/dto/banksphere.dto";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -532,6 +533,11 @@ export default class WalletService {
   }
 
   async updateWalletEntry(orgId: string, entryId: string, dto: UpdateWalletEntry) {
+    const organization = await Organization.findById(orgId).lean();
+
+    if (!organization) {
+      throw new NotFoundError('Organization not found')
+    }
     let status = WalletEntryStatus.Pending;
     switch (dto.action) {
       case WalletEntryUpdateAction.CancelRate:
@@ -540,17 +546,26 @@ export default class WalletService {
       case WalletEntryUpdateAction.AcceptRate:
         status = WalletEntryStatus.Processing;
         break;
-      case WalletEntryUpdateAction.SubmitRate:
+      case WalletEntryUpdateAction.Request:
         status = WalletEntryStatus.Validating;
         break;
+      case WalletEntryUpdateAction.SubmitRate:
+        if (organization.type !== OrgType.PARTNER) {
+          throw new BadRequestError('Can Not Submit Rate')
+        }
+        status = WalletEntryStatus.Processing;
+        break;
       case WalletEntryUpdateAction.CompleteTx:
+        if (organization.type !== OrgType.PARTNER) {
+          throw new BadRequestError('Can Not Submit Rate')
+        }
         status = WalletEntryStatus.Successful;
         break;
       default:
         return;
     }
     await cdb.transaction(async (session) => {
-      await WalletEntry.updateOne({ _id: entryId }, {
+      await WalletEntry.updateOne({ _id: entryId, organization: organization._id }, {
         $set: {
           status
         },

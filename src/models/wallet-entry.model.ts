@@ -13,7 +13,8 @@ export enum WalletEntryUpdateAction {
   AcceptRate = 'accept',
   CancelRate = 'cancel',
   SubmitRate = 'submit',
-  CompleteTx = 'complete'
+  CompleteTx = 'complete',
+  Request = 'request'
 }
 
 export enum WalletEntryStatus {
@@ -22,7 +23,8 @@ export enum WalletEntryStatus {
   Pending = 'pending',
   Failed = 'failed',
   Validating = 'validating',
-  Cancelled = 'cancelled'
+  Cancelled = 'cancelled',
+  TimedOut = 'timedOut'
 }
 
 export enum PaymentEntryStatus {
