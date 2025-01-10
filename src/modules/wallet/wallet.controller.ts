@@ -1,4 +1,4 @@
-import { Authorized, Body, CurrentUser, Get, JsonController, Param, Patch, Post, QueryParams, Req, Res, UseBefore } from "routing-controllers";
+import { Authorized, Body, CurrentUser, Get, JsonController, Param, Patch, Post, Put, QueryParams, Req, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import { Request } from "express";
 import WalletService from "./wallet.service";
@@ -202,7 +202,7 @@ export default class WalletController {
     return this.walletTransferService.payVendor(auth, id, body)
   }
 
-  @Patch('/history/:id')
+  @Put('/history/:id')
   @Authorized(EPermission.TransactionRead)
   updateWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateWalletEntry) {
     return this.walletService.updateWalletEntry(auth.orgId, id, dto)

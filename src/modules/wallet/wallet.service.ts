@@ -565,14 +565,19 @@ export default class WalletService {
       default:
         return;
     }
-    await cdb.transaction(async (session) => {
-      await WalletEntry.updateOne({ _id: entryId, organization: organization._id }, {
+    const entry = await cdb.transaction(async (session) => {
+      return await WalletEntry.updateOne({ _id: entryId, organization: organization._id }, {
         $set: {
           status
         },
       }, { session })
 
     }, transactionOpts)
+
+    return {
+      status,
+      message: 'Transation Updated',
+    } 
   }
 
   async reportTransactionToSlack(orgId: string, data: ReportTransactionDto) {
