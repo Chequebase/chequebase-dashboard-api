@@ -4,7 +4,7 @@ import Counterparty from "@/models/counterparty.model";
 import Organization from "@/models/organization.model";
 import User from "@/models/user.model";
 import VirtualAccount from "@/models/virtual-account.model";
-import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
+import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType, WalletEntryUpdateAction } from "@/models/wallet-entry.model";
 import Wallet, { WalletType } from "@/models/wallet.model";
 import { walletQueue } from "@/queues";
 import { createId } from '@paralleldrive/cuid2';
@@ -532,22 +532,29 @@ export default class WalletService {
   }
 
   async updateWalletEntry(orgId: string, entryId: string, dto: UpdateWalletEntry) {
-    // switch dto.actions, and do stuff
-    //  accept, cancel, submit-rate, complete
+    let status = WalletEntryStatus.Pending;
+    switch (dto.action) {
+      case WalletEntryUpdateAction.CancelRate:
+        status = WalletEntryStatus.Cancelled;
+        break;
+      case WalletEntryUpdateAction.AcceptRate:
+        status = WalletEntryStatus.Processing;
+        break;
+      case WalletEntryUpdateAction.SubmitRate:
+        status = WalletEntryStatus.Validating;
+        break;
+      case WalletEntryUpdateAction.CompleteTx:
+        status = WalletEntryStatus.Successful;
+        break;
+      default:
+        return;
+    }
     await cdb.transaction(async (session) => {
       await WalletEntry.updateOne({ _id: entryId }, {
         $set: {
-          // gatewayResponse: transferResponse?.gatewayResponse,
-          // status: WalletEntryStatus.Failed
+          status
         },
-        $inc: {
-          // 'meta.budgetBalanceAfter': reverseAmount
-        }
       }, { session })
-
-      // await Budget.updateOne({ _id: entry.budget }, {
-      //   $inc: { amountUsed: -reverseAmount, balance: reverseAmount }
-      // }, { session })
 
     }, transactionOpts)
   }
