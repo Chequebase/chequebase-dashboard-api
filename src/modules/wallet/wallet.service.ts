@@ -380,16 +380,6 @@ export default class WalletService {
     const filter = new QueryFilter({ organization: auth.orgId })
       .set('wallet', query.wallet)
       .set('type', query.type)
-      .set('status', {
-        $in: [
-          'successful',
-          'pending',
-          'failed',
-          'validating',
-          'processing',
-          'cancelled'
-        ]
-      })
       .set('budget', query.budget)
       .set('project', query.project)
       .set('createdAt', {
@@ -402,6 +392,46 @@ export default class WalletService {
     }
     if (query.scope) {
       filter.set('scope', query.scope)
+    } else {
+      filter.set('scope', {
+        $in: [
+          WalletEntryScope.PlanSubscription,
+          WalletEntryScope.WalletFunding,
+          WalletEntryScope.BudgetTransfer,
+          WalletEntryScope.WalletTransfer,
+          WalletEntryScope.BudgetFunding
+        ]
+      })
+    }
+    if (query.vendorStatus) {
+      switch (query.vendorStatus) {
+        case 'recent':
+          filter.set('status', {
+            $in: [
+              'pending',
+              'validating',
+              'processing',
+            ]
+          })
+          break;
+        case 'onGoing':
+          filter.set('status', {
+            $in: [
+              'pending',
+              'processing',
+            ]
+          })
+          break;
+        case 'completed':
+          filter.set('status', {
+            $in: [
+              'successful',
+              'failed',
+              'cancelled'
+            ]
+          })
+          break;
+      }
     } else {
       filter.set('scope', {
         $in: [

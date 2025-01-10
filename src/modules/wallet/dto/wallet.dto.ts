@@ -91,6 +91,10 @@ export class GetWalletEntriesDto {
 
   @IsString()
   @IsOptional()
+  vendorStatus?: string
+
+  @IsString()
+  @IsOptional()
   wallet?: string
 
   @IsString()
