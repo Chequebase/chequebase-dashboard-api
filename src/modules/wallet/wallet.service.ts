@@ -498,10 +498,6 @@ export default class WalletService {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()
       })
-
-    if (!ParentOwnershipGetAll.includes(user.roleRef.name)) {
-      filter.set('initiatedBy', user._id)
-    }
     if (query.vendorStatus) {
       switch (query.vendorStatus) {
         case 'recent':
