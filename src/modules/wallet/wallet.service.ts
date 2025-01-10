@@ -539,6 +539,9 @@ export default class WalletService {
         ]
       })
     }
+    if (query.partnerId) {
+      filter.set('partnerId', query.partnerId)
+    }
     if (query.search) {
       const search = escapeRegExp(query.search)
       filter.set('$or', [{ reference: { $regex: search } }])
