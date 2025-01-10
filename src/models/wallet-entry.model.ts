@@ -69,6 +69,7 @@ export interface IWalletEntry {
   ledgerBalanceAfter: number;
   amount: number;
   fee: number;
+  exchangeRate: number;
   scope: WalletEntryScope;
   gatewayResponse: string;
   paymentMethod: string;
@@ -163,6 +164,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     providerRef: { type: String },
     narration: String,
     reference: { type: String, required: true },
+    exchangeRate: Number,
     invoiceUrl: String,
     meta: {
       type: Schema.Types.Mixed,
