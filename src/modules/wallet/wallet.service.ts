@@ -489,7 +489,7 @@ export default class WalletService {
 
     const from = query.from ?? dayjs().subtract(30, 'days').toDate()
     const to = query.to ?? dayjs()
-    const filter = new QueryFilter({ partnerId: query.partnerId })
+    const filter = new QueryFilter()
       .set('wallet', query.wallet)
       .set('type', query.type)
       .set('budget', query.budget)
@@ -498,6 +498,9 @@ export default class WalletService {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()
       })
+    if (query.partnerId) {
+        filter.set('partnerId', query.partnerId)
+    }
     if (query.vendorStatus) {
       switch (query.vendorStatus) {
         case 'recent':
@@ -538,9 +541,6 @@ export default class WalletService {
           'cancelled'
         ]
       })
-    }
-    if (query.partnerId) {
-      filter.set('partnerId', query.partnerId)
     }
     if (query.search) {
       const search = escapeRegExp(query.search)
