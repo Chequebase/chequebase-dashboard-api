@@ -170,5 +170,5 @@ export class UpdateWalletEntry {
   @IsString()
   @IsEnum(WalletEntryUpdateAction)
   @IsOptional()
-  action: string
+  action?: WalletEntryUpdateAction
 }
