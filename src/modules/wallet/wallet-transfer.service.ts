@@ -243,6 +243,7 @@ export class WalletTransferService {
         scope: WalletEntryScope.VendorTransfer,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
+        partner: '657084f7e7badea79aba3968', /* handcoding for now */
         paymentMethod,
         reference: `wt_${createId()}`,
         provider: payload.provider,
@@ -690,6 +691,7 @@ export class WalletTransferService {
   async completeVendorPayment(auth: AuthUser, data: CompleteVendorPaymentDto) {
     const wallet = await this.getWallet(auth.orgId, data.source)
     const transaction = await WalletEntry.findById(data.transactionId).lean()
+    // TODO: check transaction status before transfer -- allowed status
     if (!wallet || !transaction) {
       throw new NotFoundError('Wallet or Transaction does not exist')
     }

@@ -99,6 +99,7 @@ export interface IOrganization {
   hasSetupPayroll: boolean
   regDate: string
   state: string
+  partnerId: string
   owners: Shareholder[]
   owner: any
   anchor?: Anchor
@@ -212,6 +213,7 @@ const organizationSchma = new Schema<IOrganization>(
     kycRejectionLevel: String,
     kycRejectionDescription: String,
     sudoCustomerId: String,
+    partnerId: String,
     subscription: {
       _id: false,
       type: {

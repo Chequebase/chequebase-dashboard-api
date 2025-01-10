@@ -80,6 +80,7 @@ export interface IWalletEntry {
   providerRef: string;
   narration: string;
   reference: string;
+  partner: string;
   status: WalletEntryStatus;
   paymentStatus: PaymentEntryStatus;
   category: any;
@@ -168,6 +169,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     reference: { type: String, required: true },
     exchangeRate: Number,
     invoiceUrl: String,
+    partner: String,
     meta: {
       type: Schema.Types.Mixed,
       default: {},
