@@ -95,9 +95,10 @@ export class SudoCardClient implements CardClient {
     };
 
     const body = {
+      amount: payload.fundingAmount,
       type: payload.type,
       currency: payload.currency,
-      issuerCountry: "NGA",
+      issuerCountry: payload.currency === "NGN" ? "NGA" : "USA",
       status: "active",
       brand: brandMap[payload.brand],
       metadata: payload.metadata,
@@ -135,6 +136,16 @@ export class SudoCardClient implements CardClient {
           expiryYear: data.data.expiryYear,
           maskedPan: data.data.maskedPan,
           providerRef: data.data._id,
+          billingAddress: data.data?.billingAddress
+            ? {
+                city: data.data.billingAddress.city,
+                country: data.data.billingAddress.country,
+                line1: data.data.billingAddress.line1,
+                line2: data.data.billingAddress.line2,
+                postalCode: data.data.billingAddress.postalCode,
+                state: data.data.billingAddress.state,
+              }
+            : undefined,
           account: {
             accountName: data.data?.account?.accountName,
             accountNumber: data.data?.account?.accountNumber,

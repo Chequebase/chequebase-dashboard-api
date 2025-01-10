@@ -28,8 +28,9 @@ export type CreateCardData = {
   provider: CardClientName;
   customerId: string;
   type: CardType;
-  brand: CardBrand
+  brand: CardBrand;
   PAN?: string;
+  fundingAmount?: number;
   currency: string;
   metadata: Record<string, unknown>;
 };
@@ -41,8 +42,8 @@ export type UpdateCardData = {
 
 export type ChangePinData = {
   provider: CardClientName;
-  oldPin: string
-  newPin: string
+  oldPin: string;
+  newPin: string;
   cardId: string;
 };
 
@@ -53,9 +54,17 @@ export type CreateCardResponse = {
       currency: string;
       accountName: string;
       bankCode: string;
-      bankName: string
+      bankName: string;
       accountNumber: string;
       balance: 0;
+    };
+    billingAddress?: {
+      line1: string;
+      line2: string;
+      city: string;
+      state: string;
+      country: string;
+      postalCode: string;
     };
     providerRef: string;
     type: string;

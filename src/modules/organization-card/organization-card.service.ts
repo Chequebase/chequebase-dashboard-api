@@ -31,6 +31,7 @@ export class OrganizationCardService {
       throw new BadRequestError("Organization not found");
     }
 
+    const isFundableDollarCard = payload.type === CardType.Virtual && payload.currency === CardCurrency.USD
     let brand = CardBrand.Verve;
     if (payload.currency === CardCurrency.USD) {
       brand = CardBrand.Visa
@@ -63,9 +64,9 @@ export class OrganizationCardService {
 
       return { message: "Physical card requested", cardId: physcialCard._id };
     }
-
     const result = await this.cardService.createCard({
       brand,
+      fundingAmount: isFundableDollarCard ? 3 : 0,
       currency: payload.currency,
       customerId: org.sudoCustomerId,
       type: payload.type,
@@ -97,7 +98,8 @@ export class OrganizationCardService {
         createdBy: auth.userId,
         account: result.data.account,
         balance: result.data.account?.balance,
-        fundable: payload.type === CardType.Virtual && payload.currency === CardCurrency.USD
+        fundable: isFundableDollarCard,
+        billingAddress: result.data.billingAddress
       });
 
       cardId = card._id;

@@ -50,7 +50,7 @@ export interface ICard {
   expiryYear?: string;
   blocked: boolean;
   createdBy: any;
-  fundable: boolean
+  fundable: boolean;
   spendChannels: {
     web: boolean;
     mobile: boolean;
@@ -66,6 +66,14 @@ export interface ICard {
   spendLimit: {
     amount: number;
     interval: CardSpendLimitInterval;
+  };
+  billingAddress: {
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    country: string;
+    postalCode: string;
   };
   activatedAt: Date | null;
   provider: CardClientName;
@@ -146,7 +154,18 @@ const CardSchema = new Schema<ICard>(
         interval: { type: String, enum: Object.values(CardSpendLimitInterval) },
       },
     },
-    fundable: {type: Boolean, default: false},
+    fundable: { type: Boolean, default: false },
+    billingAddress: {
+      required: false,
+      type: {
+        line1: String,
+        line2: String,
+        city: String,
+        state: String,
+        country: String,
+        postalCode: String,
+      },
+    },
     deliveryAddress: {
       required: false,
       type: {
