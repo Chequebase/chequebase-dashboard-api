@@ -429,7 +429,7 @@ export default class WalletService {
       })
     }
 
-    let selectQuery = `status paymentStatus exchangeRate currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
+    let selectQuery = `status partnerId paymentStatus exchangeRate currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
     selectQuery = query.budget ? `${selectQuery} meta.budgetBalanceBefore meta.budgetBalanceAfter` : `${selectQuery} ledgerBalanceBefore ledgerBalanceAfter`
     const history = await WalletEntry.paginate(filter.object, {
       select: selectQuery,
