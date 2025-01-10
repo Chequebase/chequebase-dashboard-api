@@ -513,6 +513,7 @@ export default class WalletService {
   async getWalletEntry(orgId: string, entryId: string) {
     const entry = await WalletEntry.findOne({ _id: entryId, organization: orgId })
       .select('-gatewayResponse -provider createdAt updatedAt')
+      .select('createdAt updatedAt')
       .populate('budget')
       .populate('category')
       .populate({
