@@ -202,7 +202,7 @@ export default class WalletController {
     return this.walletTransferService.payVendor(auth, id, body)
   }
 
-  @Put('/history/:id')
+  @Put('/history/:id/')
   @Authorized(EPermission.TransactionRead)
   updateWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateWalletEntry) {
     return this.walletService.updateWalletEntry(auth.orgId, id, dto)
