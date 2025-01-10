@@ -502,19 +502,6 @@ export default class WalletService {
     if (!ParentOwnershipGetAll.includes(user.roleRef.name)) {
       filter.set('initiatedBy', user._id)
     }
-    if (query.scope) {
-      filter.set('scope', query.scope)
-    } else {
-      filter.set('scope', {
-        $in: [
-          WalletEntryScope.PlanSubscription,
-          WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer,
-          WalletEntryScope.WalletTransfer,
-          WalletEntryScope.BudgetFunding
-        ]
-      })
-    }
     if (query.vendorStatus) {
       switch (query.vendorStatus) {
         case 'recent':
@@ -555,9 +542,6 @@ export default class WalletService {
           'cancelled'
         ]
       })
-    }
-    if (query.partnerId) {
-      filter.set('partnerId', query.partnerId)
     }
     if (query.search) {
       const search = escapeRegExp(query.search)
