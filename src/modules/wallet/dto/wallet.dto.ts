@@ -87,6 +87,10 @@ export class GetWalletEntriesDto {
 
   @IsString()
   @IsOptional()
+  partnerId?: string
+
+  @IsString()
+  @IsOptional()
   wallet?: string
 
   @IsString()
