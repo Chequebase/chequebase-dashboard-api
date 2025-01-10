@@ -1185,7 +1185,6 @@ export class WalletTransferService {
     return {
       transactionId: entry._id.toString(),
       status: 'pending',
-      approvalRequired: true,
       message: 'Request Submitted',
     }
   }
