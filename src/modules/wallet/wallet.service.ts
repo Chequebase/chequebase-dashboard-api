@@ -379,15 +379,6 @@ export default class WalletService {
     const filter = new QueryFilter({ organization: auth.orgId })
       .set('wallet', query.wallet)
       .set('type', query.type)
-      .set('scope', {
-        $in: [
-          WalletEntryScope.PlanSubscription,
-          WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer,
-          WalletEntryScope.WalletTransfer,
-          WalletEntryScope.BudgetFunding
-        ]
-      })
       .set('status', {
         $in: [
           'successful',
@@ -407,6 +398,16 @@ export default class WalletService {
     }
     if (query.scope) {
       filter.set('scope', query.scope)
+    } else {
+      filter.set('scope', {
+        $in: [
+          WalletEntryScope.PlanSubscription,
+          WalletEntryScope.WalletFunding,
+          WalletEntryScope.BudgetTransfer,
+          WalletEntryScope.WalletTransfer,
+          WalletEntryScope.BudgetFunding
+        ]
+      })
     }
     if (query.search) {
       const search = escapeRegExp(query.search)
