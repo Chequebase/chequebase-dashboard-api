@@ -433,13 +433,14 @@ export default class WalletService {
           break;
       }
     } else {
-      filter.set('scope', {
+      filter.set('status', {
         $in: [
-          WalletEntryScope.PlanSubscription,
-          WalletEntryScope.WalletFunding,
-          WalletEntryScope.BudgetTransfer,
-          WalletEntryScope.WalletTransfer,
-          WalletEntryScope.BudgetFunding
+          'pending',
+          'successful',
+          'validating',
+          'failed',
+          'processing',
+          'cancelled'
         ]
       })
     }
