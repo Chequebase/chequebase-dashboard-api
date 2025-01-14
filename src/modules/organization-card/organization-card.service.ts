@@ -172,6 +172,10 @@ export class OrganizationCardService {
       filter.cardName = { $regex: escapeRegExp(query.search), $options: "i" };
     }
 
+    if (query.type) {
+      filter.type = query.type
+    }
+
     let cards = await Card.find(filter)
       .select(
         "cardName type brand currency expiryMonth expiryYear maskedPan activatedAt blocked"
