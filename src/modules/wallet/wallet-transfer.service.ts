@@ -692,6 +692,7 @@ export class WalletTransferService {
     const wallet = await this.getWallet(auth.orgId, data.source)
     const transaction = await WalletEntry.findById(data.transactionId).lean()
     // TODO: check transaction status before transfer -- allowed status
+    if (!(transaction?.paymentStatus && transaction.paymentStatus === PaymentEntryStatus.Pending)) throw new NotFoundError('Wallet or Transaction does not exist')
     if (!wallet || !transaction) {
       throw new NotFoundError('Wallet or Transaction does not exist')
     }
@@ -743,6 +744,10 @@ export class WalletTransferService {
           requester: auth.userId,
           saveRecipient: false,
         })
+            // // TODO: check if successful ---
+        await WalletEntry.updateOne({ _id: transaction._id }, {
+          paymentStatus: PaymentEntryStatus.Paid
+        })
       case WalletType.General:
       case WalletType.Payroll:
       case WalletType.SubAccount:
@@ -758,15 +763,18 @@ export class WalletTransferService {
           category: transaction.category,
           saveRecipient: false
         })
+            // // TODO: check if successful ---
+        await WalletEntry.updateOne({ _id: transaction._id }, {
+          paymentStatus: PaymentEntryStatus.Paid
+        })
       default:
         break;
     }
 
-    // check if successful ---
-    await WalletEntry.updateOne({ _id: transaction._id }, {
-      status: WalletEntryStatus.Processing,
-      paymentStatus: PaymentEntryStatus.Paid
-    })
+    return {
+      status: PaymentEntryStatus.Paid,
+      message: 'successfull'
+    }
   }
 
   async approveDirectDebit(data: ApproveTransfer) {
