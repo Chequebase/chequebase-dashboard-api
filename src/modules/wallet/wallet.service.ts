@@ -4,7 +4,7 @@ import Counterparty from "@/models/counterparty.model";
 import Organization from "@/models/organization.model";
 import User from "@/models/user.model";
 import VirtualAccount from "@/models/virtual-account.model";
-import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType, WalletEntryUpdateAction } from "@/models/wallet-entry.model";
+import WalletEntry, { IWalletEntry, PaymentEntryStatus, WalletEntryScope, WalletEntryStatus, WalletEntryType, WalletEntryUpdateAction } from "@/models/wallet-entry.model";
 import Wallet, { WalletType } from "@/models/wallet.model";
 import { walletQueue } from "@/queues";
 import { createId } from '@paralleldrive/cuid2';
@@ -690,6 +690,12 @@ export default class WalletService {
         status = WalletEntryStatus.TimedOut;
         break;
       case WalletEntryUpdateAction.SubmitRate:
+        if (transaction.status === WalletEntryStatus.TimedOut) {
+          throw new BadRequestError('Transaction is timed out')
+        }
+        if (transaction.status !== WalletEntryStatus.Validating) {
+          throw new BadRequestError('Transaction  is in invalid state')
+        }
         if (organization.type !== OrgType.PARTNER) {
           throw new BadRequestError('Can Not Submit Rate')
         }
@@ -700,7 +706,7 @@ export default class WalletService {
         if (organization.type !== OrgType.PARTNER) {
           throw new BadRequestError('Can Not Perform')
         }
-        if (transaction.status === WalletEntryStatus.Validating || WalletEntryStatus.TimedOut) {
+        if (transaction.paymentStatus !== PaymentEntryStatus.Paid) {
           throw new BadRequestError('Transaction is in invalid state')
         }
         status = WalletEntryStatus.Successful;
