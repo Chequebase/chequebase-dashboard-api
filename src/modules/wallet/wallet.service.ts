@@ -709,7 +709,7 @@ export default class WalletService {
         return;
     }
     const entry = await cdb.transaction(async (session) => {
-      return await WalletEntry.updateOne({ _id: entryId, organization: organization._id }, {
+      return await WalletEntry.updateOne({ _id: entryId }, {
         $set: {
           status,
           exchangeRate
