@@ -169,7 +169,7 @@ export class OrganizationCardService {
   async getCards(auth: AuthUser, query: GetCardsQuery) {
     const filter: any = await this.buildGetCardFilter(auth);
     if (query.search) {
-      filter.search = { $regex: escapeRegExp(query.search), $options: "i" };
+      filter.cardName = { $regex: escapeRegExp(query.search), $options: "i" };
     }
 
     let cards = await Card.find(filter)
