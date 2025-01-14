@@ -681,6 +681,9 @@ export default class WalletService {
         status = WalletEntryStatus.Cancelled;
         break;
       case WalletEntryUpdateAction.AcceptRate:
+        if (transaction.status === WalletEntryStatus.Processing) {
+          throw new BadRequestError('Transaction is already processing')
+        }
         status = WalletEntryStatus.Processing;
         break;
       case WalletEntryUpdateAction.Request:
