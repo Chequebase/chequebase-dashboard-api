@@ -720,13 +720,13 @@ export class WalletTransferService {
     }
 
     const escrowWallet = await Wallet.findOne({
-      organization: auth.orgId,
+      organization: partner.id,
       currency: BaseWalletType.NGN,
       type: WalletType.EscrowAccount,
     }).populate<IVirtualAccount>("virtualAccounts");
 
     if (!escrowWallet) {
-      logger.error('Escrow wallet not found', { currency: BaseWalletType.NGN, partnerId: partner.partnerId })
+      logger.error('Escrow wallet not found', { currency: BaseWalletType.NGN, organization: partner.id })
       throw new BadRequestError(`Organization does not have an escrow wallet for ${BaseWalletType.NGN}`)
     }
 
