@@ -179,4 +179,9 @@ export class UpdateWalletEntry {
   @IsEnum(WalletEntryUpdateAction)
   @IsOptional()
   action?: WalletEntryUpdateAction
+
+  @IsInt()
+  @IsOptional()
+  @Transform((n) => Number(n.value))
+  rate?: number
 }

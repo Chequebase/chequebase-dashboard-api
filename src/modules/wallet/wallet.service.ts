@@ -668,7 +668,14 @@ export default class WalletService {
     if (!organization) {
       throw new NotFoundError('Organization not found')
     }
+
+    const transaction = await WalletEntry.findById(entryId).lean();
+
+    if (!transaction) {
+      throw new NotFoundError('transaction not found')
+    }
     let status = WalletEntryStatus.Pending;
+    let exchangeRate: number;
     switch (dto.action) {
       case WalletEntryUpdateAction.CancelRate:
         status = WalletEntryStatus.Cancelled;
@@ -679,15 +686,22 @@ export default class WalletService {
       case WalletEntryUpdateAction.Request:
         status = WalletEntryStatus.Validating;
         break;
+      case WalletEntryUpdateAction.TimedOut:
+        status = WalletEntryStatus.TimedOut;
+        break;
       case WalletEntryUpdateAction.SubmitRate:
         if (organization.type !== OrgType.PARTNER) {
           throw new BadRequestError('Can Not Submit Rate')
         }
-        status = WalletEntryStatus.Processing;
+        status = WalletEntryStatus.Validating;
+        exchangeRate = dto.rate || 1;
         break;
       case WalletEntryUpdateAction.CompleteTx:
         if (organization.type !== OrgType.PARTNER) {
-          throw new BadRequestError('Can Not Submit Rate')
+          throw new BadRequestError('Can Not Perform')
+        }
+        if (transaction.status === WalletEntryStatus.Validating || WalletEntryStatus.TimedOut) {
+          throw new BadRequestError('Transaction is in invalid state')
         }
         status = WalletEntryStatus.Successful;
         break;
@@ -697,7 +711,8 @@ export default class WalletService {
     const entry = await cdb.transaction(async (session) => {
       return await WalletEntry.updateOne({ _id: entryId, organization: organization._id }, {
         $set: {
-          status
+          status,
+          exchangeRate
         },
       }, { session })
 

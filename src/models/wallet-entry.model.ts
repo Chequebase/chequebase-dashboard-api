@@ -14,7 +14,8 @@ export enum WalletEntryUpdateAction {
   CancelRate = 'cancel',
   SubmitRate = 'submit',
   CompleteTx = 'complete',
-  Request = 'request'
+  Request = 'request',
+  TimedOut = 'timedOut'
 }
 
 export enum WalletEntryStatus {
