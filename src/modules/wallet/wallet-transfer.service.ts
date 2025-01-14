@@ -703,12 +703,15 @@ export class WalletTransferService {
     }
 
     const org = await Organization.findById(auth.orgId)
-    const partner = await Organization.findOne({
-      currency: BaseWalletType.NGN,
+    const partnerOrg = await Organization.findOne({
       partnerId: data.partnerId,
     })
-    if (!org || !partner) {
+    if (!org) {
       throw new NotFoundError('Org or Partner does not exist')
+    }
+
+    if (!partnerOrg) {
+      throw new NotFoundError('Partner does not exist')
     }
 
     if (org.status === KycStatus.NO_DEBIT) {
@@ -720,13 +723,13 @@ export class WalletTransferService {
     }
 
     const escrowWallet = await Wallet.findOne({
-      organization: partner.id,
+      organization: partnerOrg.id,
       currency: BaseWalletType.NGN,
       type: WalletType.EscrowAccount,
     }).populate<IVirtualAccount>("virtualAccounts");
 
     if (!escrowWallet) {
-      logger.error('Escrow wallet not found', { currency: BaseWalletType.NGN, organization: partner.id })
+      logger.error('Escrow wallet not found', { currency: BaseWalletType.NGN, organization: partnerOrg.id })
       throw new BadRequestError(`Organization does not have an escrow wallet for ${BaseWalletType.NGN}`)
     }
 
