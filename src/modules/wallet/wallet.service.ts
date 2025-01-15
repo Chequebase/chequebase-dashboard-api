@@ -410,9 +410,7 @@ export default class WalletService {
         case 'recent':
           filter.set('status', {
             $in: [
-              'pending',
               'validating',
-              'processing',
             ]
           })
           break;
@@ -420,7 +418,6 @@ export default class WalletService {
           filter.set('status', {
             $in: [
               'pending',
-              'processing',
             ]
           })
           break;
@@ -429,7 +426,8 @@ export default class WalletService {
             $in: [
               'successful',
               'failed',
-              'cancelled'
+              'cancelled',
+              'completed'
             ]
           })
           break;
@@ -508,9 +506,7 @@ export default class WalletService {
         case 'recent':
           filter.set('status', {
             $in: [
-              'pending',
-              'validating',
-              'processing',
+              'validating'
             ]
           })
           break;
@@ -518,7 +514,6 @@ export default class WalletService {
           filter.set('status', {
             $in: [
               'pending',
-              'processing',
             ]
           })
           break;
@@ -541,7 +536,8 @@ export default class WalletService {
           'validating',
           'failed',
           'processing',
-          'cancelled'
+          'cancelled',
+          'completed'
         ]
       })
     }
