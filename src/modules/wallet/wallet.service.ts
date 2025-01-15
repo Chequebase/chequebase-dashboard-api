@@ -755,7 +755,7 @@ export default class WalletService {
     }
     status = WalletEntryStatus.Completed;
 
-    let receiptUrl
+    let receiptUrl: string
     const key = `vendor/${transaction.organization}/${createId()}.${file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf'}`;
     receiptUrl = await this.s3Service.uploadObject(
       getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
@@ -765,7 +765,8 @@ export default class WalletService {
     await cdb.transaction(async (session) => {
       return await WalletEntry.updateOne({ _id: entryId }, {
         $set: {
-          status
+          status,
+          invoiceUrl: receiptUrl
         },
       }, { session })
 
