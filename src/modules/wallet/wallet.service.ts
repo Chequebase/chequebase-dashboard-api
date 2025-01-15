@@ -19,7 +19,7 @@ import Container, { Service } from "typedi";
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
 import { cdb, isValidObjectId } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
-import { escapeRegExp, formatMoney, transactionOpts } from "../common/utils";
+import { escapeRegExp, formatMoney, getEnvOrThrow, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
 import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto, UpdateWalletEntry } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
@@ -29,6 +29,7 @@ import { VirtualAccountService } from "../external-providers/virtual-account/vir
 import { OrganizationCardService } from "../organization-card/organization-card.service";
 import Card from "@/models/card.model";
 import { OrgType } from "../banksphere/dto/banksphere.dto";
+import { S3Service } from "../common/aws/s3.service";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -38,7 +39,8 @@ export default class WalletService {
   constructor (
     private vaService: VirtualAccountService,
     private slackService: SlackNotificationService,
-    private orgCardService: OrganizationCardService
+    private orgCardService: OrganizationCardService,
+    private s3Service: S3Service
   ) { }
 
   static async chargeWallet(orgId: string, data: ChargeWallet) {
@@ -721,6 +723,49 @@ export default class WalletService {
         $set: {
           status,
           exchangeRate
+        },
+      }, { session })
+
+    }, transactionOpts)
+
+    return {
+      status,
+      message: 'Transation Updated',
+    } 
+  }
+
+  async completePartnerTx(orgId: string, entryId: string, file: any) {
+    const organization = await Organization.findById(orgId).lean();
+
+    if (!organization) {
+      throw new NotFoundError('Organization not found')
+    }
+
+    const transaction = await WalletEntry.findById(entryId).lean();
+
+    if (!transaction) {
+      throw new NotFoundError('transaction not found')
+    }
+    let status = WalletEntryStatus.Pending;
+    if (organization.type !== OrgType.PARTNER) {
+      throw new BadRequestError('Can Not Perform')
+    }
+    if (transaction.paymentStatus !== PaymentEntryStatus.Paid) {
+      throw new BadRequestError('Transaction is in invalid state')
+    }
+    status = WalletEntryStatus.Completed;
+
+    let receiptUrl
+    const key = `vendor/${transaction.organization}/${createId()}.${file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf'}`;
+    receiptUrl = await this.s3Service.uploadObject(
+      getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+      key,
+      file.buffer
+    );
+    await cdb.transaction(async (session) => {
+      return await WalletEntry.updateOne({ _id: entryId }, {
+        $set: {
+          status
         },
       }, { session })
 

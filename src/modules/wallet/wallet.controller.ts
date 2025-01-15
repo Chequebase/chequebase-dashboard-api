@@ -214,6 +214,14 @@ export default class WalletController {
     return this.walletService.updateWalletEntry(auth.orgId, id, dto)
   }
 
+  @Post('/partner/complete')
+  @Authorized(EPermission.TransactionRead)
+  @UseBefore(multer().single('receipt'))
+  async completeParterTx(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Req() req: Request) {
+    const file = req.file as any
+    return this.walletService.completePartnerTx(auth.orgId, id, file)
+  }
+
   @Post('/vendor/complete')
   @Authorized(EPermission.WalletLinkedaccountDebit)
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))

@@ -25,6 +25,7 @@ export enum WalletEntryStatus {
   Failed = 'failed',
   Validating = 'validating',
   Cancelled = 'cancelled',
+  Completed = 'completed',
   TimedOut = 'timedOut'
 }
 
