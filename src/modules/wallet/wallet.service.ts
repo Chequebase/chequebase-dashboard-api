@@ -442,7 +442,8 @@ export default class WalletService {
           'validating',
           'failed',
           'processing',
-          'cancelled'
+          'cancelled',
+          'completed'
         ]
       })
     }
