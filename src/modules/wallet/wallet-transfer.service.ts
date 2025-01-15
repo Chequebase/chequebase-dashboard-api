@@ -243,7 +243,7 @@ export class WalletTransferService {
         scope: WalletEntryScope.VendorTransfer,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
-        partner: '657084f7e7badea79aba3968', /* handcoding for now */
+        partnerId: '7084f7e7badea79aba3968', /* hardcoding for now */
         paymentMethod,
         reference: `wt_${createId()}`,
         provider: payload.provider,

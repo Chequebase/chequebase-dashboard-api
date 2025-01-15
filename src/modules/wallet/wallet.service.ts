@@ -445,7 +445,7 @@ export default class WalletService {
       })
     }
     if (query.partnerId) {
-      filter.set('partner', query.partnerId)
+      filter.set('partnerId', query.partnerId)
     }
     if (query.search) {
       const search = escapeRegExp(query.search)
@@ -460,7 +460,7 @@ export default class WalletService {
       })
     }
 
-    let selectQuery = `status partner paymentStatus exchangeRate currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
+    let selectQuery = `status partnerId paymentStatus exchangeRate currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
     selectQuery = query.budget ? `${selectQuery} meta.budgetBalanceBefore meta.budgetBalanceAfter` : `${selectQuery} ledgerBalanceBefore ledgerBalanceAfter`
     const history = await WalletEntry.paginate(filter.object, {
       select: selectQuery,
@@ -498,7 +498,7 @@ export default class WalletService {
         $lte: dayjs(to).endOf('day').toDate()
       })
     if (query.partnerId) {
-        filter.set('partner', query.partnerId)
+        filter.set('partnerId', query.partnerId)
     }
     if (query.vendorStatus) {
       switch (query.vendorStatus) {
@@ -554,7 +554,7 @@ export default class WalletService {
       })
     }
 
-    let selectQuery = `status partner paymentStatus exchangeRate currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
+    let selectQuery = `status partnerId paymentStatus exchangeRate currency fee type reference wallet amount scope budget meta.counterparty meta.sourceAccount createdAt invoiceUrl paymentMethod narration`
     selectQuery = query.budget ? `${selectQuery} meta.budgetBalanceBefore meta.budgetBalanceAfter` : `${selectQuery} ledgerBalanceBefore ledgerBalanceAfter`
     const history = await WalletEntry.paginate(filter.object, {
       select: selectQuery,
