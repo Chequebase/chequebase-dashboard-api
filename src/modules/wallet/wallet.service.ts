@@ -526,7 +526,8 @@ export default class WalletService {
             $in: [
               'successful',
               'failed',
-              'cancelled'
+              'cancelled',
+              'completed'
             ]
           })
           break;
