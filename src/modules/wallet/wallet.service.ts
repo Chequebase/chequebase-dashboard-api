@@ -493,13 +493,12 @@ export default class WalletService {
       .set('wallet', query.wallet)
       .set('type', query.type)
       .set('budget', query.budget)
-      .set('project', query.project)
       .set('createdAt', {
         $gte: dayjs(from).startOf('day').toDate(),
         $lte: dayjs(to).endOf('day').toDate()
       })
     if (query.partnerId) {
-        filter.set('partnerId', query.partnerId)
+        filter.set('partner', query.partnerId)
     }
     if (query.vendorStatus) {
       switch (query.vendorStatus) {
