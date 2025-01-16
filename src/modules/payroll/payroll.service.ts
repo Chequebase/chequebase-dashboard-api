@@ -108,14 +108,14 @@ export class PayrollService {
       throw new NotFoundError("Base wallet not found");
     }
 
-    const slugifiedName = slugify('payroll'.toLowerCase())
+    const slugifiedName = slugify("payroll".toLowerCase());
     const existingWallet = await Wallet.findOne({
       organization: org._id,
       baseWallet: baseWallet._id,
-      slugifiedName
-    })
+      slugifiedName,
+    });
     if (!existingWallet) {
-      throw new BadRequestError(`Payroll Account already exists`)
+      throw new BadRequestError(`Payroll Account already exists`);
     }
 
     const accountRef = `va-${createId()}`;
@@ -136,7 +136,7 @@ export class PayrollService {
 
     const wallet = await Wallet.create({
       _id: walletId,
-      name: 'Payroll',
+      name: "Payroll",
       slugifiedName,
       organization: org._id,
       baseWallet: baseWallet._id,
@@ -292,7 +292,9 @@ export class PayrollService {
       .unwind("$payout")
       .group({
         _id: {
-          date: { $dateToString: { format: "%Y-%m", date: "$date", timezone: tz } },
+          date: {
+            $dateToString: { format: "%Y-%m", date: "$date", timezone: tz },
+          },
           currency: "$payout.currency",
         },
         amount: { $sum: "$payout.amount" },
@@ -352,6 +354,10 @@ export class PayrollService {
           previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount,
         currentPayroll.totalGrossAmount - currentPayroll.totalNetAmount
       );
+    } else {
+      const result = await this.previewNewPayrollDetails(orgId);
+      nextRunNet = result.amount
+      nextRunDeductions = result.deductions
     }
 
     return {
@@ -365,7 +371,7 @@ export class PayrollService {
   private getTransferFee(
     plan: ISubscriptionPlan,
     amount: number,
-    currency = 'NGN'
+    currency = "NGN"
   ) {
     const fee = plan.transferFee.budget.find(
       (f) =>
@@ -486,7 +492,10 @@ export class PayrollService {
     };
   }
 
-  async previewNewPayrollDetails(orgId: string, dto: PreviewPayrollRunDto) {
+  async previewNewPayrollDetails(
+    orgId: string,
+    dto: PreviewPayrollRunDto = { excludedUsers: [] }
+  ) {
     const lastMonth = dayjs().tz().subtract(1, "month");
     const previousPayroll = await Payroll.findOne({
       organization: orgId,
@@ -499,11 +508,13 @@ export class PayrollService {
       getOrganizationPlan(orgId),
     ]);
 
-    const employeeCount = users.length
+    const employeeCount = users.length;
     users = users.filter(
       (u) =>
         !dto.excludedUsers.includes(u._id.toString()) &&
-        (u.salary && u.salary?.netAmount && u.bank)
+        u.salary &&
+        u.salary?.netAmount &&
+        u.bank
     );
     const breakdown = this.getPayrollBreakdown(users, plan);
     let currentDeduction = breakdown.gross - breakdown.net;
@@ -723,13 +734,14 @@ export class PayrollService {
 
     const plan = await getOrganizationPlan(auth.orgId);
     let users = (await this.getPayrollUsers(auth.orgId)).filter(
-      (u) =>
-        !dto.excludedUsers.includes(u._id.toString())
+      (u) => !dto.excludedUsers.includes(u._id.toString())
     );
 
-    const noSalary = users.some((u) => (!u.salary?.netAmount || !u.bank))
+    const noSalary = users.some((u) => !u.salary?.netAmount || !u.bank);
     if (noSalary) {
-      throw new BadRequestError('One or more employees does not have a bank account or salary')
+      throw new BadRequestError(
+        "One or more employees does not have a bank account or salary"
+      );
     }
 
     if (!users.length) {
@@ -1172,11 +1184,7 @@ export class PayrollService {
       (a, u) => {
         const gross = u?.salary?.grossAmount || 0;
         const net = u?.salary?.netAmount || 0;
-        const fee = this.getTransferFee(
-          plan,
-          net,
-          u.salary?.currency
-        );
+        const fee = this.getTransferFee(plan, net, u.salary?.currency);
 
         return {
           gross: a.gross + gross,
