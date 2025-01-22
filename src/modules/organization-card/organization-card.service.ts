@@ -10,7 +10,7 @@ import WalletEntry, {
   WalletEntryStatus,
   WalletEntryType,
 } from "@/models/wallet-entry.model";
-import Wallet from "@/models/wallet.model";
+import Wallet, { IWallet } from "@/models/wallet.model";
 import { createId } from "@paralleldrive/cuid2";
 import { BadRequestError } from "routing-controllers";
 import { Service } from "typedi";
@@ -576,6 +576,29 @@ export class OrganizationCardService {
 
     return filter;
   }
+
+  async getCardBalance(provider: CardClientName, providerRef: string) {
+    const card = await Card.findOne({ providerRef, provider })
+      .populate("card wallet")
+      .lean();
+    if (!card) {
+      return { amount: 0, currency: null };
+    }
+
+    if (card.fundable) {
+      return { amount: card.balance, currency: card.currency };
+    }
+
+    if (card.budget) {
+      const budget: IBudget = card.budget;
+      return { amount: budget.balance, currency: card.currency };
+    }
+
+    const wallet: IWallet = card.wallet;
+    return { amount: wallet.ledgerBalance, currency: card.currency };
+  }
+
+  async authorizeCardCharge() {}
 
   private async createCustomer(org: IOrganization, provider: CardClientName) {
     const owner = org.owners[0];
