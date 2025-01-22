@@ -33,6 +33,12 @@ export default class OrganizationCardController {
     return this.orgCardService.createCard(auth, dto);
   }
 
+  @Get("/usd-rate")
+  @Authorized(EPermission.CardRead)
+  getUSDRate() {
+    return this.orgCardService.getUSDRate();
+  }
+
   @Post("/link")
   @Authorized(EPermission.CardEdit)
   linkCard(@CurrentUser() auth: AuthUser, @Body() dto: LinkCardDto) {

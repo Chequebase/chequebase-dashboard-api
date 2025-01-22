@@ -1,6 +1,29 @@
+import { ObjectId } from "mongodb";
+import Budget, { IBudget } from "@/models/budget.model";
 import Card, { CardBrand, CardCurrency, CardType } from "@/models/card.model";
+import Department from "@/models/department.model";
+import Organization, { IOrganization } from "@/models/organization.model";
+import User from "@/models/user.model";
+import { IVirtualAccount } from "@/models/virtual-account.model";
+import WalletEntry, {
+  WalletEntryScope,
+  WalletEntryStatus,
+  WalletEntryType,
+} from "@/models/wallet-entry.model";
+import Wallet from "@/models/wallet.model";
+import { createId } from "@paralleldrive/cuid2";
+import { BadRequestError } from "routing-controllers";
+import { Service } from "typedi";
 import { AuthUser } from "../common/interfaces/auth-user";
+import { escapeRegExp, getEnvOrThrow } from "../common/utils";
+import { ServiceUnavailableError } from "../common/utils/service-errors";
 import { CardService } from "../external-providers/card/card.service";
+import { CardClientName } from "../external-providers/card/providers/card.client";
+import {
+  InitiateTransferData,
+  TransferClientName,
+} from "../external-providers/transfer/providers/transfer.client";
+import { TransferService } from "../external-providers/transfer/transfer.service";
 import {
   ChangePinBody,
   CreateCardDto,
@@ -9,21 +32,27 @@ import {
   SetSpendChannels,
   SetSpendLimit,
 } from "./dto/organization-card.dto";
-import Organization, { IOrganization } from "@/models/organization.model";
-import { BadRequestError } from "routing-controllers";
-import { CardClientName } from "../external-providers/card/providers/card.client";
-import { Service } from "typedi";
-import Department from "@/models/department.model";
-import Budget, { IBudget } from "@/models/budget.model";
-import Wallet from "@/models/wallet.model";
-import { escapeRegExp } from "../common/utils";
-import User from "@/models/user.model";
-import WalletEntry from "@/models/wallet-entry.model";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
+import numeral from "numeral";
 
 @Service()
 export class OrganizationCardService {
-  constructor(private cardService: CardService) {}
+  constructor(
+    private cardService: CardService,
+    private transferService: TransferService
+  ) {}
+
+  async getUSDRate() {
+    const exchange = await this.cardService.getUSDRate({
+      provider: CardClientName.Sudo,
+      currency: CardCurrency.NGN,
+    });
+
+    if (!exchange.successful || !exchange.data) {
+      throw new BadRequestError("Unable to retrieve exchange rate");
+    }
+
+    return exchange.data;
+  }
 
   async createCard(auth: AuthUser, payload: CreateCardDto) {
     const org = await Organization.findById(auth.orgId);
@@ -31,81 +60,158 @@ export class OrganizationCardService {
       throw new BadRequestError("Organization not found");
     }
 
-    const isFundableDollarCard = payload.type === CardType.Virtual && payload.currency === CardCurrency.USD
+    const provider = payload.provider;
     let brand = CardBrand.Verve;
     if (payload.currency === CardCurrency.USD) {
-      brand = CardBrand.Visa
+      brand = CardBrand.Visa;
     }
 
-    const provider = CardClientName.Sudo;
     if (!org.sudoCustomerId && provider === CardClientName.Sudo) {
       org.sudoCustomerId = await this.createCustomer(org, provider);
       await org.save();
     }
 
     if (payload.type === CardType.Physical) {
-      if (payload.currency !== "NGN") {
-        throw new BadRequestError(
-          "Only NGN currency is supported for physical cards"
-        );
-      }
+      return this.createPhysicalCard(payload, auth, provider, brand);
+    }
 
-      const physcialCard = await Card.create({
-        type: CardType.Physical,
-        cardName: payload.cardName,
-        organization: auth.orgId,
-        currency: "NGN",
+    const isFundable =
+      payload.type === CardType.Virtual &&
+      payload.currency === CardCurrency.USD;
+
+    const fee = 100_00;
+    let amountToDebit = fee;
+
+    if (isFundable) {
+      const exchange = await this.cardService.getUSDRate({
+        currency: CardCurrency.NGN,
         provider,
-        brand,
-        createdBy: auth.userId,
-        deliveryAddress: payload.deliveryAddress,
-        design: payload.design,
       });
 
-      return { message: "Physical card requested", cardId: physcialCard._id };
+      if (!exchange.successful || !exchange.data) {
+        throw new BadRequestError("Unable to retrieve exchange rate");
+      }
+
+      const fundingAmountInNGN = numeral(payload.fundingAmount)
+        .multiply(exchange.data.rate)
+        .value()!;
+
+      amountToDebit = numeral(amountToDebit).add(fundingAmountInNGN).value()!;
     }
-    const result = await this.cardService.createCard({
+
+    let wallet = await Wallet.findOneAndUpdate(
+      {
+        ...(payload.wallet ? { _id: payload.wallet } : { primary: true }),
+        organization: auth.orgId,
+        balance: { $gte: amountToDebit },
+      },
+      {
+        $inc: {
+          ledgerBalance: -amountToDebit,
+          balance: -amountToDebit,
+        },
+      },
+      { new: true }
+    ).populate("virtualAccounts");
+    if (!wallet) {
+      throw new BadRequestError("Insufficient funds");
+    }
+
+    const cardResult = await this.cardService.createCard({
       brand,
-      fundingAmount: isFundableDollarCard ? 3 : 0,
+      fundingAmount: payload.fundingAmount,
       currency: payload.currency,
       customerId: org.sudoCustomerId,
       type: payload.type,
       provider,
-      metadata: { organization: org._id, requestedBy: auth.userId },
+      metadata: {
+        organization: org._id,
+        requestedBy: auth.userId,
+      },
     });
 
-    if (!result.successful || !("data" in result)) {
+    if (!cardResult.successful || !cardResult.data) {
+      // reverse the wallet debit
+      await Wallet.updateOne(
+        { _id: wallet._id },
+        { $inc: { ledgerBalance: amountToDebit, balance: amountToDebit } }
+      );
+
       throw new BadRequestError("Card creation failed");
     }
 
-    let cardId = null;
-    if (result.data) {
-      const card = await Card.create({
-        organization: org._id,
-        provider,
-        providerRef: result.data.providerRef,
-        activatedAt: new Date(),
-        type: payload.type,
-        freeze: false,
-        blocked: false,
-        design: payload.design,
-        cardName: payload.cardName,
-        currency: result.data.currency,
-        brand: result.data!.brand,
-        maskedPan: result.data!.maskedPan,
-        expiryMonth: result.data!.expiryMonth,
-        expiryYear: result.data!.expiryYear,
-        createdBy: auth.userId,
-        account: result.data.account,
-        balance: result.data.account?.balance,
-        fundable: isFundableDollarCard,
-        billingAddress: result.data.billingAddress
-      });
+    let debitAcount = wallet!.virtualAccounts[0] as IVirtualAccount;
+    let creditAccount = {
+      accountName: getEnvOrThrow("SUDO_DEFAULT_WALLET_ACCOUNT_NAME"),
+      accountNumber: getEnvOrThrow("SUDO_DEFAULT_WALLET_ACCOUNT_NUMBER"),
+      bankCode: getEnvOrThrow("SUDO_DEFAULT_WALLET_ACCOUNT_BANK_CODE"),
+      bankId: getEnvOrThrow("SUDO_DEFAULT_WALLET_ACCOUNT_BANK_CODE"),
+      externalRef: getEnvOrThrow("SUDO_DEFAULT_WALLET_ACCOUNT_ID"),
+    };
 
-      cardId = card._id;
+    const reference = `cc_${createId()}`;
+    const transferResult = await this.transferService.initiateTransfer({
+      amount: amountToDebit,
+      currency: wallet.currency,
+      narration: "Card creation",
+      provider: debitAcount.provider as TransferClientName,
+      reference,
+      debitAccount: debitAcount.accountNumber,
+      to: creditAccount.accountName,
+      counterparty: creditAccount as InitiateTransferData["counterparty"],
+    });
+
+    if (transferResult.status !== "successful") {
+      throw new ServiceUnavailableError("Unable to create card");
     }
 
-    return { message: "Card created successfully", cardId };
+    const cardId = new ObjectId();
+    await WalletEntry.create({
+      organization: auth.orgId,
+      status: WalletEntryStatus.Pending,
+      currency: wallet.currency,
+      wallet: wallet._id,
+      amount: amountToDebit,
+      fee: 0,
+      initiatedBy: auth.userId,
+      ledgerBalanceAfter: wallet.ledgerBalance - amountToDebit,
+      ledgerBalanceBefore: wallet.ledgerBalance,
+      balanceBefore: wallet.balance - amountToDebit,
+      balanceAfter: wallet.balance,
+      scope: WalletEntryScope.WalletTransfer,
+      type: WalletEntryType.Debit,
+      narration: "Card creation",
+      paymentMethod: "transfer",
+      reference,
+      card: cardId,
+      provider,
+      meta: { counterparty: creditAccount },
+    });
+
+    const card = await Card.create({
+      _id: cardId,
+      organization: org._id,
+      provider,
+      providerRef: cardResult.data.providerRef,
+      activatedAt: new Date(),
+      type: payload.type,
+      freeze: false,
+      blocked: false,
+      design: payload.design,
+      cardName: payload.cardName,
+      currency: cardResult.data.currency,
+      brand: cardResult.data!.brand,
+      maskedPan: cardResult.data!.maskedPan,
+      expiryMonth: cardResult.data!.expiryMonth,
+      expiryYear: cardResult.data!.expiryYear,
+      createdBy: auth.userId,
+      account: cardResult.data.account,
+      balance: cardResult.data.account?.balance,
+      fundable: isFundable,
+      billingAddress: cardResult.data.billingAddress,
+    });
+
+    return { message: "Card created successfully", cardId: card._id };
   }
 
   async linkCard(auth: AuthUser, payload: LinkCardDto) {
@@ -123,10 +229,10 @@ export class OrganizationCardService {
 
     let budget: null | IBudget = null;
     if (payload.budget) {
-       budget = await Budget.findOne({
-         _id: payload.budget,
-         organization: auth.orgId,
-       }).select('wallet');
+      budget = await Budget.findOne({
+        _id: payload.budget,
+        organization: auth.orgId,
+      }).select("wallet");
 
       if (!budget) {
         throw new BadRequestError("Budget not found");
@@ -173,7 +279,7 @@ export class OrganizationCardService {
     }
 
     if (query.type) {
-      filter.type = query.type
+      filter.type = query.type;
     }
 
     let cards = await Card.find(filter)
@@ -382,7 +488,7 @@ export class OrganizationCardService {
     if (card.blocked) {
       throw new BadRequestError("Card is blocked");
     }
-    
+
     await Card.updateOne(
       { _id: card._id },
       { spendLimit: { amount: payload.amount, interval: payload.interval } }
@@ -415,10 +521,10 @@ export class OrganizationCardService {
       pos: payload.pos,
       web: payload.web,
       atm: payload.atm,
-    })
+    });
 
     if (!result.successful) {
-      throw new BadRequestError("Failed to update spend channels")
+      throw new BadRequestError("Failed to update spend channels");
     }
 
     await Card.updateOne(
@@ -437,17 +543,17 @@ export class OrganizationCardService {
   }
 
   async getCardToken(auth: AuthUser, cardId: string) {
-    const card = await this.getCard(auth, cardId)
+    const card = await this.getCard(auth, cardId);
     const result = await this.cardService.generateToken({
       provider: card.provider,
-      cardId: card.providerRef
-    })
+      cardId: card.providerRef,
+    });
 
     if (!result.successful) {
-      throw new ServiceUnavailableError('Feature is unavailable')
+      throw new ServiceUnavailableError("Feature is unavailable");
     }
 
-    return result.data!.token
+    return result.data!.token;
   }
 
   async buildGetCardFilter(auth: AuthUser, initial = {}) {
@@ -497,5 +603,32 @@ export class OrganizationCardService {
     }
 
     return result.data!.customerId;
+  }
+
+  private async createPhysicalCard(
+    payload: CreateCardDto,
+    auth: AuthUser,
+    provider: CardClientName,
+    brand: CardBrand
+  ) {
+    if (payload.currency !== "NGN") {
+      throw new BadRequestError(
+        "Only NGN currency is supported for physical cards"
+      );
+    }
+
+    const physcialCard = await Card.create({
+      type: CardType.Physical,
+      cardName: payload.cardName,
+      organization: auth.orgId,
+      currency: "NGN",
+      provider,
+      brand,
+      createdBy: auth.userId,
+      deliveryAddress: payload.deliveryAddress,
+      design: payload.design,
+    });
+
+    return { message: "Physical card requested", cardId: physcialCard._id };
   }
 }

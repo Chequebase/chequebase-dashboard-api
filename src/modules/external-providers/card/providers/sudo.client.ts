@@ -11,9 +11,12 @@ import {
   CreateCustomerData,
   CreateCustomerResponse,
   GenerateToken,
+  GetUSDRate,
+  GetUSDRateResponse,
   SetSpendChannel,
   UpdateCardData,
 } from "./card.client";
+import numeral from "numeral";
 
 export const SUDO_CARD_TOKEN = new Token("card.provider.sudo");
 
@@ -94,8 +97,14 @@ export class SudoCardClient implements CardClient {
       [CardBrand.Visa]: "Visa",
     };
 
+    let fundingAmount: undefined | number
+    if (payload.fundingAmount) {
+      console.log(payload)
+      fundingAmount = numeral(payload.fundingAmount).divide(100).value()!;
+    }
+
     const body = {
-      amount: payload.fundingAmount,
+      amount: fundingAmount,
       type: payload.type,
       currency: payload.currency,
       issuerCountry: payload.currency === "NGN" ? "NGA" : "USA",
@@ -104,7 +113,7 @@ export class SudoCardClient implements CardClient {
       metadata: payload.metadata,
       customerId: payload.customerId,
       fundingSourceId: getEnvOrThrow("SUDO_FUNDING_SOURCE"),
-      debitAccountId: getEnvOrThrow("SUDO_NAIRA_FUNDING_DEBIT_ACCOUNT"),
+      debitAccountId: getEnvOrThrow("SUDO_DEFAULT_WALLET_ACCOUNT_ID"),
       sendPINSMS: true,
       spendingControls: {
         channels: { atm: true, pos: true, web: true, mobile: true },
@@ -362,6 +371,28 @@ export class SudoCardClient implements CardClient {
     } catch (err: any) {
       this.handleError("error setting spend channel", body, err);
       return { successful: false, data: null };
+    }
+  }
+
+  async getUSDRate(payload: GetUSDRate): Promise<GetUSDRateResponse> {
+    try {
+      const { data, status } = await this.httpClient.get(
+        `/accounts/transfer/rate/USD${payload.currency}`
+      );
+      if (data.statusCode === 400) {
+        throw data;
+      }
+
+      this.logger.log("sudo get dollar rate response", {
+        payload: JSON.stringify(payload),
+        response: JSON.stringify(data),
+        status,
+      });
+
+      return data.data;
+    } catch (err: any) {
+      this.handleError("error getting dollar rate", payload, err);
+      throw err;
     }
   }
 

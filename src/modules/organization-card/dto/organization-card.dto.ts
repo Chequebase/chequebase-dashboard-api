@@ -1,6 +1,7 @@
 import { CardCurrency, CardSpendLimitInterval, CardType } from "@/models/card.model";
+import { CardClientName } from "@/modules/external-providers/card/providers/card.client";
 import { Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Matches, ValidateIf, ValidateNested } from "class-validator";
+import { IsBoolean, IsEnum, IsInt, IsMongoId, IsNotEmpty, IsOptional, IsString, Matches, Min, ValidateIf, ValidateNested } from "class-validator";
 
 export class DeliveryAddresss {
   @IsString() @IsNotEmpty() state: string
@@ -13,6 +14,18 @@ export class CreateCardDto {
   @IsEnum(CardType)
   @IsNotEmpty()
   type: CardType;
+
+  @IsMongoId()
+  @ValidateIf((o) => o.type === 'virtual' && o.currency === 'USD')
+  wallet: string
+
+  @IsInt()
+  @Min(3_00)
+  @ValidateIf((o) => o.type === "virtual" && o.currency === "USD")
+  fundingAmount: number;
+
+  @IsEnum(CardClientName)
+  provider = CardClientName.Sudo;
 
   @IsString()
   @IsNotEmpty()
@@ -27,9 +40,9 @@ export class CreateCardDto {
   currency: string;
 
   @Type(() => DeliveryAddresss)
-  @ValidateIf(o => o.type === CardType.Physical)
+  @ValidateIf((o) => o.type === CardType.Physical)
   @ValidateNested()
-  deliveryAddress: DeliveryAddresss
+  deliveryAddress: DeliveryAddresss;
 }
 
 export class LinkCardDto {

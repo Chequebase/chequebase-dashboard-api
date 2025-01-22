@@ -9,6 +9,7 @@ import {
   CreateCardData,
   CreateCustomerData,
   GenerateToken,
+  GetUSDRate,
   SetSpendChannel,
   UpdateCardData,
 } from "./providers/card.client";
@@ -167,6 +168,26 @@ export class CardService {
       return {
         successful: false,
         message: "Provider failure, could generate token",
+        data: null,
+        gatewayResponse: err.message,
+      };
+    }
+  }
+
+  async getUSDRate(data: GetUSDRate) {
+    try {
+      const client = this.getClient(data.provider);
+      const result = await client.getUSDRate(data);
+      return { successful: true, data: result };
+    } catch (err: any) {
+      this.logger.error("error getting USD rate token", {
+        payload: JSON.stringify(data),
+        reason: err.message,
+      });
+
+      return {
+        successful: false,
+        message: "Provider failure, could get USD rate",
         data: null,
         gatewayResponse: err.message,
       };

@@ -1,4 +1,4 @@
-import { CardBrand, CardType } from "@/models/card.model";
+import { CardBrand, CardCurrency, CardType } from "@/models/card.model";
 
 export type CreateCustomerData = {
   provider: CardClientName;
@@ -47,6 +47,17 @@ export type ChangePinData = {
   cardId: string;
 };
 
+export type GetUSDRate = {
+  provider: CardClientName;
+  currency: CardCurrency;
+};
+
+export type GetUSDRateResponse = {
+  rate: number;
+  sell: number;
+  buy: string;
+};
+
 export type CreateCardResponse = {
   successful: boolean;
   data: {
@@ -78,16 +89,16 @@ export type CreateCardResponse = {
 
 export type SetSpendChannel = {
   cardId: string;
-  provider: CardClientName
+  provider: CardClientName;
   web: boolean;
   atm: boolean;
-  mobile: boolean
-  pos: boolean
+  mobile: boolean;
+  pos: boolean;
 };
 
 export type GenerateToken = {
   cardId: string;
-  provider: CardClientName
+  provider: CardClientName;
 };
 
 export enum CardClientName {
@@ -114,4 +125,7 @@ export abstract class CardClient {
   abstract generateToken(
     payload: GenerateToken
   ): Promise<{ successful: boolean; data: { token: string } | null }>;
+  abstract getUSDRate(
+    payload: GetUSDRate
+  ): Promise<GetUSDRateResponse>;
 }
