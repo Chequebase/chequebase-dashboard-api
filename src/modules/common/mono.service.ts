@@ -84,6 +84,42 @@ export class MonoService {
     }
   }
 
+  async pauseMandate(id: string): Promise<InitiateMandateResult> {
+    try {
+      const res = await this.http.patch(`/v3/payments/mandates/${id}/pause`)
+      const result = res.data.data
+      const status = res.data.status.toLowerCase()
+      const message = status === 'failed' ?
+        'Transfer failed' : 'Processing transfer'
+
+      this.logger.log("mono pause mandate response", {
+        payload: JSON.stringify(id),
+        response: JSON.stringify(res.data.data),
+        status
+      });
+      return {
+        status,
+        message,
+        reference: result.reference,
+        gatewayResponse: JSON.stringify(res.data)
+      }
+    } catch (err: any) {
+      this.logger.error('error processing transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        payload: JSON.stringify(id),
+        requestData: JSON.stringify(id),
+        status: err.response.status
+      });
+
+      return {
+        status: 'failed',
+        reference: id,
+        message: err.response.data?.errors?.[0]?.detail || 'Unable to process transfer',
+        gatewayResponse: JSON.stringify(err.response.data)
+      }
+    }
+  }
+
   async cancelMandate(id: string): Promise<InitiateMandateResult> {
     try {
       const res = await this.http.patch(`/v3/payments/mandates/${id}/cancel`)
@@ -102,6 +138,42 @@ export class MonoService {
         message,
         url: result.mono_url,
         mandateId: result.mandate_id,
+        reference: result.reference,
+        gatewayResponse: JSON.stringify(res.data)
+      }
+    } catch (err: any) {
+      this.logger.error('error processing transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        payload: JSON.stringify(id),
+        requestData: JSON.stringify(id),
+        status: err.response.status
+      });
+
+      return {
+        status: 'failed',
+        reference: id,
+        message: err.response.data?.errors?.[0]?.detail || 'Unable to process transfer',
+        gatewayResponse: JSON.stringify(err.response.data)
+      }
+    }
+  }
+
+  async reinstateMandate(id: string): Promise<InitiateMandateResult> {
+    try {
+      const res = await this.http.patch(`/v3/payments/mandates/${id}/reinstate`)
+      const result = res.data.data
+      const status = res.data.status.toLowerCase()
+      const message = status === 'failed' ?
+        'Transfer failed' : 'Processing transfer'
+
+      this.logger.log("mono reinstate mandate response", {
+        payload: JSON.stringify(id),
+        response: JSON.stringify(res.data.data),
+        status
+      });
+      return {
+        status,
+        message,
         reference: result.reference,
         gatewayResponse: JSON.stringify(res.data)
       }

@@ -196,6 +196,26 @@ export default class WalletController {
     return this.walletTransferService.initiateLinkedInflow(auth, id, body)
   }
 
+  @Put('/linked/:id/pause')
+  @Authorized(EPermission.WalletLinkedaccountDebit)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async pauseMandate(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.walletTransferService.pauseMandate(auth, id)
+  }
+
+  @Put('/linked/:id/reinstate')
+  @Authorized(EPermission.WalletLinkedaccountDebit)
+  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  async reinstateMandate(
+    @CurrentUser() auth: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.walletTransferService.reinstateMandate(auth, id)
+  }
+
   @Post('/:id/vendor/pay')
   @Authorized(EPermission.WalletTransfer)
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))

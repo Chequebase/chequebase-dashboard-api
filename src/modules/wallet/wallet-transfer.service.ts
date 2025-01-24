@@ -32,7 +32,7 @@ import EmailService from "../common/email.service";
 import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
 import { UserService } from "../user/user.service";
 import TransferCategory from "@/models/transfer-category";
-import { IVirtualAccount } from "@/models/virtual-account.model";
+import VirtualAccount, { IVirtualAccount } from "@/models/virtual-account.model";
 import { PayVendorDto } from "./dto/wallet.dto";
 import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
 import { BaseWalletType } from "../banksphere/providers/customer.client";
@@ -476,6 +476,130 @@ export class WalletTransferService {
       status: 'pending',
       approvalRequired: true,
       message: 'Transaction pending approval',
+    }
+  }
+
+  async pauseMandate(auth: AuthUser, walletId: string) {    
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(auth.orgId)
+    if (!org) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+
+    if (!org?.monoCustomerId) {
+      throw new NotFoundError('Mono Customer does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+
+    if (!virtualAccount.mandateApproved) {
+      throw new NotFoundError('Mandate is not approved')
+    }
+
+    if (!virtualAccount.externalRef) {
+      throw new NotFoundError('Mandate ID not availble')
+    }
+
+    if (wallet.type !== WalletType.LinkedAccount) {
+      throw new NotFoundError('Wallet Type not allowed')
+    }
+
+    const result = await this.monoClient.pauseMandate(virtualAccount.externalRef)
+    console.log({ result })
+
+    // await VirtualAccount.updateOne({ wallet: wallet._id }, {
+    //   readyToDebit: data.ready_to_debit,
+    // });
+
+    return {
+      organizationId: org._id,
+      balance: wallet.balance,
+      currency: wallet.currency,
+      account: {
+        name: virtualAccount.name,
+        accountNumber: virtualAccount.accountNumber,
+        bankCode: virtualAccount.bankCode,
+        bankName: virtualAccount.bankName,
+        readyToDebit: virtualAccount.readyToDebit,
+      },
+    }
+  }
+
+  async reinstateMandate(auth: AuthUser, walletId: string) {    
+    const user = await User.findById(auth.userId).lean()
+    if (!user) {
+      throw new NotFoundError('User does not exist')
+    }
+
+    const org = await Organization.findById(auth.orgId)
+    if (!org) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+
+    if (!org?.monoCustomerId) {
+      throw new NotFoundError('Mono Customer does not exist')
+    }
+
+    if (org.status === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('Organization has been placed on NO DEBIT, contact Chequebase support')
+    }
+
+    if (user.KYBStatus === KycStatus.NO_DEBIT) {
+      throw new NotFoundError('You have been placed on NO DEBIT Ban, contact your admin')
+    }
+
+    const wallet = await this.getWallet(auth.orgId, walletId)
+    if (!wallet) {
+      throw new NotFoundError('Wallet does not exist')
+    }
+    const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+
+    if (!virtualAccount.mandateApproved) {
+      throw new NotFoundError('Mandate is not approved')
+    }
+
+    if (!virtualAccount.externalRef) {
+      throw new NotFoundError('Mandate ID not availble')
+    }
+
+    if (wallet.type !== WalletType.LinkedAccount) {
+      throw new NotFoundError('Wallet Type not allowed')
+    }
+
+    const result = await this.monoClient.reinstateMandate(virtualAccount.externalRef)
+    console.log({ result })
+
+    // await VirtualAccount.updateOne({ wallet: wallet._id }, {
+    //   readyToDebit: data.ready_to_debit,
+    // });
+
+    return {
+      organizationId: org._id,
+      balance: wallet.balance,
+      currency: wallet.currency,
+      account: {
+        name: virtualAccount.name,
+        accountNumber: virtualAccount.accountNumber,
+        bankCode: virtualAccount.bankCode,
+        bankName: virtualAccount.bankName,
+        readyToDebit: virtualAccount.readyToDebit,
+      },
     }
   }
 
