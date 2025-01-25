@@ -4,6 +4,8 @@ import { VirtualAccountClientName } from "@/modules/external-providers/virtual-a
 import { IsBoolean, IsDateString, IsEnum, IsHexadecimal, IsInt, IsOptional, IsString, Length, Min } from "class-validator";
 import { BaseWalletType } from "@/modules/banksphere/providers/customer.client";
 import { Transform } from "class-transformer";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
+import { VendorPaymentMethod } from "@/models/vendor.model";
 
 export class CreateWalletDto {
   @IsString()
@@ -148,26 +150,37 @@ export class PayVendorDto {
   @Transform((n) => Number(n.value))
   amount: number
 
+  @IsOptional()
   @IsString()
-  merchantId: string
+  recipientId: string
 
+  @IsOptional()
   @IsString()
   merchantName: string
 
   @IsString()
-  merchantType: string
+  paymentMethod: VendorPaymentMethod
 
+  @IsOptional()
   @IsString()
-  paymentMethod: string
+  vendor?: Buffer
 
-  @IsString()
-  recipient: string
+  fileExt?: string
 
   @IsString()
   category: string
 
   @IsString()
   pin: string
+
+  @IsString()
+  source: string
+
+  @IsString()
+  partnerId: string
+
+  @IsString()
+  provider: TransferClientName
 
   @IsBoolean()
   @Transform(({ value }) => value === "true" || value === true || value === 1)

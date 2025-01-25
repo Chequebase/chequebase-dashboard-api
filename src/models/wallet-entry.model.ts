@@ -77,6 +77,7 @@ export interface IWalletEntry {
   scope: WalletEntryScope;
   gatewayResponse: string;
   paymentMethod: string;
+  vendorUrl?: string;
   provider: string;
   // id/ref used for requerying from provider eg verify transfer
   providerRef: string;
@@ -164,6 +165,9 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     paymentStatus: {
       type: String,
       enum: Object.values(PaymentEntryStatus),
+    },
+    vendorUrl: {
+      type: String
     },
     provider: { type: String, required: true, default: "wallet" },
     providerRef: { type: String },

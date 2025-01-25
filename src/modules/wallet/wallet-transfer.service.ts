@@ -1,6 +1,7 @@
 import Container, { Service, Token } from "typedi"
 import { BadRequestError, NotFoundError } from "routing-controllers"
 import dayjs from "dayjs"
+import { ObjectId } from 'mongodb';
 import { cdb } from "../common/mongoose"
 import { createId } from "@paralleldrive/cuid2"
 import numeral from "numeral"
@@ -36,6 +37,7 @@ import VirtualAccount, { IVirtualAccount } from "@/models/virtual-account.model"
 import { PayVendorDto } from "./dto/wallet.dto";
 import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
 import { BaseWalletType } from "../banksphere/providers/customer.client";
+import Vendor, { IVendor, VendorPaymentMethod } from "@/models/vendor.model";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -101,7 +103,10 @@ export interface ApproveTransfer {
   category?: string
   saveRecipient?: boolean
   invoiceUrl?: string
-  narration?: string,
+  narration?: string
+  paymentStatus?: PaymentEntryStatus
+  vendorUrl?: string
+  scope?: WalletEntryScope
 }
 
 const logger = new Logger('wallet-transfer-service')
@@ -174,6 +179,8 @@ export class WalletTransferService {
   private async createTransferRecord(payload: CreateTransferRecord) {
     let { auth, data, wallet, amountToDeduct, category } = payload
 
+    const paymentStatus = data.paymentStatus || PaymentEntryStatus.Paid
+    const scope = data.scope || WalletEntryScope.WalletTransfer
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
       const fetchedWallet = await Wallet.findOneAndUpdate(
@@ -200,13 +207,15 @@ export class WalletTransferService {
         ledgerBalanceBefore: fetchedWallet.ledgerBalance,
         balanceBefore: fetchedWallet.balance,
         balanceAfter: fetchedWallet.balance,
-        scope: WalletEntryScope.WalletTransfer,
+        scope,
+        paymentStatus,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
         paymentMethod: 'transfer',
         reference: `wt_${createId()}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
+        vendorUrl: data.vendorUrl,
         category: data.category,
         meta: {
           counterparty: payload.counterparty,
@@ -260,6 +269,8 @@ export class WalletTransferService {
   private async createDirectDebitRecord(payload: CreateDirectDebitRecord) {
     let { auth, data, amountToDeduct, category } = payload
 
+    const paymentStatus = data.paymentStatus || PaymentEntryStatus.Paid
+    const scope = data.scope || WalletEntryScope.WalletTransfer
     let entry: IWalletEntry
     await cdb.transaction(async (session) => {
       [entry] = await WalletEntry.create([{
@@ -267,19 +278,22 @@ export class WalletTransferService {
         status: WalletEntryStatus.Pending,
         currency: 'NGN',
         amount: data.amount,
+        wallet: data.wallet,
         fee: payload.fee,
         ledgerBalanceAfter: 0,
         ledgerBalanceBefore: 0,
         balanceBefore: 0,
         balanceAfter: 0,
         initiatedBy: payload.data.requester,
-        scope: WalletEntryScope.LinkedAccTransfer,
+        scope,
+        paymentStatus,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
         paymentMethod: 'transfer',
         reference: `wt${this.generateRandomString(12)}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
+        vendorUrl: data.vendorUrl,
         category: data.category,
         meta: {
           counterparty: payload.counterparty,
@@ -1182,6 +1196,10 @@ export class WalletTransferService {
     return Counterparty.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
   }
 
+  async getVendors(auth:AuthUser ) {
+    return Vendor.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
+  }
+
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
     const recipient = await Counterparty.findOne({ _id: id, user: auth.userId, organization: auth.orgId, isRecipient: true })
     if (!recipient) {
@@ -1234,8 +1252,14 @@ export class WalletTransferService {
     }
 
     const org = await Organization.findById(organization.toString())
+    const partnerOrg = await Organization.findOne({
+      partnerId: data.partnerId,
+    })
     if (!org) {
-      throw new NotFoundError('Wallet does not exist')
+      throw new NotFoundError('Org does not exist')
+    }
+    if (!partnerOrg) {
+      throw new NotFoundError('Partner does not exist')
     }
 
     if (org.status === KycStatus.NO_DEBIT) {
@@ -1251,82 +1275,106 @@ export class WalletTransferService {
       throw new NotFoundError('Category does not exist')
     }
 
-    // const rules = await ApprovalRule.find({
-    //   organization: auth.orgId,
-    //   workflowType: WorkflowType.Transaction,
-    //   amount: { $lte: data.amount }
-    // })
-
-    // const rule = rules[0]
-    // let noApprovalRequired = !rule
-    // if (rule) {
-    //   const requiredReviews = rule.approvalType === ApprovalType.Anyone ? 1 : rule.reviewers.length
-    //   noApprovalRequired = requiredReviews === 1 && rule.reviewers.some(r => r.equals(auth.userId))
-    // }
-
-    const provider = TransferClientName.SafeHaven
-    const payload: any = {
-      auth: { userId: auth.userId, orgId: org.id },
-      category: data.category,
-      wallet, data,
-      provider, fee: 0,
-      amountToDeduct: data.amount
+    let vendorUrl;
+    if (data.recipientId) {
+      const recipient = await Vendor.findById(data.recipientId)
+      if (!recipient) {
+        throw new NotFoundError('Wallet does not exist')
+      }
+      vendorUrl = recipient.vendorUrl;
+    } else if (data.vendor) {
+      const vendorId = new ObjectId()
+      const key = `vendor/${walletId}/${vendorId}.${data.fileExt || 'pdf'}`;
+      vendorUrl = await this.s3Service.uploadObject(
+        getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+        key,
+        data.vendor
+      );
+      await this.getVendor(vendorId, org.id, data.merchantName, vendorUrl, data.paymentMethod, true, data.saveRecipient)
     }
 
-    // await this.runSecurityChecks(payload)
-    const counterparty = await this.getMerchantCounterparty(org.id, data.merchantId, data.merchantType, data.merchantName, true, data.saveRecipient)
-    const entry = await this.createVendorTransferRecord({ ...payload, counterparty })
+    if (!vendorUrl) {
+      throw new BadRequestError('No vendor url')
+    }
 
-    // const request = await ApprovalRequest.create({
-    //   organization: auth.orgId,
-    //   workflowType: rule.workflowType,
-    //   approvalType: rule.approvalType,
-    //   requester: auth.userId,
-    //   approvalRule: rule._id,
-    //   priority: ApprovalRequestPriority.High,
-    //   reviews: rule!.reviewers.map(user => ({
-    //     user,
-    //     status: user.equals(auth.userId) ? 'approved' : 'pending'
-    //   })),
-    //   properties: {
-    //     wallet: wallet._id,
-    //     transaction: {
-    //       accountName: resolveRes.accountName,
-    //       accountNumber: data.accountNumber,
-    //       amount: data.amount,
-    //       bankCode: data.bankCode,
-    //       bankName: resolveRes.bankName,
-    //       invoice: invoiceUrl,
-    //       category: category._id,
-    //       provider: data.provider
-    //     }
-    //   }
-    // })
-    // const virtualAccount = (<IVirtualAccount>wallet.virtualAccounts[0])
+    const escrowWallet = await Wallet.findOne({
+      organization: partnerOrg._id,
+      currency: 'NGN',
+      type: WalletType.EscrowAccount,
+    }).populate<IVirtualAccount>("virtualAccounts");
 
-    // rule!.reviewers.forEach(reviewer => {
-    //   this.emailService.sendTransactionApprovalRequest(reviewer.email, {
-    //     amount: formatMoney(data.amount),
-    //     currency: wallet.currency,
-    //     wallet: virtualAccount.name,
-    //     employeeName: reviewer.firstName,
-    //     link: `${getEnvOrThrow('BASE_FRONTEND_URL')}/approvals`,
-    //     requester: {
-    //       name: `${user.firstName} ${user.lastName}`,
-    //       avatar: user.avatar
-    //     },
-    //     workflowType: toTitleCase(request.workflowType),
-    //     category: category.name,
-    //     recipient: resolveRes.accountName,
-    //     recipientBank: resolveRes.bankName,
-    //   })
-    // });
+    if (!escrowWallet) {
+      logger.error('Escrow wallet not found', { org: partnerOrg.id })
+      throw new BadRequestError(`Organization does not have an escrow wallet for NGN`)
+    }
+
+    const destinationVirtualAccount = (<IVirtualAccount>escrowWallet.virtualAccounts[0])
+
+    switch (wallet.type) {
+      case WalletType.LinkedAccount:
+        await this.approveDirectDebit({
+          accountNumber: destinationVirtualAccount.accountNumber,
+          amount: data.amount,
+          bankCode: destinationVirtualAccount.bankCode,
+          wallet: wallet._id.toString(),
+          vendorUrl,
+          paymentStatus: PaymentEntryStatus.Paid,
+          scope: WalletEntryScope.VendorTransfer,
+          auth,
+          provider: data.provider,
+          requester: auth.userId,
+          saveRecipient: false,
+        })
+      case WalletType.General:
+      case WalletType.Payroll:
+      case WalletType.SubAccount:
+        await this.approveTransfer({
+          to: destinationVirtualAccount.name,
+          accountNumber: destinationVirtualAccount.accountNumber,
+          amount: data.amount,
+          bankCode: destinationVirtualAccount.bankCode,
+          wallet: wallet._id.toString(),
+          vendorUrl,
+          paymentStatus: PaymentEntryStatus.Paid,
+          scope: WalletEntryScope.VendorTransfer,
+          auth,
+          provider: data.provider,
+          requester: auth.userId,
+          category: data.category,
+          saveRecipient: false
+        })
+      default:
+        break;
+    }
 
     return {
-      transactionId: entry._id.toString(),
-      status: 'pending',
-      message: 'Request Submitted',
+      status: PaymentEntryStatus.Paid,
+      message: 'successfull'
     }
+  }
+  private async getVendor(id: ObjectId, orgId: string, name: string, vendorUrl: string, paymentMethod: VendorPaymentMethod, isRecipient: boolean = true, saveRecipient: boolean = false) {
+    if (saveRecipient) {
+      await this.saveVendor(id, orgId, name, vendorUrl, paymentMethod, true)
+    }
+    return {
+      id,
+      organization: orgId,
+      vendorUrl,
+      name,
+      paymentMethod,
+      isRecipient
+    } as unknown as IVendor
+  }
+
+  private async saveVendor(id: ObjectId, orgId: string, name: string, vendorUrl: string,  paymentMethod: VendorPaymentMethod, isRecipient: boolean = true) {
+    await Vendor.create({
+      _id: id,
+      organization: orgId,
+      vendorUrl,
+      name,
+      paymentMethod,
+      isRecipient
+    })
   }
 }
 

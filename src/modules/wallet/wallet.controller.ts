@@ -218,20 +218,32 @@ export default class WalletController {
 
   @Post('/:id/vendor/pay')
   @Authorized(EPermission.WalletTransfer)
+  @UseBefore(multer().single('recipient'))
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
   async payVendor(
     @CurrentUser() auth: AuthUser,
     @Param('id') id: string,
-    @Body() body: PayVendorDto,
+    @Req() req: Request,
   ) {
-
-    return this.walletTransferService.payVendor(auth, id, body)
+    const file = req.file as any
+    const dto = plainToInstance(PayVendorDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', receipient: file?.buffer, ...req.body })
+    const errors = await validate(dto)
+    if (errors.length) {
+      throw { errors }
+    }
+    return this.walletTransferService.payVendor(auth, id, dto)
   }
 
   @Put('/history/:id/')
   @Authorized(EPermission.TransactionRead)
   updateWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateWalletEntry) {
     return this.walletService.updateWalletEntry(auth.orgId, id, dto)
+  }
+
+  @Get('/vendors')
+  @Authorized()
+  getVendors(@CurrentUser() auth: AuthUser) {
+    return this.walletTransferService.getVendors(auth)
   }
 
   @Post('/partner/complete/:id')
@@ -242,13 +254,13 @@ export default class WalletController {
     return this.walletService.completePartnerTx(auth.orgId, id, file)
   }
 
-  @Post('/vendor/complete')
-  @Authorized(EPermission.WalletLinkedaccountDebit)
-  @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
-  async fundPartner(
-    @CurrentUser() auth: AuthUser,
-    @Body() body: CompleteVendorPaymentDto,
-  ) {
-    return this.walletTransferService.completeVendorPayment(auth, body)
-  }
+  // @Post('/vendor/complete')
+  // @Authorized(EPermission.WalletLinkedaccountDebit)
+  // @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
+  // async fundPartner(
+  //   @CurrentUser() auth: AuthUser,
+  //   @Body() body: CompleteVendorPaymentDto,
+  // ) {
+  //   return this.walletTransferService.completeVendorPayment(auth, body)
+  // }
 }
