@@ -1114,7 +1114,7 @@ export class WalletTransferService {
     if (!org) {
       throw new NotFoundError('Org does not exist')
     }
-    return Vendor.find({ organization: org._id, paymentMethod: paymentMethod, isRecipient: true })
+    return Vendor.find({ organization: org._id, paymentMethod: paymentMethod, isRecipient: true }).lean()
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
