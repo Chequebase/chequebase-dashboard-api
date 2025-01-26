@@ -411,21 +411,15 @@ export default class WalletService {
         case 'recent':
           filter.set('status', {
             $in: [
-              'validating',
-            ]
-          })
-          break;
-        case 'onGoing':
-          filter.set('status', {
-            $in: [
-              'pending',
+              'successful',
+              'processing',
+              'pending'
             ]
           })
           break;
         case 'completed':
           filter.set('status', {
             $in: [
-              'successful',
               'failed',
               'cancelled',
               'completed'
@@ -507,21 +501,15 @@ export default class WalletService {
         case 'recent':
           filter.set('status', {
             $in: [
-              'validating'
-            ]
-          })
-          break;
-        case 'onGoing':
-          filter.set('status', {
-            $in: [
+              'successful',
               'pending',
+              'processing'
             ]
           })
           break;
         case 'completed':
           filter.set('status', {
             $in: [
-              'successful',
               'failed',
               'cancelled',
               'completed'
