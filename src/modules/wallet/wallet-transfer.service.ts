@@ -1193,7 +1193,7 @@ export class WalletTransferService {
       throw new NotFoundError('Rate not found')
     }
     const actualAmount = data.counterAmount * rate.rate
-    if (actualAmount !== data.amount ) {
+    if (actualAmount !== (data.amount / 100) ) {
       throw new NotFoundError('Wrong amount')
     }
     let vendorUrl;
