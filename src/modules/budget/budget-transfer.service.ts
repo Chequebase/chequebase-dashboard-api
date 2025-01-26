@@ -571,7 +571,7 @@ export class BudgetTransferService {
     return { message: 'updated successfully' }
   }
 
-  async getRecipients(auth:AuthUser ) {
+  async getRecipients(auth:AuthUser) {
     return Counterparty.find({ organization: auth.orgId, isRecipient: true }).lean()
   }
 

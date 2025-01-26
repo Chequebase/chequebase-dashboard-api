@@ -1105,7 +1105,7 @@ export class WalletTransferService {
     return { message: 'updated successfully' }
   }
 
-  async getRecipients(auth:AuthUser ) {
+  async getRecipients(auth:AuthUser) {
     return Counterparty.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
   }
 
@@ -1114,7 +1114,10 @@ export class WalletTransferService {
     if (!org) {
       throw new NotFoundError('Org does not exist')
     }
-    return Vendor.find({ organization: org._id, paymentMethod: paymentMethod, isRecipient: true }).lean()
+    console.log('HERERERE --- before the query')
+    const vendors = await Vendor.find({ organization: org._id, paymentMethod: paymentMethod, isRecipient: true }).lean()
+    console.log({ vendors})
+    return vendors
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
