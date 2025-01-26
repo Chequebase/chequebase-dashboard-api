@@ -107,6 +107,7 @@ export interface ApproveTransfer {
   narration?: string
   paymentStatus?: PaymentEntryStatus
   vendorUrl?: string
+  partnerId?: string,
   scope?: WalletEntryScope
 }
 
@@ -210,6 +211,7 @@ export class WalletTransferService {
         balanceAfter: fetchedWallet.balance,
         scope,
         paymentStatus,
+        partnerId: data.partnerId,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
         paymentMethod: 'transfer',
@@ -295,6 +297,7 @@ export class WalletTransferService {
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
         vendorUrl: data.vendorUrl,
+        partnerId: data.partnerId,
         category: data.category,
         meta: {
           counterparty: payload.counterparty,
@@ -1248,6 +1251,7 @@ export class WalletTransferService {
           bankCode: destinationVirtualAccount.bankCode,
           wallet: wallet._id.toString(),
           vendorUrl,
+          partnerId: partnerOrg.partnerId,
           paymentStatus: PaymentEntryStatus.Paid,
           scope: WalletEntryScope.VendorTransfer,
           auth,
@@ -1265,6 +1269,7 @@ export class WalletTransferService {
           bankCode: destinationVirtualAccount.bankCode,
           wallet: wallet._id.toString(),
           vendorUrl,
+          partnerId: partnerOrg.partnerId,
           paymentStatus: PaymentEntryStatus.Paid,
           scope: WalletEntryScope.VendorTransfer,
           auth,
