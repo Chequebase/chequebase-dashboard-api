@@ -14,7 +14,7 @@ import Budget from "@/models/budget.model"
 import Wallet from "@/models/wallet.model"
 import { AnchorService } from "../common/anchor.service"
 import User, { KycStatus } from "@/models/user.model"
-import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
+import { escapeRegExp, formatMoney, getContentType, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
 import Organization from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
@@ -414,11 +414,13 @@ export class WalletTransferService {
 
     let invoiceUrl
     if (data.invoice) {
-      const key = `wallet/${walletId}/${createId()}.${data.fileExt || 'pdf'}`;
+      const fileExt = data.fileExt || 'pdf';
+      const key = `wallet/${walletId}/${createId()}.${fileExt}`;
       invoiceUrl = await this.s3Service.uploadObject(
         getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
         key,
-        data.invoice
+        data.invoice,
+        getContentType(fileExt)
       );
     }
 
@@ -710,11 +712,13 @@ export class WalletTransferService {
 
     let invoiceUrl
     if (data.invoice) {
-      const key = `direct/${virtualAccount.externalRef}/${createId()}.${data.fileExt || 'pdf'}`;
+      const fileExt = data.fileExt || 'pdf'
+      const key = `direct/${virtualAccount.externalRef}/${createId()}.${fileExt}`;
       invoiceUrl = await this.s3Service.uploadObject(
         getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
         key,
-        data.invoice
+        data.invoice,
+        getContentType(fileExt)
       );
     }
 
@@ -1201,11 +1205,13 @@ export class WalletTransferService {
       vendorUrl = recipient.vendorUrl;
     } else if (data.vendor) {
       const vendorId = new ObjectId()
-      const key = `vendor/${walletId}/${vendorId}.${data.fileExt || 'pdf'}`;
+      const fileExt = data.fileExt || 'pdf';
+      const key = `vendor/${walletId}/${vendorId}.${fileExt}`;
       vendorUrl = await this.s3Service.uploadObject(
         getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
         key,
-        data.vendor
+        data.vendor,
+        getContentType(fileExt)
       );
       await this.getVendor(vendorId, org.id, data.merchantName, vendorUrl, data.paymentMethod, true, data.saveRecipient)
     }

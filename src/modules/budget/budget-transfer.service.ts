@@ -25,7 +25,7 @@ import { S3Service } from "../common/aws/s3.service"
 import EmailService from "../common/email.service"
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user"
 import { cdb } from "../common/mongoose"
-import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
+import { escapeRegExp, formatMoney, getContentType, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
 import Logger from "../common/utils/logger"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
 import { UserService } from "../user/user.service"
@@ -325,11 +325,13 @@ export class BudgetTransferService {
 
     let invoiceUrl
     if (data.invoice) {
-      const key = `budget/${budgetId}/${createId()}.${data.fileExt || 'pdf'}`;
+      const fileExt = data.fileExt || 'pdf';
+      const key = `budget/${budgetId}/${createId()}.${fileExt}`;
       invoiceUrl = await this.s3Service.uploadObject(
         getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
         key,
-        data.invoice
+        data.invoice,
+        getContentType(fileExt)
       );
     } else {
       await this.budgetPolicyService.checkInvoicePolicy({

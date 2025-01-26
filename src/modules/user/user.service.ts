@@ -10,7 +10,7 @@ import { WalletEntryScope } from "@/models/wallet-entry.model";
 import { WalletType } from "@/models/wallet.model";
 import EmailService from "@/modules/common/email.service";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
-import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
+import { escapeRegExp, getContentType, getEnvOrThrow } from "@/modules/common/utils";
 import { createId } from "@paralleldrive/cuid2";
 import bcrypt, { compare } from 'bcryptjs';
 import jwt, { JwtPayload } from 'jsonwebtoken';
@@ -1107,12 +1107,13 @@ export class UserService {
     if (!user) {
       throw new NotFoundError("User not found");
     }
-    const fileExt = file.mimetype.toLowerCase().trim().split('/')[1]
-    const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}.${fileExt || 'pdf'}`;
+    const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
+    const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}.${fileExt}`;
     const url = await this.s3Service.uploadObject(
       getEnvOrThrow('AVATAR_BUCKET_NAME'),
       key,
-      file.buffer
+      file.buffer,
+      getContentType(fileExt)
     );
     
     await User.updateOne({ _id: auth.userId, organization: auth.orgId }, {

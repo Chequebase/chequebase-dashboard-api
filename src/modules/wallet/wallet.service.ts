@@ -19,7 +19,7 @@ import Container, { Service } from "typedi";
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user";
 import { cdb, isValidObjectId } from "../common/mongoose";
 import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
-import { escapeRegExp, formatMoney, getEnvOrThrow, transactionOpts } from "../common/utils";
+import { escapeRegExp, formatMoney, getContentType, getEnvOrThrow, transactionOpts } from "../common/utils";
 import QueryFilter from "../common/utils/query-filter";
 import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, ReportTransactionDto, UpdateWalletEntry } from "./dto/wallet.dto";
 import { ChargeWallet } from "./interfaces/wallet.interface";
@@ -732,11 +732,13 @@ export default class WalletService {
     status = WalletEntryStatus.Successful;
 
     let receiptUrl: string
-    const key = `vendor/receipt/${transaction.organization}/${transaction._id.toString()}.${file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf'}`;
+    const fileExt = file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
+    const key = `vendor/receipt/${transaction.organization}/${transaction._id.toString()}.${fileExt}`;
     receiptUrl = await this.s3Service.uploadObject(
       getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
       key,
-      file.buffer
+      file.buffer,
+      getContentType(fileExt)
     );
     await cdb.transaction(async (session) => {
       return await WalletEntry.updateOne({ _id: entryId }, {
