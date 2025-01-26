@@ -150,6 +150,10 @@ export class PayVendorDto {
   @Transform((n) => Number(n.value))
   amount: number
 
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  counterAmount: number
+
   @IsOptional()
   @IsString()
   recipientId: string
@@ -178,6 +182,9 @@ export class PayVendorDto {
 
   @IsString()
   partnerId: string
+
+  @IsString()
+  currency: string
 
   @IsString()
   provider: TransferClientName

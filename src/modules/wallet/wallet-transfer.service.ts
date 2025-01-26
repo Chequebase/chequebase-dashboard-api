@@ -38,6 +38,7 @@ import { PayVendorDto } from "./dto/wallet.dto";
 import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
 import { BaseWalletType } from "../banksphere/providers/customer.client";
 import Vendor, { IVendor, VendorPaymentMethod } from "@/models/vendor.model";
+import CurrencyRate from "@/models/currency-rate.model";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -1105,7 +1106,7 @@ export class WalletTransferService {
   }
 
   async getVendors(auth:AuthUser ) {
-    return Vendor.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
+    return Vendor.find({ organization: auth.orgId, isRecipient: true }).lean()
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
@@ -1182,7 +1183,15 @@ export class WalletTransferService {
     if (!category) {
       throw new NotFoundError('Category does not exist')
     }
+    const rate = await CurrencyRate.findOne({ partnerId: partnerOrg.partnerId, currency: data.currency })
 
+    if (!rate) {
+      throw new NotFoundError('Rate not found')
+    }
+    const actualAmount = data.counterAmount * rate.rate
+    if (actualAmount !== data.amount ) {
+      throw new NotFoundError('Wrong amount')
+    }
     let vendorUrl;
     if (data.recipientId) {
       const recipient = await Vendor.findById(data.recipientId)
