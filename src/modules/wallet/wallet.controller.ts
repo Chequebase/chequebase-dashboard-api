@@ -246,7 +246,7 @@ export default class WalletController {
     return this.walletService.setRate(auth.orgId, partnerId, currency, dto.rate)
   }
 
-  @Get('/rate/:currency')
+  @Get('/rate/:partnerId/:currency')
   @Authorized(EPermission.TransactionRead)
   getRate(@CurrentUser() auth: AuthUser, @Param('partnerId') partnerId: string, @Param('currency') currency: string) {
     return this.walletService.getRate(auth.orgId, partnerId, currency)
@@ -259,4 +259,6 @@ export default class WalletController {
     const file = req.file as any
     return this.walletService.completePartnerTx(auth.orgId, id, file)
   }
+
+  // TODO: Rollback endpoint for cases where tx is not completed on partner side before timeout
 }
