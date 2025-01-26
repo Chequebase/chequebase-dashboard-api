@@ -198,3 +198,9 @@ export class UpdateWalletEntry {
   @Transform((n) => Number(n.value))
   rate?: number
 }
+
+export class SetRate {
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  rate: number
+}

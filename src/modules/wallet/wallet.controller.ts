@@ -2,7 +2,7 @@ import { Authorized, Body, CurrentUser, Get, JsonController, Param, Patch, Post,
 import { Service } from "typedi";
 import { Request } from "express";
 import WalletService from "./wallet.service";
-import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, PayVendorDto, ReportTransactionDto, UpdateWalletEntry } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, PayVendorDto, ReportTransactionDto, SetRate } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Response } from "express";
@@ -234,17 +234,31 @@ export default class WalletController {
     return this.walletTransferService.payVendor(auth, id, dto)
   }
 
-  @Put('/history/:id/')
-  @Authorized(EPermission.TransactionRead)
-  updateWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateWalletEntry) {
-    return this.walletService.updateWalletEntry(auth.orgId, id, dto)
-  }
+  // @Put('/history/:id/')
+  // @Authorized(EPermission.TransactionRead)
+  // updateWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateWalletEntry) {
+  //   return this.walletService.updateWalletEntry(auth.orgId, id, dto)
+  // }
 
   @Get('/vendors')
   @Authorized()
   getVendors(@CurrentUser() auth: AuthUser) {
     return this.walletTransferService.getVendors(auth)
   }
+
+  @Put('/rate/:partnerId/:currency')
+  @Authorized(EPermission.TransactionRead)
+  setRate(@CurrentUser() auth: AuthUser, @Param('partnerId') partnerId: string, @Param('currency') currency: string, dto: SetRate) {
+    return this.walletService.setRate(auth.orgId, partnerId, currency, dto.rate)
+  }
+
+  @Get('/rate/:currency')
+  @Authorized(EPermission.TransactionRead)
+  getRate(@CurrentUser() auth: AuthUser, @Param('partnerId') partnerId: string, @Param('currency') currency: string) {
+    return this.walletService.getRate(auth.orgId, partnerId, currency)
+  }
+
+  // GET Presigned Url
 
   @Post('/partner/complete/:id')
   @Authorized(EPermission.TransactionRead)

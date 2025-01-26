@@ -30,6 +30,7 @@ import { OrganizationCardService } from "../organization-card/organization-card.
 import Card from "@/models/card.model";
 import { OrgType } from "../banksphere/dto/banksphere.dto";
 import { S3Service } from "../common/aws/s3.service";
+import CurrencyRate from "@/models/currency-rate.model";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -730,6 +731,55 @@ export default class WalletService {
       status,
       message: 'Transation Updated',
     } 
+  }
+
+  async setRate(orgId: string, partnerId: string, currency: string, rate: number) {
+    const organization = await Organization.findById(orgId).lean();
+
+    if (!organization) {
+      throw new NotFoundError('Organization not found')
+    }
+
+    const partner = await Organization.findOne({ partnerId }).lean();
+
+    if (!partner) {
+      throw new NotFoundError('Partner not found')
+    }
+    await cdb.transaction(async (session) => {
+      return await CurrencyRate.updateOne({ partnerId: partner.partnerId, currency }, {
+        $set: {
+          rate
+        },
+      }, { session })
+
+    }, transactionOpts)
+
+    return {
+      status,
+      message: 'Rate Updated',
+    } 
+  }
+
+  async getRate(orgId: string, partnerId: string, currency: string) {
+    const organization = await Organization.findById(orgId).lean();
+
+    if (!organization) {
+      throw new NotFoundError('Organization not found')
+    }
+
+    const partner = await Organization.findOne({ partnerId }).lean();
+
+    if (!partner) {
+      throw new NotFoundError('Partner not found')
+    }
+
+    const rate = await CurrencyRate.findOne({ partnerId: partner.partnerId, currency })
+
+    if (!rate) {
+      throw new NotFoundError('Rate not found')
+    }
+
+    return { rate: rate.rate, currency }
   }
 
   async completePartnerTx(orgId: string, entryId: string, file: any) {
