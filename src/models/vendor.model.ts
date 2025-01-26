@@ -35,7 +35,8 @@ const vendorSchema = new Schema<IVendor>(
     },
     paymentMethod: {
       type: String,
-      enum: Object.values(VendorPaymentMethod)
+      enum: Object.values(VendorPaymentMethod),
+      required: true
     },
   },
   { timestamps: true },
