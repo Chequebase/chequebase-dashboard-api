@@ -242,7 +242,7 @@ export default class WalletController {
 
   @Put('/rate/:partnerId/:currency')
   @Authorized(EPermission.TransactionRead)
-  setRate(@CurrentUser() auth: AuthUser, @Param('partnerId') partnerId: string, @Param('currency') currency: string, dto: SetRate) {
+  setRate(@CurrentUser() auth: AuthUser, @Param('partnerId') partnerId: string, @Param('currency') currency: string, @Body() dto: SetRate) {
     return this.walletService.setRate(auth.orgId, partnerId, currency, dto.rate)
   }
 
