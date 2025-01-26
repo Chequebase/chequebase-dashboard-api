@@ -234,12 +234,6 @@ export default class WalletController {
     return this.walletTransferService.payVendor(auth, id, dto)
   }
 
-  // @Put('/history/:id/')
-  // @Authorized(EPermission.TransactionRead)
-  // updateWalletEntry(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Body() dto: UpdateWalletEntry) {
-  //   return this.walletService.updateWalletEntry(auth.orgId, id, dto)
-  // }
-
   @Get('/vendors')
   @Authorized()
   getVendors(@CurrentUser() auth: AuthUser) {
@@ -258,8 +252,6 @@ export default class WalletController {
     return this.walletService.getRate(auth.orgId, partnerId, currency)
   }
 
-  // GET Presigned Url
-
   @Post('/partner/complete/:id')
   @Authorized(EPermission.TransactionRead)
   @UseBefore(multer().single('receipt'))
@@ -267,14 +259,4 @@ export default class WalletController {
     const file = req.file as any
     return this.walletService.completePartnerTx(auth.orgId, id, file)
   }
-
-  // @Post('/vendor/complete')
-  // @Authorized(EPermission.WalletLinkedaccountDebit)
-  // @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
-  // async fundPartner(
-  //   @CurrentUser() auth: AuthUser,
-  //   @Body() body: CompleteVendorPaymentDto,
-  // ) {
-  //   return this.walletTransferService.completeVendorPayment(auth, body)
-  // }
 }

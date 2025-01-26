@@ -662,77 +662,6 @@ export default class WalletService {
     return entry
   }
 
-  async updateWalletEntry(orgId: string, entryId: string, dto: UpdateWalletEntry) {
-    const organization = await Organization.findById(orgId).lean();
-
-    if (!organization) {
-      throw new NotFoundError('Organization not found')
-    }
-
-    const transaction = await WalletEntry.findById(entryId).lean();
-
-    if (!transaction) {
-      throw new NotFoundError('transaction not found')
-    }
-    let status = WalletEntryStatus.Pending;
-    let exchangeRate: number;
-    switch (dto.action) {
-      case WalletEntryUpdateAction.CancelRate:
-        status = WalletEntryStatus.Cancelled;
-        break;
-      case WalletEntryUpdateAction.AcceptRate:
-        if (transaction.status === WalletEntryStatus.Pending) {
-          throw new BadRequestError('Rate already accepted')
-        }
-        status
-        break;
-      case WalletEntryUpdateAction.Request:
-        status = WalletEntryStatus.Validating;
-        break;
-      case WalletEntryUpdateAction.TimedOut:
-        status = WalletEntryStatus.TimedOut;
-        break;
-      case WalletEntryUpdateAction.SubmitRate:
-        if (transaction.status === WalletEntryStatus.TimedOut) {
-          throw new BadRequestError('Transaction is timed out')
-        }
-        if (transaction.status !== WalletEntryStatus.Validating) {
-          throw new BadRequestError('Transaction  is in invalid state')
-        }
-        if (organization.type !== OrgType.PARTNER) {
-          throw new BadRequestError('Can Not Submit Rate')
-        }
-        status = WalletEntryStatus.Validating;
-        exchangeRate = dto.rate || 1;
-        break;
-      case WalletEntryUpdateAction.CompleteTx:
-        if (organization.type !== OrgType.PARTNER) {
-          throw new BadRequestError('Can Not Perform')
-        }
-        if (transaction.paymentStatus !== PaymentEntryStatus.Paid) {
-          throw new BadRequestError('Transaction is in invalid state')
-        }
-        status = WalletEntryStatus.Successful;
-        break;
-      default:
-        return;
-    }
-    await cdb.transaction(async (session) => {
-      return await WalletEntry.updateOne({ _id: entryId }, {
-        $set: {
-          status,
-          exchangeRate
-        },
-      }, { session })
-
-    }, transactionOpts)
-
-    return {
-      status,
-      message: 'Transation Updated',
-    } 
-  }
-
   async setRate(orgId: string, partnerId: string, currency: string, rate: number) {
     const organization = await Organization.findById(orgId).lean();
 
@@ -801,10 +730,10 @@ export default class WalletService {
     if (transaction.paymentStatus !== PaymentEntryStatus.Paid) {
       throw new BadRequestError('Transaction is in invalid state')
     }
-    status = WalletEntryStatus.Completed;
+    status = WalletEntryStatus.Successful;
 
     let receiptUrl: string
-    const key = `vendor/${transaction.organization}/${createId()}.${file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf'}`;
+    const key = `vendor/receipt/${transaction.organization}/${transaction._id.toString()}.${file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf'}`;
     receiptUrl = await this.s3Service.uploadObject(
       getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
       key,

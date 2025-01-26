@@ -44,6 +44,7 @@ export class S3Service {
       Body: data,
       ACL,
       Bucket: bucket,
+      ContentType:"application/pdf"
     };
   
     try {
