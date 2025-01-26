@@ -710,14 +710,13 @@ export default class WalletService {
     if (!transaction) {
       throw new NotFoundError('transaction not found')
     }
-    let status = WalletEntryStatus.Pending;
     if (organization.type !== OrgType.PARTNER) {
       throw new BadRequestError('Can Not Perform')
     }
     if (transaction.paymentStatus !== PaymentEntryStatus.Paid) {
       throw new BadRequestError('Transaction is in invalid state')
     }
-    status = WalletEntryStatus.Successful;
+    const status = WalletEntryStatus.Completed;
 
     let receiptUrl: string
     const fileExt = file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
