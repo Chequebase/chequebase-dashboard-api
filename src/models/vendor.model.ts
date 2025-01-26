@@ -33,6 +33,10 @@ const vendorSchema = new Schema<IVendor>(
     vendorUrl: {
       type: String,
     },
+    paymentMethod: {
+      type: String,
+      enum: Object.values(VendorPaymentMethod)
+    },
   },
   { timestamps: true },
 );

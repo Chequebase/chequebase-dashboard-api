@@ -72,6 +72,12 @@ export class GetLinkedAccountDto {
   @IsOptional()
   type?: WalletType
 }
+
+export class GetVendorsDto {
+  @IsString()
+  @IsEnum(VendorPaymentMethod)
+  paymentMethod: VendorPaymentMethod
+}
 export class GetWalletEntriesDto {
   @IsString()
   @IsOptional()

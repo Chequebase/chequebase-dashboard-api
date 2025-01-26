@@ -2,7 +2,7 @@ import { Authorized, Body, CurrentUser, Get, JsonController, Param, Patch, Post,
 import { Service } from "typedi";
 import { Request } from "express";
 import WalletService from "./wallet.service";
-import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetWalletEntriesDto, GetWalletStatementDto, PayVendorDto, ReportTransactionDto, SetRate } from "./dto/wallet.dto";
+import { CreateSubaccoubtDto, CreateWalletDto, GetLinkedAccountDto, GetVendorsDto, GetWalletEntriesDto, GetWalletStatementDto, PayVendorDto, ReportTransactionDto, SetRate } from "./dto/wallet.dto";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
 import { PassThrough } from "stream";
 import { Response } from "express";
@@ -236,8 +236,8 @@ export default class WalletController {
 
   @Get('/vendors')
   @Authorized()
-  getVendors(@CurrentUser() auth: AuthUser) {
-    return this.walletTransferService.getVendors(auth)
+  getVendors(@CurrentUser() auth: AuthUser, @QueryParams() query: GetVendorsDto) {
+    return this.walletTransferService.getVendors(auth, query.paymentMethod)
   }
 
   @Put('/rate/:partnerId/:currency')

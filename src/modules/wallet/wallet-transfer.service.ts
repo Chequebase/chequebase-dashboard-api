@@ -1105,8 +1105,8 @@ export class WalletTransferService {
     return Counterparty.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
   }
 
-  async getVendors(auth:AuthUser ) {
-    return Vendor.find({ organization: auth.orgId, isRecipient: true }).lean()
+  async getVendors(auth:AuthUser, paymentMethod: VendorPaymentMethod) {
+    return Vendor.find({ organization: auth.orgId, paymentMethod, isRecipient: true }).lean()
   }
 
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
