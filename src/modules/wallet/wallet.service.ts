@@ -684,7 +684,6 @@ export default class WalletService {
     }, transactionOpts)
 
     return {
-      status,
       message: 'Rate Updated',
     } 
   }
