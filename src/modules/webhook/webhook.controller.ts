@@ -8,6 +8,7 @@ import { AnchorHeaderDto, MonoHeaderDto, PaystackHeaderDto } from "./dto/webhook
 import SafeHavenWebhookHandler from "./handlers/safe-haven-webhook.handler";
 import MonoWebhookHandler from "./handlers/mono-webhook.handler";
 import SudoWebhookHandler from "./handlers/sudo-webhook.handler";
+import HydrogenWebhookHandler from "./handlers/hydrogen-webhook.handler";
 
 const logger = new Logger('webhook-controller')
 
@@ -19,7 +20,8 @@ export default class WebhookController {
     private paystackHandler: PaystackWebhookHandler,
     private safeHavenHandler: SafeHavenWebhookHandler,
     private monoHandler: MonoWebhookHandler,
-    private sudoHandler: SudoWebhookHandler
+    private sudoHandler: SudoWebhookHandler,
+    private hydrogenHandler: HydrogenWebhookHandler,
   ) {}
 
   @Post("/anchor")
@@ -34,6 +36,18 @@ export default class WebhookController {
     });
 
     return this.anchorHandler.processWebhook(body, headers);
+  }
+
+  @Post("/hydrogen")
+  @UseBefore(raw({ type: "application/json" }))
+  async processHydrogen(
+    @Body() body: any,
+  ) {
+    logger.log("received hydrogen webhook", {
+      body: body.toString("utf-8"),
+    });
+
+    return this.hydrogenHandler.processWebhook(body);
   }
 
   @Post("/safe-haven")
@@ -70,7 +84,7 @@ export default class WebhookController {
     return this.monoHandler.processWebhook(body, headers);
   }
 
-  @Post("/mono")
+  @Post("/sudo")
   async processSudo(@Body() body: any) {
     logger.log("received sudo webhook", {
       body: body.toString("utf-8"),

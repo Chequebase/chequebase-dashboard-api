@@ -31,6 +31,8 @@ import Card from "@/models/card.model";
 import { OrgType } from "../banksphere/dto/banksphere.dto";
 import { S3Service } from "../common/aws/s3.service";
 import CurrencyRate from "@/models/currency-rate.model";
+// import { HYDROGEN_TOKEN, HydrogrVirtualAccountClient } from "../external-providers/virtual-account/providers/hydrogen.client";
+// import { BaseWalletType } from "../banksphere/providers/customer.client";
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -756,14 +758,14 @@ export default class WalletService {
 }
 
 // async function run() {
-//   const vaClient = Container.get<SafeHavenVirtualAccountClient>(SAFE_HAVEN_VA_TOKEN)
+//   const vaClient = Container.get<HydrogrVirtualAccountClient>(HYDROGEN_TOKEN)
 
 //   const baseWallet = BaseWalletType.NGN
 //   const walletId = new ObjectId()
 //   const virtualAccountId = new ObjectId()
 
 //   const accountRef = `va-${createId()}`
-//   const provider = VirtualAccountClientName.SafeHaven;
+//   const provider = VirtualAccountClientName.Hydrogen;
 //   try {
 //     const account = await vaClient.createStaticVirtualAccount({
 //       type: "static",
@@ -782,42 +784,42 @@ export default class WalletService {
 //       reference: accountRef,
 //     });
 //     console.log({ account })
-//     const providerRef = account.providerRef || accountRef
-//     const wallet = await Wallet.create({
-//       name: 'Escrow',
-//       _id: walletId,
-//       organization: '672ce4268a4b2978dd6e2aaf',
-//       baseWallet: baseWallet,
-//       currency: 'NGN',
-//       balance: 0,
-//       type: WalletType.EscrowAccount,
-//       primary: false,
-//       virtualAccounts: [virtualAccountId]
-//     })
+//     // const providerRef = account.providerRef || accountRef
+//     // const wallet = await Wallet.create({
+//     //   name: 'Escrow',
+//     //   _id: walletId,
+//     //   organization: '672ce4268a4b2978dd6e2aaf',
+//     //   baseWallet: baseWallet,
+//     //   currency: 'NGN',
+//     //   balance: 0,
+//     //   type: WalletType.EscrowAccount,
+//     //   primary: false,
+//     //   virtualAccounts: [virtualAccountId]
+//     // })
 
-//     const virtualAccount = await VirtualAccount.create({
-//       _id: virtualAccountId,
-//       organization: '672ce4268a4b2978dd6e2aaf',
-//       wallet: wallet._id,
-//       accountNumber: account.accountNumber,
-//       bankCode: account.bankCode,
-//       name: account.accountName,
-//       bankName: account.bankName,
-//       provider,
-//       externalRef: providerRef,
-//     });
+//     // const virtualAccount = await VirtualAccount.create({
+//     //   _id: virtualAccountId,
+//     //   organization: '672ce4268a4b2978dd6e2aaf',
+//     //   wallet: wallet._id,
+//     //   accountNumber: account.accountNumber,
+//     //   bankCode: account.bankCode,
+//     //   name: account.accountName,
+//     //   bankName: account.bankName,
+//     //   provider,
+//     //   externalRef: providerRef,
+//     // });
 
-//     console.log({
-//       _id: wallet._id,
-//       balance: wallet.balance,
-//       currency: wallet.currency,
-//       account: {
-//         name: virtualAccount.name,
-//         accountNumber: virtualAccount.accountNumber,
-//         bankName: virtualAccount.bankName,
-//         bankCode: virtualAccount.bankCode
-//       }
-//     })
+//     // console.log({
+//     //   _id: wallet._id,
+//     //   balance: wallet.balance,
+//     //   currency: wallet.currency,
+//     //   account: {
+//     //     name: virtualAccount.name,
+//     //     accountNumber: virtualAccount.accountNumber,
+//     //     bankName: virtualAccount.bankName,
+//     //     bankCode: virtualAccount.bankCode
+//     //   }
+//     // })
 // } catch (error) {
 //     console.log({ error })
 //   }

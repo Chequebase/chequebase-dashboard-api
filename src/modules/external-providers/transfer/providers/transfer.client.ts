@@ -74,7 +74,8 @@ export enum TransferClientName {
   Anchor = 'anchor',
   SafeHaven = 'safe-haven',
   SarePay = 'sarepay',
-  Mono = 'mono'
+  Mono = 'mono',
+  Hydrogen = 'hydrogen'
 }
 
 export abstract class TransferClient {
