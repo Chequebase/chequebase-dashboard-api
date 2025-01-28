@@ -237,6 +237,7 @@ export default class WalletController {
   @Get('/vendors')
   @Authorized(EPermission.TransactionRead)
   getVendors(@CurrentUser() auth: AuthUser, @QueryParams() query: GetVendorsDto) {
+    console.log({ data: 'HERE_____-----___--------_______-----' })
     return this.walletService.getVendors(auth, query.paymentMethod)
   }
 
