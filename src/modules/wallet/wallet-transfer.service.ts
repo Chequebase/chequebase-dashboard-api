@@ -1203,12 +1203,13 @@ export class WalletTransferService {
       throw new NotFoundError('Wrong amount')
     }
     let vendorUrl;
+    let vendorResponse;
     if (data.recipientId) {
-      const recipient = await Vendor.findById(data.recipientId)
-      if (!recipient) {
+      vendorResponse = await Vendor.findById(data.recipientId)
+      if (!vendorResponse) {
         throw new NotFoundError('Wallet does not exist')
       }
-      vendorUrl = recipient.vendorUrl;
+      vendorUrl = vendorResponse.vendorUrl;
     } else if (data.vendor) {
       const vendorId = new ObjectId()
       const fileExt = data.fileExt || 'pdf';
@@ -1249,7 +1250,7 @@ export class WalletTransferService {
           wallet: wallet._id.toString(),
           vendorUrl,
           paymentMethod: data.paymentMethod,
-          merchantName: data.merchantName,
+          merchantName: data.merchantName || vendorResponse?.name,
           partnerId: partnerOrg.partnerId,
           paymentStatus: PaymentEntryStatus.Paid,
           scope: WalletEntryScope.VendorTransfer,
@@ -1269,7 +1270,7 @@ export class WalletTransferService {
           bankCode: destinationVirtualAccount.bankCode,
           wallet: wallet._id.toString(),
           vendorUrl,
-          merchantName: data.merchantName,
+          merchantName: data.merchantName || vendorResponse?.name,
           paymentMethod: data.paymentMethod,
           partnerId: partnerOrg.partnerId,
           paymentStatus: PaymentEntryStatus.Paid,
