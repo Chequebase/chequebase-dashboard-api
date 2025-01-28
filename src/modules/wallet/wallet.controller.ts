@@ -11,7 +11,7 @@ import { EPermission } from "@/models/role-permission.model";
 import { logAuditTrail } from "../common/audit-logs/logs";
 import multer from "multer";
 import { LogAction } from "@/models/logs.model";
-import { CompleteVendorPaymentDto, InitiateInternalTransferDto, InitiateTransferDto } from "../budget/dto/budget-transfer.dto";
+import { InitiateInternalTransferDto, InitiateTransferDto } from "../budget/dto/budget-transfer.dto";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { WalletTransferService } from "./wallet-transfer.service";
