@@ -165,8 +165,6 @@ export class PayVendorDto {
   @IsString()
   paymentMethod: VendorPaymentMethod
 
-  @IsOptional()
-  @IsString()
   vendor?: Buffer
 
   fileExt?: string
