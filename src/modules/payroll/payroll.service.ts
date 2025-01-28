@@ -59,6 +59,7 @@ import {
   EditPayrollUserDto,
   FundPayrollDto,
   GetHistoryDto,
+  InitiatePayrollWithdrawDto,
   PayrollSchedule,
   PayrollScheduleMode,
   PreviewPayrollRunDto,
@@ -1095,6 +1096,27 @@ export class PayrollService {
 
     await cdb.transaction(async session => {
       const [entry] = await WalletEntry.create([{
+        organization: payroll.wallet.organization,
+        payroll: payroll._id,
+        wallet: payroll.wallet._id,
+        initiatedBy: auth.userId,
+        currency: payroll.wallet.currency,
+        type: WalletEntryType.Credit,
+        ledgerBalanceBefore: payroll.wallet.ledgerBalance,
+        ledgerBalanceAfter: payroll.wallet.ledgerBalance,
+        balanceBefore: payroll.wallet.balance,
+        balanceAfter: numeral(payroll.wallet.balance).add(data.amount).value(),
+        amount: data.amount,
+        scope: WalletEntryScope.PayrollFunding,
+        narration: `Payroll "${payroll.id}" activated`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          payrollBalanceAfter: numeral(payroll.wallet.balance).add(data.amount).value()!,
+          payrollBalanceBefore: payroll.wallet.balance,
+        }
+      },
+      {
         organization: wallet.organization,
         payroll: payroll._id,
         wallet: wallet._id,
@@ -1104,7 +1126,7 @@ export class PayrollService {
         ledgerBalanceBefore: wallet.ledgerBalance,
         ledgerBalanceAfter: wallet.ledgerBalance,
         balanceBefore: wallet.balance,
-        balanceAfter: numeral(wallet.balance).subtract(payroll.wallet.balance).value(),
+        balanceAfter: numeral(wallet.balance).subtract(data.amount).value(),
         amount: data.amount,
         scope: WalletEntryScope.PayrollFunding,
         narration: `Payroll "${payroll.id}" activated`,
@@ -1141,6 +1163,74 @@ export class PayrollService {
       message: 'Payroll funded'
     }
   }
+
+  async initiatePayrollWithdraw(auth: AuthUser, data: InitiatePayrollWithdrawDto) {
+    const wallet = await Wallet.findOne({ organization: auth.orgId, primary: true })
+    if (!wallet) {
+      throw new BadRequestError("Wallet not found")
+    }
+    const payroll = await Payroll.findById(data.payrollId).populate("wallet");
+    if (!payroll) {
+      throw new BadRequestError("Payroll run not found");
+    }
+
+    if (payroll.wallet.balance < data.amount) {
+      throw new BadRequestError("Insufficient funds")
+    }
+    await cdb.transaction(async (session) => {
+        const [entry] = await WalletEntry.create([{
+          organization: wallet.organization,
+          payroll: payroll._id,
+          wallet: wallet._id,
+          initiatedBy: auth.userId,
+          currency: wallet.currency,
+          type: WalletEntryType.Credit,
+          ledgerBalanceBefore: wallet.ledgerBalance,
+          ledgerBalanceAfter: wallet.ledgerBalance,
+          balanceBefore: wallet.balance,
+          balanceAfter: numeral(wallet.balance).add(data.amount).value(),
+          amount: data.amount,
+          scope: WalletEntryScope.PayrollWithdraw,
+          narration: `Payroll "${payroll.id}" withdrawal`,
+          reference: createId(),
+          status: WalletEntryStatus.Successful,
+          meta: {
+            payrollBalanceAfter: numeral(payroll.wallet.balance).subtract(data.amount).value()!,
+            payrollBalanceBefore: payroll.wallet.balance,
+          }
+        }, {
+          organization: payroll.organization,
+          payroll: payroll._id,
+          wallet: payroll.wallet.id,
+          initiatedBy: auth.userId,
+          currency: payroll.wallet.currency,
+          type: WalletEntryType.Debit,
+          ledgerBalanceBefore: payroll.wallet.ledgerBalance,
+          ledgerBalanceAfter: payroll.wallet.ledgerBalance,
+          balanceBefore: payroll.wallet.balance,
+          balanceAfter: numeral(payroll.wallet.balance).subtract(data.amount).value(),
+          amount: data.amount,
+          scope: WalletEntryScope.PayrollWithdraw,
+          narration: `Payroll "${payroll.id}" withdrawal`,
+          reference: createId(),
+          status: WalletEntryStatus.Successful,
+          meta: {
+            payrollBalanceAfter: numeral(payroll.wallet.balance).subtract(data.amount).value()!,
+            payrollBalanceBefore: payroll.wallet.balance,
+          }
+        }], { session })
+  
+        await Wallet.updateOne({ _id: wallet._id }, {
+          $set: { walletEntry: entry._id },
+          $inc: { balance: data.amount, ledgerBalance: data.amount }
+        }, { session })
+
+        await Wallet.updateOne({ _id: payroll.wallet.id }, {
+          $set: { walletEntry: entry._id },
+          $inc: { balance: -data.amount, ledgerBalance: -data.amount, }
+        }).session(session)
+  })
+}
 
   async deletePayrollUser(orgId: string, userId: string) {
     const user = await PayrollUser.findOneAndUpdate(

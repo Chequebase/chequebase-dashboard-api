@@ -48,6 +48,7 @@ export enum WalletEntryScope {
   ProjectFunding = 'project_funding',
   ProjectClosure = 'project_closure',
   PayrollFunding = 'payroll_funding',
+  PayrollWithdraw = 'payroll_withdraw',
   PayrollPayout = 'payroll_payout',
 }
 

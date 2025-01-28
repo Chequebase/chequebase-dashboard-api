@@ -131,6 +131,15 @@ export class FundPayrollDto {
   payrollId: string
 }
 
+export class InitiatePayrollWithdrawDto {
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  amount: number
+
+  @IsString()
+  payrollId: string
+}
+
 export class ProcessPayrollDto {
   @IsString()
   pin: string;

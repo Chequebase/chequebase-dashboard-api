@@ -25,6 +25,7 @@ import {
   EditPayrollUserDto,
   FundPayrollDto,
   GetHistoryDto,
+  InitiatePayrollWithdrawDto,
   PreviewPayrollRunDto,
   ProcessPayrollDto,
   UpdatePayrollSettingDto,
@@ -302,5 +303,11 @@ export default class PayrollController {
   @Post("/fund-payroll")
   async fundPayroll(@CurrentUser() auth: AuthUser, @Body() body: FundPayrollDto) {
     return this.payrollService.fundPayrollViaWallet(auth, body);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Post("/initiate-payroll-withdraw")
+  async initiatePayrollWithdraw(@CurrentUser() auth: AuthUser, @Body() body: InitiatePayrollWithdrawDto) {
+    return this.payrollService.initiatePayrollWithdraw(auth, body);
   }
 }
