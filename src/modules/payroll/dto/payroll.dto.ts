@@ -1,5 +1,5 @@
 import { EmploymentType } from "@/models/user.model";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
@@ -117,6 +117,18 @@ export class AddBulkPayrollUserDto {
   @ValidateNested({ each: true })
   @Type(() => AddPayrollUserDto)
   users: AddPayrollUserDto[];
+}
+
+export class FundPayrollDto {
+  @IsString()
+  sourceWallet: string;
+
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  amount: number
+
+  @IsString()
+  payrollId: string
 }
 
 export class ProcessPayrollDto {

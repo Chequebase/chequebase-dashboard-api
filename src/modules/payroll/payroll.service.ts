@@ -47,6 +47,7 @@ import {
   getOrganizationPlan,
   getPercentageDiff,
   toTitleCase,
+  transactionOpts,
 } from "../common/utils";
 import { getDates } from "../common/utils/date";
 import { UserService } from "../user/user.service";
@@ -56,6 +57,7 @@ import {
   AddPayrollUserViaInviteDto,
   AddSalaryBankAccountDto,
   EditPayrollUserDto,
+  FundPayrollDto,
   GetHistoryDto,
   PayrollSchedule,
   PayrollScheduleMode,
@@ -66,6 +68,8 @@ import {
 import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
 import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
 import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
+import { cdb } from "../common/mongoose";
+import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isBetween);
@@ -1073,6 +1077,69 @@ export class PayrollService {
       message: "Payroll setup completed successfully",
       completed: true,
     };
+  }
+
+  async fundPayrollViaWallet(auth: AuthUser, data: FundPayrollDto) {
+    const wallet = await Wallet.findById(data.sourceWallet)
+    if (!wallet) {
+      throw new BadRequestError("Wallet not found")
+    }
+    const payroll = await Payroll.findById(data.payrollId).populate("wallet");
+    if (!payroll) {
+      throw new BadRequestError("Payroll run not found");
+    }
+
+    if (wallet.balance < data.amount) {
+      throw new BadRequestError("Insufficient funds")
+    }
+
+    await cdb.transaction(async session => {
+      const [entry] = await WalletEntry.create([{
+        organization: wallet.organization,
+        payroll: payroll._id,
+        wallet: wallet._id,
+        initiatedBy: auth.userId,
+        currency: wallet.currency,
+        type: WalletEntryType.Debit,
+        ledgerBalanceBefore: wallet.ledgerBalance,
+        ledgerBalanceAfter: wallet.ledgerBalance,
+        balanceBefore: wallet.balance,
+        balanceAfter: numeral(wallet.balance).subtract(payroll.wallet.balance).value(),
+        amount: data.amount,
+        scope: WalletEntryScope.PayrollFunding,
+        narration: `Payroll "${payroll.id}" activated`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          payrollBalanceAfter: payroll.wallet.balance,
+          payrollBalanceBefore: numeral(payroll.wallet.balance).subtract(data.amount).value()!,
+        }
+      }], { session })
+
+      await Wallet.updateOne({ _id: payroll.wallet.id }, {
+        $set: { walletEntry: entry._id },
+        $inc: { balance: data.amount, ledgerBalance: data.amount, }
+      }).session(session)
+
+      await Wallet.updateOne({ _id: wallet._id }, {
+        $set: { walletEntry: entry._id },
+        $inc: { balance: -data.amount, ledgerBalance: -data.amount }
+      }, { session })
+
+      // this.emailService.sendBudgetCreatedEmail(budget.createdBy.email, {
+      //   budgetAmount: formatMoney(budget!.amount),
+      //   budgetName: budget.name,
+      //   currency: budget.currency,
+      //   dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+      //   employeeName: budget.createdBy.firstName
+      // })
+    }, transactionOpts)
+
+
+    return {
+      status: 'active',
+      message: 'Payroll funded'
+    }
   }
 
   async deletePayrollUser(orgId: string, userId: string) {

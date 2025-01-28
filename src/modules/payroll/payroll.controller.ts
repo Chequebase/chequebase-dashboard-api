@@ -23,6 +23,7 @@ import {
   AddPayrollUserDto,
   AddPayrollUserViaInviteDto,
   EditPayrollUserDto,
+  FundPayrollDto,
   GetHistoryDto,
   PreviewPayrollRunDto,
   ProcessPayrollDto,
@@ -295,5 +296,11 @@ export default class PayrollController {
     await redis.del(key);
 
     return this.payrollService.addPayrollUser(payload.orgId, dto);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Post("/fund-payroll")
+  async fundPayroll(@CurrentUser() auth: AuthUser, @Body() body: FundPayrollDto) {
+    return this.payrollService.fundPayrollViaWallet(auth, body);
   }
 }
