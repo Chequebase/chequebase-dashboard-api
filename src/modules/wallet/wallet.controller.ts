@@ -226,7 +226,7 @@ export default class WalletController {
     @Req() req: Request,
   ) {
     const file = req.file as any
-    const dto = plainToInstance(PayVendorDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', receipient: file?.buffer, ...req.body })
+    const dto = plainToInstance(PayVendorDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', vendor: file?.buffer, ...req.body })
     const errors = await validate(dto)
     if (errors.length) {
       throw { errors }
