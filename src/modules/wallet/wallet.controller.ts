@@ -237,7 +237,7 @@ export default class WalletController {
   @Get('/vendors')
   @Authorized()
   getVendors(@CurrentUser() auth: AuthUser, @QueryParams() query: GetVendorsDto) {
-    return this.walletTransferService.getVendors(auth, query.paymentMethod)
+    return this.walletService.getVendors(auth, query.paymentMethod)
   }
 
   @Put('/rate/:partnerId/:currency')

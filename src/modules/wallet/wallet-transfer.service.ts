@@ -1115,17 +1115,6 @@ export class WalletTransferService {
     return Counterparty.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
   }
 
-  async getVendors(auth:AuthUser, paymentMethod: 'WeChat' | 'AliPay') {
-    const org = await Organization.findById(auth.orgId)
-    if (!org) {
-      throw new NotFoundError('Org does not exist')
-    }
-    console.log('HERERERE --- before the query')
-    const vendors = await Vendor.find({ organization: org._id, paymentMethod: paymentMethod, isRecipient: true }).lean()
-    console.log({ vendors})
-    return vendors
-  }
-
   async updateRecipient(auth: AuthUser, id: string, data: UpdateRecipient) {
     const recipient = await Counterparty.findOne({ _id: id, user: auth.userId, organization: auth.orgId, isRecipient: true })
     if (!recipient) {

@@ -33,6 +33,7 @@ import { S3Service } from "../common/aws/s3.service";
 import CurrencyRate from "@/models/currency-rate.model";
 import { HYDROGEN_TOKEN, HydrogrVirtualAccountClient } from "../external-providers/virtual-account/providers/hydrogen.client";
 import { BaseWalletType } from "../banksphere/providers/customer.client";
+import Vendor from "@/models/vendor.model";
 // import { HYDROGEN_TOKEN, HydrogrVirtualAccountClient } from "../external-providers/virtual-account/providers/hydrogen.client";
 // import { BaseWalletType } from "../banksphere/providers/customer.client";
 
@@ -700,6 +701,18 @@ export default class WalletService {
     }
 
     return { rate: rate.rate, currency }
+  }
+
+  async getVendors(auth:AuthUser, paymentMethod: 'WeChat' | 'AliPay') {
+    console.log('HERERERE --- At the top')
+    const org = await Organization.findById(auth.orgId)
+    if (!org) {
+      throw new NotFoundError('Org does not exist')
+    }
+    console.log('HERERERE --- before the query')
+    const vendors = await Vendor.find({ organization: org._id, paymentMethod: paymentMethod, isRecipient: true }).lean()
+    console.log({ vendors})
+    return vendors
   }
 
   async completePartnerTx(orgId: string, entryId: string, file: any) {
