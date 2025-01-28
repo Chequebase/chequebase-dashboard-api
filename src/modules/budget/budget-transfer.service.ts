@@ -3,6 +3,7 @@ import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule
 import Bank from "@/models/bank.model"
 import Budget, { BudgetStatus } from "@/models/budget.model"
 import Counterparty, { ICounterparty } from "@/models/counterparty.model"
+import Vendor from "@/models/vendor.model";
 import Organization, { IOrganization } from "@/models/organization.model"
 import { IProject } from "@/models/project.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
@@ -30,7 +31,7 @@ import Logger from "../common/utils/logger"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
 import { UserService } from "../user/user.service"
 import { BudgetPolicyService } from "./budget-policy.service"
-import { CreateRecipient, GetTransferFee, InitiateTransferDto, IPaymentSource, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto"
+import { CreateRecipient, GetTransferFee, GetVendorsDto, InitiateTransferDto, IPaymentSource, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto"
 import { ApproveTransfer, CreateTransferRecord, RunSecurityCheck } from "./interfaces/budget-transfer.interface"
 import { TransferService } from "../external-providers/transfer/transfer.service"
 
@@ -573,6 +574,10 @@ export class BudgetTransferService {
 
   async getRecipients(auth:AuthUser) {
     return Counterparty.find({ organization: auth.orgId, isRecipient: true }).lean()
+  }
+
+  async getVendors(auth:AuthUser, dto: GetVendorsDto) {
+    return Vendor.find({ organization: auth.orgId, paymentMethod: dto.paymentMethod, isRecipient: true }).lean()
   }
 
   async createRecipient(auth: AuthUser, data: CreateRecipient) {
