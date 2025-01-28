@@ -106,6 +106,7 @@ export interface ApproveTransfer {
   invoiceUrl?: string
   narration?: string
   paymentStatus?: PaymentEntryStatus
+  paymentMethod?: string
   vendorUrl?: string
   partnerId?: string,
   scope?: WalletEntryScope
@@ -213,10 +214,10 @@ export class WalletTransferService {
         balanceAfter: fetchedWallet.balance,
         scope,
         paymentStatus,
+        paymentMethod: data.paymentMethod || 'transfer',
         partnerId: data.partnerId,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
-        paymentMethod: 'transfer',
         reference: `wt_${createId()}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
@@ -295,7 +296,7 @@ export class WalletTransferService {
         paymentStatus,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
-        paymentMethod: 'transfer',
+        paymentMethod: data.paymentMethod || 'transfer',
         reference: `wt${this.generateRandomString(12)}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
@@ -1244,6 +1245,7 @@ export class WalletTransferService {
           bankCode: destinationVirtualAccount.bankCode,
           wallet: wallet._id.toString(),
           vendorUrl,
+          paymentMethod: data.paymentMethod,
           partnerId: partnerOrg.partnerId,
           paymentStatus: PaymentEntryStatus.Paid,
           scope: WalletEntryScope.VendorTransfer,
@@ -1263,6 +1265,7 @@ export class WalletTransferService {
           bankCode: destinationVirtualAccount.bankCode,
           wallet: wallet._id.toString(),
           vendorUrl,
+          paymentMethod: data.paymentMethod,
           partnerId: partnerOrg.partnerId,
           paymentStatus: PaymentEntryStatus.Paid,
           scope: WalletEntryScope.VendorTransfer,
