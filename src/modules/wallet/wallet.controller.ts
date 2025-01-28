@@ -218,7 +218,7 @@ export default class WalletController {
 
   @Post('/:id/vendor/pay')
   @Authorized(EPermission.WalletTransfer)
-  @UseBefore(multer().single('recipient'))
+  @UseBefore(multer().single('vendor'))
   @UseBefore(logAuditTrail(LogAction.INITIATE_TRANSFER))
   async payVendor(
     @CurrentUser() auth: AuthUser,
