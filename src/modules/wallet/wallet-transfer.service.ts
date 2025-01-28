@@ -109,6 +109,7 @@ export interface ApproveTransfer {
   vendorUrl?: string
   partnerId?: string,
   scope?: WalletEntryScope
+  counterAmount?: number,
 }
 
 const logger = new Logger('wallet-transfer-service')
@@ -203,6 +204,7 @@ export class WalletTransferService {
         currency: fetchedWallet.currency,
         wallet: fetchedWallet._id,
         amount: data.amount,
+        counterAmount: data.counterAmount,
         fee: payload.fee,
         initiatedBy: payload.data.requester,
         ledgerBalanceAfter: fetchedWallet.ledgerBalance,
@@ -281,6 +283,7 @@ export class WalletTransferService {
         status: WalletEntryStatus.Pending,
         currency: 'NGN',
         amount: data.amount,
+        counterAmount: data.counterAmount,
         wallet: data.wallet,
         fee: payload.fee,
         ledgerBalanceAfter: 0,
@@ -1248,6 +1251,7 @@ export class WalletTransferService {
         await this.approveDirectDebit({
           accountNumber: destinationVirtualAccount.accountNumber,
           amount: data.amount,
+          counterAmount: data.counterAmount,
           bankCode: destinationVirtualAccount.bankCode,
           wallet: wallet._id.toString(),
           vendorUrl,
@@ -1266,6 +1270,7 @@ export class WalletTransferService {
           to: destinationVirtualAccount.name,
           accountNumber: destinationVirtualAccount.accountNumber,
           amount: data.amount,
+          counterAmount: data.counterAmount,
           bankCode: destinationVirtualAccount.bankCode,
           wallet: wallet._id.toString(),
           vendorUrl,

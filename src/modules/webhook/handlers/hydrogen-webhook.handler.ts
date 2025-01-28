@@ -194,7 +194,7 @@ export default class HydrogenWebhookHandler {
   }
 
   processWebhook(body: any) {
-    console.log({ body: body = JSON.parse(body) })
+    console.log({ body })
     // const expectedHmac = headers['x-anchor-signature']
     // const calcuatedHmac = this.createHmac(body)
     // if (calcuatedHmac !== expectedHmac) {

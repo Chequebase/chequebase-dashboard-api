@@ -77,6 +77,7 @@ export interface IWalletEntry {
   gatewayResponse: string;
   paymentMethod: string;
   vendorUrl?: string;
+  counterAmount?: number;
   provider: string;
   // id/ref used for requerying from provider eg verify transfer
   providerRef: string;
@@ -148,6 +149,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       required: true,
     },
     amount: { type: Number, required: true },
+    counterAmount: { type: Number },
     currency: { type: String, required: true },
     balanceAfter: { type: Number, required: true },
     balanceBefore: { type: Number, required: true },

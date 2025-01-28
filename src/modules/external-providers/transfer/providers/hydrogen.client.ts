@@ -18,7 +18,7 @@ export class HydrogenTransferClient implements TransferClient {
     headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
-        'Authorization': `Bearer ${getEnvOrThrow('HYDROGEN_API_KEY')}`
+        'Authorization': `${getEnvOrThrow('HYDROGEN_API_KEY')}`
     }
   })
 

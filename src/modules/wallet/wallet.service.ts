@@ -31,6 +31,8 @@ import Card from "@/models/card.model";
 import { OrgType } from "../banksphere/dto/banksphere.dto";
 import { S3Service } from "../common/aws/s3.service";
 import CurrencyRate from "@/models/currency-rate.model";
+import { HYDROGEN_TOKEN, HydrogrVirtualAccountClient } from "../external-providers/virtual-account/providers/hydrogen.client";
+import { BaseWalletType } from "../banksphere/providers/customer.client";
 // import { HYDROGEN_TOKEN, HydrogrVirtualAccountClient } from "../external-providers/virtual-account/providers/hydrogen.client";
 // import { BaseWalletType } from "../banksphere/providers/customer.client";
 
@@ -771,55 +773,55 @@ export default class WalletService {
 //       type: "static",
 //       identity: {
 //         type: "bvn",
-//         number: '22264208983',
+//         number: '22268655835',
 //       },
-//       rcNumber: '2732903',
+//       // rcNumber: '2732903',
 
 //       currency: "NGN",
-//       email: 'Shaokhancreatives@gmail.com',
-//       phone: '07036647732',
-//       name: 'Shaokhan Creatives',
+//       email: 'achugo.emeka@gmail.com',
+//       phone: '08160731198',
+//       name: 'Fundle Africa Ltd',
 //       customerId: '67236940fee347549c52efc5',
 //       provider,
 //       reference: accountRef,
 //     });
 //     console.log({ account })
-//     // const providerRef = account.providerRef || accountRef
-//     // const wallet = await Wallet.create({
-//     //   name: 'Escrow',
-//     //   _id: walletId,
-//     //   organization: '672ce4268a4b2978dd6e2aaf',
-//     //   baseWallet: baseWallet,
-//     //   currency: 'NGN',
-//     //   balance: 0,
-//     //   type: WalletType.EscrowAccount,
-//     //   primary: false,
-//     //   virtualAccounts: [virtualAccountId]
-//     // })
+//     const providerRef = account.providerRef || accountRef
+//     const wallet = await Wallet.create({
+//       name: 'Fundle Access Account',
+//       _id: walletId,
+//       organization: '672e1283a6c46901f10886f5',
+//       baseWallet: baseWallet,
+//       currency: 'NGN',
+//       balance: 0,
+//       type: WalletType.General,
+//       primary: false,
+//       virtualAccounts: [virtualAccountId]
+//     })
 
-//     // const virtualAccount = await VirtualAccount.create({
-//     //   _id: virtualAccountId,
-//     //   organization: '672ce4268a4b2978dd6e2aaf',
-//     //   wallet: wallet._id,
-//     //   accountNumber: account.accountNumber,
-//     //   bankCode: account.bankCode,
-//     //   name: account.accountName,
-//     //   bankName: account.bankName,
-//     //   provider,
-//     //   externalRef: providerRef,
-//     // });
+//     const virtualAccount = await VirtualAccount.create({
+//       _id: virtualAccountId,
+//       organization: '672e1283a6c46901f10886f5',
+//       wallet: wallet._id,
+//       accountNumber: account.accountNumber,
+//       bankCode: account.bankCode,
+//       name: account.accountName,
+//       bankName: account.bankName,
+//       provider,
+//       externalRef: providerRef,
+//     });
 
-//     // console.log({
-//     //   _id: wallet._id,
-//     //   balance: wallet.balance,
-//     //   currency: wallet.currency,
-//     //   account: {
-//     //     name: virtualAccount.name,
-//     //     accountNumber: virtualAccount.accountNumber,
-//     //     bankName: virtualAccount.bankName,
-//     //     bankCode: virtualAccount.bankCode
-//     //   }
-//     // })
+//     console.log({
+//       _id: wallet._id,
+//       balance: wallet.balance,
+//       currency: wallet.currency,
+//       account: {
+//         name: virtualAccount.name,
+//         accountNumber: virtualAccount.accountNumber,
+//         bankName: virtualAccount.bankName,
+//         bankCode: virtualAccount.bankCode
+//       }
+//     })
 // } catch (error) {
 //     console.log({ error })
 //   }

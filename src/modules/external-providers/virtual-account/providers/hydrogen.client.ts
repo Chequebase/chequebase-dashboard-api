@@ -16,7 +16,7 @@ export class HydrogrVirtualAccountClient implements VirtualAccountClient {
     headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
-        'Authorization': `Bearer ${getEnvOrThrow('HYDROGEN_API_KEY')}`
+        'Authorization': `${getEnvOrThrow('HYDROGEN_API_KEY')}`
     }
   })
 
@@ -27,21 +27,24 @@ export class HydrogrVirtualAccountClient implements VirtualAccountClient {
       phoneNumber: payload.phone,
       email: payload.email,
       bvn: payload.identity?.number,
-      accountLabel: 'cqb',
+      accountLabel: payload.name,
     };
-    console.log({ body, headers: this.http.defaults })
 
     try {
       const { data, status } = await this.http.post(
         "/api/v3/account/virtual-account",
         body
       );
-      console.log({ data: data.data })
       
-      if (data.statusCode !== 200) {
+      if (status !== 200) {
         throw data;
       }
-
+      if (data.statusCode === null) {
+        this.logger.log("error in static virtual account response", {
+          response: data.message
+        });
+        throw { message: data.message }
+      }
       this.logger.log("create static virtual account response", {
         response: JSON.stringify(data),
         status,
@@ -51,8 +54,8 @@ export class HydrogrVirtualAccountClient implements VirtualAccountClient {
         accountName: data.data.accountName,
         accountNumber: data.data.account,
         bankName: data.data.bankName,
-        bankCode: 'access bank code here',
-        provider: VirtualAccountClientName.SafeHaven,
+        bankCode: '000014',
+        provider: VirtualAccountClientName.Hydrogen,
       };
     } catch (err: any) {
       this.handleError("error creating static virtual account", body, err);
