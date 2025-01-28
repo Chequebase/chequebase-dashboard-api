@@ -303,8 +303,10 @@ export default class WalletService {
     const query = {} as any
     if (dto.type) {
       query.type = dto.type
+    } else {
+      query.type = { $in: [WalletType.General, WalletType.Payroll, WalletType.EscrowAccount] }
     }
-    let wallets = await Wallet.find({ organization: orgId, type: { $in: [WalletType.General, WalletType.Payroll, WalletType.EscrowAccount], ...query } })
+    let wallets = await Wallet.find({ organization: orgId, ...query })
       .select('primary currency balance ledgerBalance type name')
       .populate({
         path: 'virtualAccounts',
