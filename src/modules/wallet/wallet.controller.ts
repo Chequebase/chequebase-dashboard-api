@@ -234,12 +234,12 @@ export default class WalletController {
     return this.walletTransferService.payVendor(auth, id, dto)
   }
 
-  @Get('/vendors')
-  @Authorized(EPermission.TransactionRead)
-  getVendors(@CurrentUser() auth: AuthUser, @QueryParams() query: GetVendorsDto) {
-    console.log({ data: 'HERE_____-----___--------_______-----' })
-    return this.walletService.getVendors(auth, query.paymentMethod)
-  }
+  // @Get('/vendors')
+  // @Authorized(EPermission.TransactionRead)
+  // getVendors(@CurrentUser() auth: AuthUser, @QueryParams() query: GetVendorsDto) {
+  //   console.log({ data: 'HERE_____-----___--------_______-----' })
+  //   return this.walletService.getVendors(auth, query.paymentMethod)
+  // }
 
   @Put('/rate/:partnerId/:currency')
   @Authorized(EPermission.TransactionRead)
