@@ -111,6 +111,7 @@ export interface ApproveTransfer {
   partnerId?: string,
   scope?: WalletEntryScope
   counterAmount?: number,
+  merchantName?: string,
 }
 
 const logger = new Logger('wallet-transfer-service')
@@ -215,6 +216,7 @@ export class WalletTransferService {
         scope,
         paymentStatus,
         paymentMethod: data.paymentMethod || 'transfer',
+        merchantName: data.merchantName,
         partnerId: data.partnerId,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
@@ -297,6 +299,7 @@ export class WalletTransferService {
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
         paymentMethod: data.paymentMethod || 'transfer',
+        merchantName: data.merchantName,
         reference: `wt${this.generateRandomString(12)}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
@@ -1246,6 +1249,7 @@ export class WalletTransferService {
           wallet: wallet._id.toString(),
           vendorUrl,
           paymentMethod: data.paymentMethod,
+          merchantName: data.merchantName,
           partnerId: partnerOrg.partnerId,
           paymentStatus: PaymentEntryStatus.Paid,
           scope: WalletEntryScope.VendorTransfer,
@@ -1265,6 +1269,7 @@ export class WalletTransferService {
           bankCode: destinationVirtualAccount.bankCode,
           wallet: wallet._id.toString(),
           vendorUrl,
+          merchantName: data.merchantName,
           paymentMethod: data.paymentMethod,
           partnerId: partnerOrg.partnerId,
           paymentStatus: PaymentEntryStatus.Paid,
