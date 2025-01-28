@@ -161,6 +161,7 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       narration: entry.narration,
       provider: payout.provider,
       debitAccount: wallet.virtualAccounts[0].accountNumber
+      // TODO: adapt to suit hydrogen
     };
 
     const response = await transferService.initiateTransfer(request);
