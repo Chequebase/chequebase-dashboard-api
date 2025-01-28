@@ -1,10 +1,9 @@
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { getEnvOrThrow } from "@/modules/common/utils";
-import { InitiateTransferData, InitiateTransferResult, TransferClient } from "./transfer.client";
+import { InitiateHydrogenTransferData, InitiateTransferData, InitiateTransferResult, TransferClient } from "./transfer.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
-import { CreateCounterparty } from "@/modules/common/interfaces/anchor-service.interface";
 import { NotFoundError } from "routing-controllers";
 
 export const HYDROGEN_TOKEN = new Token('transfer.provider.hydrogen')
@@ -21,99 +20,32 @@ export class HydrogenTransferClient implements TransferClient {
         'Authorization': `${getEnvOrThrow('HYDROGEN_API_KEY')}`
     }
   })
-
-  private async createCounterparty(payload: CreateCounterparty) {
-    const data = {
-      type: "CounterParty",
-      attributes: {
-        accountName: payload.accountName,
-        accountNumber: payload.accountNumber,
-        bankCode: payload.bankCode,
-        verifyName: false
-      },
-      relationships: {
-        bank: {
-          data: {
-            id: payload.bankId,
-            type: "Bank"
-          }
-        }
-      }
-    }
-
-    try {
-      const res = await this.http.post('/api/v1/counterparties', { data })
-      const attributes = res.data.data.attributes
-
-      return {
-        id: res.data.data.id,
-        bankName: attributes.bank.name,
-        accountName: attributes.accountName,
-        accountNumber: attributes.accountNumber,
-        bankCode: attributes.bank.nipCode
-      }
-    } catch (err: any) {
-      this.logger.error('error creating counterparty', {
-        reason: JSON.stringify(err.response?.data || err?.message),
-        payload: JSON.stringify(payload),
-        status: err.response.status
-      });
-
-      throw new ServiceUnavailableError('Unable to create counterparty');
-    }
-  }
-
   async initiateTransfer(payload: InitiateTransferData): Promise<InitiateTransferResult> {
-    // const counterparty = await this.createCounterparty({
-    //   accountName: payload.counterparty.accountName,
-    //   accountNumber: payload.counterparty.accountNumber,
-    //   bankCode: payload.counterparty.bankCode,
-    //   bankId: payload.counterparty.bankId
-    // })
-
-    // const data = {
-    //   type: "NIPTransfer",
-    //   attributes: {
-    //     currency: payload.currency,
-    //     amount: payload.amount,
-    //     reason: payload.narration,
-    //     reference: payload.reference
-    //   },
-    //   relationships: {
-    //     account: {
-    //       data: {
-    //         type: "DepositAccount",
-    //         id: payload.debitAccount
-    //       }
-    //     },
-    //     counterParty: {
-    //       data: {
-    //         id: counterparty.id,
-    //         type: "CounterParty"
-    //       }
-    //     }
-    //   }
-    // }
+    const data: InitiateHydrogenTransferData = {
+      amount: payload.amount,
+      customerName: payload.customerName,
+      email: payload.email,
+      currency: "NGN",
+    }
 
     try {
-      const res = await this.http.post('/api/v3/account/virtual-account', {  })
-      const result = res.data.data.attributes
-      const status = result.status.toLowerCase()
-      const message = status === 'failed' ?
+      const res = await this.http.post('/api/v1/Merchant/initiate-bank-transfer', data)
+      const { statusCode, data: resultData } = res.data;
+      console.log({ data, statusCode })
+      const message = statusCode !== '90000' ?
         'Transfer failed' : 'Processing transfer'
 
       this.logger.log("hydrogen initiate transfer response", {
         payload: JSON.stringify(payload),
         response: JSON.stringify(res.data),
-        status: res.status
       });
       return {
-        status,
+        status: statusCode,
         message,
         providerRef: res.data.data.id,
-        currency: result.currency,
-        amount: result.amount,
-        reference: result.reference,
+        currency: 'NGN',
+        amount: resultData.amountPaid,
+        reference: resultData.transactionRef,
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {
