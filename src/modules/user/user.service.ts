@@ -450,7 +450,7 @@ export class UserService {
       // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       await user.updateOne({
         hashRt: '',
-        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
+        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data.rememberMe): undefined,
         otpExpiresAt,
         otp
       })
@@ -458,7 +458,7 @@ export class UserService {
     }
       await user.updateOne({
         hashRt: '',
-        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
+        rememberMe: data.rememberMe ? 0 : undefined,
         otpExpiresAt,
         otp
       })
@@ -473,8 +473,8 @@ export class UserService {
     return { userId: user.id, status: user.status  }
   }
 
-  getRememberMeExpirationDate(data: LoginDto) {
-    if (!data?.rememberMe) {
+  getRememberMeExpirationDate(rememberMe: boolean) {
+    if (!rememberMe) {
       return Date.now()
     }
 
@@ -547,6 +547,10 @@ export class UserService {
 
     const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
     // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    await user.updateOne({
+      rememberMe: user.rememberMe === 0 ? this.getRememberMeExpirationDate(true) : undefined,
+    })
 
     return { tokens, userId: user.id }
   }
