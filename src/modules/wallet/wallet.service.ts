@@ -6,6 +6,8 @@ import User from "@/models/user.model";
 import VirtualAccount from "@/models/virtual-account.model";
 import WalletEntry, { IWalletEntry, PaymentEntryStatus, WalletEntryScope, WalletEntryStatus, WalletEntryType, WalletEntryUpdateAction } from "@/models/wallet-entry.model";
 import Wallet, { WalletType } from "@/models/wallet.model";
+import Vendor from "@/models/vendor.model";
+import CurrencyRate from "@/models/currency-rate.model";
 import { walletQueue } from "@/queues";
 import { createId } from '@paralleldrive/cuid2';
 import dayjs from "dayjs";
@@ -30,10 +32,8 @@ import { OrganizationCardService } from "../organization-card/organization-card.
 import Card from "@/models/card.model";
 import { OrgType } from "../banksphere/dto/banksphere.dto";
 import { S3Service } from "../common/aws/s3.service";
-import CurrencyRate from "@/models/currency-rate.model";
 import { HYDROGEN_TOKEN, HydrogrVirtualAccountClient } from "../external-providers/virtual-account/providers/hydrogen.client";
 import { BaseWalletType } from "../banksphere/providers/customer.client";
-import Vendor from "@/models/vendor.model";
 // import { HYDROGEN_TOKEN, HydrogrVirtualAccountClient } from "../external-providers/virtual-account/providers/hydrogen.client";
 // import { BaseWalletType } from "../banksphere/providers/customer.client";
 
