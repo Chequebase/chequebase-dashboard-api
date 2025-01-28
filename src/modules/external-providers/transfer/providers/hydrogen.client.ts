@@ -31,7 +31,6 @@ export class HydrogenTransferClient implements TransferClient {
     try {
       const res = await this.http.post('/api/v1/Merchant/initiate-bank-transfer', data)
       const { statusCode, data: resultData } = res.data;
-      console.log({ data, statusCode })
       const message = statusCode !== '90000' ?
         'Transfer failed' : 'Processing transfer'
 
