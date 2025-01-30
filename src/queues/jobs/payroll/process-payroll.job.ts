@@ -22,12 +22,13 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { LeanDocument } from "mongoose";
 import numeral from "numeral";
-import { BadRequestError } from "routing-controllers";
+import { BadRequestError, NotFoundError } from "routing-controllers";
 import Container from "typedi";
 import { RequeryOutflowJobData } from "../wallet/requery-outflow.job";
 import payoutReconciliation from "./payout-reconciliation";
 import { TransferService } from "@/modules/external-providers/transfer/transfer.service";
 import { InitiateTransferData } from "@/modules/external-providers/transfer/providers/transfer.client";
+import Organization from "@/models/organization.model";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -153,6 +154,10 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       },
     });
 
+    const org = await Organization.findById(payout.organization);
+    if (!org) {
+      throw new NotFoundError('Payout org not found')
+    }
     const request: InitiateTransferData = {
       reference: entry.reference,
       amount: payout.amount,
@@ -160,8 +165,10 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       currency: payout.currency,
       narration: entry.narration,
       provider: payout.provider,
-      debitAccount: wallet.virtualAccounts[0].accountNumber
-      // TODO: adapt to suit hydrogen
+      debitAccount: wallet.virtualAccounts[0].accountNumber,
+      customerName: org.businessName,
+      // TODO: remember to support individual accs
+      email: org.email
     };
 
     const response = await transferService.initiateTransfer(request);
