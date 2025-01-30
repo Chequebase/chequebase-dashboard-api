@@ -495,6 +495,7 @@ export default class WalletService {
           WalletEntryScope.WalletTransfer,
           WalletEntryScope.BudgetFunding,
           WalletEntryScope.PayrollFunding,
+          WalletEntryScope.PayrollWithdraw
         ]
       })
     }
