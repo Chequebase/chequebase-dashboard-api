@@ -1237,6 +1237,7 @@ export class WalletTransferService {
       logger.error('Escrow wallet not found', { org: partnerOrg.id })
       throw new BadRequestError(`Organization does not have an escrow wallet for NGN`)
     }
+    // TODO: make this just a wallet transaction, no need for sending out - Hydrogen
 
     const destinationVirtualAccount = (<IVirtualAccount>escrowWallet.virtualAccounts[0])
 

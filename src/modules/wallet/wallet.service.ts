@@ -193,6 +193,91 @@ export default class WalletService {
     }
   }
 
+  async createSubWallet(data: CreateWalletDto) {
+    const organization = await Organization.findById(data.organization).lean()
+    if (!organization) {
+      throw new NotFoundError('Organization not found')
+    }
+
+    if (organization.status !== 'approved') {
+      throw new BadRequestError('Organization is not verified')
+    }
+
+    const baseWallet = await BaseWallet.findById(data.baseWallet)
+    if (!baseWallet) {
+      throw new NotFoundError('Base wallet not found')
+    }
+
+    const wallets = await Wallet.find({
+      organization: organization._id,
+      baseWallet: baseWallet._id
+    })
+
+    if (wallets.some((w) => w.type === data.walletType && w.baseWallet.equals(baseWallet._id))) {
+      throw new BadRequestError(`Organization already has a ${data.walletType} wallet for ${baseWallet.currency}`)
+    }
+
+    try {
+      const walletId = new ObjectId()
+      const virtualAccountId = new ObjectId()
+      const reference = `va-${createId()}`
+      // console.log({ payload: {
+      //   type: 'static',
+      //   email: organization.email,
+      //   name: organization.businessName,
+      //   provider: data.provider,
+      //   reference,
+      //   currency: baseWallet.currency,
+      //   identity: {
+      //     type: 'bvn',
+      //     number: organization.owners[0]?.bvn,
+      //   },
+      //   phone: organization.phone,
+      //   rcNumber: organization.rcNumber
+      // }})
+
+      const provider = VirtualAccountClientName.Hydrogen;
+      const providerRef = `va-${createId()}`
+      const wallet = await Wallet.create({
+        _id: walletId,
+        name: data.name,
+        organization: organization._id,
+        baseWallet: baseWallet._id,
+        currency: baseWallet.currency,
+        balance: 0,
+        primary: !wallets.length,
+        type: data.walletType,
+        virtualAccounts: [virtualAccountId]
+      })
+
+      const virtualAccount = await VirtualAccount.create({
+        _id: virtualAccountId,
+        organization: organization._id,
+        wallet: wallet._id,
+        accountNumber: '0000000',
+        bankCode: '000014',
+        name: 'Sub Wallet',
+        bankName: 'Access Bank',
+        provider,
+        externalRef: providerRef,
+      });
+
+      return {
+        _id: wallet._id,
+        balance: wallet.balance,
+        currency: wallet.currency,
+        account: {
+          name: virtualAccount.name,
+          accountNumber: virtualAccount.accountNumber,
+          bankName: virtualAccount.bankName,
+          bankCode: virtualAccount.bankCode
+        }
+      }
+    } catch (error: any) {
+      console.log(error)
+    }
+  }
+
   async createSubaccount(auth: AuthUser, data: CreateSubaccoubtDto) {
     const organization = await Organization.findById(auth.orgId).lean()
     if (!organization) {

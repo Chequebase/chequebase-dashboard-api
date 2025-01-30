@@ -296,8 +296,8 @@ export class BanksphereService {
           walletType: WalletType.General, name: 'Main'
         })
         if (data.type === OrgType.PARTNER) {
-          await this.walletService.createWallet({
-            baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.SafeHaven, organization: accountId,
+          await this.walletService.createSubWallet({
+            baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.Hydrogen, organization: accountId,
             walletType: WalletType.EscrowAccount, name: 'Escrow', 
           })
         }

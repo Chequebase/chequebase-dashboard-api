@@ -128,7 +128,7 @@ export class FundPayrollDto {
   amount: number
 
   @IsString()
-  payrollId: string
+  payrollWallet: string
 }
 
 export class InitiatePayrollWithdrawDto {
