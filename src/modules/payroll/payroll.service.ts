@@ -1207,6 +1207,10 @@ export class PayrollService {
           $inc: { balance: -data.amount, ledgerBalance: -data.amount, }
         }).session(session)
   })
+
+  return {
+    message: 'Payroll withdrawal'
+  }
 }
 
   async deletePayrollUser(orgId: string, userId: string) {
