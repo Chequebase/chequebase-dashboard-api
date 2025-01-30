@@ -52,7 +52,7 @@ export class HydrogenTransferClient implements TransferClient {
         reason: JSON.stringify(err.response?.data || err?.message),
         payload: JSON.stringify(payload),
         requestData: JSON.stringify({}),
-        status: err.response.status
+        err,
       });
 
       return {
@@ -60,8 +60,8 @@ export class HydrogenTransferClient implements TransferClient {
         currency: payload.currency,
         amount: payload.amount,
         reference: payload.reference,
-        message: err.response.data?.errors?.[0]?.detail || 'Unable to process transfer',
-        gatewayResponse: JSON.stringify(err.response.data)
+        message: err?.response?.data?.errors?.[0]?.detail || 'Unable to process transfer',
+        gatewayResponse: JSON.stringify(err)
       }
     }
   }
