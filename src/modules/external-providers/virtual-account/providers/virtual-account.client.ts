@@ -47,7 +47,7 @@ export enum VirtualAccountClientName {
   Paystack = 'paystack',
   SarePay = 'sarepay',
   Mono = 'Mono',
-  Hydrogen = 'Hydrogen'
+  Hydrogen = 'hydrogen'
 }
 
 export abstract class VirtualAccountClient {
