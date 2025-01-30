@@ -493,7 +493,8 @@ export default class WalletService {
           WalletEntryScope.WalletFunding,
           WalletEntryScope.BudgetTransfer,
           WalletEntryScope.WalletTransfer,
-          WalletEntryScope.BudgetFunding
+          WalletEntryScope.BudgetFunding,
+          WalletEntryScope.PayrollFunding,
         ]
       })
     }
