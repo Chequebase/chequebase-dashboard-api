@@ -39,6 +39,7 @@ import { VirtualAccountClientName } from "../external-providers/virtual-account/
 import { BaseWalletType } from "../banksphere/providers/customer.client";
 import Vendor, { IVendor, VendorPaymentMethod } from "@/models/vendor.model";
 import CurrencyRate from "@/models/currency-rate.model";
+import { OrgType } from "../banksphere/dto/banksphere.dto";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -60,6 +61,25 @@ export interface CreateDirectDebitRecord {
   amountToDeduct: number
   fee: number
   provider: string
+}
+
+export class FundEscrowDto {
+  sourceWallet: string;
+  amount: number
+  escrowWallet: string
+  vendorUrl?: string
+  merchantName?: string
+  counterAmount?: number
+  paymentMethod: string
+  partnerId: string
+  category: string
+  provider: string
+}
+export class CompleteFundEscrowDto extends FundEscrowDto {
+  reference: string
+  receipt: string
+  customerTxId: string
+  partnerTxId: string
 }
 
 interface TransferRecordData {
@@ -232,6 +252,144 @@ export class WalletTransferService {
     }, transactionOpts)
 
     return entry!
+  }
+
+  async initiateFundEscrowViaWallet(auth: AuthUser, data: FundEscrowDto) {
+    const wallet = await Wallet.findById(data.sourceWallet)
+    if (!wallet) {
+      throw new BadRequestError("Wallet not found")
+    }
+    const escrowWallet = await Wallet.findById(data.escrowWallet)
+    if (!escrowWallet) {
+      throw new BadRequestError("Escrow wallet not found");
+    }
+
+    if (wallet.balance < data.amount) {
+      throw new BadRequestError("Insufficient funds")
+    }
+
+    const reference = createId()
+
+    await cdb.transaction(async session => {
+      const [entry1, entry2] = await WalletEntry.create([{
+        organization: escrowWallet.organization,
+        wallet: escrowWallet._id,
+        vendorUrl: data.vendorUrl,
+        merchantName: data.merchantName,
+        initiatedBy: auth.userId,
+        currency: escrowWallet.currency,
+        type: WalletEntryType.Credit,
+        ledgerBalanceBefore: escrowWallet.ledgerBalance,
+        ledgerBalanceAfter: escrowWallet.ledgerBalance,
+        balanceBefore: escrowWallet.balance,
+        balanceAfter: numeral(escrowWallet.balance).add(data.amount).value(),
+        amount: data.amount,
+        counterAmount: data.counterAmount,
+        scope: WalletEntryScope.VendorTransfer,
+        narration: `Vendor Payment initiated`,
+        reference,
+        status: WalletEntryStatus.Processing,
+        paymentMethod: data.paymentMethod,
+        partnerId: data.partnerId,
+        paymentStatus: PaymentEntryStatus.Paid,
+        provider: data.provider,
+        category: data.category,
+      },
+      {
+        organization: wallet.organization,
+        wallet: wallet._id,
+        initiatedBy: auth.userId,
+        currency: wallet.currency,
+        type: WalletEntryType.Debit,
+        ledgerBalanceBefore: wallet.ledgerBalance,
+        ledgerBalanceAfter: wallet.ledgerBalance,
+        balanceBefore: wallet.balance,
+        balanceAfter: numeral(wallet.balance).subtract(data.amount).value(),
+        amount: data.amount,
+        vendorUrl: data.vendorUrl,
+        merchantName: data.merchantName,
+        counterAmount: data.counterAmount,
+        scope: WalletEntryScope.VendorTransfer,
+        narration: `Vendor Payment initiated`,
+        reference,
+        status: WalletEntryStatus.Processing,
+        paymentMethod: data.paymentMethod,
+        partnerId: data.partnerId,
+        paymentStatus: PaymentEntryStatus.Paid,
+        provider: data.provider,
+        category: data.category,
+      }], { session })
+    }, transactionOpts)
+
+
+    return {
+      message: 'Escrow account funding initiated'
+    }
+  }
+
+  async fundEscrowViaWallet(auth: AuthUser, data: CompleteFundEscrowDto) {
+    const wallet = await Wallet.findById(data.sourceWallet)
+    if (!wallet) {
+      throw new BadRequestError("Wallet not found")
+    }
+    const escrowWallet = await Wallet.findById(data.escrowWallet)
+    if (!escrowWallet) {
+      throw new BadRequestError("Escrow wallet not found");
+    }
+
+    if (wallet.balance < data.amount) {
+      throw new BadRequestError("Insufficient funds")
+    }
+
+    await cdb.transaction(async (session) => {
+      await WalletEntry.updateOne({ _id: data.partnerTxId }, {
+        $set: {
+          initiatedBy: auth.userId,
+          balanceBefore: escrowWallet.balance,
+          balanceAfter: numeral(escrowWallet.balance).add(data.amount).value(),
+          amount: data.amount,
+          narration: `Vendor Payment completed`,
+          status: WalletEntryStatus.Completed,
+          meta: {
+            payrollBalanceAfter: numeral(escrowWallet.balance).add(data.amount).value()!,
+            payrollBalanceBefore: escrowWallet.balance,
+          },
+          invoiceUrl: data.receipt
+        },
+      }, { session })
+
+      await WalletEntry.updateOne({ _id: data.customerTxId }, {
+        $set: {
+          balanceBefore: wallet.balance,
+          balanceAfter: numeral(wallet.balance).subtract(data.amount).value(),
+          amount: data.amount,
+          narration: `Vendor Payment completed`,
+          status: WalletEntryStatus.Completed,
+          meta: {
+            escrowBalanceAfter: escrowWallet.balance,
+            escrowBalanceBefore: numeral(escrowWallet.balance).subtract(data.amount).value()!,
+          },
+          invoiceUrl: data.receipt
+        },
+      }, { session })
+
+      await Wallet.updateOne({ _id: escrowWallet.id }, {
+        $set: { walletEntry: data.partnerTxId },
+        $inc: { balance: data.amount, ledgerBalance: data.amount, }
+      }).session(session)
+
+      await Wallet.updateOne({ _id: wallet._id }, {
+        $set: { walletEntry: data.customerTxId },
+        $inc: { balance: -data.amount, ledgerBalance: -data.amount }
+      }, { session })
+
+    }, transactionOpts)
+
+
+    return {
+      status: 'active',
+      message: 'Escrow funded'
+    }
   }
 
   private async createVendorTransferRecord(payload: CreateTransferRecord) {
@@ -1231,56 +1389,50 @@ export class WalletTransferService {
       organization: partnerOrg._id,
       currency: 'NGN',
       type: WalletType.EscrowAccount,
-    }).populate<IVirtualAccount>("virtualAccounts");
+    })
 
     if (!escrowWallet) {
       logger.error('Escrow wallet not found', { org: partnerOrg.id })
       throw new BadRequestError(`Organization does not have an escrow wallet for NGN`)
     }
-    // TODO: make this just a wallet transaction, no need for sending out - Hydrogen
-
-    const destinationVirtualAccount = (<IVirtualAccount>escrowWallet.virtualAccounts[0])
 
     switch (wallet.type) {
       case WalletType.LinkedAccount:
-        await this.approveDirectDebit({
-          accountNumber: destinationVirtualAccount.accountNumber,
-          amount: data.amount,
-          counterAmount: data.counterAmount,
-          bankCode: destinationVirtualAccount.bankCode,
-          wallet: wallet._id.toString(),
-          vendorUrl,
-          paymentMethod: data.paymentMethod,
-          merchantName: data.merchantName || vendorResponse?.name,
-          partnerId: partnerOrg.partnerId,
-          paymentStatus: PaymentEntryStatus.Paid,
-          scope: WalletEntryScope.VendorTransfer,
-          auth,
-          provider: data.provider,
-          requester: auth.userId,
-          saveRecipient: false,
-        })
+        // TODO: handle linked account --
+        // fund escrow from linked account
+
+        // await this.approveDirectDebit({
+        //   accountNumber: destinationVirtualAccount.accountNumber,
+        //   amount: data.amount,
+        //   counterAmount: data.counterAmount,
+        //   bankCode: destinationVirtualAccount.bankCode,
+        //   wallet: wallet._id.toString(),
+        //   vendorUrl,
+        //   paymentMethod: data.paymentMethod,
+        //   merchantName: data.merchantName || vendorResponse?.name,
+        //   partnerId: partnerOrg.partnerId,
+        //   paymentStatus: PaymentEntryStatus.Paid,
+        //   scope: WalletEntryScope.VendorTransfer,
+        //   auth,
+        //   provider: data.provider,
+        //   requester: auth.userId,
+        //   saveRecipient: false,
+        // })
+        throw new BadRequestError('this wallet type is not allowed yet')
       case WalletType.General:
       case WalletType.Payroll:
       case WalletType.SubAccount:
-        await this.approveTransfer({
-          to: destinationVirtualAccount.name,
-          accountNumber: destinationVirtualAccount.accountNumber,
+        await this.initiateFundEscrowViaWallet(auth, {
+          sourceWallet: walletId,
+          escrowWallet: escrowWallet.id,
           amount: data.amount,
-          counterAmount: data.counterAmount,
-          bankCode: destinationVirtualAccount.bankCode,
-          wallet: wallet._id.toString(),
           vendorUrl,
           merchantName: data.merchantName || vendorResponse?.name,
+          counterAmount: data.counterAmount,
           paymentMethod: data.paymentMethod,
-          partnerId: partnerOrg.partnerId,
-          paymentStatus: PaymentEntryStatus.Paid,
-          scope: WalletEntryScope.VendorTransfer,
-          auth,
-          provider: data.provider,
-          requester: auth.userId,
+          partnerId: data.partnerId,
           category: data.category,
-          saveRecipient: false
+          provider: data.provider
         })
       default:
         break;
@@ -1290,6 +1442,76 @@ export class WalletTransferService {
       status: PaymentEntryStatus.Paid,
       message: 'successfull'
     }
+  }
+
+  async completePartnerTx(auth: AuthUser, entryId: string, file: any) {
+    const organization = await Organization.findById(auth.orgId).lean();
+
+    if (!organization) {
+      throw new NotFoundError('Organization not found')
+    }
+
+    const transaction = await WalletEntry.findById(entryId).lean();
+
+    if (!transaction) {
+      throw new NotFoundError('transaction not found')
+    }
+    if (organization.type !== OrgType.PARTNER) {
+      throw new BadRequestError('Can Not Perform')
+    }
+    if (transaction.paymentStatus !== PaymentEntryStatus.Paid) {
+      throw new BadRequestError('Transaction is in invalid state')
+    }
+
+    const txs = await WalletEntry.find({ scope: { $in: [
+      WalletEntryScope.VendorTransfer,
+    ] }, reference: transaction.reference })
+
+    if (!txs) {
+      throw new NotFoundError("Transactions not found");
+    }
+
+    if (!txs.length) {
+      throw new NotFoundError("Transactions not found");
+    }
+
+    if (txs.length < 2){
+      throw new NotFoundError("Transactions not complete");
+    }
+
+    let receiptUrl: string
+    const fileExt = file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
+    const key = `vendor/receipt/${transaction.organization}/${transaction._id.toString()}.${fileExt}`;
+    receiptUrl = await this.s3Service.uploadObject(
+      getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+      key,
+      file.buffer,
+      getContentType(fileExt)
+    );
+
+    const parterTx = txs.find(x => x.id === entryId)
+    const customerTx = txs.filter(x => x.id !== entryId)[0]
+
+    await this.fundEscrowViaWallet(auth, {
+      sourceWallet: customerTx.wallet,
+      escrowWallet: parterTx!.wallet,
+      amount: transaction.amount,
+      vendorUrl: transaction.vendorUrl,
+      merchantName: transaction.merchantName,
+      counterAmount: transaction.counterAmount,
+      paymentMethod: transaction.paymentMethod,
+      partnerId: transaction.partnerId,
+      category: transaction.category,
+      provider: transaction.provider,
+      reference: transaction.reference,
+      receipt: receiptUrl,
+      customerTxId: customerTx.id,
+      partnerTxId: parterTx!.id
+    })
+
+    return {
+      message: 'Transation Updated',
+    } 
   }
   private async getVendor(id: ObjectId, orgId: string, name: string, vendorUrl: string, paymentMethod: VendorPaymentMethod, isRecipient: boolean = true, saveRecipient: boolean = false) {
     if (saveRecipient) {

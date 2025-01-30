@@ -234,6 +234,14 @@ export default class WalletController {
     return this.walletTransferService.payVendor(auth, id, dto)
   }
 
+  @Post('/partner/complete/:id')
+  @Authorized(EPermission.TransactionRead)
+  @UseBefore(multer().single('receipt'))
+  async completeParterTx(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Req() req: Request) {
+    const file = req.file as any
+    return this.walletTransferService.completePartnerTx(auth, id, file)
+  }
+
   @Put('/rate/:partnerId/:currency')
   @Authorized(EPermission.TransactionRead)
   setRate(@CurrentUser() auth: AuthUser, @Param('partnerId') partnerId: string, @Param('currency') currency: string, @Body() dto: SetRate) {
@@ -246,13 +254,5 @@ export default class WalletController {
     return this.walletService.getRate(auth.orgId, partnerId, currency)
   }
 
-  @Post('/partner/complete/:id')
-  @Authorized(EPermission.TransactionRead)
-  @UseBefore(multer().single('receipt'))
-  async completeParterTx(@CurrentUser() auth: AuthUser, @Param('id') id: string, @Req() req: Request) {
-    const file = req.file as any
-    return this.walletService.completePartnerTx(auth.orgId, id, file)
-  }
-
-  // TODO: Rollback endpoint for cases where tx is not completed on partner side before timeout
+  // TODO: Rollback endpoint for cases where tx is not completed on partner side before timeout -- endpoint
 }

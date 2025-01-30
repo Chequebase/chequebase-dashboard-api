@@ -789,51 +789,6 @@ export default class WalletService {
     return { rate: rate.rate, currency }
   }
 
-  async completePartnerTx(orgId: string, entryId: string, file: any) {
-    const organization = await Organization.findById(orgId).lean();
-
-    if (!organization) {
-      throw new NotFoundError('Organization not found')
-    }
-
-    const transaction = await WalletEntry.findById(entryId).lean();
-
-    if (!transaction) {
-      throw new NotFoundError('transaction not found')
-    }
-    if (organization.type !== OrgType.PARTNER) {
-      throw new BadRequestError('Can Not Perform')
-    }
-    if (transaction.paymentStatus !== PaymentEntryStatus.Paid) {
-      throw new BadRequestError('Transaction is in invalid state')
-    }
-    const status = WalletEntryStatus.Completed;
-
-    let receiptUrl: string
-    const fileExt = file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
-    const key = `vendor/receipt/${transaction.organization}/${transaction._id.toString()}.${fileExt}`;
-    receiptUrl = await this.s3Service.uploadObject(
-      getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
-      key,
-      file.buffer,
-      getContentType(fileExt)
-    );
-    await cdb.transaction(async (session) => {
-      return await WalletEntry.updateOne({ _id: entryId }, {
-        $set: {
-          status,
-          invoiceUrl: receiptUrl
-        },
-      }, { session })
-
-    }, transactionOpts)
-
-    return {
-      status,
-      message: 'Transation Updated',
-    } 
-  }
-
   async reportTransactionToSlack(orgId: string, data: ReportTransactionDto) {
     const { transactionId, message } = data;
     const entry = await this.getWalletEntry(orgId, transactionId);
