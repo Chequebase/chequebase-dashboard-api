@@ -736,7 +736,7 @@ export default class WalletService {
       throw new NotFoundError('Wallet entry not found')
     }
 
-    if (entry.meta.counterparty) {
+    if (entry?.meta?.counterparty) {
       entry.meta.counterparty = isValidObjectId(entry.meta.counterparty) ? await Counterparty.findById(entry.meta.counterparty).lean() : entry.meta.counterparty
     }
 
