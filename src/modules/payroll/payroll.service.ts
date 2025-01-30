@@ -1095,7 +1095,7 @@ export class PayrollService {
         balanceAfter: numeral(payrollWallet.balance).add(data.amount).value(),
         amount: data.amount,
         scope: WalletEntryScope.PayrollFunding,
-        narration: `Payroll activated`,
+        narration: `Payroll Funding`,
         reference: createId(),
         status: WalletEntryStatus.Successful,
         meta: {
@@ -1116,7 +1116,7 @@ export class PayrollService {
         balanceAfter: numeral(wallet.balance).subtract(data.amount).value(),
         amount: data.amount,
         scope: WalletEntryScope.PayrollFunding,
-        narration: `Payroll activated`,
+        narration: `Payroll Funding`,
         reference: createId(),
         status: WalletEntryStatus.Successful,
         meta: {
