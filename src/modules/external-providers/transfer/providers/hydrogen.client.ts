@@ -31,6 +31,7 @@ export class HydrogenTransferClient implements TransferClient {
     try {
       const res = await this.http.post('/bepay/api/v1/Merchant/initiate-bank-transfer', data)
       const { statusCode, data: resultData } = res.data;
+      console.log({ resultData })
       const message = statusCode !== '90000' ?
         'Transfer failed' : 'Processing transfer'
 
@@ -39,7 +40,7 @@ export class HydrogenTransferClient implements TransferClient {
         response: JSON.stringify(res.data),
       });
       return {
-        status: statusCode,
+        status: statusCode === '90000' ? "successful" : "pending",
         message,
         providerRef: res.data.data.id,
         currency: 'NGN',
