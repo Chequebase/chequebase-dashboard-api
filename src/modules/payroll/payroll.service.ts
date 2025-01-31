@@ -278,6 +278,7 @@ export class PayrollService {
     const result = await Payroll.aggregate()
       .match({
         organization: new ObjectId(orgId),
+        status: PayrollStatus.Completed,
         date: {
           $gte: today.startOf("year").toDate(),
           $lte: today.endOf("year").toDate(),
