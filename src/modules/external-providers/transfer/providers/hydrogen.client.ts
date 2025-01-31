@@ -17,7 +17,7 @@ export class HydrogenTransferClient implements TransferClient {
     headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
-        'Authorization': `${getEnvOrThrow('HYDROGEN_API_KEY')}`
+        'Authorization': `Bearer ${getEnvOrThrow('HYDROGEN_TRANSFER_API_KEY')}`
     }
   })
   async initiateTransfer(payload: InitiateTransferData): Promise<InitiateTransferResult> {
@@ -29,7 +29,6 @@ export class HydrogenTransferClient implements TransferClient {
     }
 
     try {
-      console.log({ url: this.http.getUri() })
       const res = await this.http.post('/bepay/api/v1/Merchant/initiate-bank-transfer', data)
       const { statusCode, data: resultData } = res.data;
       const message = statusCode !== '90000' ?
