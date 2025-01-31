@@ -29,7 +29,7 @@ export class HydrogenTransferClient implements TransferClient {
     }
 
     try {
-      console.log({ url: this.http.getUri })
+      console.log({ url: this.http.getUri() })
       const res = await this.http.post('/bepay/api/v1/Merchant/initiate-bank-transfer', data)
       const { statusCode, data: resultData } = res.data;
       const message = statusCode !== '90000' ?
