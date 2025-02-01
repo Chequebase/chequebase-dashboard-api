@@ -67,7 +67,7 @@ export class HydrogenTransferClient implements TransferClient {
 
   async verifyTransferById(id: string): Promise<InitiateTransferResult>  {
     try {
-      const res = await this.http.get(`/api/v1/validate-transaction?TransactionRef=${id}`)
+      const res = await this.httpClient.axios.get(`/api/v1/validate-transaction?TransactionRef=${id}`)
       const result = res.data.data.attributes
       let status = result.status.toLowerCase()
       if (status === 'completed') status = 'successful'

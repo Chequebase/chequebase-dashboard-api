@@ -463,9 +463,6 @@ export class BudgetTransferService {
       currency: budget.currency,
       narration: entry.narration,
       provider,
-      customerName: organization.businessName,
-      // TODO: remember to support individual accs
-      email: organization.email
     })
 
     if (transferResponse.status === 'failed') {
