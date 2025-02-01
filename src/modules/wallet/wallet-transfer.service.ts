@@ -103,8 +103,6 @@ interface InitiateTransferPayload {
   narration: string,
   provider: TransferClientName,
   to?: string
-  customerName?: string,
-  email?: string
 }
 
 export interface RunSecurityCheck {
@@ -636,8 +634,6 @@ export class WalletTransferService {
           invoice: invoiceUrl,
           category: category._id,
           provider: data.provider,
-          customerName: org.businessName,
-          email: org.email,
         }
       }
     })
@@ -1150,9 +1146,6 @@ export class WalletTransferService {
       currency: wallet.currency,
       narration: entry.narration,
       provider,
-      customerName: organization.businessName,
-      // TODO: remember to support individual accs
-      email: organization.email
     }
     // if it's internal transfer, handle 0 fees
     if (data.to) {

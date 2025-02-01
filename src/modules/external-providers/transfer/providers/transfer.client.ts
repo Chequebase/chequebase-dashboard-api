@@ -12,18 +12,17 @@ export interface InitiateTransferData {
   provider: TransferClientName
   debitAccount?: string
   to?: string
-  email?: string
-  customerName?: string
 }
 
 export interface InitiateHydrogenTransferData {
-    amount: number,
-    customerName?: string,
-    email?: string,
-    currency?: string,
-    description?: string,
-    meta?:string,
-    callback?: string
+  amount: number
+  currency: string
+  narration: string
+  beneficiaryAccount: string
+  beneficiaryName: string
+  clientReference: string
+  beneficiaryBankCode: string
+  callBack: string
 }
 
 export interface InitiateMandateData {
