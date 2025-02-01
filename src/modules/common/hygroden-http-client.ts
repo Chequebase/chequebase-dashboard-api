@@ -51,7 +51,7 @@ import axios, {
       try {  
         const data = {
             "username": "david@chequebase.io",
-            "password": "Chequehydrogen1@#"
+            "password": "Chequehydrogen1@"
         };
         const { data : responseData } = await this.axios.post("/walletservice/api/Auth/token", data);
         if (responseData.statusCode === 90000) {
