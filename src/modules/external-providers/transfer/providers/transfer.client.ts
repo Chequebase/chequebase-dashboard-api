@@ -16,7 +16,6 @@ export interface InitiateTransferData {
 
 export interface InitiateHydrogenTransferData {
   amount: number
-  currency: string
   narration: string
   beneficiaryAccount: string
   beneficiaryName: string

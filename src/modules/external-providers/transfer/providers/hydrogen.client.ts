@@ -17,13 +17,12 @@ export class HydrogenTransferClient implements TransferClient {
   async initiateTransfer(payload: InitiateTransferData): Promise<InitiateTransferResult> {
     const data: InitiateHydrogenTransferData = {
       amount: payload.amount,
-      currency: payload.currency,
-      "narration": payload.narration,
-      "beneficiaryAccount": payload.counterparty.accountNumber,
-      "beneficiaryName": payload.counterparty.accountName,
-      "clientReference": payload.reference,
-      "beneficiaryBankCode": payload.counterparty.bankCode,
-      "callBack": "https://https://prod.chequebaseapp-api.com/v1/webhook/hydrogen"
+      narration: payload.narration,
+      beneficiaryAccount: payload.counterparty.accountNumber,
+      beneficiaryName: payload.counterparty.accountName,
+      clientReference: payload.reference,
+      beneficiaryBankCode: payload.counterparty.bankCode,
+      callBack: "https://https://prod.chequebaseapp-api.com/v1/webhook/hydrogen"
     }
 
     try {
