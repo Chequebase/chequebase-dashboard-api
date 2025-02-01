@@ -240,7 +240,7 @@ export class WalletTransferService {
         partnerId: data.partnerId,
         type: WalletEntryType.Debit,
         narration: 'Wallet Transfer',
-        reference: `wt_${createId()}`,
+        reference: `wt-${createId()}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
         vendorUrl: data.vendorUrl,

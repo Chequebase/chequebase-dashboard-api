@@ -144,7 +144,7 @@ export class BudgetTransferService {
         type: WalletEntryType.Debit,
         narration: 'Budget Transfer',
         paymentMethod: 'transfer',
-        reference: `bt_${createId()}`,
+        reference: `bt-${createId()}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
         category: data.category,
