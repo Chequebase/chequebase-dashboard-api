@@ -16,7 +16,7 @@ export class HydrogenTransferClient implements TransferClient {
   constructor(private httpClient: HydrogenHttpClient) {}
   async initiateTransfer(payload: InitiateTransferData): Promise<InitiateTransferResult> {
     const data: InitiateHydrogenTransferData = {
-      amount: payload.amount,
+      amount: payload.amount / 100,
       narration: payload.narration,
       beneficiaryAccount: payload.counterparty.accountNumber,
       beneficiaryName: payload.counterparty.accountName,
@@ -28,7 +28,7 @@ export class HydrogenTransferClient implements TransferClient {
     try {
       const res = await this.httpClient.axios.post('/walletservice/api/v1/FundsTransfer/initiate-transfer', data)
       const { statusCode, message: receivedMessage, data: resultData } = res.data;
-      console.log({ resultData })
+      console.log({ res })
       const message = statusCode !== 90000 ?
         'Transfer failed' : receivedMessage
 
