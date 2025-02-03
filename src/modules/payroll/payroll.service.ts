@@ -407,7 +407,7 @@ export class PayrollService {
           payroll.totalNetAmount = breakdown.net;
           payroll.totalGrossAmount = breakdown.gross;
           payroll.totalEmployees =
-            users.length - payroll.excludedPayrollUsers.length;
+            users.length - (payroll.excludedPayrollUsers?.length || 0);
         }
 
         return payroll;
@@ -474,7 +474,7 @@ export class PayrollService {
       PayrollApprovalStatus.Pending,
     ];
     if (inconclusive.includes(payroll.approvalStatus)) {
-      employeeCount = users.length - payroll.excludedPayrollUsers.length;
+      employeeCount = users.length - (payroll.excludedPayrollUsers.length || 0);
       const plan = await getOrganizationPlan(orgId);
       const breakdown = this.getPayrollBreakdown(users, plan, payroll.excludedPayrollUsers);
       currentAmount = breakdown.net;
