@@ -1345,7 +1345,7 @@ export class PayrollService {
     excludedUsers: IUser[] = []
   ): { net: number; fee: 0; amount: number; gross: number } {
     return users
-      .filter((u) => !excludedUsers.some((e) => e._id.equals(u._id)))
+      .filter((u) =>  !excludedUsers.some((e) => u._id.equals(e._id)))
       .reduce(
         (a, u) => {
           const gross = u?.salary?.grossAmount || 0;
