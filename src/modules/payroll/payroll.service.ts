@@ -387,6 +387,33 @@ export class PayrollService {
       lean: true,
     });
 
+    const inconclusive = [
+      PayrollApprovalStatus.Rejected,
+      PayrollApprovalStatus.Pending,
+    ];
+    const [plan, users] = await Promise.all([
+      getOrganizationPlan(orgId),
+      this.getPayrollUsers(orgId),
+    ]);
+    
+    result.docs = await Promise.all(
+      result.docs.map(async (payroll) => {
+        if (inconclusive.includes(payroll.approvalStatus)) {
+          const breakdown = this.getPayrollBreakdown(
+            users,
+            plan,
+            payroll.excludedPayrollUsers
+          );
+          payroll.totalNetAmount = breakdown.net;
+          payroll.totalGrossAmount = breakdown.gross;
+          payroll.totalEmployees =
+            users.length - payroll.excludedPayrollUsers.length;
+        }
+
+        return payroll;
+      })
+    );
+
     return result;
   }
 
@@ -447,9 +474,9 @@ export class PayrollService {
       PayrollApprovalStatus.Pending,
     ];
     if (inconclusive.includes(payroll.approvalStatus)) {
-      employeeCount = users.length;
+      employeeCount = users.length - payroll.excludedPayrollUsers.length;
       const plan = await getOrganizationPlan(orgId);
-      const breakdown = this.getPayrollBreakdown(users, plan);
+      const breakdown = this.getPayrollBreakdown(users, plan, payroll.excludedPayrollUsers);
       currentAmount = breakdown.net;
       currentDeduction = breakdown.gross - breakdown.net;
     }
@@ -1314,23 +1341,26 @@ export class PayrollService {
 
   private getPayrollBreakdown(
     users: any[],
-    plan: ISubscriptionPlan
+    plan: ISubscriptionPlan,
+    excludedUsers: IUser[] = []
   ): { net: number; fee: 0; amount: number; gross: number } {
-    return users.reduce(
-      (a, u) => {
-        const gross = u?.salary?.grossAmount || 0;
-        const net = u?.salary?.netAmount || 0;
-        const fee = this.getTransferFee(plan, net, u.salary?.currency);
+    return users
+      .filter((u) => !excludedUsers.some((e) => e._id.equals(u._id)))
+      .reduce(
+        (a, u) => {
+          const gross = u?.salary?.grossAmount || 0;
+          const net = u?.salary?.netAmount || 0;
+          const fee = this.getTransferFee(plan, net, u.salary?.currency);
 
-        return {
-          gross: a.gross + gross,
-          net: a.net + net,
-          fee: a.fee + fee,
-          amount: a.amount + net + fee,
-        };
-      },
-      { net: 0, fee: 0, amount: 0, gross: 0 }
-    );
+          return {
+            gross: a.gross + gross,
+            net: a.net + net,
+            fee: a.fee + fee,
+            amount: a.amount + net + fee,
+          };
+        },
+        { net: 0, fee: 0, amount: 0, gross: 0 }
+      );
   }
 
   private async getOrCreatePayroll(
