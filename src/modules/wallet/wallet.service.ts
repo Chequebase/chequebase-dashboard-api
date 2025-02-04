@@ -143,6 +143,10 @@ export default class WalletService {
       const accountRef = `va-${createId()}`
       const provider = VirtualAccountClientName.Hydrogen;
       const account = await this.vaService.createAccount({
+        identity: {
+          type: "bvn",
+          number: organization.bvn,
+        },
         currency: baseWallet.currency,
         email: organization.email,
         phone: organization.phone,
