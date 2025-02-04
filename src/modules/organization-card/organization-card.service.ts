@@ -374,15 +374,6 @@ export class OrganizationCardService {
       throw new BadRequestError("Card is already inactive");
     }
 
-    const result = await this.cardService.freezeCard({
-      cardId: card.providerRef,
-      provider: card.provider,
-    });
-
-    if (!result.successful) {
-      throw new BadRequestError("Failed to deactivate card");
-    }
-
     card.freeze = true;
     await card.save();
 
@@ -404,15 +395,6 @@ export class OrganizationCardService {
 
     if (!card.freeze) {
       throw new BadRequestError("Card is already active");
-    }
-
-    const result = await this.cardService.unfreezeCard({
-      cardId: card.providerRef,
-      provider: card.provider,
-    });
-
-    if (!result.successful) {
-      throw new BadRequestError("Failed to activate card");
     }
 
     card.freeze = false;
