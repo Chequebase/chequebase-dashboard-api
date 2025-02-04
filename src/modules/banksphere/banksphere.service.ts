@@ -292,7 +292,7 @@ export class BanksphereService {
         // TODO: hard coding base wallet for now
         // TODO: check if anchor is verified first
         const wallet = await this.walletService.createWallet({
-          baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.SafeHaven, organization: accountId,
+          baseWallet: BaseWalletType.NGN, provider: VirtualAccountClientName.Hydrogen, organization: accountId,
           walletType: WalletType.General, name: 'Main'
         })
         if (data.type === OrgType.PARTNER) {

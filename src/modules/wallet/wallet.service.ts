@@ -141,7 +141,7 @@ export default class WalletService {
       // }})
 
       const accountRef = `va-${createId()}`
-      const provider = VirtualAccountClientName.SafeHaven;
+      const provider = VirtualAccountClientName.Hydrogen;
       const account = await this.vaService.createAccount({
         currency: baseWallet.currency,
         email: organization.email,
