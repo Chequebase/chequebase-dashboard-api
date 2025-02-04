@@ -284,7 +284,7 @@ export class OrganizationCardService {
 
     let cards = await Card.find(filter)
       .select(
-        "cardName type brand currency expiryMonth expiryYear maskedPan activatedAt blocked"
+        "cardName design type brand currency expiryMonth expiryYear maskedPan activatedAt blocked"
       )
       .populate({
         path: "budget",
@@ -340,7 +340,7 @@ export class OrganizationCardService {
     const filter = await this.buildGetCardFilter(auth, { _id: cardId });
     let card = await Card.findOne(filter)
       .select(
-        "cardName type brand spendChannels deliveryAddress providerRef provider spendLimit currency expiryMonth expiryYear maskedPan activatedAt blocked"
+        "cardName design type brand spendChannels deliveryAddress providerRef provider spendLimit currency expiryMonth expiryYear maskedPan activatedAt blocked"
       )
       .populate("budget", "name")
       .populate("department", "name")
