@@ -39,14 +39,14 @@ export default class WebhookController {
   }
 
   @Post("/hydrogen")
-  // @UseBefore(raw({ type: "application/json" }))
+  @UseBefore(raw({ type: "application/json" }))
   async processHydrogen(
     @Body() body: any,
   ) {
     // console.log({ body, HERE: '-----------EPICCCCCCCEEEEE----------'})
-    // logger.log("received hydrogen webhook", {
-    //   body: body.toString("utf-8"),
-    // });
+    logger.log("received hydrogen webhook", {
+      body: body.toString("utf-8"),
+    });
 
     return this.hydrogenHandler.processWebhook(body);
   }
