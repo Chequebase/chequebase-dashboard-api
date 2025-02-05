@@ -16,7 +16,7 @@ export class HydrogenTransferClient implements TransferClient {
   constructor(private httpClient: HydrogenHttpClient) {}
   async initiateTransfer(payload: InitiateTransferData): Promise<InitiateTransferResult> {
     const data: InitiateHydrogenTransferData = {
-      amount: payload.amount,
+      amount: payload.amount / 100,
       narration: payload.narration,
       beneficiaryAccount: payload.counterparty.accountNumber,
       beneficiaryName: payload.counterparty.accountName,
