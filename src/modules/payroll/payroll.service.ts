@@ -384,7 +384,13 @@ export class PayrollService {
       limit: 12,
       page: Number(query.page),
       sort: "-periodStartDate",
-      populate: [{ path: 'excludedPayrollUsers', select: '_id' }],
+      populate: [
+        {
+          path: "excludedPayrollUsers",
+          select: "_id",
+          match: {  deletedAt: { $exists: false }  },
+        },
+      ],
       lean: true,
     });
 
@@ -422,7 +428,11 @@ export class PayrollService {
     const payroll = await Payroll.findOne({
       _id: payrollId,
       organization: orgId,
-    }).populate("excludedPayrollUsers", "_id");
+    }).populate({
+      path: "excludedPayrollUsers",
+      select: "_id",
+      match: { excludedPayrollUsers: { deletedAt: { $exists: false } } },
+    });
     if (!payroll) {
       throw new BadRequestError("Payroll not found");
     }
