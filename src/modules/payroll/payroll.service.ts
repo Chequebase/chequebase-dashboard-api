@@ -384,6 +384,7 @@ export class PayrollService {
       limit: 12,
       page: Number(query.page),
       sort: "-periodStartDate",
+      populate: [{ path: 'excludedPayrollUsers', select: '_id' }],
       lean: true,
     });
 
