@@ -431,7 +431,7 @@ export class PayrollService {
     }).populate({
       path: "excludedPayrollUsers",
       select: "_id",
-      match: { excludedPayrollUsers: { deletedAt: { $exists: false } } },
+      match: { deletedAt: { $exists: false } },
     });
     if (!payroll) {
       throw new BadRequestError("Payroll not found");
