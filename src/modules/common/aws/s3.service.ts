@@ -37,13 +37,14 @@ export class S3Service {
     return response.Body?.transformToByteArray()
   }
 
-  async uploadObject(bucket: string, key: string, data: Buffer) {
+  async uploadObject(bucket: string, key: string, data: Buffer, contentType: string) {
     let ACL: ObjectCannedACL = "public-read";
     const params = {
       Key: key,
       Body: data,
       ACL,
       Bucket: bucket,
+      ContentType:contentType
     };
   
     try {

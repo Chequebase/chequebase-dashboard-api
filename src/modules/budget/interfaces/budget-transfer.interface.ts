@@ -1,7 +1,7 @@
 import { IBudget } from "@/models/budget.model"
 import { ICounterparty } from "@/models/counterparty.model"
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
-import { TransferClientName } from "@/modules/transfer/providers/transfer.client";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }

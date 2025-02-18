@@ -27,6 +27,7 @@ export interface WalletInflowData {
   reference: string
   narration: string
   providerRef: string
+  providerChannel?: string
   sourceAccount: {
     accountName: string
     bankName?: string
@@ -56,7 +57,7 @@ function calculateInflowFee(amount: number): number {
 
 async function processWalletInflow(job: Job<WalletInflowData>) {
   const data = job.data
-  const { reference, accountNumber, amount, gatewayResponse, narration, currency } = data;
+  const { reference, accountNumber, amount, gatewayResponse, narration, currency, providerChannel } = data;
 
   try {
     const entryExists = await WalletEntry.exists({ reference })
@@ -80,6 +81,8 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
     }
 
     let inflowFee = calculateInflowFee(amount)
+    // if it's internal fee is 0
+    inflowFee = (providerChannel && providerChannel !== 'NIP') ? 0 : inflowFee
     const creditedAmount = amount - inflowFee;
     const wallet = virtualAccount.wallet
     const organization = virtualAccount.organization

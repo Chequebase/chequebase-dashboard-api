@@ -24,7 +24,7 @@ import { ERole } from "../user/dto/user.dto";
 import { createId } from "@paralleldrive/cuid2";
 import redis from "../common/redis";
 import { WalletTransferService } from "../wallet/wallet-transfer.service";
-import WalletService from "../wallet/wallet.service";
+import PayrollPayout, { PayrollPayoutStatus } from "@/models/payroll/payroll-payout.model";
 
 const logger = new Logger('approval-service')
 dayjs.extend(advancedFormat)
@@ -439,15 +439,24 @@ export class ApprovalService {
         fundRequestApprovalRequest: null
       })
     } else if (request.workflowType === WorkflowType.Payroll) {
-      await Payroll.updateOne({ _id: request.properties.payroll }, {
-        $set: { approvalStatus: PayrollApprovalStatus.Rejected }
-      })
+      await Promise.all([
+        Payroll.updateOne(
+          { _id: request.properties.payroll },
+          {
+            $set: { approvalStatus: PayrollApprovalStatus.Rejected },
+          }
+        ),
+        PayrollPayout.updateMany(
+          { approvalRequest: requestId },
+          { $set: { status: PayrollPayoutStatus.Rejected } }
+        ),
+      ]);
     }
 
     const approver = request.reviews.find(r => r.user._id.equals(auth.userId))!
     this.emailService.sendApprovalRequestReviewed(request.requester.email, {
       approverName: `${approver.user.firstName} ${approver.user.lastName}`,
-      budgetName: request.properties.budget.name,
+      budgetName: request.properties.budget?.name,
       createdAt: dayjs(request.createdAt).format('DD/MM/YYYY'),
       employeeName: request.requester.firstName,
       requestType: toTitleCase(request.workflowType),

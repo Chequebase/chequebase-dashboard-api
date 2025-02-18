@@ -8,6 +8,7 @@ import User, { UserStatus } from "@/models/user.model"
 import { Service } from "typedi"
 import Project, { ProjectStatus } from "@/models/project.model"
 import { FeatureLimitExceededError, FeatureUnavailableError } from "../common/utils/service-errors"
+import Wallet, { WalletType } from "@/models/wallet.model";
 
 const logger = new Logger('plan-usage-service')
 
@@ -39,6 +40,38 @@ export class PlanUsageService {
     if (budgets >= feature.freeUnits && feature.maxUnits !== -1) {
       throw new FeatureLimitExceededError(
         'Organization has reached its maximum limit for active budgets. To continue adding active budgets, consider upgrading your plan'
+        , code)
+    }
+
+    return true
+  }
+
+  async checkSubaccountsUsage(orgId: string) {
+    const code = 'sub_accounts'
+    const organization = await Organization.findById(orgId)
+      .populate({ path: 'subscription.object', populate: 'plan' })
+      .select('subscription')
+      .lean()
+
+    if (!organization) {
+      throw new NotFoundError("Organization not found")
+    }
+
+    const subscription = organization.subscription?.object as ISubscription
+    if (!subscription || subscription?.status === 'expired') {
+      throw new FeatureUnavailableError('Organization has no active subscription', code)
+    }
+
+    const plan = subscription.plan as ISubscriptionPlan
+    const subAccounts = await Wallet.countDocuments({ organization: orgId, type: { $in: [WalletType.SubAccount, WalletType.Payroll, WalletType.EscrowAccount] } })
+    const feature = plan.features.find((f) => f.code === code)
+    if (!feature || !feature.available) {
+      logger.error('feature not found', { code, plan: plan._id })
+      throw new FeatureUnavailableError('Organization does not have access to this feature', code)
+    }
+    if (subAccounts >= feature.freeUnits && feature.maxUnits !== -1) {
+      throw new FeatureLimitExceededError(
+        'Organization has reached its maximum limit for active sub accounts. To continue adding subaccounts, consider upgrading your plan'
         , code)
     }
 

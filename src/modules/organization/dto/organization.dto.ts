@@ -68,7 +68,7 @@ export class UpdateBusinessInfoDto {
   readonly state: string;
 
   @IsString()
-  regNumber: string
+  rcNumber: string
 
   cac: Buffer
 

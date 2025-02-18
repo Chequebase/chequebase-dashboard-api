@@ -1,10 +1,10 @@
 import { BadRequestError } from "routing-controllers";
 import Container, { Service } from "typedi";
-import Logger from "../common/utils/logger";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
 import ProviderRegistry from "./provider-registry";
 import { CreateVirtualAccountData, VirtualAccountClient } from "./providers/virtual-account.client";
-import { getEnvOrThrow } from "../common/utils";
+import { getEnvOrThrow } from "@/modules/common/utils";
+import Logger from "@/modules/common/utils/logger";
+import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 
 @Service()
 export class VirtualAccountService {

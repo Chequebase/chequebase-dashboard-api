@@ -8,6 +8,10 @@ export enum EPermission {
   OverviewBudgetRequest = 'overview.budget_request:read',
   WalletFund = 'wallet:fund',
   WalletTransfer = 'wallet:transfer',
+  WalletTransferOwnAccount = 'wallet:transfer:own',
+  WalletSubaccountCreate = 'wallet:subaccount:create',
+  WalletLinkedaccountCreate = 'wallet:linkedaccount:create',
+  WalletLinkedaccountDebit = 'wallet:linkedaccount:transfer',
   TransactionRead = 'transaction:read',
   LedgerBalanceRead = 'transaction.ledger_balance:read',
   TransactionDownload = 'transaction:download',
@@ -32,6 +36,8 @@ export enum EPermission {
   LicenseEdit = 'license:edit',
   PayrollRead = 'payroll:read',
   PayrollEdit = 'payroll:edit',
+  CardEdit = 'card:edit',
+  CardRead = 'card:read',
 }
 
 export interface IRolePermission {

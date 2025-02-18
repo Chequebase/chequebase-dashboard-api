@@ -10,7 +10,7 @@ import { WalletEntryScope } from "@/models/wallet-entry.model";
 import { WalletType } from "@/models/wallet.model";
 import EmailService from "@/modules/common/email.service";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
-import { escapeRegExp, getEnvOrThrow } from "@/modules/common/utils";
+import { escapeRegExp, getContentType, getEnvOrThrow } from "@/modules/common/utils";
 import { createId } from "@paralleldrive/cuid2";
 import bcrypt, { compare } from 'bcryptjs';
 import jwt, { JwtPayload } from 'jsonwebtoken';
@@ -450,7 +450,7 @@ export class UserService {
       // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
       await user.updateOne({
         hashRt: '',
-        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
+        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data.rememberMe): undefined,
         otpExpiresAt,
         otp
       })
@@ -458,7 +458,7 @@ export class UserService {
     }
       await user.updateOne({
         hashRt: '',
-        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data): undefined,
+        rememberMe: data.rememberMe ? 0 : undefined,
         otpExpiresAt,
         otp
       })
@@ -473,8 +473,8 @@ export class UserService {
     return { userId: user.id, status: user.status  }
   }
 
-  getRememberMeExpirationDate(data: LoginDto) {
-    if (!data?.rememberMe) {
+  getRememberMeExpirationDate(rememberMe: boolean) {
+    if (!rememberMe) {
       return Date.now()
     }
 
@@ -547,6 +547,10 @@ export class UserService {
 
     const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
     // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+
+    await user.updateOne({
+      rememberMe: user.rememberMe === 0 ? this.getRememberMeExpirationDate(true) : undefined,
+    })
 
     return { tokens, userId: user.id }
   }
@@ -1107,12 +1111,13 @@ export class UserService {
     if (!user) {
       throw new NotFoundError("User not found");
     }
-    const fileExt = file.mimetype.toLowerCase().trim().split('/')[1]
-    const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}.${fileExt || 'pdf'}`;
+    const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
+    const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}.${fileExt}`;
     const url = await this.s3Service.uploadObject(
       getEnvOrThrow('AVATAR_BUCKET_NAME'),
       key,
-      file.buffer
+      file.buffer,
+      getContentType(fileExt)
     );
     
     await User.updateOne({ _id: auth.userId, organization: auth.orgId }, {

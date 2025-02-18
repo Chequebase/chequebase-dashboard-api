@@ -36,7 +36,7 @@ export interface IPayroll {
   totalGrossAmount: number;
   totalEmployees: number;
   wallet: any;
-  excludedPayrollUsers: string[];
+  excludedPayrollUsers: any[];
   createdAt: Date;
   updatedAt: Date;
 }

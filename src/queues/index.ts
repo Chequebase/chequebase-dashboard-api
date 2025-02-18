@@ -14,5 +14,6 @@ const queueOpts: QueueOptions = {
 export const organizationQueue = new Queue('cqb_organization', REDIS_HOST, queueOpts);
 export const payrollQueue = new Queue('cqb_payroll', REDIS_HOST, queueOpts);
 export const walletQueue = new Queue('cqb_wallet', REDIS_HOST, queueOpts);
+export const mandateQueue = new Queue('cqb_mandate', REDIS_HOST, queueOpts);
 export const budgetQueue = new Queue('cqb_budget', REDIS_HOST, queueOpts)
 export const subscriptionQueue = new Queue('cqb_subscription', REDIS_HOST, queueOpts)

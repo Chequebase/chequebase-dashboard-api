@@ -134,3 +134,17 @@ export async function getOrganizationPlan(
 
   return org?.subscription?.object?.plan as ISubscriptionPlan;
 }
+
+export const getContentType = (fileExt: string) => {
+  switch (fileExt) {
+    case 'pdf':
+      return 'application/pdf'
+    case 'jpeg':
+    case 'jpg':
+      return 'image/jpeg'
+    case 'png':
+      return 'image/png'
+    default:
+      return 'application/pdf'
+  }
+}

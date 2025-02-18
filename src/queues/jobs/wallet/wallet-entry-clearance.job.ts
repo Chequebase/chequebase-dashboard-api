@@ -5,8 +5,8 @@ import dayjs from "dayjs";
 import WalletEntry, { WalletEntryScope, WalletEntryStatus } from "@/models/wallet-entry.model";
 import { WalletOutflowData } from "./wallet-outflow.job";
 import Logger from "@/modules/common/utils/logger";
-import ProviderRegistry from "@/modules/transfer/provider-registry";
-import { TransferClient, TransferClientName } from "@/modules/transfer/providers/transfer.client";
+import ProviderRegistry from "@/modules/external-providers/transfer/provider-registry";
+import { TransferClient, TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
 
 interface EntryForClearance {
   _id: string;

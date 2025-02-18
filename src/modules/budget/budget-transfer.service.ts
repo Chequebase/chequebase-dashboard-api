@@ -1,41 +1,39 @@
-import { Service } from "typedi"
-import { BadRequestError, NotFoundError } from "routing-controllers"
-import { ObjectId } from 'mongodb'
-import dayjs from "dayjs"
-import { createId } from "@paralleldrive/cuid2"
-import { cdb } from "../common/mongoose"
-import numeral from "numeral"
-import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user"
-import { ResolveAccountDto, InitiateTransferDto, GetTransferFee, UpdateRecipient, IPaymentSource, CreateRecipient } from "./dto/budget-transfer.dto"
-import Counterparty, { ICounterparty } from "@/models/counterparty.model"
-import { IWallet } from "@/models/wallet.model"
-import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
-import Budget, { BudgetStatus } from "@/models/budget.model"
-import Wallet from "@/models/wallet.model"
-import { TransferService } from "../transfer/transfer.service"
-import { TransferClientName } from "../transfer/providers/transfer.client"
-import { AnchorService } from "../common/anchor.service"
-import { ApproveTransfer, CreateTransferRecord, RunSecurityCheck } from "./interfaces/budget-transfer.interface"
-import User, { KycStatus } from "@/models/user.model"
-import { ERole } from "../user/dto/user.dto"
-import { escapeRegExp, formatMoney, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
-import Organization, { IOrganization } from "@/models/organization.model"
-import { ISubscription } from "@/models/subscription.model"
-import { ISubscriptionPlan } from "@/models/subscription-plan.model"
-import { ServiceUnavailableError } from "../common/utils/service-errors"
-import Logger from "../common/utils/logger"
-import { IProject } from "@/models/project.model"
-import Bank from "@/models/bank.model"
-import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model"
 import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model"
-import { S3Service } from "../common/aws/s3.service"
+import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model"
+import Bank from "@/models/bank.model"
+import Budget, { BudgetStatus } from "@/models/budget.model"
+import Counterparty, { ICounterparty } from "@/models/counterparty.model"
+import Vendor from "@/models/vendor.model";
+import Organization, { IOrganization } from "@/models/organization.model"
+import { IProject } from "@/models/project.model"
+import { ISubscriptionPlan } from "@/models/subscription-plan.model"
+import { ISubscription } from "@/models/subscription.model"
 import TransferCategory from "@/models/transfer-category"
-import { UserService } from "../user/user.service"
-import { BudgetPolicyService } from "./budget-policy.service"
-import EmailService from "../common/email.service"
+import User, { KycStatus } from "@/models/user.model"
+import { IVirtualAccount } from "@/models/virtual-account.model"
+import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
+import Wallet, { IWallet } from "@/models/wallet.model"
 import { walletQueue } from "@/queues"
 import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
-import { IVirtualAccount } from "@/models/virtual-account.model";
+import { createId } from "@paralleldrive/cuid2"
+import dayjs from "dayjs"
+import { ObjectId } from 'mongodb'
+import numeral from "numeral"
+import { BadRequestError, NotFoundError } from "routing-controllers"
+import { Service } from "typedi"
+import { AnchorService } from "../common/anchor.service"
+import { S3Service } from "../common/aws/s3.service"
+import EmailService from "../common/email.service"
+import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user"
+import { cdb } from "../common/mongoose"
+import { escapeRegExp, formatMoney, getContentType, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
+import Logger from "../common/utils/logger"
+import { ServiceUnavailableError } from "../common/utils/service-errors"
+import { UserService } from "../user/user.service"
+import { BudgetPolicyService } from "./budget-policy.service"
+import { CreateRecipient, GetTransferFee, GetVendorsDto, InitiateTransferDto, IPaymentSource, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto"
+import { ApproveTransfer, CreateTransferRecord, RunSecurityCheck } from "./interfaces/budget-transfer.interface"
+import { TransferService } from "../external-providers/transfer/transfer.service"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -146,7 +144,7 @@ export class BudgetTransferService {
         type: WalletEntryType.Debit,
         narration: 'Budget Transfer',
         paymentMethod: 'transfer',
-        reference: `bt_${createId()}`,
+        reference: `bt-${createId()}`,
         provider: payload.provider,
         invoiceUrl: data.invoiceUrl,
         category: data.category,
@@ -328,11 +326,13 @@ export class BudgetTransferService {
 
     let invoiceUrl
     if (data.invoice) {
-      const key = `budget/${budgetId}/${createId()}.${data.fileExt || 'pdf'}`;
+      const fileExt = data.fileExt || 'pdf';
+      const key = `budget/${budgetId}/${createId()}.${fileExt}`;
       invoiceUrl = await this.s3Service.uploadObject(
         getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
         key,
-        data.invoice
+        data.invoice,
+        getContentType(fileExt)
       );
     } else {
       await this.budgetPolicyService.checkInvoicePolicy({
@@ -462,7 +462,7 @@ export class BudgetTransferService {
       counterparty,
       currency: budget.currency,
       narration: entry.narration,
-      provider
+      provider,
     })
 
     if (transferResponse.status === 'failed') {
@@ -572,8 +572,12 @@ export class BudgetTransferService {
     return { message: 'updated successfully' }
   }
 
-  async getRecipients(auth:AuthUser ) {
+  async getRecipients(auth:AuthUser) {
     return Counterparty.find({ organization: auth.orgId, isRecipient: true }).lean()
+  }
+
+  async getVendors(auth:AuthUser, dto: GetVendorsDto) {
+    return Vendor.find({ organization: auth.orgId, paymentMethod: dto.paymentMethod, isRecipient: true }).lean()
   }
 
   async createRecipient(auth: AuthUser, data: CreateRecipient) {

@@ -27,9 +27,9 @@ import { payrollQueue } from "@/queues";
 import { IProcessPayroll } from "@/queues/jobs/payroll/process-payroll.job";
 import { createId } from "@paralleldrive/cuid2";
 import dayjs from "dayjs";
+import isBetween from "dayjs/plugin/isBetween";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import timezone from "dayjs/plugin/timezone";
-import isBetween from "dayjs/plugin/isBetween";
 import utc from "dayjs/plugin/utc";
 import * as fastCsv from "fast-csv";
 import { ObjectId } from "mongodb";
@@ -47,25 +47,30 @@ import {
   getOrganizationPlan,
   getPercentageDiff,
   toTitleCase,
+  transactionOpts,
 } from "../common/utils";
 import { getDates } from "../common/utils/date";
-import { TransferClientName } from "../transfer/providers/transfer.client";
 import { UserService } from "../user/user.service";
-import { VirtualAccountClientName } from "../virtual-account/providers/virtual-account.client";
-import { VirtualAccountService } from "../virtual-account/virtual-account.service";
 import {
   AddBulkPayrollUserDto,
   AddPayrollUserDto,
   AddPayrollUserViaInviteDto,
   AddSalaryBankAccountDto,
   EditPayrollUserDto,
+  FundPayrollDto,
   GetHistoryDto,
+  InitiatePayrollWithdrawDto,
   PayrollSchedule,
   PayrollScheduleMode,
   PreviewPayrollRunDto,
   ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
+import { VirtualAccountService } from "../external-providers/virtual-account/virtual-account.service";
+import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
+import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
+import { cdb } from "../common/mongoose";
+import WalletEntry, { WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isBetween);
@@ -107,24 +112,22 @@ export class PayrollService {
       throw new NotFoundError("Base wallet not found");
     }
 
-    const accountRef = `va-${createId()}`;
-    const account = await this.vaService.createAccount({
-      currency: "NGN",
-      email: org.email,
-      phone: org.phone,
-      name: org.businessName,
-      type: "static",
-      customerId: org.safeHavenIdentityId,
-      provider: VirtualAccountClientName.SafeHaven,
-      reference: accountRef,
-      rcNumber: org.rcNumber,
-    });
-    const providerRef = account.providerRef || accountRef;
+    const existingPayrollWallet = await Wallet.findOne({
+      organization: org._id,
+      baseWallet: baseWallet._id,
+      type: WalletType.Payroll
+    })
+    if (!existingPayrollWallet) {
+      throw new BadRequestError(`Payroll Account already exists`)
+    }
+
+    const providerRef = `va-${createId()}`;
     const walletId = new ObjectId();
     const virtualAccountId = new ObjectId();
 
     const wallet = await Wallet.create({
       _id: walletId,
+      name: 'Payroll',
       organization: org._id,
       baseWallet: baseWallet._id,
       currency: baseWallet.currency,
@@ -138,11 +141,11 @@ export class PayrollService {
       _id: virtualAccountId,
       organization: org._id,
       wallet: wallet._id,
-      accountNumber: account.accountNumber,
-      bankCode: account.bankCode,
-      name: account.accountName,
-      bankName: account.bankName,
-      provider: VirtualAccountClientName.SafeHaven,
+      accountNumber: '0000000',
+      bankCode: '000014',
+      name: 'Sub Wallet',
+      bankName: 'Access Bank',
+      provider: VirtualAccountClientName.Hydrogen,
       externalRef: providerRef,
     });
 
@@ -265,6 +268,7 @@ export class PayrollService {
     const result = await Payroll.aggregate()
       .match({
         organization: new ObjectId(orgId),
+        status: PayrollStatus.Completed,
         date: {
           $gte: today.startOf("year").toDate(),
           $lte: today.endOf("year").toDate(),
@@ -279,7 +283,9 @@ export class PayrollService {
       .unwind("$payout")
       .group({
         _id: {
-          date: { $dateToString: { format: "%Y-%m", date: "$date", timezone: tz } },
+          date: {
+            $dateToString: { format: "%Y-%m", date: "$date", timezone: tz },
+          },
           currency: "$payout.currency",
         },
         amount: { $sum: "$payout.amount" },
@@ -339,6 +345,10 @@ export class PayrollService {
           previousPayroll.totalGrossAmount - previousPayroll.totalNetAmount,
         currentPayroll.totalGrossAmount - currentPayroll.totalNetAmount
       );
+    } else {
+      const result = await this.previewNewPayrollDetails(orgId);
+      nextRunNet = result.amount
+      nextRunDeductions = result.deductions
     }
 
     return {
@@ -352,7 +362,7 @@ export class PayrollService {
   private getTransferFee(
     plan: ISubscriptionPlan,
     amount: number,
-    currency = 'NGN'
+    currency = "NGN"
   ) {
     const fee = plan.transferFee.budget.find(
       (f) =>
@@ -374,8 +384,42 @@ export class PayrollService {
       limit: 12,
       page: Number(query.page),
       sort: "-periodStartDate",
+      populate: [
+        {
+          path: "excludedPayrollUsers",
+          select: "_id",
+          match: {  deletedAt: { $exists: false }  },
+        },
+      ],
       lean: true,
     });
+
+    const inconclusive = [
+      PayrollApprovalStatus.Rejected,
+      PayrollApprovalStatus.Pending,
+    ];
+    const [plan, users] = await Promise.all([
+      getOrganizationPlan(orgId),
+      this.getPayrollUsers(orgId),
+    ]);
+    
+    result.docs = await Promise.all(
+      result.docs.map(async (payroll) => {
+        if (inconclusive.includes(payroll.approvalStatus)) {
+          const breakdown = this.getPayrollBreakdown(
+            users,
+            plan,
+            payroll.excludedPayrollUsers
+          );
+          payroll.totalNetAmount = breakdown.net;
+          payroll.totalGrossAmount = breakdown.gross;
+          payroll.totalEmployees =
+            users.length - (payroll.excludedPayrollUsers?.length || 0);
+        }
+
+        return payroll;
+      })
+    );
 
     return result;
   }
@@ -384,7 +428,11 @@ export class PayrollService {
     const payroll = await Payroll.findOne({
       _id: payrollId,
       organization: orgId,
-    }).populate("excludedPayrollUsers", "_id");
+    }).populate({
+      path: "excludedPayrollUsers",
+      select: "_id",
+      match: { deletedAt: { $exists: false } },
+    });
     if (!payroll) {
       throw new BadRequestError("Payroll not found");
     }
@@ -437,9 +485,9 @@ export class PayrollService {
       PayrollApprovalStatus.Pending,
     ];
     if (inconclusive.includes(payroll.approvalStatus)) {
-      employeeCount = users.length;
+      employeeCount = users.length - (payroll.excludedPayrollUsers.length || 0);
       const plan = await getOrganizationPlan(orgId);
-      const breakdown = this.getPayrollBreakdown(users, plan);
+      const breakdown = this.getPayrollBreakdown(users, plan, payroll.excludedPayrollUsers);
       currentAmount = breakdown.net;
       currentDeduction = breakdown.gross - breakdown.net;
     }
@@ -473,7 +521,10 @@ export class PayrollService {
     };
   }
 
-  async previewNewPayrollDetails(orgId: string, dto: PreviewPayrollRunDto) {
+  async previewNewPayrollDetails(
+    orgId: string,
+    dto: PreviewPayrollRunDto = { excludedUsers: [] }
+  ) {
     const lastMonth = dayjs().tz().subtract(1, "month");
     const previousPayroll = await Payroll.findOne({
       organization: orgId,
@@ -486,11 +537,13 @@ export class PayrollService {
       getOrganizationPlan(orgId),
     ]);
 
-    const employeeCount = users.length
+    const employeeCount = users.length;
     users = users.filter(
       (u) =>
         !dto.excludedUsers.includes(u._id.toString()) &&
-        (u.salary && u.salary?.netAmount && u.bank)
+        u.salary &&
+        u.salary?.netAmount &&
+        u.bank
     );
     const breakdown = this.getPayrollBreakdown(users, plan);
     let currentDeduction = breakdown.gross - breakdown.net;
@@ -682,6 +735,7 @@ export class PayrollService {
 
     const virtualAccount = existingWallet.virtualAccounts[0] as IVirtualAccount;
     return {
+      id: existingWallet.id,
       balance: existingWallet.balance,
       currency: existingWallet.currency,
       account: {
@@ -709,13 +763,14 @@ export class PayrollService {
 
     const plan = await getOrganizationPlan(auth.orgId);
     let users = (await this.getPayrollUsers(auth.orgId)).filter(
-      (u) =>
-        !dto.excludedUsers.includes(u._id.toString())
+      (u) => !dto.excludedUsers.includes(u._id.toString())
     );
 
-    const noSalary = users.some((u) => (!u.salary?.netAmount || !u.bank))
+    const noSalary = users.some((u) => !u.salary?.netAmount || !u.bank);
     if (noSalary) {
-      throw new BadRequestError('One or more employees does not have a bank account or salary')
+      throw new BadRequestError(
+        "One or more employees does not have a bank account or salary"
+      );
     }
 
     if (!users.length) {
@@ -1052,6 +1107,151 @@ export class PayrollService {
     };
   }
 
+  async fundPayrollViaWallet(auth: AuthUser, data: FundPayrollDto) {
+    const wallet = await Wallet.findById(data.sourceWallet)
+    if (!wallet) {
+      throw new BadRequestError("Wallet not found")
+    }
+    const payrollWallet = await Wallet.findById(data.payrollWallet)
+    if (!payrollWallet) {
+      throw new BadRequestError("Payroll wallet not found");
+    }
+
+    if (wallet.balance < data.amount) {
+      throw new BadRequestError("Insufficient funds")
+    }
+
+    await cdb.transaction(async session => {
+      const [entry1, entry2] = await WalletEntry.create([{
+        organization: payrollWallet.organization,
+        wallet: payrollWallet._id,
+        initiatedBy: auth.userId,
+        currency: payrollWallet.currency,
+        type: WalletEntryType.Credit,
+        ledgerBalanceBefore: payrollWallet.ledgerBalance,
+        ledgerBalanceAfter: payrollWallet.ledgerBalance,
+        balanceBefore: payrollWallet.balance,
+        balanceAfter: numeral(payrollWallet.balance).add(data.amount).value(),
+        amount: data.amount,
+        scope: WalletEntryScope.PayrollFunding,
+        narration: `Payroll Funding`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          payrollBalanceAfter: numeral(payrollWallet.balance).add(data.amount).value()!,
+          payrollBalanceBefore: payrollWallet.balance,
+        }
+      },
+      {
+        organization: wallet.organization,
+        payroll: payrollWallet._id,
+        wallet: wallet._id,
+        initiatedBy: auth.userId,
+        currency: wallet.currency,
+        type: WalletEntryType.Debit,
+        ledgerBalanceBefore: wallet.ledgerBalance,
+        ledgerBalanceAfter: wallet.ledgerBalance,
+        balanceBefore: wallet.balance,
+        balanceAfter: numeral(wallet.balance).subtract(data.amount).value(),
+        amount: data.amount,
+        scope: WalletEntryScope.PayrollFunding,
+        narration: `Payroll Funding`,
+        reference: createId(),
+        status: WalletEntryStatus.Successful,
+        meta: {
+          payrollBalanceAfter: payrollWallet.balance,
+          payrollBalanceBefore: numeral(payrollWallet.balance).subtract(data.amount).value()!,
+        }
+      }], { session })
+
+      await Wallet.updateOne({ _id: payrollWallet.id }, {
+        $set: { walletEntry: entry1._id },
+        $inc: { balance: data.amount, ledgerBalance: data.amount, }
+      }).session(session)
+
+      await Wallet.updateOne({ _id: wallet._id }, {
+        $set: { walletEntry: entry2._id },
+        $inc: { balance: -data.amount, ledgerBalance: -data.amount }
+      }, { session })
+    }, transactionOpts)
+
+
+    return {
+      status: 'active',
+      message: 'Payroll funded'
+    }
+  }
+
+  async initiatePayrollWithdraw(auth: AuthUser, data: InitiatePayrollWithdrawDto) {
+    const wallet = await Wallet.findOne({ organization: auth.orgId, primary: true })
+    if (!wallet) {
+      throw new BadRequestError("Wallet not found")
+    }
+    const payroWallet = await Wallet.findById(data.payrollWallet)
+    if (!payroWallet) {
+      throw new BadRequestError("Payroll Wallet not found");
+    }
+
+    if (payroWallet.balance < data.amount) {
+      throw new BadRequestError("Insufficient funds")
+    }
+    await cdb.transaction(async (session) => {
+        const [entry1, entry2] = await WalletEntry.create([{
+          organization: wallet.organization,
+          wallet: wallet._id,
+          initiatedBy: auth.userId,
+          currency: wallet.currency,
+          type: WalletEntryType.Credit,
+          ledgerBalanceBefore: wallet.ledgerBalance,
+          ledgerBalanceAfter: wallet.ledgerBalance,
+          balanceBefore: wallet.balance,
+          balanceAfter: numeral(wallet.balance).add(data.amount).value(),
+          amount: data.amount,
+          scope: WalletEntryScope.PayrollWithdraw,
+          narration: `Payroll withdrawal`,
+          reference: createId(),
+          status: WalletEntryStatus.Successful,
+          meta: {
+            payrollBalanceAfter: numeral(payroWallet.balance).subtract(data.amount).value()!,
+            payrollBalanceBefore: payroWallet.balance,
+          }
+        }, {
+          organization: payroWallet.organization,
+          wallet: payroWallet.id,
+          initiatedBy: auth.userId,
+          currency: payroWallet.currency,
+          type: WalletEntryType.Debit,
+          ledgerBalanceBefore: payroWallet.ledgerBalance,
+          ledgerBalanceAfter: payroWallet.ledgerBalance,
+          balanceBefore: payroWallet.balance,
+          balanceAfter: numeral(payroWallet.balance).subtract(data.amount).value(),
+          amount: data.amount,
+          scope: WalletEntryScope.PayrollWithdraw,
+          narration: `Payroll withdrawal`,
+          reference: createId(),
+          status: WalletEntryStatus.Successful,
+          meta: {
+            payrollBalanceAfter: numeral(payroWallet.balance).subtract(data.amount).value()!,
+            payrollBalanceBefore: payroWallet.balance,
+          }
+        }], { session })
+  
+        await Wallet.updateOne({ _id: wallet._id }, {
+          $set: { walletEntry: entry1._id },
+          $inc: { balance: data.amount, ledgerBalance: data.amount }
+        }, { session })
+
+        await Wallet.updateOne({ _id: payroWallet.id }, {
+          $set: { walletEntry: entry2._id },
+          $inc: { balance: -data.amount, ledgerBalance: -data.amount, }
+        }).session(session)
+  })
+
+  return {
+    message: 'Payroll withdrawal'
+  }
+}
+
   async deletePayrollUser(orgId: string, userId: string) {
     const user = await PayrollUser.findOneAndUpdate(
       { _id: userId, organization: orgId },
@@ -1152,27 +1352,26 @@ export class PayrollService {
 
   private getPayrollBreakdown(
     users: any[],
-    plan: ISubscriptionPlan
+    plan: ISubscriptionPlan,
+    excludedUsers: IUser[] = []
   ): { net: number; fee: 0; amount: number; gross: number } {
-    return users.reduce(
-      (a, u) => {
-        const gross = u?.salary?.grossAmount || 0;
-        const net = u?.salary?.netAmount || 0;
-        const fee = this.getTransferFee(
-          plan,
-          net,
-          u.salary?.currency
-        );
+    return users
+      .filter((u) =>  !excludedUsers.some((e) => u._id.equals(e._id)))
+      .reduce(
+        (a, u) => {
+          const gross = u?.salary?.grossAmount || 0;
+          const net = u?.salary?.netAmount || 0;
+          const fee = this.getTransferFee(plan, net, u.salary?.currency);
 
-        return {
-          gross: a.gross + gross,
-          net: a.net + net,
-          fee: a.fee + fee,
-          amount: a.amount + net + fee,
-        };
-      },
-      { net: 0, fee: 0, amount: 0, gross: 0 }
-    );
+          return {
+            gross: a.gross + gross,
+            net: a.net + net,
+            fee: a.fee + fee,
+            amount: a.amount + net + fee,
+          };
+        },
+        { net: 0, fee: 0, amount: 0, gross: 0 }
+      );
   }
 
   private async getOrCreatePayroll(

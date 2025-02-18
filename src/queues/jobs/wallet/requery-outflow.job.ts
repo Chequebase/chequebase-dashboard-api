@@ -1,11 +1,10 @@
 import Logger from "@/modules/common/utils/logger";
-import { TransferClientName } from "@/modules/transfer/providers/transfer.client";
-import { TransferService } from "@/modules/transfer/transfer.service";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
+import { TransferService } from "@/modules/external-providers/transfer/transfer.service";
 import { walletQueue } from "@/queues";
 import { Job } from "bull";
-import numeral from "numeral";
 import Container from "typedi";
-import { WalletOutflowData, WalletOutflowDataNotification } from "./wallet-outflow.job";
+import { WalletOutflowData } from "./wallet-outflow.job";
 import { AllowedSlackWebhooks, SlackNotificationService } from "@/modules/common/slack/slackNotification.service";
 
 export type RequeryOutflowJobData = {
@@ -24,7 +23,6 @@ async function onTransferEventNotification(notification: WalletOutflowData): Pro
   const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
   const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
   const reversedTopic = ':alert: Merchant Wallet Outflow Reversed :alert:'
-  console.log({ status, correctAmount })
   switch (status) {
     case 'successful':
       const successMessage = `${successTopic} \n\n
@@ -32,7 +30,6 @@ async function onTransferEventNotification(notification: WalletOutflowData): Pro
       *Amount*: ${correctAmount}
       *Status*: ${status}
     `;
-      console.log({ successMessage })
       return await slackService.sendMessage(AllowedSlackWebhooks.outflow, successMessage);
     case 'failed':
       const failedNessage = `${failureTopic} \n\n

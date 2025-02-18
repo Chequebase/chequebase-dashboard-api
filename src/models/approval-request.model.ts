@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
 import { ApprovalType, WorkflowType } from "./approval-rule.model";
-import { TransferClientName } from "@/modules/transfer/providers/transfer.client";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
 
 export enum ApprovalRequestReviewStatus {
   Pending = "pending",
