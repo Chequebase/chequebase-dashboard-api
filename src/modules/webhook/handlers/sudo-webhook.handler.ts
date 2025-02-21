@@ -13,7 +13,9 @@ export default class SudoWebhookHandler {
   ) {}
 
   private async onAuthorizationRequest(body: any) {
-    
+    // TODO: find budget linked to card
+    // validate policies
+    // charge card and create wallet entry
 
     return { message: "payment queued" };
   }

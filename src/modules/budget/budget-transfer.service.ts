@@ -13,8 +13,7 @@ import User, { KycStatus } from "@/models/user.model"
 import { IVirtualAccount } from "@/models/virtual-account.model"
 import WalletEntry, { IWalletEntry, WalletEntryScope, WalletEntryStatus, WalletEntryType } from "@/models/wallet-entry.model"
 import Wallet, { IWallet } from "@/models/wallet.model"
-import { walletQueue } from "@/queues"
-import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
+import { requeryTransfer } from "@/queues/jobs/wallet/requery-outflow.job"
 import { createId } from "@paralleldrive/cuid2"
 import dayjs from "dayjs"
 import { ObjectId } from 'mongodb'
@@ -472,20 +471,7 @@ export class BudgetTransferService {
         providerRef: transferResponse.providerRef
       })
 
-      await walletQueue.add(
-        "requeryOutflow",
-        {
-          provider,
-          providerRef: transferResponse.providerRef,
-        } as RequeryOutflowJobData,
-        {
-          attempts: 4,
-          backoff: {
-            type: "exponential",
-            delay: 60_000, // 1min in ms
-          },
-        }
-      );
+      await requeryTransfer(provider, transferResponse.providerRef)
     }
 
     return {

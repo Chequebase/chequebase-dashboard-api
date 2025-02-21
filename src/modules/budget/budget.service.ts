@@ -40,6 +40,7 @@ import EmailService from "../common/email.service";
 import { PlanUsageService } from "../billing/plan-usage.service";
 import { cdb } from "../common/mongoose";
 import WalletEntry, {
+  IWalletEntry,
   WalletEntryScope,
   WalletEntryStatus,
   WalletEntryType,
@@ -61,14 +62,14 @@ import PaymentIntent, {
 } from "@/models/payment-intent.model";
 import { PaystackService } from "../common/paystack.service";
 import {
-  ApproveExpense,
   CreateNewBudget,
   InitiateFundRequest,
 } from "./interfaces/budget.interface";
 import BudgetPolicy from "@/models/budget-policy.model";
 import { TransferService } from "../external-providers/transfer/transfer.service";
 import { IVirtualAccount } from "@/models/virtual-account.model";
-import { TransferClient, TransferClientName } from "../external-providers/transfer/providers/transfer.client";
+import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
+import { requeryTransfer } from "@/queues/jobs/wallet/requery-outflow.job";
 
 dayjs.extend(advancedFormat);
 dayjs.extend(utc);
@@ -449,108 +450,96 @@ export default class BudgetService {
       throw new BadRequestError("Budget not found");
     }
 
-    if (budget.wallet.balance < budget.amount) {
-      throw new BadRequestError("Insufficient balance");
-    }
-
     if (budget.approvedDate) {
       throw new BadRequestError("Budget is already approved");
     }
 
-    budget.approvedDate = new Date();
-    // await this.planUsageService.checkActiveBudgetUsage(budget.organization.toString())
-
-    // TODO: initiate transfer to sudo main account
-    // TODO: handle transfer using the meta information
-    // TODO: update budget balance = amount, status = active,
-    // TODO: create wallet entry debit from main account
+    await this.planUsageService.checkActiveBudgetUsage(budget.organization.toString())
 
     const reference = createId()
     const virtualAccount = budget.wallet.virtualAccounts[0] as IVirtualAccount
 
-    const entry = await WalletEntry.create([{
-      organization: budget.organization,
-      budget: budget._id,
-      wallet: budget.wallet._id,
-      initiatedBy: budget.createdBy._id,
-      project: budget.project,
-      currency: budget.currency,
-      type: WalletEntryType.Debit,
-      ledgerBalanceBefore: budget.wallet.ledgerBalance,
-      ledgerBalanceAfter: budget.wallet.ledgerBalance,
-      balanceBefore: budget.wallet.balance,
-      balanceAfter: numeral(budget.wallet.balance).subtract(budget.amount).value(),
-      amount: budget.amount,
-      scope: WalletEntryScope.BudgetFunding,
-      narration: `Budget "${budget.name}" activated`,
-      reference: createId(),
-      status: WalletEntryStatus.Successful,
-      meta: {
-        budgetBalanceAfter: budget.balance,
-        budgetBalanceBefore: numeral(budget.balance).subtract(budget.amount).value()!,
-      }
-    }])
+    let entry: IWalletEntry
+    await cdb.transaction(async session => {
+      const wallet = await Wallet.findOne({
+        _id: budget.wallet._id,
+        balance: { $gte: budget.amount }
+      }, {
+        $set: { walletEntry: entry._id },
+        $inc: { balance: -budget.amount, ledgerBalance: -budget.amount }
+      }, { session });
 
-    await this.transferService.initiateTransfer({
+      if (!wallet) {
+        throw new BadRequestError('Insufficient balance')
+      }
+
+      const balanceAfter = numeral(budget.wallet.balance).subtract(budget.amount).value();
+      ([entry] = await WalletEntry.create([{
+        organization: budget.organization,
+        budget: budget._id,
+        wallet: budget.wallet._id,
+        initiatedBy: budget.createdBy._id,
+        currency: budget.currency,
+        type: WalletEntryType.Debit,
+        ledgerBalanceBefore: budget.wallet.ledgerBalance,
+        ledgerBalanceAfter: balanceAfter,
+        balanceBefore: budget.wallet.balance,
+        balanceAfter: balanceAfter,
+        amount: budget.amount,
+        scope: WalletEntryScope.BudgetFunding,
+        narration: 'Fund budget',
+        reference: `fb_${createId()}`,
+        status: WalletEntryStatus.Pending,
+        meta: {
+          budgetBalanceAfter: budget.balance,
+          budgetBalanceBefore: 0,
+        }
+      }], { session }));
+
+      await Budget.updateOne({ _id: budget._id }, {
+        approvedDate: new Date()
+      }, { session })
+    })
+    
+    const response = await this.transferService.initiateTransfer({
       amount: budget.amount,
       currency: budget.currency,
-      narration: 'Budget creation',
+      narration: entry!.narration,
       provider: virtualAccount.provider as TransferClientName,
       reference,
       debitAccountNumber: virtualAccount.accountNumber,
       to: virtualAccount.name,
       counterparty: {
-        accountName: '',
-        accountNumber: '',
-        bankCode: '',
-        bankId: ''
+        accountName: getEnvOrThrow('SUDO_DEFAULT_WALLET_ACCOUNT_NAME'),
+        accountNumber: getEnvOrThrow('SUDO_DEFAULT_WALLET_ACCOUNT_NUMBER'),
+        bankCode: getEnvOrThrow('SUDO_DEFAULT_WALLET_ACCOUNT_BANK_CODE'),
+        bankId: getEnvOrThrow('SUDO_DEFAULT_WALLET_ACCOUNT_BANK_CODE')
       }
     })
+
+    entry = entry!
     
-    // await cdb.transaction(async session => {
-    // budget.balance = budget.amount
-    // budget.status = BudgetStatus.Active
-    // await budget.save({ session })
+    if (response.status === 'failed') {
+      await this.reverseBudgetDebit(entry, response.gatewayResponse)
+      return {
+        status: 'failed',
+        message: response.message,
+        budget: budget._id
+      }
+    }
 
+    if ('providerRef' in response) {
+      await WalletEntry.updateOne({ _id: entry._id }, {
+        providerRef: response.providerRef
+      })
 
+      await requeryTransfer(entry.provider, entry.providerRef);
+    }
 
-    // await Wallet.updateOne({ _id: budget.wallet._id }, {
-    //   $set: { walletEntry: entry._id },
-    //   $inc: { balance: -budget.amount }
-    // }, { session })
-
-    // this.emailService.sendBudgetCreatedEmail(budget.createdBy.email, {
-    //   budgetAmount: formatMoney(budget!.amount),
-    //   budgetName: budget.name,
-    //   currency: budget.currency,
-    //   dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-    //   employeeName: budget.createdBy.firstName
-    // })
-    // }, transactionOpts)
-
-    // this.emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
-    //   budgetAmount: formatMoney(budget.balance),
-    //   currency: budget.currency,
-    //   budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
-    //   budgetName: budget.name,
-    //   employeeName: budget.createdBy.firstName
-    // })
-
-    // if (budget.beneficiaries.length > 0) {
-    //   budget.beneficiaries.forEach((beneficiary: any) => {
-    //     return beneficiary.user && this.emailService.sendBudgetBeneficiaryAdded(beneficiary.user.email, {
-    //       employeeName: beneficiary.user.firstName,
-    //       budgetName: budget!.name,
-    //       budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-    //       amountAllocated: formatMoney(beneficiary?.allocation || 0)
-    //     })
-    //   })
-    // }
-
-    // return {
-    //   status: budget.status,
-    //   budget: budget._id
-    // }
+    return {
+      status: 'approved',
+      budget: budget._id
+    }
   }
 
   async editBudget(auth: AuthUser, id: string, data: EditBudgetDto) {
@@ -1445,5 +1434,25 @@ export default class BudgetService {
     });
 
     return budget.toObject();
+  }
+
+  private async reverseBudgetDebit(entry: IWalletEntry, gatewayResponse: string) {
+    const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
+    await cdb.transaction(async (session) => {
+      await WalletEntry.updateOne({ _id: entry._id }, {
+        $set: {
+          gatewayResponse,
+          status: WalletEntryStatus.Failed
+        },
+        $inc: {
+          'meta.budgetBalanceAfter': reverseAmount
+        }
+      }, { session })
+
+      await Wallet.updateOne({ _id: entry.wallet }, {
+        $inc: { balance: reverseAmount, ledgerBalance: reverseAmount }
+      }, {session})
+
+    }, transactionOpts)
   }
 }

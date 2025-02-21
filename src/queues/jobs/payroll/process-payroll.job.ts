@@ -24,7 +24,7 @@ import { LeanDocument } from "mongoose";
 import numeral from "numeral";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import Container from "typedi";
-import { RequeryOutflowJobData } from "../wallet/requery-outflow.job";
+import { requeryTransfer } from "../wallet/requery-outflow.job";
 import payoutReconciliation from "./payout-reconciliation";
 import { TransferService } from "@/modules/external-providers/transfer/transfer.service";
 import { InitiateTransferData } from "@/modules/external-providers/transfer/providers/transfer.client";
@@ -195,20 +195,7 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
         { providerRef: response.providerRef }
       );
 
-      await walletQueue.add(
-        "requeryOutflow",
-        {
-          provider: payout.provider,
-          providerRef: response.providerRef,
-        } as RequeryOutflowJobData,
-        {
-          attempts: 4,
-          backoff: {
-            type: "exponential",
-            delay: 60_000, // 1min in ms
-          },
-        }
-      );
+      await requeryTransfer(payout.provider, response.providerRef)
     } else {
       // if no providerRef then transfer is likely failed
       await payoutReconciliation.failure(entry, {
