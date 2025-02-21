@@ -67,7 +67,7 @@ export class SafeHavenTransferClient implements TransferClient {
     const nameEnquiryReference = await this.nameEnquiry(payload.counterparty);
     const body: TransferPayload = {
       nameEnquiryReference,
-      debitAccountNumber: payload.debitAccount,
+      debitAccountNumber: payload.debitAccountNumber,
       beneficiaryBankCode: payload.counterparty.bankCode,
       beneficiaryAccountNumber: payload.counterparty.accountNumber,
       amount: Number(numeral(payload.amount).divide(100).format("0.00")),

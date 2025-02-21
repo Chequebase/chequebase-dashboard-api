@@ -456,7 +456,7 @@ export class BudgetTransferService {
 
     const debitAccount = ((budget.wallet as unknown as IWallet).virtualAccounts[0] as IVirtualAccount).accountNumber
     const transferResponse = await this.transferService.initiateTransfer({
-      debitAccount,
+      debitAccountNumber: debitAccount,
       reference: entry.reference,
       amount: data.amount,
       counterparty,

@@ -953,6 +953,7 @@ export class PayrollService {
     if (dayjs().tz(tz).isSameOrAfter(payroll.date, "date")) {
       await payrollQueue.add("processPayroll", {
         payroll: payroll._id.toString(),
+        orgId: payroll.organization,
         initiatedBy,
       } as IProcessPayroll);
     }

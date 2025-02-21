@@ -81,7 +81,7 @@ export class AnchorTransferClient implements TransferClient {
         account: {
           data: {
             type: "DepositAccount",
-            id: payload.debitAccount
+            id: payload.debitAccountNumber
           }
         },
         counterParty: {

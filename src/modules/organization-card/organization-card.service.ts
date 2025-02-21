@@ -156,7 +156,7 @@ export class OrganizationCardService {
       narration: "Card creation",
       provider: debitAcount.provider as TransferClientName,
       reference,
-      debitAccount: debitAcount.accountNumber,
+      debitAccountNumber: debitAcount.accountNumber,
       to: creditAccount.accountName,
       counterparty: creditAccount as InitiateTransferData["counterparty"],
     });

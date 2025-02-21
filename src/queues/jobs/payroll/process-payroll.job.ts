@@ -165,7 +165,7 @@ async function processPayout(initiatedBy: string, payout: IPayrollPayout) {
       currency: payout.currency,
       narration: entry.narration,
       provider: payout.provider,
-      debitAccount: wallet.virtualAccounts[0].accountNumber,
+      debitAccountNumber: wallet.virtualAccounts[0].accountNumber,
     };
 
     const response = await transferService.initiateTransfer(request);

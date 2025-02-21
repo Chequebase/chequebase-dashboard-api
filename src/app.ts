@@ -27,6 +27,8 @@ import WalletController from "./modules/wallet/wallet.controller";
 import WebhookController from "./modules/webhook/webhook.controller";
 import PayrollController from './modules/payroll/payroll.controller';
 import OrganizationCardController from './modules/organization-card/organization-card.controller';
+import useScopedContainer from './modules/common/use-scoped-container';
+import { injectDiMiddleware } from './modules/common/middlewares/inject-di.middlware';
 
 const { defaultMetadataStorage } = require('class-transformer/cjs/storage')
 
@@ -36,16 +38,15 @@ app.use(hpp());
 app.set("trust proxy", true);
 app.use(helmet());
 app.use(cors());
-// !NOTE: do not uncomment!! Make sure to use @JsonController() instead. The body parser middleware breaks the webhook verification logic
-// app.use(express.json());
-app.use(apiRequestLogger)
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/health", (_: Request, res: Response) => {
   res.send("<h1>Healthcheck OK! 👍</h1>");
 });
 
-useContainer(Container);
+app.use(apiRequestLogger);
+app.use(injectDiMiddleware)
+useScopedContainer();
 
 const rcOptions: RoutingControllersOptions = {
   routePrefix: "/v1",
@@ -84,9 +85,6 @@ const storage = getMetadataArgsStorage()
 const spec = routingControllersToSpec(storage, rcOptions, {
   components: { schemas },
 })
-
-// const json = JSON.stringify(spec);
-// fs.writeFileSync('api-spec.json', json, 'utf8');
 
 app.use('/docs',
   basicAuth({
