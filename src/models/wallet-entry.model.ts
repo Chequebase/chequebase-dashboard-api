@@ -48,6 +48,10 @@ export enum WalletEntryScope {
   PayrollFunding = 'payroll_funding',
   PayrollWithdraw = 'payroll_withdraw',
   PayrollPayout = 'payroll_payout',
+
+  // deprecated
+  ProjectFunding = 'project_funding',
+  ProjectClosure = 'project_closure',
 }
 
 interface WalletEntryModel extends
