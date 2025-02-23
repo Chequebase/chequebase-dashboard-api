@@ -263,7 +263,7 @@ export class ApprovalService {
         { path: 'properties.transaction.category', select: 'name' },
       ]
     })
-      
+
     return requests
   }
 
@@ -321,7 +321,7 @@ export class ApprovalService {
         }, false)
         break;
       case WorkflowType.Expense:
-        response = await this.budgetService.approveExpense(props.budget._id)
+        response = await this.budgetService.approveExpense(props.budget._id);
         break;
       case WorkflowType.Transaction:
         const trnx = props.transaction!

@@ -83,4 +83,22 @@ async function requeryOutflow(job: Job<RequeryOutflowJobData>) {
   }
 }
 
+
+export async function requeryTransfer(provider: string, providerRef: string) {
+  return walletQueue.add(
+    "requeryOutflow",
+    {
+      provider,
+      providerRef,
+    } as RequeryOutflowJobData,
+    {
+      attempts: 4,
+      backoff: {
+        type: "exponential",
+        delay: 60_000, // 1min in ms
+      },
+    }
+  );
+}
+
 export default requeryOutflow;

@@ -45,11 +45,13 @@ export enum WalletEntryScope {
   VendorTransfer = 'vendor_transfer',
   BudgetFunding = 'budget_funding',
   BudgetClosure = 'budget_closure',
-  ProjectFunding = 'project_funding',
-  ProjectClosure = 'project_closure',
   PayrollFunding = 'payroll_funding',
   PayrollWithdraw = 'payroll_withdraw',
   PayrollPayout = 'payroll_payout',
+
+  // deprecated
+  ProjectFunding = 'project_funding',
+  ProjectClosure = 'project_closure',
 }
 
 interface WalletEntryModel extends

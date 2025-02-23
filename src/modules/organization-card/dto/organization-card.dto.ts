@@ -51,16 +51,11 @@ export class LinkCardDto {
   cardId: string;
 
   @IsString()
-  @ValidateIf((o) => !o.walletId)
   budget: string | null;
 
   @IsString()
   @IsOptional()
   department: string | null;
-
-  @IsString()
-  @ValidateIf((o) => !o.budget && !o.department)
-  walletId: string;
 }
 
 export class GetCardsQuery {

@@ -1,40 +1,41 @@
-import { NextFunction } from 'express';
-import * as logfmt from 'logfmt';
-import Logger from '../utils/logger';
+import { createId } from "@paralleldrive/cuid2";
+import { NextFunction, Request, Response } from "express";
+import { getGlobalLogger } from "../utils/logger-v2";
 
-const logger = new Logger('cll');
+function requestLogger(req: Request, res: Response, next: NextFunction) {
+  req.logger = getGlobalLogger().child({
+    traceId: req.header("trace-id") || createId(),
+  });
 
-function apiRequestLogger(request: any, response: any, next: any) {
-  return (function (req: any, res: any, next: NextFunction) {
-    var end = res.end;
-    var startTime = new Date().getTime();
-    res.end = function (chunk: any, encoding: any) {
-      var data = logfmt.requestLogger.commonFormatter(req, res);
+  const end = res.end;
+  const startTime = new Date().getTime();
 
-      res.end = end;
-      res.end(chunk, encoding);
-
-      let logData: any = {
-        http_method: req.method,
-        http_status: res.statusCode,
-        http_path: req.originalUrl,
-        user_agent: req.get('User-Agent'),
-        ip: data.ip,
-      };
-
-      if (req.auth) {
-        logData = { ...logData, user: req.auth?.userId, organization: req.auth?.orgId };
-      }
-
-      // calculate request time in seconds
-      const elapsed = new Date().getTime() - startTime;
-      logData.duration = elapsed / 1000;
-
-      logger.log('canonical-log-line', logData);
+  res.end = function (...args: typeof res.end.arguments) {
+    let logData: Record<string, unknown> = {
+      httpStatus: res.statusCode,
+      url: req.originalUrl,
+      method: req.method,
+      userAgent: req.get("User-Agent"),
+      ip: req.ip,
     };
+    if (req.auth) {
+      logData = {
+        ...logData,
+        orgId: req.auth.orgId,
+        userId: req.auth.userId,
+        userRole: req.auth.roleRef.name
+      };
+    }
 
-    next();
-  })(request, response, next);
+    // calculate request time in seconds
+    const elapsed = new Date().getTime() - startTime;
+    logData.duration = elapsed / 1000;
+    req.logger.info(logData, "request completed");
+    res.end = end;
+    return res.end(...args);
+  };
+
+  next();
 }
 
-export default apiRequestLogger;
+export default requestLogger;

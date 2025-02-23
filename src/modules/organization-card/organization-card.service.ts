@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import Budget, { IBudget } from "@/models/budget.model";
-import Card, { CardBrand, CardCurrency, CardType } from "@/models/card.model";
+import Card, { CardBrand, CardCurrency, CardSpendLimitInterval, CardType, ICard } from "@/models/card.model";
 import Department from "@/models/department.model";
 import Organization, { IOrganization } from "@/models/organization.model";
 import User from "@/models/user.model";
@@ -33,13 +33,14 @@ import {
   SetSpendLimit,
 } from "./dto/organization-card.dto";
 import numeral from "numeral";
+import dayjs from "dayjs";
 
 @Service()
 export class OrganizationCardService {
-  constructor(
+  constructor (
     private cardService: CardService,
     private transferService: TransferService
-  ) {}
+  ) { }
 
   async getUSDRate() {
     const exchange = await this.cardService.getUSDRate({
@@ -156,7 +157,7 @@ export class OrganizationCardService {
       narration: "Card creation",
       provider: debitAcount.provider as TransferClientName,
       reference,
-      debitAccount: debitAcount.accountNumber,
+      debitAccountNumber: debitAcount.accountNumber,
       to: creditAccount.accountName,
       counterparty: creditAccount as InitiateTransferData["counterparty"],
     });
@@ -239,17 +240,6 @@ export class OrganizationCardService {
       }
     }
 
-    if (payload.walletId) {
-      const exists = await Wallet.exists({
-        _id: payload.walletId,
-        organization: auth.orgId,
-      });
-
-      if (!exists) {
-        throw new BadRequestError("Wallet not found");
-      }
-    }
-
     if (payload.department) {
       const exists = await Department.exists({
         _id: payload.department,
@@ -265,7 +255,7 @@ export class OrganizationCardService {
       .set({
         department: payload.department,
         budget: payload.budget,
-        wallet: payload.walletId || budget?.wallet,
+        wallet: budget?.wallet,
       })
       .save();
 
@@ -561,7 +551,7 @@ export class OrganizationCardService {
 
   async getCardBalance(provider: CardClientName, providerRef: string) {
     const card = await Card.findOne({ providerRef, provider })
-      .populate("card wallet")
+      .populate("wallet")
       .lean();
     if (!card) {
       return { amount: 0, currency: null };
@@ -580,7 +570,40 @@ export class OrganizationCardService {
     return { amount: wallet.ledgerBalance, currency: card.currency };
   }
 
-  async authorizeCardCharge() {}
+  async authorizeCardCharge(payload: { provider: CardClientName; providerRef: string; amount: number; }) {
+    const { provider, providerRef, amount } = payload;
+    const card = await Card.findOne({ providerRef, provider })
+      .populate("wallet")
+      .lean();
+
+    if (!card) {
+      return {
+        code: '14',
+        message: 'Invalid card'
+      }
+    }
+
+    const flaggedCalendarPolicy = this.checkCalendarPolicy(card, new Date().getDate());
+    if (flaggedCalendarPolicy) {
+      return {
+        code: '12',
+        message: '1nvalid Transaction'
+      }
+    }
+
+    const flaggedSpendLimit = await this.checkSpendLimitPolicy(card, amount)
+    if (flaggedSpendLimit) {
+      return {
+        code: '61',
+        message: 'Withdrawal Limit Exceeded'
+      }
+    }
+
+    return {
+      code: "00",
+      message: "Approved or Completed Successfully"
+    }
+  }
 
   private async createCustomer(org: IOrganization, provider: CardClientName) {
     const owner = org.owners[0];
@@ -635,5 +658,44 @@ export class OrganizationCardService {
     });
 
     return { message: "Physical card requested", cardId: physcialCard._id };
+  }
+
+  async checkSpendLimitPolicy(card: ICard, amount: number) {
+    if (!card.spendLimit) {
+      return false
+    }
+    
+    const periodToDays = {
+      [CardSpendLimitInterval.Daily]: 1,
+      [CardSpendLimitInterval.Weekly]: 7,
+      [CardSpendLimitInterval.Monthly]: 30
+    }
+
+    const from = dayjs().subtract(periodToDays[card.spendLimit.interval] || 1).toDate()
+    const [totalSpentAgg] = await WalletEntry.aggregate().match({
+      organization: card.organization,
+      card: card._id,
+      status: { $in: [WalletEntryStatus.Successful, WalletEntryStatus.Pending] },
+      createdAt: { gte: from }
+    }).group({
+      _id: null,
+      amount: { $sum: { $add: ['$amount', '$fee'] } }
+    })
+    const totalSpent = totalSpentAgg?.amount || 0
+
+    if ((totalSpent + amount) >= card.spendLimit.amount) {
+      return true
+    }
+
+    return false
+  }
+
+  checkCalendarPolicy(card: ICard, dayOfWeek: number) {
+    const flagged = card.calendarPolicy?.dayOfWeek?.includes(dayOfWeek)
+    if (flagged) {
+      return true
+    }
+
+    return false
   }
 }

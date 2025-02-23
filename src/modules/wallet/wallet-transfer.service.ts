@@ -1,4 +1,4 @@
-import Container, { Service, Token } from "typedi"
+import { Service } from "typedi"
 import { BadRequestError, NotFoundError } from "routing-controllers"
 import dayjs from "dayjs"
 import { ObjectId } from 'mongodb';
@@ -23,20 +23,16 @@ import Logger from "../common/utils/logger"
 import Bank from "@/models/bank.model"
 import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model"
 import ApprovalRequest, { ApprovalRequestPriority } from "@/models/approval-request.model"
-import { walletQueue } from "@/queues"
-import { RequeryOutflowJobData } from "@/queues/jobs/wallet/requery-outflow.job"
+import { requeryTransfer } from "@/queues/jobs/wallet/requery-outflow.job"
 import { MonoService } from "../common/mono.service";
-import { MONO_TOKEN } from "../banksphere/providers/mono.client";
 import { TransferService } from "../external-providers/transfer/transfer.service";
 import { S3Service } from "../common/aws/s3.service";
 import EmailService from "../common/email.service";
 import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
 import { UserService } from "../user/user.service";
 import TransferCategory from "@/models/transfer-category";
-import VirtualAccount, { IVirtualAccount } from "@/models/virtual-account.model";
+import { IVirtualAccount } from "@/models/virtual-account.model";
 import { PayVendorDto } from "./dto/wallet.dto";
-import { VirtualAccountClientName } from "../external-providers/virtual-account/providers/virtual-account.client";
-import { BaseWalletType } from "../banksphere/providers/customer.client";
 import Vendor, { IVendor, VendorPaymentMethod } from "@/models/vendor.model";
 import CurrencyRate from "@/models/currency-rate.model";
 import { OrgType } from "../banksphere/dto/banksphere.dto";
@@ -1158,20 +1154,8 @@ export class WalletTransferService {
         providerRef: transferResponse.providerRef
       })
 
-      await walletQueue.add(
-        "requeryOutflow",
-        {
-          provider,
-          providerRef: transferResponse.providerRef,
-        } as RequeryOutflowJobData,
-        {
-          attempts: 4,
-          backoff: {
-            type: "exponential",
-            delay: 60_000, // 1min in ms
-          },
-        }
-      );
+      
+      await requeryTransfer(provider, transferResponse.providerRef)
     }
 
     return {
