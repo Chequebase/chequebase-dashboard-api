@@ -67,6 +67,9 @@ export interface ICard {
     amount: number;
     interval: CardSpendLimitInterval;
   };
+  calendarPolicy: {
+    dayOfWeek: number[]
+  }
   billingAddress: {
     line1: string;
     line2: string;
@@ -118,6 +121,12 @@ const CardSchema = new Schema<ICard>(
       ref: "Organization",
       required: true,
       index: true,
+    },
+    calendarPolicy: {
+      _id: false,
+      type: {
+        dayOfWeek: [Number]
+      }
     },
     spendChannels: {
       _id: false,
