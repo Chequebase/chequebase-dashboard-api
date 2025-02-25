@@ -21,9 +21,9 @@ const client = Container.get<SafeHavenTransferClient>(
   SAFE_HAVEN_TRANSFER_TOKEN
 );
 
-const revenueAccounNumber = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NUMBER')
-const revenueAccountName = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NAME')
-const revenueAccountBankCode = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_BANK_CODE')
+// const revenueAccounNumber = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NUMBER')
+// const revenueAccountName = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NAME')
+// const revenueAccountBankCode = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_BANK_CODE')
 
 async function sweepSafeHavenRevenue() {
   // try {
