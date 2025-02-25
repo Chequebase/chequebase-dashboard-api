@@ -461,11 +461,12 @@ export default class BudgetService {
 
     let entry: IWalletEntry
     await cdb.transaction(async session => {
-      const wallet = await Wallet.findOne({
+      const entryId = new ObjectId()
+      const wallet = await Wallet.findOneAndUpdate({
         _id: budget.wallet._id,
         balance: { $gte: budget.amount }
       }, {
-        $set: { walletEntry: entry._id },
+        $set: { walletEntry: entryId },
         $inc: { balance: -budget.amount, ledgerBalance: -budget.amount }
       }, { session });
 
@@ -475,6 +476,7 @@ export default class BudgetService {
 
       const balanceAfter = numeral(budget.wallet.balance).subtract(budget.amount).value();
       ([entry] = await WalletEntry.create([{
+        _id: entryId,
         organization: budget.organization,
         budget: budget._id,
         wallet: budget.wallet._id,

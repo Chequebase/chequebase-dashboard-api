@@ -95,7 +95,7 @@ export async function requeryTransfer(provider: string, providerRef: string) {
       attempts: 4,
       backoff: {
         type: "exponential",
-        delay: 60_000, // 1min in ms
+        delay: 5_000, // 5seconds in ms
       },
     }
   );
