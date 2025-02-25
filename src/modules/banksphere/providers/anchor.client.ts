@@ -15,9 +15,9 @@ export const ANCHOR_TOKEN = new Token('transfer.provider.anchor')
 export class AnchorCustomerClient implements CustomerClient {
   private logger = new Logger(AnchorCustomerClient.name)
   private http = axios.create({
-    baseURL: getEnvOrThrow('ANCHOR_BASE_URI'),
+    baseURL: process.env.ANCHOR_BASE_URI,
     headers: {
-      'x-anchor-key': getEnvOrThrow('ANCHOR_API_KEY')
+      'x-anchor-key': process.env.ANCHOR_API_KEY
     }
   })
 
