@@ -13,9 +13,9 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
   currencies = ['NGN']
   logger = new Logger(AnchorVirtualAccountClient.name)
   http = axios.create({
-    baseURL: getEnvOrThrow('ANCHOR_BASE_URI'),
+    baseURL: process.env.ANCHOR_BASE_URI,
     headers: {
-      'x-anchor-key': getEnvOrThrow('ANCHOR_API_KEY')
+      'x-anchor-key': process.env.ANCHOR_API_KEY
     }
   })
 

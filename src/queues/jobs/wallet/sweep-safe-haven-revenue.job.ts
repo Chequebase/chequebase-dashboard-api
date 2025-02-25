@@ -2,16 +2,13 @@ import WalletEntry, {
   WalletEntryScope,
   WalletEntryType,
 } from "@/models/wallet-entry.model";
-import { AllowedSlackWebhooks, SlackNotificationService } from "@/modules/common/slack/slackNotification.service";
 import { getEnvOrThrow } from "@/modules/common/utils";
 import Logger from "@/modules/common/utils/logger";
-import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/transfer/providers/safe-haven.client";
-import { TransferClientName } from "@/modules/transfer/providers/transfer.client";
-import { createId } from "@paralleldrive/cuid2";
+import { SafeHavenTransferClient, SAFE_HAVEN_TRANSFER_TOKEN } from "@/modules/external-providers/transfer/providers/safe-haven.client";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import numeral from "numeral";
 import Container from "typedi";
 
 dayjs.extend(utc);
@@ -24,9 +21,9 @@ const client = Container.get<SafeHavenTransferClient>(
   SAFE_HAVEN_TRANSFER_TOKEN
 );
 
-const revenueAccounNumber = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NUMBER')
-const revenueAccountName = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NAME')
-const revenueAccountBankCode = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_BANK_CODE')
+// const revenueAccounNumber = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NUMBER')
+// const revenueAccountName = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_NAME')
+// const revenueAccountBankCode = getEnvOrThrow('SAFE_HAVEN_REVENUE_ACCOUNT_BANK_CODE')
 
 async function sweepSafeHavenRevenue() {
   // try {

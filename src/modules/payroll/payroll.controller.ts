@@ -23,7 +23,10 @@ import {
   AddPayrollUserDto,
   AddPayrollUserViaInviteDto,
   EditPayrollUserDto,
+  FundPayrollDto,
   GetHistoryDto,
+  InitiatePayrollWithdrawDto,
+  PreviewPayrollRunDto,
   ProcessPayrollDto,
   UpdatePayrollSettingDto,
 } from "./dto/payroll.dto";
@@ -95,6 +98,21 @@ export default class PayrollController {
   @Get("/employees")
   getEmployees(@CurrentUser() auth: AuthUser) {
     return this.payrollService.getPayrollUsers(auth.orgId);
+  }
+
+  @Get("/available-months")
+  @Authorized(EPermission.PayrollEdit)
+  async getAvailableMonths(@CurrentUser() auth: AuthUser) {
+    return this.payrollService.getAvailableMonths(auth.orgId);
+  }
+
+  @Post("/preview-run")
+  @Authorized(EPermission.PayrollRead)
+  previewNewPayrollDetails(
+    @CurrentUser() auth: AuthUser,
+    @Body() dto: PreviewPayrollRunDto
+  ) {
+    return this.payrollService.previewNewPayrollDetails(auth.orgId, dto);
   }
 
   @Get("/:id")
@@ -177,13 +195,6 @@ export default class PayrollController {
     return passthrough;
   }
 
-  @Post("/create-payroll")
-  @Authorized(EPermission.PayrollEdit)
-  async createPayrollRun(@CurrentUser() auth: AuthUser) {
-    await this.usageService.checkPayrollUsage(auth.orgId);
-    return this.payrollService.initiatePayrollRun(auth);
-  }
-
   @Post("/process-payroll")
   @Authorized(EPermission.PayrollEdit)
   async processPayroll(
@@ -192,6 +203,16 @@ export default class PayrollController {
   ) {
     await this.usageService.checkPayrollUsage(auth.orgId);
     return this.payrollService.processPayroll(auth, dto);
+  }
+
+  @Post("/retry-payroll/:id")
+  @Authorized(EPermission.PayrollEdit)
+  async retryPayrollRun(
+    @CurrentUser() auth: AuthUser,
+    @Param("id") id: string
+  ) {
+    await this.usageService.checkPayrollUsage(auth.orgId);
+    return this.payrollService.retryPayollRun(auth, id);
   }
 
   @Authorized(EPermission.PayrollEdit)
@@ -276,5 +297,17 @@ export default class PayrollController {
     await redis.del(key);
 
     return this.payrollService.addPayrollUser(payload.orgId, dto);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Post("/fund-payroll")
+  async fundPayroll(@CurrentUser() auth: AuthUser, @Body() body: FundPayrollDto) {
+    return this.payrollService.fundPayrollViaWallet(auth, body);
+  }
+
+  @Authorized(EPermission.PayrollEdit)
+  @Post("/initiate-payroll-withdraw")
+  async initiatePayrollWithdraw(@CurrentUser() auth: AuthUser, @Body() body: InitiatePayrollWithdrawDto) {
+    return this.payrollService.initiatePayrollWithdraw(auth, body);
   }
 }

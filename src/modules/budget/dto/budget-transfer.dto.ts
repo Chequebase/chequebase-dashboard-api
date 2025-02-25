@@ -1,5 +1,7 @@
+import { VendorPaymentMethod } from "@/models/vendor.model";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
 import { Transform } from "class-transformer";
-import { IsBoolean, IsInt, IsOptional, IsString, Length } from "class-validator";
+import { IsBoolean, IsEnum, IsInt, IsString, Length } from "class-validator";
 
 export const enum IPaymentSource {
   WALLET = 'wallet',
@@ -16,6 +18,9 @@ export class InitiateTransferDto {
 
   @IsString()
   bankCode: string
+
+  @IsString()
+  provider: TransferClientName
 
   invoice?: Buffer
 
@@ -40,12 +45,12 @@ export class InitiateInternalTransferDto {
   @IsString()
   destination: string
 
+  @IsString()
+  provider: TransferClientName
+
   invoice?: Buffer
 
   fileExt?: string
-
-  @IsString()
-  pin: string
 }
 
 export class ResolveAccountDto {
@@ -98,4 +103,10 @@ export class CheckTransferPolicyDto {
 
   @IsString()
   bankCode: string
+}
+
+export class GetVendorsDto {
+  @IsString()
+  @IsEnum(VendorPaymentMethod)
+  paymentMethod: VendorPaymentMethod
 }

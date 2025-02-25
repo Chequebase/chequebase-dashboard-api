@@ -14,9 +14,9 @@ export class AnchorTransferClient implements TransferClient {
   currencies = ['NGN']
   private logger = new Logger(AnchorTransferClient.name)
   private http = axios.create({
-    baseURL: getEnvOrThrow('ANCHOR_BASE_URI'),
+    baseURL: process.env.ANCHOR_BASE_URI,
     headers: {
-      'x-anchor-key': getEnvOrThrow('ANCHOR_API_KEY')
+      'x-anchor-key': process.env.ANCHOR_API_KEY
     }
   })
 
@@ -81,7 +81,7 @@ export class AnchorTransferClient implements TransferClient {
         account: {
           data: {
             type: "DepositAccount",
-            id: payload.debitAccount
+            id: payload.debitAccountNumber
           }
         },
         counterParty: {

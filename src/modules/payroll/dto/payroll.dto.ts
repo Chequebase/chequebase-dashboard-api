@@ -1,6 +1,5 @@
-import { PayrollScheduleMode } from "@/models/payroll/payroll-settings.model";
 import { EmploymentType } from "@/models/user.model";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
@@ -8,6 +7,7 @@ import {
   IsDateString,
   IsDefined,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -18,6 +18,11 @@ import {
   ValidateIf,
   ValidateNested,
 } from "class-validator";
+
+export enum PayrollScheduleMode {
+  Fixed = "fixed",
+  LastBusinessDay = "last_business_day",
+}
 
 export class GetHistoryDto {
   @IsNumber()
@@ -49,7 +54,7 @@ class Earning {
   amount: number;
 }
 
-class Schedule {
+export class PayrollSchedule {
   @IsEnum(PayrollScheduleMode, {
     message: `Schedule mode must be one of: ${Object.values(
       PayrollScheduleMode
@@ -57,10 +62,18 @@ class Schedule {
   })
   mode: PayrollScheduleMode;
 
+  @IsInt()
+  @Min(0)
+  @Max(12)
+  month: number
+
+  @IsInt()
+  year: number
+
   @ValidateIf((o) => o.mode === PayrollScheduleMode.Fixed)
   @IsNumber({}, { message: "Day of month must be a valid number." })
   @Min(1, { message: "Day of month must be at least 1." })
-  @Max(28, { message: "Day of month cannot exceed 28." })
+  @Max(31, { message: "Day of month cannot exceed 31." })
   dayOfMonth?: number;
 }
 
@@ -69,10 +82,6 @@ export class UpdatePayrollSettingDto {
   @ValidateNested({ each: true })
   @Type(() => Deduction)
   deductions: Deduction[];
-
-  @ValidateNested()
-  @Type(() => Schedule)
-  schedule: Schedule;
 }
 
 export class AddSalaryBankAccountDto {
@@ -110,13 +119,48 @@ export class AddBulkPayrollUserDto {
   users: AddPayrollUserDto[];
 }
 
+export class FundPayrollDto {
+  @IsString()
+  sourceWallet: string;
+
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  amount: number
+
+  @IsString()
+  payrollWallet: string
+}
+
+export class InitiatePayrollWithdrawDto {
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  amount: number
+
+  @IsString()
+  payrollWallet: string
+}
+
 export class ProcessPayrollDto {
   @IsString()
   pin: string;
 
+  @ValidateNested()
+  @Type(() => PayrollSchedule)
+  schedule: PayrollSchedule;
+
+  @IsArray()
+  excludedUsers: string[];
+
   @IsString()
-  payroll: string;
+  @IsOptional()
+  payrollId?: string
 }
+
+export class PreviewPayrollRunDto {
+  @IsArray()
+  excludedUsers: string[];
+}
+
 export class AddPayrollUserDto {
   @IsString()
   @IsNotEmpty()

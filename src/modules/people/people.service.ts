@@ -15,6 +15,7 @@ import Logger from "../common/utils/logger"
 import { FeatureLimitExceededError } from "../common/utils/service-errors"
 import { CreateDepartmentDto, EditEmployeeDto, GetDepartmentDto, SendMemberInviteDto } from "./dto/people.dto"
 import { ObjectId } from 'mongodb';
+import { ERole } from "../user/dto/user.dto"
 
 const logger = new Logger('people-service')
 
@@ -139,6 +140,11 @@ export class PeopleService {
       ]
     }).lean()
 
+    const hasOwnerRole = roles.find((r) => r.type == RoleType.Default && r.name === ERole.Owner)
+    if (hasOwnerRole) {
+      throw new BadRequestError("You can not invite a team member with owner role")
+    }
+
     const missingRoles = invitedRoles.filter(roleId => !roles.some(r => r._id.equals(roleId)));
     if (missingRoles.length > 0) {
       throw new BadRequestError(`Invitation failed. The following role(s) do not exist: ${missingRoles.join(', ')}`);
@@ -177,7 +183,7 @@ export class PeopleService {
       i.department && i.department.trim().length !== 0 ? mappedUser.department = i.department : delete mappedUser.department
       return mappedUser;
     })
-    console.log({ userInvitesMap })
+
     const userInvites = await UserInvite.create(userInvitesMap)
 
     userInvites.forEach(invite => {

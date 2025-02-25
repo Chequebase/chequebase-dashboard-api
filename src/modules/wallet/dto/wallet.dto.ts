@@ -1,7 +1,11 @@
-import { WalletEntryType } from "@/models/wallet-entry.model";
+import { WalletEntryScope, WalletEntryType, WalletEntryUpdateAction } from "@/models/wallet-entry.model";
 import { WalletType } from "@/models/wallet.model";
-import { VirtualAccountClientName } from "@/modules/virtual-account/providers/virtual-account.client";
-import { IsBoolean, IsDateString, IsEnum, IsHexadecimal, IsInt, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { VirtualAccountClientName } from "@/modules/external-providers/virtual-account/providers/virtual-account.client";
+import { IsBoolean, IsDateString, IsEnum, IsHexadecimal, IsInt, IsOptional, IsString, Length, Min } from "class-validator";
+import { BaseWalletType } from "@/modules/banksphere/providers/customer.client";
+import { Transform } from "class-transformer";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
+import { VendorPaymentMethod } from "@/models/vendor.model";
 
 export class CreateWalletDto {
   @IsString()
@@ -19,8 +23,35 @@ export class CreateWalletDto {
   walletType = WalletType.General;
 
   @IsString()
+  @IsOptional()
+  name: string;
+
+  @IsString()
   @IsHexadecimal()
   organization: string;
+}
+
+export class CreateSubaccoubtDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  @IsEnum(BaseWalletType)
+  @IsOptional()
+  currency = BaseWalletType.NGN;
+
+  @IsString()
+  @IsEnum(VirtualAccountClientName)
+  @IsOptional()
+  provider = VirtualAccountClientName.SafeHaven;
+
+  @IsString()
+  @IsEnum(WalletType)
+  @IsOptional()
+  walletType = WalletType.SubAccount;
+
+  @IsString()
+  description: string;
 }
 
 export class ReportTransactionDto {
@@ -35,6 +66,12 @@ export class ReportTransactionDto {
   reason: string
 }
 
+export class GetLinkedAccountDto {
+  @IsString()
+  @IsEnum(WalletType)
+  @IsOptional()
+  type?: WalletType
+}
 export class GetWalletEntriesDto {
   @IsString()
   @IsOptional()
@@ -46,12 +83,29 @@ export class GetWalletEntriesDto {
   type?: WalletEntryType
 
   @IsString()
+  @IsEnum(WalletEntryScope)
+  @IsOptional()
+  scope?: WalletEntryScope
+
+  @IsString()
+  @IsOptional()
+  partnerId?: string
+
+  @IsString()
+  @IsOptional()
+  vendorStatus?: string
+
+  @IsString()
   @IsOptional()
   wallet?: string
 
   @IsString()
   @IsOptional()
   budget?: string
+
+  @IsString()
+  @IsOptional()
+  card?: string
 
   @IsString()
   @IsOptional()
@@ -89,4 +143,69 @@ export class GetWalletStatementDto {
   @IsString()
   @IsOptional()
   wallet: string
+}
+
+export class PayVendorDto {
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  amount: number
+
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  counterAmount: number
+
+  @IsOptional()
+  @IsString()
+  recipientId: string
+
+  @IsOptional()
+  @IsString()
+  merchantName: string
+
+  @IsString()
+  paymentMethod: VendorPaymentMethod
+
+  vendor?: Buffer
+
+  fileExt?: string
+
+  @IsString()
+  category: string
+
+  @IsString()
+  pin: string
+
+  @IsString()
+  source: string
+
+  @IsString()
+  partnerId: string
+
+  @IsString()
+  currency: string
+
+  @IsString()
+  provider: TransferClientName
+
+  @IsBoolean()
+  @Transform(({ value }) => value === "true" || value === true || value === 1)
+  saveRecipient: boolean
+}
+
+export class UpdateWalletEntry {
+  @IsString()
+  @IsEnum(WalletEntryUpdateAction)
+  @IsOptional()
+  action?: WalletEntryUpdateAction
+
+  @IsInt()
+  @IsOptional()
+  @Transform((n) => Number(n.value))
+  rate?: number
+}
+
+export class SetRate {
+  @IsInt()
+  @Transform((n) => Number(n.value))
+  rate: number
 }

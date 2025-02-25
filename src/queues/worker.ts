@@ -1,6 +1,6 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue, payrollQueue } from '.';
+import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue, payrollQueue, mandateQueue } from '.';
 import processWalletInflow from './jobs/wallet/wallet-inflow.job';
 import processWalletOutflow from './jobs/wallet/wallet-outflow.job';
 import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance.job';
@@ -19,10 +19,12 @@ import processKycRejected from './jobs/organization/processKycRejected';
 import processFundBudget from './jobs/budget/fund-budget.job';
 import { addWalletEntriesForIngestionToElastic, processWalletEntryToElasticsearch } from './jobs/wallet/wallet-entry-elasticsearch-ingester';
 import processPayroll from './jobs/payroll/process-payroll.job';
-import createNextPayrolls from './jobs/payroll/create-next-payroll';
 import fetchDuePayrolls from './jobs/payroll/fetch-due-payrolls';
 import requeryOutflow from './jobs/wallet/requery-outflow.job';
 import sweepSafeHavenRevenue from './jobs/wallet/sweep-safe-haven-revenue.job';
+import processMandateApproved from './jobs/mandate/mandate-approved.job';
+import processMandateDebitReady from './jobs/mandate/mandate-ready-debit.job';
+import processMandateExpired from './jobs/mandate/mandate-expired.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -35,6 +37,8 @@ function setupQueues() {
     organizationQueue.process('processKycApproved', processKycApproved)
     organizationQueue.process('processKycRejected', processKycRejected)
 
+    mandateQueue.process('processMandateApproved', 1, processMandateApproved)
+    mandateQueue.process('processMandateDebitReady', 1, processMandateDebitReady)
     walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 1, processWalletInflow)
     walletQueue.process('processWalletOutflow', 1, processWalletOutflow)
@@ -44,6 +48,10 @@ function setupQueues() {
     walletQueue.add('addWalletEntriesForClearance', null, {
       repeat: { cron: '0  * * * *', tz } // every hour
     })
+    mandateQueue.process("processMandateExpired", processMandateExpired);
+    mandateQueue.add("processMandateExpired", null, {
+      repeat: { cron: "0  * * * *", tz }, // every hour
+    });
     walletQueue.process('processWalletEntryToElasticsearch', 5, processWalletEntryToElasticsearch)
     walletQueue.process('addWalletEntriesForIngestionToElastic', addWalletEntriesForIngestionToElastic)
     walletQueue.add('addWalletEntriesForIngestionToElastic', null, {
@@ -81,10 +89,6 @@ function setupQueues() {
     })
 
     payrollQueue.process('processPayroll', processPayroll)
-    payrollQueue.process(createNextPayrolls.name, createNextPayrolls);
-    payrollQueue.add(createNextPayrolls.name, null, {
-      repeat: { cron: "0 8 1 * *", tz }, // every 1st day of month at 8am
-    });
     payrollQueue.process(fetchDuePayrolls.name, fetchDuePayrolls);
     payrollQueue.add(fetchDuePayrolls.name, null, {
       repeat: { cron: "0 15,16,17,18 * * *", tz }, // every 3,4,5,6pm 

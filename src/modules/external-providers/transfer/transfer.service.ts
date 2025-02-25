@@ -1,13 +1,13 @@
 import Container, { Service } from "typedi";
 import ProviderRegistry from "./provider-registry";
-import { ServiceUnavailableError } from "../common/utils/service-errors";
-import Logger from "../common/utils/logger";
 import { BadRequestError } from "routing-controllers";
 import {
   InitiateTransferData,
   TransferClient,
   VerifyTransferData,
 } from "./providers/transfer.client";
+import Logger from "@/modules/common/utils/logger";
+import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 
 @Service()
 export class TransferService {

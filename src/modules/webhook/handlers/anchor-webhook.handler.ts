@@ -4,7 +4,7 @@ import Logger from "@/modules/common/utils/logger";
 import { organizationQueue, walletQueue } from "@/queues";
 import { WalletInflowData, WalletInflowDataNotification } from "@/queues/jobs/wallet/wallet-inflow.job";
 import { BookWalletOutflowDataNotification, WalletOutflowData, WalletOutflowDataNotification } from "@/queues/jobs/wallet/wallet-outflow.job";
-import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/transfer/providers/anchor.client";
+import { ANCHOR_TOKEN, AnchorTransferClient } from "@/modules/external-providers/transfer/providers/anchor.client";
 import { getEnvOrThrow } from '@/modules/common/utils';
 import { BadRequestError, UnauthorizedError } from 'routing-controllers';
 import { RequiredDocumentsJobData, KYCProviderData } from '@/queues/jobs/organization/processRequiredDocuments';

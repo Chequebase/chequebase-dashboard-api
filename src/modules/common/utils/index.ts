@@ -28,7 +28,11 @@ export function escapeRegExp(str = '') {
 }
 
 export function getPercentageDiff(previousValue = 0, currentValue = 0) {
-  if (currentValue === previousValue) {
+  if (
+    currentValue === previousValue ||
+    Number.isNaN(currentValue) ||
+    Number.isNaN(previousValue)
+  ) {
     return { value: currentValue, percentageDiff: 0 };
   }
 
@@ -129,4 +133,18 @@ export async function getOrganizationPlan(
   }
 
   return org?.subscription?.object?.plan as ISubscriptionPlan;
+}
+
+export const getContentType = (fileExt: string) => {
+  switch (fileExt) {
+    case 'pdf':
+      return 'application/pdf'
+    case 'jpeg':
+    case 'jpg':
+      return 'image/jpeg'
+    case 'png':
+      return 'image/png'
+    default:
+      return 'application/pdf'
+  }
 }

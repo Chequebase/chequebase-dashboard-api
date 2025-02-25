@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
 import { ApprovalType, WorkflowType } from "./approval-rule.model";
+import { TransferClientName } from "@/modules/external-providers/transfer/providers/transfer.client";
 
 export enum ApprovalRequestReviewStatus {
   Pending = "pending",
@@ -43,6 +44,7 @@ export interface IApprovalRequest {
       bankName: string;
       accountName: string;
       invoice: string;
+      provider: TransferClientName;
       category: any;
     };
     budgetExtensionAmount?: number;
@@ -107,6 +109,7 @@ const approvalRequestSchema = new Schema<IApprovalRequest>(
         bankName: String,
         accountName: String,
         invoice: String,
+        provider: String,
         category: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "TransferCategory",

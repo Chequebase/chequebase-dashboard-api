@@ -1,4 +1,5 @@
 import { KycStatus, UserStatus } from "@/models/user.model";
+import { WalletType } from "@/models/wallet.model";
 import { ERole } from "@/modules/user/dto/user.dto";
 import { IsString, IsOptional, IsInt, Min, IsEnum, IsBoolean, IsEmail, IsNotEmpty, MinLength } from "class-validator";
 
@@ -10,6 +11,12 @@ export enum KycLevel {
   COPMANY_INFO = "companyInfo",
   OWNER_INFO = "ownerInfo",
   BUSINESS_DOCUMENTATION = "businessDocumentation",
+}
+
+export enum OrgType {
+  PARTNER = "partner",
+  BUSINESS = "business",
+  CUSTOMER = "customer"
 }
 
 export class BankSphereLoginDto {
@@ -98,6 +105,12 @@ export class CreateCustomerDto {
   @IsString()
   provider: string
 
+}
+
+export class ApproveAccountDto {
+  @IsOptional()
+  @IsString()
+  type: OrgType
 }
 
 export class RejectKYCDto {

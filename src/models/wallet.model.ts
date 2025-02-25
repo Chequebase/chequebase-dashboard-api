@@ -7,6 +7,9 @@ import { IOrganization } from './organization.model';
 export enum WalletType {
   General = 'general',
   Payroll = 'payroll',
+  LinkedAccount = 'linked-account',
+  SubAccount = 'sub-account',
+  EscrowAccount = 'escrow-account'
 }
 
 export interface IWallet {
@@ -15,6 +18,9 @@ export interface IWallet {
   baseWallet: ObjectId
   type: WalletType
   currency: string
+  name?: string
+  slugifiedName?: string
+  description?: string
   balance: number
   ledgerBalance: number
   walletEntry: ObjectId
@@ -35,6 +41,13 @@ const walletSchema = new Schema<IWallet>(
       type: String,
       enum: Object.values(WalletType),
       default: WalletType.General
+    },
+    name: {
+      type: String,
+    },
+    slugifiedName: { type: String },
+    description: {
+      type: String,
     },
     baseWallet: {
       type: Schema.Types.ObjectId,

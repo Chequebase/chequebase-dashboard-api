@@ -27,6 +27,7 @@ export interface WalletInflowData {
   reference: string
   narration: string
   providerRef: string
+  providerChannel?: string
   sourceAccount: {
     accountName: string
     bankName?: string
@@ -42,9 +43,21 @@ export interface WalletInflowDataNotification extends WalletInflowData {
 const logger = new Logger('wallet-inflow.job')
 const emailService = Container.get(EmailService)
 
+function calculateInflowFee(amount: number): number {
+  if (amount >= 1_00 && amount <= 1000_00) {
+      return 5_00;
+  } else if (amount > 1000_00 && amount <= 10000_00) {
+      return amount * 0.005;
+  } else if (amount > 10000_00) {
+      return 50_00;
+  } else {
+      throw new Error("Invalid amount")
+  }
+}
+
 async function processWalletInflow(job: Job<WalletInflowData>) {
   const data = job.data
-  const { reference, accountNumber, amount, gatewayResponse, narration, currency } = data;
+  const { reference, accountNumber, amount, gatewayResponse, narration, currency, providerChannel } = data;
 
   try {
     const entryExists = await WalletEntry.exists({ reference })
@@ -67,8 +80,9 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
       throw new BadRequestError('Virtual account not found')
     }
 
-    // 0.5% of amount, with a minimum of NGN5 and capped at NGN200
-    let inflowFee = Math.max(5_00, Math.min(amount * 0.005, 200_00));
+    let inflowFee = calculateInflowFee(amount)
+    // if it's internal fee is 0
+    inflowFee = (providerChannel && providerChannel !== 'NIP') ? 0 : inflowFee
     const creditedAmount = amount - inflowFee;
     const wallet = virtualAccount.wallet
     const organization = virtualAccount.organization

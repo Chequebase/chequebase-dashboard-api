@@ -1,6 +1,6 @@
 import { AllowedSlackWebhooks, SlackNotificationService } from "@/modules/common/slack/slackNotification.service";
 import Logger from "@/modules/common/utils/logger";
-import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/transfer/providers/safe-haven.client";
+import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "@/modules/external-providers/transfer/providers/safe-haven.client";
 import { walletQueue } from "@/queues";
 import {
   WalletInflowData, WalletInflowDataNotification
@@ -45,6 +45,7 @@ export default class SafeHavenWebhookHandler {
       reference: gatewayResponse.data.sessionId,
       providerRef: gatewayResponse.data.sessionId,
       paymentMethod: "transfer",
+      providerChannel: gatewayResponse.data.providerChannel,
       sourceAccount: {
         accountName: gatewayResponse.data.debitAccountName,
         accountNumber: gatewayResponse.data.debitAccountNumber,
@@ -63,7 +64,7 @@ export default class SafeHavenWebhookHandler {
   processWebhook(body: any) {
     const { data, type } = body;
     if (!allowedWebooks.includes(type)) {
-      this.logger.log("event type not allowed", { event: type });
+      this.logger.log("event type not allowedd", { event: type });
       return { message: "webhook_logged" };
     }
 

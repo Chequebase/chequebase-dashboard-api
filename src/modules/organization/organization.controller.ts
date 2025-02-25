@@ -17,11 +17,11 @@ import { validate } from 'class-validator';
 export default class OrganizationsController {
   constructor (private readonly organizationsService: OrganizationsService) { }
 
-  @Authorized(ERole.Owner)
-  @Patch('/update-company-info')
-  updateCompanyInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: UpdateCompanyInfoDto) {
-    return this.organizationsService.updateCompanyInfo(auth.orgId, kycDto);
-  }
+  // @Authorized(ERole.Owner)
+  // @Patch('/update-company-info')
+  // updateCompanyInfo(@CurrentUser() auth: AuthUser, @Body() kycDto: UpdateCompanyInfoDto) {
+  //   return this.organizationsService.updateCompanyInfo(auth.orgId, kycDto);
+  // }
 
   @Authorized(ERole.Owner)
   @Patch('/update-business-info')
@@ -36,28 +36,28 @@ export default class OrganizationsController {
     return this.organizationsService.updatebusinessInfo(auth.orgId, dto);
   }
 
-  @Authorized(ERole.Owner)
-  @Patch('/update-business-owner-id')
-  @UseBefore(multer().single('identity'))
-  async updateBusinessOwnerId(@CurrentUser() auth: AuthUser, @Req() req: Request) {
-    const file = req.file as any
-    const dto = plainToInstance(UpdateBusinessOwnerIdDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', identity: file?.buffer, ...req.body })
-    const errors = await validate(dto)
-    if (errors.length) {
-      throw { errors }
-    }
-    return this.organizationsService.updatebusinessOwnerId(auth.orgId, dto);
-  }
+  // @Authorized(ERole.Owner)
+  // @Patch('/update-business-owner-id')
+  // @UseBefore(multer().single('identity'))
+  // async updateBusinessOwnerId(@CurrentUser() auth: AuthUser, @Req() req: Request) {
+  //   const file = req.file as any
+  //   const dto = plainToInstance(UpdateBusinessOwnerIdDto, { fileExt: file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf', identity: file?.buffer, ...req.body })
+  //   const errors = await validate(dto)
+  //   if (errors.length) {
+  //     throw { errors }
+  //   }
+  //   return this.organizationsService.updatebusinessOwnerId(auth.orgId, dto);
+  // }
 
   // make this form data
-  @Authorized(ERole.Owner)
-  @UseBefore(multer().any())
-  @Patch('/update-owner-info')
-  async updateOwnerInfo(@CurrentUser() auth: AuthUser, @Req() req: Request) {
-    const files = req.files as any[] || []
-    const dto = plainToInstance(OwnerDto, req.body)
-    return this.organizationsService.updateOwnerInfo(auth.orgId, dto, files);
-  }
+  // @Authorized(ERole.Owner)
+  // @UseBefore(multer().any())
+  // @Patch('/update-owner-info')
+  // async updateOwnerInfo(@CurrentUser() auth: AuthUser, @Req() req: Request) {
+  //   const files = req.files as any[] || []
+  //   const dto = plainToInstance(OwnerDto, req.body)
+  //   return this.organizationsService.updateOwnerInfo(auth.orgId, dto, files);
+  // }
 
   @Authorized(ERole.Owner)
   @Patch('/update-business-owner')

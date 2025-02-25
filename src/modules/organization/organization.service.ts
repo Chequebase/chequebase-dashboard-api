@@ -5,7 +5,7 @@ import { v4 as uuid } from 'uuid'
 import { Inject, Service } from 'typedi';
 import { OwnerDto, UpdateBusinessInfoDto, UpdateBusinessOwnerDto, UpdateBusinessOwnerIdDto, UpdateCompanyInfoDto, UpdateOwnerDto } from './dto/organization.dto';
 import { S3Service } from '@/modules/common/aws/s3.service';
-import { getEnvOrThrow } from '@/modules/common/utils';
+import { getContentType, getEnvOrThrow } from '@/modules/common/utils';
 import { organizationQueue } from '@/queues';
 import { SAFE_HAVEN_IDENTITY_TOKEN, SafeHavenIdentityClient } from './providers/safe-haven.client';
 
@@ -78,11 +78,13 @@ export class OrganizationsService {
     }
 
     if (organization.admin) {
-      const key = `new-kyc/documents/${organization.id}/cac.${kycDto.fileExt || 'pdf'}`;
+      const fileExt = kycDto.fileExt || 'pdf'
+      const key = `new-kyc/documents/${organization.id}/cac.${fileExt}`;
       const url = await this.s3Service.uploadObject(
         getEnvOrThrow('KYB_BUCKET_NAME'),
         key,
-        kycDto.cac
+        kycDto.cac,
+        getContentType(fileExt)
       );
       await Promise.all([
         organization.updateOne({ ...kycDto, status: KycStatus.COPMANY_INFO_SUBMITTED, cacUrl: url }),
@@ -101,11 +103,13 @@ export class OrganizationsService {
     }
 
     if (organization.admin) {
-      const key = `new-kyc/documents/${organization.id}/id.${kycDto.fileExt || 'pdf'}`;
+      const fileExt = kycDto.fileExt || 'pdf'
+      const key = `new-kyc/documents/${organization.id}/id.${fileExt}`;
       const url = await this.s3Service.uploadObject(
         getEnvOrThrow('KYB_BUCKET_NAME'),
         key,
-        kycDto.identity
+        kycDto.identity,
+        getContentType(fileExt)
       );
       await Promise.all([
         organization.updateOne({ ...kycDto, status: KycStatus.BUSINESS_DOCUMENTATION_SUBMITTED, identityDocument: url }),
@@ -140,12 +144,13 @@ export class OrganizationsService {
       }
 
       await Promise.all(files.map(async (file) => {
-        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
-        const key = `documents/${organization.id}/directors/${file.fieldname}.${fileExt || 'pdf'}`;
+        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf'
+        const key = `documents/${organization.id}/directors/${file.fieldname}.${fileExt}`;
         const url = await this.s3Service.uploadObject(
           getEnvOrThrow('KYB_BUCKET_NAME'),
           key,
-          file.buffer
+          file.buffer,
+          getContentType(fileExt)
         );
       }))
 
@@ -171,12 +176,13 @@ export class OrganizationsService {
     if (organization.admin) {
       const owner = organization.owner || {}
       await Promise.all(files.map(async (file) => {
-        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
-        const key = `new-kyc/documents/${organization.id}/directors/${file.fieldname}.${fileExt || 'pdf'}`;
+        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
+        const key = `new-kyc/documents/${organization.id}/directors/${file.fieldname}.${fileExt}`;
         const url = await this.s3Service.uploadObject(
           getEnvOrThrow('KYB_BUCKET_NAME'),
           key,
-          file.buffer
+          file.buffer,
+          getContentType(fileExt)
         );
         owner[file.fieldname] = url
       }))
@@ -226,12 +232,13 @@ export class OrganizationsService {
     const documents = organization?.documents || {};
     if (organization.admin) {
       await Promise.all(files.map(async (file) => {
-        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1];
-        const key = `documents/${organization.id}/${file.fieldname}.${fileExt || 'pdf'}`;
+        const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
+        const key = `documents/${organization.id}/${file.fieldname}.${fileExt}`;
         const url = await this.s3Service.uploadObject(
           getEnvOrThrow('KYB_BUCKET_NAME'),
           key,
-          file.buffer
+          file.buffer,
+          getContentType(fileExt)
         );
 
         documents[file.fieldname] = url

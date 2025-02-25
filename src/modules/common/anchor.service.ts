@@ -12,9 +12,9 @@ export class AnchorService {
 
   constructor () {
     this.http = axios.create({
-      baseURL: getEnvOrThrow('ANCHOR_BASE_URI'),
+      baseURL: process.env.ANCHOR_BASE_URI,
       headers: {
-        'x-anchor-key': getEnvOrThrow('ANCHOR_API_KEY')
+        'x-anchor-key': process.env.ANCHOR_API_KEY
       }
     })
   }

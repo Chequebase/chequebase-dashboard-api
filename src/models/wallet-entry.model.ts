@@ -9,11 +9,29 @@ export enum WalletEntryType {
   Debit = 'debit'
 }
 
+export enum WalletEntryUpdateAction {
+  AcceptRate = 'accept',
+  CancelRate = 'cancel',
+  SubmitRate = 'submit',
+  CompleteTx = 'complete',
+  Request = 'request',
+  TimedOut = 'timedOut'
+}
+
 export enum WalletEntryStatus {
   Successful = 'successful',
   Processing = 'processing',
   Pending = 'pending',
-  Failed = 'failed'
+  Failed = 'failed',
+  Validating = 'validating',
+  Cancelled = 'cancelled',
+  Completed = 'completed',
+  TimedOut = 'timedOut'
+}
+
+export enum PaymentEntryStatus {
+  Pending = 'pending',
+  Paid = 'paid'
 }
 
 export enum WalletEntryScope {
@@ -22,12 +40,18 @@ export enum WalletEntryScope {
   WalletFundingFee = 'wallet_funding_fee',
   BudgetTransfer = 'budget_transfer',
   WalletTransfer = 'wallet_transfer',
+  CardCreation = 'card_creation',
+  LinkedAccTransfer = 'linked_acc_transfer',
+  VendorTransfer = 'vendor_transfer',
   BudgetFunding = 'budget_funding',
   BudgetClosure = 'budget_closure',
+  PayrollFunding = 'payroll_funding',
+  PayrollWithdraw = 'payroll_withdraw',
+  PayrollPayout = 'payroll_payout',
+
+  // deprecated
   ProjectFunding = 'project_funding',
   ProjectClosure = 'project_closure',
-  PayrollFunding = 'payroll_funding',
-  PayrollPayout = 'payroll_payout',
 }
 
 interface WalletEntryModel extends
@@ -39,9 +63,10 @@ export interface IWalletEntry {
   organization: any;
   budget?: any;
   project?: any;
-  wallet: any
-  payrollPayout: any
-  payroll: any
+  card: any;
+  wallet: any;
+  payrollPayout: any;
+  payroll: any;
   initiatedBy: any;
   currency: string;
   type: WalletEntryType;
@@ -54,12 +79,17 @@ export interface IWalletEntry {
   scope: WalletEntryScope;
   gatewayResponse: string;
   paymentMethod: string;
+  vendorUrl?: string;
+  counterAmount?: number;
+  merchantName: string;
   provider: string;
   // id/ref used for requerying from provider eg verify transfer
   providerRef: string;
   narration: string;
   reference: string;
+  partnerId: string;
   status: WalletEntryStatus;
+  paymentStatus: PaymentEntryStatus;
   category: any;
   invoiceUrl?: string;
   meta: { [key: string]: any };
@@ -78,22 +108,31 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       type: Schema.Types.ObjectId,
       required: true,
       ref: "Organization",
+      index: true,
     },
     initiatedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
     },
+    card: {
+      type: Schema.Types.ObjectId,
+      ref: "Card",
+      index: true,
+    },
     budget: {
       type: Schema.Types.ObjectId,
       ref: "Budget",
+      index: true,
     },
     payrollPayout: {
       type: Schema.Types.ObjectId,
       ref: "PayrollPayout",
+      index: true,
     },
     payroll: {
       type: Schema.Types.ObjectId,
       ref: "Payroll",
+      index: true,
     },
     project: {
       type: Schema.Types.ObjectId,
@@ -106,6 +145,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     wallet: {
       type: Schema.Types.ObjectId,
       ref: "Wallet",
+      index: true,
     },
     status: {
       type: String,
@@ -113,6 +153,7 @@ const walletEntrySchema = new Schema<IWalletEntry>(
       required: true,
     },
     amount: { type: Number, required: true },
+    counterAmount: { type: Number },
     currency: { type: String, required: true },
     balanceAfter: { type: Number, required: true },
     balanceBefore: { type: Number, required: true },
@@ -126,11 +167,20 @@ const walletEntrySchema = new Schema<IWalletEntry>(
     fee: { type: Number, default: 0 },
     gatewayResponse: String,
     paymentMethod: String,
+    merchantName: String,
+    paymentStatus: {
+      type: String,
+      enum: Object.values(PaymentEntryStatus),
+    },
+    vendorUrl: {
+      type: String
+    },
     provider: { type: String, required: true, default: "wallet" },
     providerRef: { type: String },
     narration: String,
     reference: { type: String, required: true },
     invoiceUrl: String,
+    partnerId: String,
     meta: {
       type: Schema.Types.Mixed,
       default: {},
