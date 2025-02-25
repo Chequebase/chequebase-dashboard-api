@@ -19,7 +19,8 @@ export interface UploadCustomerDocuments {
 }
 
 export enum CustomerClientName {
-  Anchor = 'anchor'
+  Anchor = 'anchor',
+  Mono = 'mono'
 }
 
 export enum BaseWalletType {

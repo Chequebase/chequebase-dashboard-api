@@ -13,11 +13,12 @@ export enum RoleType {
 
 export interface IRole {
   name: string;
-  rank: number
+  rank: number;
   description: string;
   permissions: Array<IPermission | ObjectId>;
   type: RoleType;
   organization?: ObjectId | IOrganization;
+  canBeInvited: boolean
 }
 
 export interface RoleModel
@@ -29,6 +30,7 @@ const RoleSchema = new Schema<IRole>(
     rank: { type: Number, default: 1 },
     name: { type: String, required: true, lowercase: true },
     description: { type: String, required: true },
+    canBeInvited: { type: Boolean, default: true },
     permissions: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -42,7 +44,7 @@ const RoleSchema = new Schema<IRole>(
     },
     organization: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization"
+      ref: "Organization",
     },
   },
   { timestamps: true }

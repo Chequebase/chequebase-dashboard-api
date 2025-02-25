@@ -1,6 +1,6 @@
 import Logger from '@/modules/common/utils/logger';
 import { Queue as IQueue } from 'bull';
-import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue, payrollQueue } from '.';
+import { organizationQueue, walletQueue, budgetQueue, subscriptionQueue, payrollQueue, mandateQueue } from '.';
 import processWalletInflow from './jobs/wallet/wallet-inflow.job';
 import processWalletOutflow from './jobs/wallet/wallet-outflow.job';
 import { addWalletEntriesForClearance, processWalletEntryClearance } from './jobs/wallet/wallet-entry-clearance.job';
@@ -22,6 +22,9 @@ import processPayroll from './jobs/payroll/process-payroll.job';
 import fetchDuePayrolls from './jobs/payroll/fetch-due-payrolls';
 import requeryOutflow from './jobs/wallet/requery-outflow.job';
 import sweepSafeHavenRevenue from './jobs/wallet/sweep-safe-haven-revenue.job';
+import processMandateApproved from './jobs/mandate/mandate-approved.job';
+import processMandateDebitReady from './jobs/mandate/mandate-ready-debit.job';
+import processMandateExpired from './jobs/mandate/mandate-expired.job';
 
 const logger = new Logger('worker:main')
 const tz = 'Africa/Lagos'
@@ -34,6 +37,8 @@ function setupQueues() {
     organizationQueue.process('processKycApproved', processKycApproved)
     organizationQueue.process('processKycRejected', processKycRejected)
 
+    mandateQueue.process('processMandateApproved', 1, processMandateApproved)
+    mandateQueue.process('processMandateDebitReady', 1, processMandateDebitReady)
     walletQueue.process('sendAccountStatement', sendAccountStatement)
     walletQueue.process('processWalletInflow', 1, processWalletInflow)
     walletQueue.process('processWalletOutflow', 1, processWalletOutflow)
@@ -43,6 +48,10 @@ function setupQueues() {
     walletQueue.add('addWalletEntriesForClearance', null, {
       repeat: { cron: '0  * * * *', tz } // every hour
     })
+    mandateQueue.process("processMandateExpired", processMandateExpired);
+    mandateQueue.add("processMandateExpired", null, {
+      repeat: { cron: "0  * * * *", tz }, // every hour
+    });
     walletQueue.process('processWalletEntryToElasticsearch', 5, processWalletEntryToElasticsearch)
     walletQueue.process('addWalletEntriesForIngestionToElastic', addWalletEntriesForIngestionToElastic)
     walletQueue.add('addWalletEntriesForIngestionToElastic', null, {

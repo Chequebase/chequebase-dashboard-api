@@ -7,18 +7,19 @@ import WalletEntry, {
 } from "@/models/wallet-entry.model";
 import Wallet from "@/models/wallet.model";
 import { cdb } from "@/modules/common/mongoose";
-import { transactionOpts, formatMoney } from "@/modules/common/utils";
+import { transactionOpts, formatMoney, getEnvOrThrow } from "@/modules/common/utils";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { HydratedDocument } from "mongoose";
 import { WalletOutflowData } from "../wallet/wallet-outflow.job";
 import numeral from "numeral";
-import Budget from "@/models/budget.model";
+import Budget, { BudgetStatus } from "@/models/budget.model";
 import { BadRequestError } from "routing-controllers";
 import Container from "typedi";
 import EmailService from "@/modules/common/email.service";
 import { createId } from "@paralleldrive/cuid2";
+import { IUser } from "@/models/user.model";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -29,29 +30,58 @@ async function success(
   entry: HydratedDocument<IWalletEntry>,
   data: WalletOutflowData
 ) {
-  const amountDeducted = numeral(entry.amount).add(entry.fee).value()!;
-  await cdb.transaction(async (session) => {
-    const wallet = await Wallet.findOneAndUpdate(
-      { _id: entry.wallet },
-      {
-        $inc: { ledgerBalance: -amountDeducted },
-      },
-      { session, new: true }
-    );
+  await entry
+    .updateOne({
+      gatewayResponse: data.gatewayResponse,
+      status: WalletEntryStatus.Successful,
+    })
 
-    await entry
-      .updateOne({
-        gatewayResponse: data.gatewayResponse,
-        status: WalletEntryStatus.Successful,
-        ledgerBalanceAfter: wallet!.ledgerBalance,
-        ledgerBalanceBefore: numeral(wallet!.ledgerBalance)
-          .add(amountDeducted)
-          .value()!,
+  if (entry.scope === WalletEntryScope.BudgetFunding) {
+    const budget = await Budget.findById(entry.budget).populate<{ createdBy: IUser }>('createdBy');
+    if (!budget) {
+      throw new Error('Unable to find budget')
+    }
+
+    const isNewBudget = budget.amountUsed === 0 && budget.balance === 0
+    if (isNewBudget) {
+      budget.balance = budget.amount
+      budget.status = BudgetStatus.Active,
+        await budget.save()
+
+      emailService.sendBudgetCreatedEmail(budget.createdBy.email, {
+        budgetAmount: formatMoney(budget!.amount),
+        budgetName: budget.name,
+        currency: budget.currency,
+        dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+        employeeName: budget.createdBy.firstName
       })
-      .session(session);
-  }, transactionOpts);
 
-  const counterparty = entry.meta.counterparty
+      emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
+        budgetAmount: formatMoney(budget.balance),
+        currency: budget.currency,
+        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
+        budgetName: budget.name,
+        employeeName: budget.createdBy.firstName
+      })
+
+      if (budget.beneficiaries.length > 0) {
+        budget.beneficiaries.forEach((beneficiary: any) => {
+          return beneficiary.user && emailService.sendBudgetBeneficiaryAdded(beneficiary.user.email, {
+            employeeName: beneficiary.user.firstName,
+            budgetName: budget!.name,
+            budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+            amountAllocated: formatMoney(beneficiary?.allocation || 0)
+          })
+        })
+      }
+
+      return;
+    }
+
+    // handle subsequent budget funding here
+  }
+ 
+  const counterparty = entry.meta.counterparty;
   if (counterparty) {
     const [date, time] = dayjs()
       .tz("Africa/Lagos")
@@ -83,11 +113,33 @@ async function failure(
   data: WalletOutflowData
 ) {
   const reverseAmount = numeral(entry.amount).add(entry.fee).value()!;
+  if (entry.scope === WalletEntryScope.BudgetFunding) {
+    await cdb.transaction(async (session) => {
+      await Wallet.updateOne(
+        { _id: entry.wallet },
+        {
+          $inc: { ledgerBalance: reverseAmount, balance: reverseAmount },
+        },
+        { session }
+      );
+
+      await entry.updateOne(
+        {
+          gatewayResponse: data.gatewayResponse,
+          status: WalletEntryStatus.Failed,
+          balanceAfter: entry.balanceBefore,
+          ledgerBalanceAfter: entry.ledgerBalanceBefore
+        },
+        { session }
+      );
+    }, transactionOpts);
+  }
+
   await cdb.transaction(async (session) => {
     const budget = await Budget.findOneAndUpdate(
       { _id: entry.budget },
       {
-        $inc: { amountUsed: -reverseAmount, balance: reverseAmount },
+        $inc: { ledgerBalance: reverseAmount, balance: reverseAmount },
       },
       { session, new: true }
     );
@@ -182,7 +234,16 @@ async function reversal(
         {
           gatewayResponse: data.gatewayResponse,
           status: WalletEntryStatus.Failed,
-          "meta.budgetBalanceAfter": budget.balance,
+          balanceAfter: entry.balanceBefore,
+          ledgerBalanceAfter: entry.ledgerBalanceBefore
+        },
+        { session }
+      );
+
+      await Wallet.updateOne(
+        { _id: entry.wallet },
+        {
+          $inc: { ledgerBalance: reverseAmount, balance: reverseAmount },
         },
         { session }
       );

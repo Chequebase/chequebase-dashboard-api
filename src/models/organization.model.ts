@@ -5,6 +5,7 @@ import { IUser } from './user.model';
 import { ISubscriptionPlan } from './subscription-plan.model';
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import mongoosePaginate from "mongoose-paginate-v2";
+import { OrgType } from '@/modules/banksphere/dto/banksphere.dto';
 
 export enum BillingMethod {
   Wallet = 'wallet',
@@ -46,6 +47,13 @@ export interface Anchor {
   verified: boolean
 }
 
+export interface Mono {
+  customerId: string
+  mandateId: string
+  status: string
+  url: string
+}
+
 export interface IOrganization {
   _id: ObjectId
   admin: ObjectId | IUser
@@ -80,6 +88,7 @@ export interface IOrganization {
   safeHavenIdentityId: string
   identityGatewayResponse: string
   bvnVerified: boolean
+  type: OrgType
   depositAccount: string
   phone: string
   cacUrl: string
@@ -90,12 +99,17 @@ export interface IOrganization {
   hasSetupPayroll: boolean
   regDate: string
   state: string
+  partnerId: string
   owners: Shareholder[]
   owner: any
   anchor?: Anchor
+  mono?: Mono
+  monoCustomerId?: string
+  monoAuthUrl?: string
   kycRejectionLevel: string
   kycRejectionDescription: string
   kycRejectReason?: string
+  sudoCustomerId: string
   createdAt: Date
   updatedAt: Date
 }
@@ -132,6 +146,13 @@ const anchorSchema = new Schema<Anchor>({
   requiredDocuments: [requiredDocumentsSchema],
   customerId: String,
   verified: Boolean
+})
+
+const monoSchema = new Schema<Mono>({
+  customerId: String,
+  mandateId: String,
+  status: String,
+  url: String
 })
 
 interface OrganizationModel extends
@@ -175,6 +196,10 @@ const organizationSchma = new Schema<IOrganization>(
     cacItNumber: String,
     owners: [shareholderSchema],
     owner: Object,
+    type: {
+      type: String,
+      enum: Object.values(OrgType)
+    },
     anchorCustomerId: String,
     safeHavenIdentityId: String,
     identityGatewayResponse: String,
@@ -182,8 +207,13 @@ const organizationSchma = new Schema<IOrganization>(
     identityDocument: String,
     kycRejectReason: String,
     anchor: anchorSchema,
+    mono: monoSchema,
+    monoCustomerId: String,
+    monoAuthUrl: String,
     kycRejectionLevel: String,
     kycRejectionDescription: String,
+    sudoCustomerId: String,
+    partnerId: String,
     subscription: {
       _id: false,
       type: {
