@@ -17,6 +17,7 @@ import {
   CreateCardDto,
   GetCardsQuery,
   LinkCardDto,
+  SetCalendarPolicyBody,
   SetSpendChannels,
   SetSpendLimit,
 } from "./dto/organization-card.dto";
@@ -83,6 +84,16 @@ export default class OrganizationCardController {
     @Body() dto: SetSpendLimit
   ) {
     return this.orgCardService.setSpendLimit(auth, id, dto);
+  }
+
+  @Post("/:id/calendar-policy")
+  @Authorized(ERole.Owner)
+  setCalendarPolicy(
+    @CurrentUser() auth: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: SetCalendarPolicyBody
+  ) {
+    return this.orgCardService.setCalendarPolicy(auth, id, dto);
   }
 
   @Post("/:id/change-pin")

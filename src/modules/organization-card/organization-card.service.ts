@@ -29,6 +29,7 @@ import {
   CreateCardDto,
   GetCardsQuery,
   LinkCardDto,
+  SetCalendarPolicyBody,
   SetSpendChannels,
   SetSpendLimit,
 } from "./dto/organization-card.dto";
@@ -473,6 +474,27 @@ export class OrganizationCardService {
     return { message: "Spend limit updated" };
   }
 
+  async setCalendarPolicy(auth: AuthUser, cardId: string, payload: SetCalendarPolicyBody) {
+    const card = await Card.findOne({
+      _id: cardId,
+      organization: auth.orgId,
+    });
+    if (!card) {
+      throw new BadRequestError("Card not found");
+    }
+
+    if (card.blocked) {
+      throw new BadRequestError("Card is blocked");
+    }
+
+    await Card.updateOne(
+      { _id: card._id },
+      { calendarPolicy: { daysOfWeek: payload.daysOfWeek } }
+    );
+
+    return { message: "Calendar policy updated" };
+  }
+
   async setSpendChannel(
     auth: AuthUser,
     cardId: string,
@@ -699,7 +721,7 @@ export class OrganizationCardService {
   }
 
   checkCalendarPolicy(card: ICard, dayOfWeek: number) {
-    const flagged = card.calendarPolicy?.dayOfWeek?.includes(dayOfWeek)
+    const flagged = card.calendarPolicy?.daysOfWeek?.includes(dayOfWeek)
     if (flagged) {
       return true
     }
