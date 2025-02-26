@@ -23,7 +23,7 @@ function requestLogger(req: Request, res: Response, next: NextFunction) {
         ...logData,
         orgId: req.auth.orgId,
         userId: req.auth.userId,
-        userRole: req.auth.roleRef.name
+        userRole: req.auth.roleRef?.name
       };
     }
 
