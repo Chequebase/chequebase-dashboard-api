@@ -258,6 +258,10 @@ export class OrganizationCardService {
         wallet: budget?.wallet,
       })
       .save();
+    
+    if (budget) {
+      await Budget.updateOne({ _id: budget._id }, { card: card._id })
+    }
 
     return { message: "Card linked successfully" };
   }
@@ -551,7 +555,7 @@ export class OrganizationCardService {
 
   async getCardBalance(provider: CardClientName, providerRef: string) {
     const card = await Card.findOne({ providerRef, provider })
-      .populate("wallet")
+      .populate("budget")
       .lean();
     if (!card) {
       return { amount: 0, currency: null };
@@ -561,19 +565,15 @@ export class OrganizationCardService {
       return { amount: card.balance, currency: card.currency };
     }
 
-    if (card.budget) {
-      const budget: IBudget = card.budget;
-      return { amount: budget.balance, currency: card.currency };
-    }
+    const budget: IBudget | null = card.budget;
 
-    const wallet: IWallet = card.wallet;
-    return { amount: wallet.ledgerBalance, currency: card.currency };
+    return { amount: budget?.balance || 0, currency: card?.currency || 'NGN' };
   }
 
   async authorizeCardCharge(payload: { provider: CardClientName; providerRef: string; amount: number; }) {
     const { provider, providerRef, amount } = payload;
     const card = await Card.findOne({ providerRef, provider })
-      .populate("wallet")
+      .populate('budget')
       .lean();
 
     if (!card) {
@@ -596,6 +596,14 @@ export class OrganizationCardService {
       return {
         code: '61',
         message: 'Withdrawal Limit Exceeded'
+      }
+    }
+
+    const budget: IBudget | undefined = card.budget
+    if (!budget || budget.balance < amount) {
+      return {
+        code: '',
+        message: 'Insufficient balance'
       }
     }
 

@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import { Inject, Service } from "typedi";
+import Container, { Inject, Service } from "typedi";
 import advancedFormat from "dayjs/plugin/advancedFormat";
 import { ObjectId } from "mongodb";
 import { Logger } from "pino";
@@ -68,7 +68,7 @@ import {
 import BudgetPolicy from "@/models/budget-policy.model";
 import { TransferService } from "../external-providers/transfer/transfer.service";
 import { IVirtualAccount } from "@/models/virtual-account.model";
-import { TransferClientName } from "../external-providers/transfer/providers/transfer.client";
+import { InitiateTransferData, TransferClientName } from "../external-providers/transfer/providers/transfer.client";
 import { requeryTransfer } from "@/queues/jobs/wallet/requery-outflow.job";
 
 dayjs.extend(advancedFormat);
@@ -77,47 +77,76 @@ dayjs.extend(timezone);
 
 @Service()
 export default class BudgetService {
-  constructor(
+  constructor (
     private emailService: EmailService,
     private planUsageService: PlanUsageService,
     private paystackService: PaystackService,
     private transferService: TransferService,
     @Inject("logger") private logger: Logger
-  ) {}
+  ) { }
 
   static async initiateBudgetClosure(data: InitiateProjectClosure) {
     const { budgetId, reason, userId } = data;
+    const reference = `cb_${createId()}`
+    let entry: IWalletEntry
+    let counterparty: InitiateTransferData['counterparty']
+
+    const reverseBudgetClosureDebit = async (walletEntry: IWalletEntry, gatewayResponse: string) => {
+      const reverseAmount = numeral(walletEntry.amount).add(walletEntry.fee).value()!
+      await cdb.transaction(async (session) => {
+        const record = await WalletEntry.findOneAndUpdate({ _id: walletEntry._id }, {
+          $set: {
+            gatewayResponse,
+            status: WalletEntryStatus.Failed
+          },
+          $inc: {
+            'meta.budgetBalanceAfter': reverseAmount
+          }
+        }, { session })
+
+        await Budget.updateOne({ _id: record!.budget._id }, {
+          status: BudgetStatus.Active,
+          balance: reverseAmount,
+          closedBy: null,
+          closeReason: null,
+        })
+          .session(session);
+      }, transactionOpts)
+    }
 
     await cdb.transaction(async (session) => {
       const budget = await Budget.findOne({
         _id: budgetId,
         status: BudgetStatus.Active,
       })
-        .populate<{ wallet: IWallet }>("wallet")
+        .populate<{ wallet: IWallet }>({
+          path: "wallet",
+          populate: { path: 'virtualAccounts' }
+        })
         .session(session);
       if (!budget) {
         throw new BadRequestError("Unable to close budget");
       }
 
       const wallet = budget.wallet;
-      const [entry] = await WalletEntry.create(
+      ([entry] = await WalletEntry.create(
         [
           {
             organization: budget.organization,
             budget: budget._id,
-            project: budget.project,
-            wallet: budget.wallet,
+            wallet: wallet._id,
             initiatedBy: userId,
             currency: budget.currency,
             type: WalletEntryType.Credit,
+            provider: TransferClientName.SafeHaven,
             ledgerBalanceBefore: wallet.ledgerBalance,
-            ledgerBalanceAfter: wallet.ledgerBalance,
+            ledgerBalanceAfter: numeral(wallet.ledgerBalance).add(budget.balance).value(),
             balanceBefore: wallet.balance,
             balanceAfter: numeral(wallet.balance).add(budget.balance).value(),
             amount: budget.balance,
             scope: WalletEntryScope.BudgetClosure,
             narration: `Budget "${budget.name}" closed`,
-            reference: createId(),
+            reference,
             status: WalletEntryStatus.Successful,
             meta: {
               budgetBalanceAfter: 0,
@@ -126,28 +155,14 @@ export default class BudgetService {
           },
         ],
         { session }
-      );
+      ));
 
-      if (budget.project) {
-        const project = await Project.findOneAndUpdate(
-          { _id: budget.project },
-          {
-            $inc: { balance: budget.balance },
-          },
-          { session, new: true }
-        );
-        await entry
-          .updateOne({ "meta.projectBalanceAfter": project!.balance })
-          .session(session);
-      } else {
-        await Wallet.updateOne(
-          { _id: wallet._id },
-          {
-            $set: { walletEntry: entry._id },
-            $inc: { balance: budget.balance },
-          },
-          { session }
-        );
+      const virtualAccount = wallet.virtualAccounts.at(-1) as IVirtualAccount
+      counterparty = {
+        accountName: virtualAccount.name,
+        accountNumber: virtualAccount.accountNumber,
+        bankCode: virtualAccount.bankCode,
+        bankId: virtualAccount.bankCode
       }
 
       await budget
@@ -159,6 +174,35 @@ export default class BudgetService {
         })
         .session(session);
     }, transactionOpts);
+
+    entry = entry!
+    counterparty = counterparty!
+
+    const transferService = Container.get(TransferService);
+    const response = await transferService.initiateTransfer({
+      amount: entry.amount,
+      currency: entry.currency,
+      narration: entry.narration,
+      provider: TransferClientName.SafeHaven,
+      reference,
+      debitAccountNumber: getEnvOrThrow('SUDO_DEFAULT_WALLET_ACCOUNT_NUMBER'),
+      to: counterparty.accountName,
+      counterparty
+    })
+
+    entry = entry!
+
+    if (response.status === 'failed') {
+      return await reverseBudgetClosureDebit(entry, response.gatewayResponse)
+    }
+
+    if ('providerRef' in response) {
+      await WalletEntry.updateOne({ _id: entry._id }, {
+        providerRef: response.providerRef
+      })
+
+      await requeryTransfer(entry.provider, response.providerRef!);
+    }
   }
 
   private async declineBudget(auth: AuthUser, id: string, data: CloseBudgetBodyDto) {
@@ -179,9 +223,8 @@ export default class BudgetService {
       })
       .save();
 
-    const link = `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${
-      budget._id
-    }`;
+    const link = `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${budget._id
+      }`;
     this.emailService.sendBudgetDeclinedEmail(budget.createdBy.email, {
       budgetReviewLink: link,
       budgetBalance: formatMoney(budget.amount),
@@ -504,7 +547,7 @@ export default class BudgetService {
         approvedDate: new Date()
       }, { session })
     })
-    
+
     const response = await this.transferService.initiateTransfer({
       amount: budget.amount,
       currency: budget.currency,
@@ -522,7 +565,7 @@ export default class BudgetService {
     })
 
     entry = entry!
-    
+
     if (response.status === 'failed') {
       await this.reverseBudgetDebit(entry, response.gatewayResponse)
       return {
@@ -604,9 +647,8 @@ export default class BudgetService {
           this.emailService.sendBudgetBeneficiaryAdded(beneficiary?.email, {
             employeeName: beneficiary.firstName,
             budgetName: budget!.name,
-            budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${
-              budget!._id
-            }`,
+            budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${budget!._id
+              }`,
             amountAllocated: formatMoney(iUser?.allocation || 0),
           })
         );
@@ -617,9 +659,8 @@ export default class BudgetService {
           this.emailService.sendBudgetBeneficiaryRemoved(beneficiary?.email, {
             employeeName: beneficiary.firstName,
             budgetName: budget!.name,
-            budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${
-              budget!._id
-            }`,
+            budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${budget!._id
+              }`,
           })
         );
       });
@@ -651,9 +692,8 @@ export default class BudgetService {
     this.emailService.sendBudgetCancellationConfirmationEmail(
       budget.createdBy.email,
       {
-        budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${
-          budget._id
-        }`,
+        budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${budget._id
+          }`,
         budgetName: budget.name,
         employeeName: budget.createdBy.firstName,
       }
@@ -1015,9 +1055,8 @@ export default class BudgetService {
         role: ERole.Owner,
       }))!;
       this.emailService.sendBudgetPausedEmail(owner.email, {
-        budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${
-          budget._id
-        }`,
+        budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${budget._id
+          }`,
         budgetBalance: formatMoney(budget.balance),
         budgetName: budget.name,
         currency: budget.currency,
@@ -1055,9 +1094,8 @@ export default class BudgetService {
     this.emailService.sendBudgetClosedEmail(budget.createdBy.email, {
       budgetBalance: formatMoney(budget.balance),
       budgetName: budget.name,
-      budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${
-        budget._id
-      }`,
+      budgetLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/budgeting/${budget._id
+        }`,
       currency: budget.currency,
       employeeName: budget.createdBy.firstName,
     });
@@ -1099,6 +1137,16 @@ export default class BudgetService {
         preserveNullAndEmptyArrays: true,
       })
       .lookup({
+        from: "cards",
+        localField: "card",
+        foreignField: "_id",
+        as: "card",
+      })
+      .unwind({
+        path: "$card",
+        preserveNullAndEmptyArrays: true,
+      })
+      .lookup({
         from: "approvalrequests",
         localField: "extensionApprovalRequest",
         foreignField: "_id",
@@ -1131,6 +1179,18 @@ export default class BudgetService {
         fundRequestApprovalRequest: 1,
         extensionApprovalRequest: 1,
         approvedBy: { email: 1, role: 1, firstName: 1, lastName: 1 },
+        card: {
+          _id: 1,
+          design: 1,
+          type: 1,
+          cardName: 1,
+          brand: 1,
+          maskedPan: 1,
+          expiryMonth: 1,
+          expiryYear: 1,
+          provider: 1,
+          providerRef: 1
+        },
         beneficiaries: {
           _id: 1,
           email: 1,
@@ -1455,8 +1515,7 @@ export default class BudgetService {
 
       await Wallet.updateOne({ _id: entry.wallet }, {
         $inc: { balance: reverseAmount, ledgerBalance: reverseAmount }
-      }, {session})
-
+      }, { session })
     }, transactionOpts)
   }
 }
