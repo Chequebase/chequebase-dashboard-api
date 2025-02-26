@@ -221,6 +221,7 @@ export default class BudgetService {
 
     const createBudgetData = Object.assign(data, auth);
     if (noApprovalRequired) {
+      await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
       const budget = await this.createNewBudget(createBudgetData, true);
       return this.approveExpense(budget._id.toString());
     }
