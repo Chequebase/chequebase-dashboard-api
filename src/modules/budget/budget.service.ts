@@ -1489,8 +1489,6 @@ export default class BudgetService {
       amount: data.amount,
       balance: 0,
       currency: data.currency,
-      expiry: data.expiry,
-      threshold: data.threshold ?? data.amount,
       createdBy: data.userId,
       description: data.description,
       priority: data.priority,
