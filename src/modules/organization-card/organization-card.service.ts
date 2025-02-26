@@ -282,7 +282,7 @@ export class OrganizationCardService {
       )
       .populate({
         path: "budget",
-        select: "beneficiaries",
+        select: "name balance amount currency beneficiaries",
         populate: {
           path: "beneficiaries.user",
           select: "avatar firstName lastName",
