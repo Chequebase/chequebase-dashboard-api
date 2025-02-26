@@ -221,6 +221,7 @@ export default class BudgetService {
 
     const createBudgetData = Object.assign(data, auth);
     if (noApprovalRequired) {
+      await this.planUsageService.checkActiveBudgetUsage(auth.orgId)
       const budget = await this.createNewBudget(createBudgetData, true);
       return this.approveExpense(budget._id.toString());
     }
@@ -489,6 +490,7 @@ export default class BudgetService {
         balanceAfter: balanceAfter,
         amount: budget.amount,
         scope: WalletEntryScope.BudgetFunding,
+        provider: virtualAccount.provider,
         narration: 'Fund budget',
         reference: `fb_${createId()}`,
         status: WalletEntryStatus.Pending,
@@ -535,7 +537,7 @@ export default class BudgetService {
         providerRef: response.providerRef
       })
 
-      await requeryTransfer(entry.provider, entry.providerRef);
+      await requeryTransfer(entry.provider, response.providerRef!);
     }
 
     return {
