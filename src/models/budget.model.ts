@@ -42,6 +42,7 @@ export interface IBudget {
   approvedDate: Date
   closeReason?: string
   closedBy?: ObjectId
+  card?: ObjectId
   declinedBy?: ObjectId
   declineReason?: string
   beneficiaries: {
@@ -110,6 +111,10 @@ const budgetSchema = new Schema<IBudget>(
     threshold: Number,
     paused: { type: Boolean, default: false },
     closeReason: String,
+    card: {
+      type: Schema.Types.ObjectId,
+      ref: 'Card'
+    },
     closedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User'

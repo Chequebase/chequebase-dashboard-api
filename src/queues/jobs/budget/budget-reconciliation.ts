@@ -37,48 +37,9 @@ async function success(
     })
 
   if (entry.scope === WalletEntryScope.BudgetFunding) {
-    const budget = await Budget.findById(entry.budget).populate<{ createdBy: IUser }>('createdBy');
-    if (!budget) {
-      throw new Error('Unable to find budget')
-    }
-
-    const isNewBudget = budget.amountUsed === 0 && budget.balance === 0
-    if (isNewBudget) {
-      budget.balance = budget.amount
-      budget.status = BudgetStatus.Active,
-        await budget.save()
-
-      emailService.sendBudgetCreatedEmail(budget.createdBy.email, {
-        budgetAmount: formatMoney(budget!.amount),
-        budgetName: budget.name,
-        currency: budget.currency,
-        dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-        employeeName: budget.createdBy.firstName
-      })
-
-      emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
-        budgetAmount: formatMoney(budget.balance),
-        currency: budget.currency,
-        budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
-        budgetName: budget.name,
-        employeeName: budget.createdBy.firstName
-      })
-
-      if (budget.beneficiaries.length > 0) {
-        budget.beneficiaries.forEach((beneficiary: any) => {
-          return beneficiary.user && emailService.sendBudgetBeneficiaryAdded(beneficiary.user.email, {
-            employeeName: beneficiary.user.firstName,
-            budgetName: budget!.name,
-            budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
-            amountAllocated: formatMoney(beneficiary?.allocation || 0)
-          })
-        })
-      }
-
-      return;
-    }
-
-    // handle subsequent budget funding here
+    return handleBudgetFundingSuccess(entry, data)
+  } else if (entry.scope === WalletEntryScope.BudgetClosure) {
+    return handleBudgetClosureSuccess(entry, data)
   }
  
   const counterparty = entry.meta.counterparty;
@@ -114,25 +75,9 @@ async function failure(
 ) {
   const reverseAmount = numeral(entry.amount).add(entry.fee).value()!;
   if (entry.scope === WalletEntryScope.BudgetFunding) {
-    await cdb.transaction(async (session) => {
-      await Wallet.updateOne(
-        { _id: entry.wallet },
-        {
-          $inc: { ledgerBalance: reverseAmount, balance: reverseAmount },
-        },
-        { session }
-      );
-
-      await entry.updateOne(
-        {
-          gatewayResponse: data.gatewayResponse,
-          status: WalletEntryStatus.Failed,
-          balanceAfter: entry.balanceBefore,
-          ledgerBalanceAfter: entry.ledgerBalanceBefore
-        },
-        { session }
-      );
-    }, transactionOpts);
+    return handleBudgetFundingFailure(entry, data)
+  } else if (entry.scope === WalletEntryScope.BudgetClosure) {
+    return handleBudgetClosureFailure(entry, data)
   }
 
   await cdb.transaction(async (session) => {
@@ -163,6 +108,10 @@ async function reversal(
   data: WalletOutflowData
 ) {
   const reverseAmount = numeral(entry.amount).add(entry.fee).value()!;
+  if (entry.scope === WalletEntryScope.BudgetClosure) {
+    return handleBudgetClosureFailure(entry, data)
+  }
+
   await cdb.transaction(async (session) => {
     const budget = await Budget.findOneAndUpdate(
       { _id: entry.budget },
@@ -249,6 +198,119 @@ async function reversal(
       );
     }
   }, transactionOpts);
+}
+
+
+async function handleBudgetFundingSuccess(
+  entry: HydratedDocument<IWalletEntry>,
+  data: WalletOutflowData
+) {
+  const budget = await Budget.findById(entry.budget)
+    .populate<{ createdBy: IUser }>('createdBy')
+    .populate('beneficiaries.user');
+  if (!budget) {
+    throw new Error('Unable to find budget')
+  }
+
+  const isNewBudget = budget.amountUsed === 0 && budget.balance === 0
+  if (isNewBudget) {
+    budget.balance = budget.amount
+    budget.status = BudgetStatus.Active,
+      await budget.save()
+
+    emailService.sendBudgetCreatedEmail(budget.createdBy.email, {
+      budgetAmount: formatMoney(budget!.amount),
+      budgetName: budget.name,
+      currency: budget.currency,
+      dashboardLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+      employeeName: budget.createdBy.firstName
+    })
+
+    emailService.sendBudgetApprovedEmail(budget.createdBy.email, {
+      budgetAmount: formatMoney(budget.balance),
+      currency: budget.currency,
+      budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget._id}`,
+      budgetName: budget.name,
+      employeeName: budget.createdBy.firstName
+    })
+
+    if (budget.beneficiaries.length > 0) {
+      budget.beneficiaries.forEach((beneficiary: any) => {
+        return beneficiary.user && emailService.sendBudgetBeneficiaryAdded(beneficiary.user.email, {
+          employeeName: beneficiary.user.firstName,
+          budgetName: budget!.name,
+          budgetLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/budgeting/${budget!._id}`,
+          amountAllocated: formatMoney(beneficiary?.allocation || 0)
+        })
+      })
+    }
+
+    return;
+  }
+
+  // handle subsequent budget funding here
+  return;
+}
+
+async function handleBudgetFundingFailure(
+  entry: HydratedDocument<IWalletEntry>,
+  data: WalletOutflowData
+) {
+  const reverseAmount = numeral(entry.amount).add(entry.fee).value()!;
+  await cdb.transaction(async (session) => {
+    await Wallet.updateOne(
+      { _id: entry.wallet },
+      {
+        $inc: { ledgerBalance: reverseAmount, balance: reverseAmount },
+      },
+      { session }
+    );
+
+    await entry.updateOne(
+      {
+        gatewayResponse: data.gatewayResponse,
+        status: WalletEntryStatus.Failed,
+        balanceAfter: entry.balanceBefore,
+        ledgerBalanceAfter: entry.ledgerBalanceBefore
+      },
+      { session }
+    );
+  }, transactionOpts);
+}
+
+async function handleBudgetClosureSuccess(
+  entry: HydratedDocument<IWalletEntry>,
+  data: WalletOutflowData
+) {
+  await Wallet.updateOne({ _id: entry.wallet }, {
+    $inc: { balance: entry.amount, ledgerBalance: entry.amount }
+  })
+}
+
+async function handleBudgetClosureFailure(
+  entry: HydratedDocument<IWalletEntry>,
+  data: WalletOutflowData
+) {
+  const reverseAmount = numeral(entry.amount).add(entry.fee).value()!
+  await cdb.transaction(async (session) => {
+    await WalletEntry.updateOne({ _id: entry._id }, {
+      $set: {
+        gatewayResponse: data.gatewayResponse,
+        status: WalletEntryStatus.Failed
+      },
+      $inc: {
+        'meta.budgetBalanceAfter': reverseAmount
+      }
+    }, { session })
+
+    await Budget.updateOne({ _id: entry.budget._id }, {
+      status: BudgetStatus.Active,
+      balance: reverseAmount,
+      closedBy: null,
+      closeReason: null,
+    })
+      .session(session);
+  }, transactionOpts)
 }
 
 export default {
