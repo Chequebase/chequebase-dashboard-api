@@ -21,7 +21,7 @@ export class PaystackService {
     this.http = axios.create({
       baseURL: 'https://api.paystack.co',
       headers: {
-        Authorization: `Bearer ${getEnvOrThrow('PAYSTACK_API_KEY')}`
+        Authorization: `Bearer ${process.env.PAYSTACK_API_KEY}`
       }
     })
   }

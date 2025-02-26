@@ -473,19 +473,19 @@ export default class BudgetService {
       if (!wallet) {
         throw new BadRequestError('Insufficient balance')
       }
-
-      const balanceAfter = numeral(budget.wallet.balance).subtract(budget.amount).value();
+      console.log('%o wallet', wallet)
+      const balanceAfter = numeral(wallet.balance).subtract(budget.amount).value();
       ([entry] = await WalletEntry.create([{
         _id: entryId,
         organization: budget.organization,
         budget: budget._id,
-        wallet: budget.wallet._id,
+        wallet: wallet._id,
         initiatedBy: budget.createdBy._id,
         currency: budget.currency,
         type: WalletEntryType.Debit,
-        ledgerBalanceBefore: budget.wallet.ledgerBalance,
+        ledgerBalanceBefore: wallet.ledgerBalance,
         ledgerBalanceAfter: balanceAfter,
-        balanceBefore: budget.wallet.balance,
+        balanceBefore: wallet.balance,
         balanceAfter: balanceAfter,
         amount: budget.amount,
         scope: WalletEntryScope.BudgetFunding,

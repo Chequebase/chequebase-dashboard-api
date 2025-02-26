@@ -15,7 +15,7 @@ export class PaystackVirtualAccountClient implements VirtualAccountClient {
   http = axios.create({
     baseURL: 'https://api.paystack.co',
     headers: {
-      Authorization: `Bearer ${getEnvOrThrow('PAYSTACK_API_KEY')}`
+      Authorization: `Bearer ${process.env['PAYSTACK_API_KEY']}`
     }
   })
 
