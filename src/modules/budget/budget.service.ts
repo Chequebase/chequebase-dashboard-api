@@ -457,7 +457,7 @@ export default class BudgetService {
 
     await this.planUsageService.checkActiveBudgetUsage(budget.organization.toString())
 
-    const reference = createId()
+    const reference = `fb_${createId()}`
     const virtualAccount = budget.wallet.virtualAccounts[0] as IVirtualAccount
 
     let entry: IWalletEntry
@@ -492,7 +492,7 @@ export default class BudgetService {
         scope: WalletEntryScope.BudgetFunding,
         provider: virtualAccount.provider,
         narration: 'Fund budget',
-        reference: `fb_${createId()}`,
+        reference,
         status: WalletEntryStatus.Pending,
         meta: {
           budgetBalanceAfter: budget.balance,
