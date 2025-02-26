@@ -16,7 +16,7 @@ export class PaystackWebhookHandler {
   constructor (private paystackService: PaystackService) { }
 
   private createHmac(body: string) {
-    const secret = getEnvOrThrow('PAYSTACK_API_KEY')
+    const secret = process.env.PAYSTACK_API_KEY!
     return crypto.createHmac("sha512", secret)
       .update(body)
       .digest("hex");
