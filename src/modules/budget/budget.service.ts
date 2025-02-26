@@ -490,6 +490,7 @@ export default class BudgetService {
         balanceAfter: balanceAfter,
         amount: budget.amount,
         scope: WalletEntryScope.BudgetFunding,
+        provider: virtualAccount.provider,
         narration: 'Fund budget',
         reference: `fb_${createId()}`,
         status: WalletEntryStatus.Pending,
@@ -536,7 +537,7 @@ export default class BudgetService {
         providerRef: response.providerRef
       })
 
-      await requeryTransfer(entry.provider, entry.providerRef);
+      await requeryTransfer(entry.provider, response.providerRef!);
     }
 
     return {

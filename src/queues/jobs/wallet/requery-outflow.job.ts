@@ -47,6 +47,7 @@ async function onTransferEventNotification(notification: WalletOutflowData): Pro
       return await slackService.sendMessage(AllowedSlackWebhooks.outflow, reversedMessage);
   }
 }
+
 async function requeryOutflow(job: Job<RequeryOutflowJobData>) {
   const { provider, providerRef } = job.data;
   try {
