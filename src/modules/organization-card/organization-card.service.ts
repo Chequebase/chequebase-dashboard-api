@@ -602,7 +602,7 @@ export class OrganizationCardService {
     const budget: IBudget | undefined = card.budget
     if (!budget || budget.balance < amount) {
       return {
-        code: '',
+        code: '51',
         message: 'Insufficient balance'
       }
     }
