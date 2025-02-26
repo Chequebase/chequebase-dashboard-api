@@ -37,7 +37,9 @@ async function success(
     })
 
   if (entry.scope === WalletEntryScope.BudgetFunding) {
-    const budget = await Budget.findById(entry.budget).populate<{ createdBy: IUser }>('createdBy');
+    const budget = await Budget.findById(entry.budget)
+      .populate<{ createdBy: IUser }>('createdBy')
+      .populate('beneficiaries.user');
     if (!budget) {
       throw new Error('Unable to find budget')
     }
