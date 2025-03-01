@@ -7,6 +7,8 @@ import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import Organization from '@/models/organization.model';
 import { ISubscriptionPlan } from '@/models/subscription-plan.model';
+import Container from 'typedi';
+import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from '@/modules/external-providers/transfer/providers/safe-haven.client';
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -147,4 +149,16 @@ export const getContentType = (fileExt: string) => {
     default:
       return 'application/pdf'
   }
+}
+
+export async function resolveAccountNumber(payload: { accountNumber: string;  bankCode: string}) {
+  const service = Container.get<SafeHavenTransferClient>(SAFE_HAVEN_TRANSFER_TOKEN)
+  const [banks, nameEnquiry] = await Promise.all([
+    service.getBanks(),
+    service.nameEnquiry(payload)
+  ])
+
+  const bankName = banks.find(b => b.bankCode === payload.bankCode)!.name
+
+  return { ...nameEnquiry, bankName }
 }
