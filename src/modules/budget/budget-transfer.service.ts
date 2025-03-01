@@ -19,13 +19,13 @@ import dayjs from "dayjs"
 import { ObjectId } from 'mongodb'
 import numeral from "numeral"
 import { BadRequestError, NotFoundError } from "routing-controllers"
-import { Service } from "typedi"
+import { Inject, Service } from "typedi"
 import { AnchorService } from "../common/anchor.service"
 import { S3Service } from "../common/aws/s3.service"
 import EmailService from "../common/email.service"
 import { AuthUser, ParentOwnershipGetAll } from "../common/interfaces/auth-user"
 import { cdb } from "../common/mongoose"
-import { escapeRegExp, formatMoney, getContentType, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
+import { escapeRegExp, formatMoney, getContentType, getEnvOrThrow, resolveAccountNumber, toTitleCase, transactionOpts } from "../common/utils"
 import Logger from "../common/utils/logger"
 import { ServiceUnavailableError } from "../common/utils/service-errors"
 import { UserService } from "../user/user.service"
@@ -33,6 +33,7 @@ import { BudgetPolicyService } from "./budget-policy.service"
 import { CreateRecipient, GetTransferFee, GetVendorsDto, InitiateTransferDto, IPaymentSource, ResolveAccountDto, UpdateRecipient } from "./dto/budget-transfer.dto"
 import { ApproveTransfer, CreateTransferRecord, RunSecurityCheck } from "./interfaces/budget-transfer.interface"
 import { TransferService } from "../external-providers/transfer/transfer.service"
+import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "../external-providers/transfer/providers/safe-haven.client"
 
 const logger = new Logger('budget-transfer-service')
 
@@ -41,7 +42,7 @@ export class BudgetTransferService {
   constructor (
     private transferService: TransferService,
     private s3Service: S3Service,
-    private anchorService: AnchorService,
+    @Inject(SAFE_HAVEN_TRANSFER_TOKEN) private safehavenClient: SafeHavenTransferClient,
     private budgetPolicyService: BudgetPolicyService,
     private emailService: EmailService
   ) { }
@@ -73,10 +74,11 @@ export class BudgetTransferService {
   }
 
   private async getCounterparty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
-    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    const resolveRes = await resolveAccountNumber({ bankCode, accountNumber })
     if (saveRecipient) {
       await this.saveCounterParty(orgId, bankCode, accountNumber, true)
     }
+
     let counterparty = {
       organization: orgId,
       accountNumber,
@@ -86,11 +88,11 @@ export class BudgetTransferService {
       isRecipient
     } as unknown as ICounterparty
 
-    return { ...counterparty, bankId: resolveRes.bankId }
+    return counterparty
   }
 
   private async saveCounterParty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
-    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    const resolveRes = await resolveAccountNumber({ bankCode, accountNumber })
     let counterparty = await Counterparty.create({
       organization: orgId,
       accountNumber,
@@ -100,7 +102,7 @@ export class BudgetTransferService {
       isRecipient
     })
 
-    return { ...counterparty, bankId: resolveRes.bankId }
+    return counterparty
   }
 
   private async createTransferRecord(payload: CreateTransferRecord) {
@@ -357,7 +359,7 @@ export class BudgetTransferService {
       })
     }
 
-    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    const resolveRes = await resolveAccountNumber(data)
 
     if (data.saveRecipient) {
       await this.saveCounterParty(organization._id.toString(), data.bankCode, data.accountNumber, true)
@@ -407,7 +409,7 @@ export class BudgetTransferService {
         })),
         category: category.name,
         recipient: resolveRes.accountName,
-        recipientBank: resolveRes.bankName,
+        recipientBank: resolveRes.bankName!,
       })
     });
 
@@ -482,7 +484,13 @@ export class BudgetTransferService {
   }
 
   async resolveAccountNumber(data: ResolveAccountDto) {
-    return this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    const result = await resolveAccountNumber(data)
+    return {
+      accountNumber: result.accountNumber,
+      accountName: result.accountName,
+      bankCode: result.bankCode,
+      bankName: result.bankName
+    }
   }
 
   async getTransferFee(orgId: string, data: GetTransferFee) {
@@ -509,20 +517,15 @@ export class BudgetTransferService {
   }
 
   async getBanks() {
-    const anchorBanks: any[] = await this.anchorService.getBanks()
+    const safehavenbanks = await this.safehavenClient.getBanks()
     const banks = await Bank.find().lean()
     const defaultIcon = banks.find((b) => b.default)?.icon
 
-    return anchorBanks.map((bank) => {
-      const icon = banks.find(b => b.nipCode === bank.attributes.nipCode)?.icon || defaultIcon
-      return {
-        ...bank,
-        bank: Object.assign(bank.attributes, { icon }),
-        attributes: undefined
-      }
+    return safehavenbanks.map((bank) => {
+      const icon = banks.find(b => b.nipCode === bank.bankCode)?.icon || defaultIcon
+      return { name: bank.name, bankCode: bank.bankCode, icon }
     })
   }
-
 
   async getCategories(auth: AuthUser) {
     return TransferCategory.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
@@ -576,7 +579,8 @@ export class BudgetTransferService {
       throw new BadRequestError("Recipient not found")
     }
 
-    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    const resolveRes = await resolveAccountNumber(data)
+
     await recipient.updateOne({
       bankName: resolveRes.bankName,
       bankCode: data.bankCode,

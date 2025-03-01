@@ -34,7 +34,12 @@ export class SafeHavenTransferClient implements TransferClient {
 
   constructor(private httpClient: SafeHavenHttpClient) {}
 
-  private async nameEnquiry(payload: InitiateTransferData["counterparty"]) {
+  async nameEnquiry(payload: { bankCode: string; accountNumber: string }): Promise<{
+    sessionId: string;
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+  }> {
     const body = {
       bankCode: payload.bankCode,
       accountNumber: payload.accountNumber,
@@ -54,7 +59,7 @@ export class SafeHavenTransferClient implements TransferClient {
         status,
       });
 
-      return data.data.sessionId;
+      return data.data;
     } catch (err) {
       const error = this.handleError("name enquiry failed", body, err);
       throw new BadRequestError(error.message);
@@ -64,9 +69,9 @@ export class SafeHavenTransferClient implements TransferClient {
   async initiateTransfer(
     payload: InitiateTransferData
   ): Promise<InitiateTransferResult> {
-    const nameEnquiryReference = await this.nameEnquiry(payload.counterparty);
+    const nameEnquiry = await this.nameEnquiry(payload.counterparty);
     const body: TransferPayload = {
-      nameEnquiryReference,
+      nameEnquiryReference: nameEnquiry.sessionId,
       debitAccountNumber: payload.debitAccountNumber,
       beneficiaryBankCode: payload.counterparty.bankCode,
       beneficiaryAccountNumber: payload.counterparty.accountNumber,
@@ -159,6 +164,28 @@ export class SafeHavenTransferClient implements TransferClient {
       }
 
       throw new ServiceUnavailableError("Unable to verify transfer");
+    }
+  }
+
+  async getBanks(): Promise<{ name: string; bankCode: string }[]> {
+    try {
+      const { data } = await this.httpClient.axios.get(
+        `/transfers/banks`,
+      );
+
+      if (data.statusCode !== 200) {
+        throw data;
+      }
+
+      return data.data
+    } catch (err: any) {
+      const error = this.handleError(
+        "error fetching banks",
+        null,
+        err
+      );
+
+      throw new ServiceUnavailableError("Unable to fetch banks");
     }
   }
 

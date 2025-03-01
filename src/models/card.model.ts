@@ -68,7 +68,7 @@ export interface ICard {
     interval: CardSpendLimitInterval;
   };
   calendarPolicy: {
-    dayOfWeek: number[]
+    daysOfWeek: number[]
   }
   billingAddress: {
     line1: string;
@@ -125,7 +125,7 @@ const CardSchema = new Schema<ICard>(
     calendarPolicy: {
       _id: false,
       type: {
-        dayOfWeek: [Number]
+        daysOfWeek: [Number]
       }
     },
     spendChannels: {

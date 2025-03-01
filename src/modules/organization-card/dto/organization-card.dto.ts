@@ -1,7 +1,7 @@
 import { CardCurrency, CardSpendLimitInterval, CardType } from "@/models/card.model";
 import { CardClientName } from "@/modules/external-providers/card/providers/card.client";
 import { Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsInt, IsMongoId, IsNotEmpty, IsOptional, IsString, Matches, Min, ValidateIf, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsEnum, IsInt, IsMongoId, IsNotEmpty, IsOptional, IsString, Matches, Min, ValidateIf, ValidateNested } from "class-validator";
 
 export class DeliveryAddresss {
   @IsString() @IsNotEmpty() state: string
@@ -73,6 +73,12 @@ export class SetSpendLimit {
 
   @IsEnum(CardSpendLimitInterval)
   interval: CardSpendLimitInterval;
+}
+
+export class SetCalendarPolicyBody {
+  @IsInt({ each: true })
+  @IsArray()
+  daysOfWeek: number;
 }
 
 export class SetSpendChannels {

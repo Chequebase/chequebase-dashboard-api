@@ -66,7 +66,7 @@ export class AnchorTransferClient implements TransferClient {
       accountName: payload.counterparty.accountName,
       accountNumber: payload.counterparty.accountNumber,
       bankCode: payload.counterparty.bankCode,
-      bankId: payload.counterparty.bankId
+      bankId: payload.counterparty.bankId!
     })
 
     const data = {

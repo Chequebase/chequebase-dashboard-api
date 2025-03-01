@@ -34,14 +34,6 @@ export class CreateBudgetDto {
   @IsInt()
   amount: number
 
-  @IsInt()
-  @IsOptional()
-  threshold?: number
-
-  @IsDateString()
-  @IsOptional()
-  expiry?: Date
-
   @IsString()
   @IsOptional()
   @IsEnum(BudgetCurrency)

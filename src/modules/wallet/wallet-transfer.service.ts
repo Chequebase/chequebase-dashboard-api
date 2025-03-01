@@ -1,4 +1,4 @@
-import { Service } from "typedi"
+import { Inject, Service } from "typedi"
 import { BadRequestError, NotFoundError } from "routing-controllers"
 import dayjs from "dayjs"
 import { ObjectId } from 'mongodb';
@@ -14,7 +14,7 @@ import Budget from "@/models/budget.model"
 import Wallet from "@/models/wallet.model"
 import { AnchorService } from "../common/anchor.service"
 import User, { KycStatus } from "@/models/user.model"
-import { escapeRegExp, formatMoney, getContentType, getEnvOrThrow, toTitleCase, transactionOpts } from "../common/utils"
+import { escapeRegExp, formatMoney, getContentType, getEnvOrThrow, resolveAccountNumber, toTitleCase, transactionOpts } from "../common/utils"
 import Organization from "@/models/organization.model"
 import { ISubscription } from "@/models/subscription.model"
 import { ISubscriptionPlan } from "@/models/subscription-plan.model"
@@ -36,6 +36,7 @@ import { PayVendorDto } from "./dto/wallet.dto";
 import Vendor, { IVendor, VendorPaymentMethod } from "@/models/vendor.model";
 import CurrencyRate from "@/models/currency-rate.model";
 import { OrgType } from "../banksphere/dto/banksphere.dto";
+import { SAFE_HAVEN_TRANSFER_TOKEN, SafeHavenTransferClient } from "../external-providers/transfer/providers/safe-haven.client";
 
 export interface CreateTransferRecord {
   auth: { orgId: string; userId: string }
@@ -94,7 +95,7 @@ interface InitiateTransferPayload {
   debitAccount: string,
   reference: string,
   amount: number,
-  counterparty: { bankId: string; bankCode: string; accountName: string; accountNumber: string; },
+  counterparty: { bankId?: string; bankCode: string; accountName: string; accountNumber: string; },
   currency: string,
   narration: string,
   provider: TransferClientName,
@@ -136,7 +137,7 @@ export class WalletTransferService {
   constructor (
     private transferService: TransferService,
     private s3Service: S3Service,
-    private anchorService: AnchorService,
+    @Inject(SAFE_HAVEN_TRANSFER_TOKEN) private safehavenClient: SafeHavenTransferClient,
     private monoClient: MonoService,
     private emailService: EmailService,
   ) { }
@@ -168,7 +169,7 @@ export class WalletTransferService {
   }
 
   private async getCounterparty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
-    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    const resolveRes = await resolveAccountNumber({ bankCode, accountNumber })
     if (saveRecipient) {
       await this.saveCounterParty(orgId, bankCode, accountNumber, true)
     }
@@ -181,7 +182,7 @@ export class WalletTransferService {
       isRecipient
     } as unknown as ICounterparty
 
-    return { ...counterparty, bankId: resolveRes.bankId }
+    return counterparty
   }
 
   private async getMerchantCounterparty(orgId: string, merchantId: string, merchantType: string, merchantName: string, isRecipient: boolean = true, saveRecipient: boolean = false) {
@@ -504,7 +505,7 @@ export class WalletTransferService {
   }
 
   private async saveCounterParty(orgId: string, bankCode: string, accountNumber: string, isRecipient: boolean = true) {
-    const resolveRes = await this.anchorService.resolveAccountNumber(accountNumber, bankCode)
+    const resolveRes = await resolveAccountNumber({ bankCode, accountNumber })
     let counterparty = await Counterparty.create({
       organization: orgId,
       accountNumber,
@@ -514,7 +515,7 @@ export class WalletTransferService {
       isRecipient
     })
 
-    return { ...counterparty, bankId: resolveRes.bankId }
+    return counterparty
   }
 
   private async saveMerchantCounterparty(orgId: string, merchantId: string, merchantType: string, merchantName: string, isRecipient: boolean = true) {
@@ -603,7 +604,7 @@ export class WalletTransferService {
       })
     }
 
-    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    const resolveRes = await resolveAccountNumber(data)
 
     if (data.saveRecipient) {
       await this.saveCounterParty(auth.orgId, data.bankCode, data.accountNumber, true)
@@ -901,7 +902,7 @@ export class WalletTransferService {
       })
     }
 
-    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    const resolveRes = await resolveAccountNumber(data)
 
     if (data.saveRecipient) {
       await this.saveCounterParty(auth.orgId, data.bankCode, data.accountNumber, true)
@@ -1166,7 +1167,7 @@ export class WalletTransferService {
   }
 
   async resolveAccountNumber(data: ResolveAccountDto) {
-    return this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    return resolveAccountNumber(data)
   }
 
   async getTransferFee(orgId: string, data: GetTransferFee) {
@@ -1206,22 +1207,6 @@ export class WalletTransferService {
 
     return wallet
   }
-
-  async getBanks() {
-    const anchorBanks: any[] = await this.anchorService.getBanks()
-    const banks = await Bank.find().lean()
-    const defaultIcon = banks.find((b) => b.default)?.icon
-
-    return anchorBanks.map((bank) => {
-      const icon = banks.find(b => b.nipCode === bank.attributes.nipCode)?.icon || defaultIcon
-      return {
-        ...bank,
-        bank: Object.assign(bank.attributes, { icon }),
-        attributes: undefined
-      }
-    })
-  }
-
 
   async getCategories(auth: AuthUser) {
     return TransferCategory.find({ organization: auth.orgId, user: auth.userId, isRecipient: true }).lean()
@@ -1267,7 +1252,7 @@ export class WalletTransferService {
       throw new BadRequestError("Recipient not found")
     }
 
-    const resolveRes = await this.anchorService.resolveAccountNumber(data.accountNumber, data.bankCode)
+    const resolveRes = await resolveAccountNumber(data)
     await recipient.updateOne({
       bankName: resolveRes.bankName,
       bankCode: data.bankCode,

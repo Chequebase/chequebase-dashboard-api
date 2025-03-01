@@ -4,7 +4,7 @@ export interface InitiateTransferData {
   currency: string
   narration: string
   counterparty: {
-    bankId: string
+    bankId?: string
     bankCode: string
     accountName: string
     accountNumber: string
