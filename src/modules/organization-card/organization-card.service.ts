@@ -170,7 +170,7 @@ export class OrganizationCardService {
     const cardId = new ObjectId();
     await WalletEntry.create({
       organization: auth.orgId,
-      status: WalletEntryStatus.Pending,
+      status: WalletEntryStatus.Successful,
       currency: wallet.currency,
       wallet: wallet._id,
       amount: amountToDebit,
