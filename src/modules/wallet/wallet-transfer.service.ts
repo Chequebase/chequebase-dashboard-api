@@ -92,7 +92,7 @@ interface TransferRecordData {
 }
 
 interface InitiateTransferPayload {
-  debitAccount: string,
+  debitAccountNumber: string,
   reference: string,
   amount: number,
   counterparty: { bankId?: string; bankCode: string; accountName: string; accountNumber: string; },
@@ -1136,7 +1136,7 @@ export class WalletTransferService {
 
     const debitAccount = wallet.virtualAccounts[0].accountNumber
     const transferBody: InitiateTransferPayload = {
-      debitAccount,
+      debitAccountNumber: debitAccount,
       reference: entry.reference,
       amount: data.amount,
       counterparty,

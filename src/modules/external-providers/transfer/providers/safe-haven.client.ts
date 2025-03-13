@@ -80,7 +80,6 @@ export class SafeHavenTransferClient implements TransferClient {
       narration: payload.narration,
       paymentReference: payload.reference,
     };
-    console.log({ body })
     if (payload.to) {
       body.to = payload.to
     }
