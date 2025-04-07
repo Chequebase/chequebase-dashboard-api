@@ -377,7 +377,7 @@ export class BanksphereService {
           }
           const parsedUrl = new URL(doc.url);
           const key = parsedUrl.pathname.slice(1);
-          const s3Object = await this.s3Service.getObject(getEnvOrThrow('KYB_BUCKET_NAME'), key)
+          const s3Object = await this.s3Service.getObject('kyb-bucket', key)
           console.log({ s3Object, key })
           if (!s3Object) continue
 

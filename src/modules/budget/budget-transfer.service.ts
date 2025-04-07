@@ -330,7 +330,7 @@ export class BudgetTransferService {
       const fileExt = data.fileExt || 'pdf';
       const key = `budget/${budgetId}/${createId()}.${fileExt}`;
       invoiceUrl = await this.s3Service.uploadObject(
-        getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+        'kyb-bucket',
         key,
         data.invoice,
         getContentType(fileExt)

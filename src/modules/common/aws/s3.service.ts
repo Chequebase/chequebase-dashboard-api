@@ -11,7 +11,15 @@ export class S3Service {
   s3: S3Client;
 
   constructor () {
-    this.s3 = new S3Client({ region: getEnvOrThrow('AWS_REGION') });
+    this.s3 = new S3Client({
+      region: getEnvOrThrow('AWS_REGION'),
+      forcePathStyle: false,
+      endpoint: "https://kyb-bucket.fra1.digitaloceanspaces.com",
+      credentials: {
+        accessKeyId: 'DO00GVMTC8JGDKFQD8AH',
+        secretAccessKey: '02zseLK2Aqu4wvTqp7x7tcs6fcqhnLMniEaCK7vj0CM'
+      }
+    });
   }
 
   async putObject(bucket: string, key: string, data: Buffer) {

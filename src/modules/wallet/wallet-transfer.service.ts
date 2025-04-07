@@ -582,7 +582,7 @@ export class WalletTransferService {
       const fileExt = data.fileExt || 'pdf';
       const key = `wallet/${walletId}/${createId()}.${fileExt}`;
       invoiceUrl = await this.s3Service.uploadObject(
-        getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+        'kyb-bucket',
         key,
         data.invoice,
         getContentType(fileExt)
@@ -880,7 +880,7 @@ export class WalletTransferService {
       const fileExt = data.fileExt || 'pdf'
       const key = `direct/${virtualAccount.externalRef}/${createId()}.${fileExt}`;
       invoiceUrl = await this.s3Service.uploadObject(
-        getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+        'kyb-bucket',
         key,
         data.invoice,
         getContentType(fileExt)
@@ -1342,7 +1342,7 @@ export class WalletTransferService {
       const fileExt = data.fileExt || 'pdf';
       const key = `vendor/${walletId}/${vendorId}.${fileExt}`;
       vendorUrl = await this.s3Service.uploadObject(
-        getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+        'kyb-bucket',
         key,
         data.vendor,
         getContentType(fileExt)
@@ -1452,7 +1452,7 @@ export class WalletTransferService {
     const fileExt = file?.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
     const key = `vendor/receipt/${transaction.organization}/${transaction._id.toString()}.${fileExt}`;
     receiptUrl = await this.s3Service.uploadObject(
-      getEnvOrThrow('TRANSACTION_INVOICE_BUCKET'),
+      'kyb-bucket',
       key,
       file.buffer,
       getContentType(fileExt)
