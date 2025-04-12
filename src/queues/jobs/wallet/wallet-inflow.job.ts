@@ -57,6 +57,7 @@ function calculateInflowFee(amount: number): number {
 
 async function processWalletInflow(job: Job<WalletInflowData>) {
   const data = job.data
+  console.log({ data })
   const { reference, accountNumber, amount, gatewayResponse, narration, currency, providerChannel } = data;
 
   try {

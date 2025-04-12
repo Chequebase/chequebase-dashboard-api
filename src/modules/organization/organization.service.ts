@@ -81,7 +81,7 @@ export class OrganizationsService {
       const fileExt = kycDto.fileExt || 'pdf'
       const key = `new-kyc/documents/${organization.id}/cac.${fileExt}`;
       const url = await this.s3Service.uploadObject(
-        getEnvOrThrow('KYB_BUCKET_NAME'),
+        'kyb-bucket',
         key,
         kycDto.cac,
         getContentType(fileExt)
@@ -106,7 +106,7 @@ export class OrganizationsService {
       const fileExt = kycDto.fileExt || 'pdf'
       const key = `new-kyc/documents/${organization.id}/id.${fileExt}`;
       const url = await this.s3Service.uploadObject(
-        getEnvOrThrow('KYB_BUCKET_NAME'),
+        'kyb-bucket',
         key,
         kycDto.identity,
         getContentType(fileExt)
@@ -147,7 +147,7 @@ export class OrganizationsService {
         const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf'
         const key = `documents/${organization.id}/directors/${file.fieldname}.${fileExt}`;
         const url = await this.s3Service.uploadObject(
-          getEnvOrThrow('KYB_BUCKET_NAME'),
+          'kyb-bucket',
           key,
           file.buffer,
           getContentType(fileExt)
@@ -179,7 +179,7 @@ export class OrganizationsService {
         const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
         const key = `new-kyc/documents/${organization.id}/directors/${file.fieldname}.${fileExt}`;
         const url = await this.s3Service.uploadObject(
-          getEnvOrThrow('KYB_BUCKET_NAME'),
+          'kyb-bucket',
           key,
           file.buffer,
           getContentType(fileExt)
@@ -235,7 +235,7 @@ export class OrganizationsService {
         const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
         const key = `documents/${organization.id}/${file.fieldname}.${fileExt}`;
         const url = await this.s3Service.uploadObject(
-          getEnvOrThrow('KYB_BUCKET_NAME'),
+          'kyb-bucket',
           key,
           file.buffer,
           getContentType(fileExt)
