@@ -10,119 +10,179 @@ import { WalletEntryScope } from "@/models/wallet-entry.model";
 import { WalletType } from "@/models/wallet.model";
 import EmailService from "@/modules/common/email.service";
 import { AuthUser } from "@/modules/common/interfaces/auth-user";
-import { escapeRegExp, getContentType, getEnvOrThrow } from "@/modules/common/utils";
+import {
+  escapeRegExp,
+  getContentType,
+  getEnvOrThrow,
+} from "@/modules/common/utils";
 import { createId } from "@paralleldrive/cuid2";
-import bcrypt, { compare } from 'bcryptjs';
-import jwt, { JwtPayload } from 'jsonwebtoken';
-import { BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError } from "routing-controllers";
+import bcrypt, { compare } from "bcryptjs";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import {
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+} from "routing-controllers";
 import { Service } from "typedi";
 import { PlanUsageService } from "../billing/plan-usage.service";
 import { S3Service } from "../common/aws/s3.service";
-import { AllowedSlackWebhooks, SlackNotificationService } from "../common/slack/slackNotification.service";
+import {
+  AllowedSlackWebhooks,
+  SlackNotificationService,
+} from "../common/slack/slackNotification.service";
 import Logger from "../common/utils/logger";
 import { ServiceUnavailableError } from "../common/utils/service-errors";
 import WalletService from "../wallet/wallet.service";
-import { AddEmployeeDto, CreateEmployeeDto, ERole, GetAllMembersQueryDto, GetMembersQueryDto, LoginDto, NewRegisterDto, OtpDto, PasswordResetDto, PreRegisterDto, RegisterDto, RegisterIndividualDto, ResendEmailDto, ResendOtpDto, UpdateEmployeeDto, UpdateProfileDto } from "./dto/user.dto";
-import ApprovalRule, { ApprovalType, WorkflowType } from "@/models/approval-rule.model";
+import {
+  AddEmployeeDto,
+  CreateEmployeeDto,
+  ERole,
+  GetAllMembersQueryDto,
+  GetMembersQueryDto,
+  LoginDto,
+  NewRegisterDto,
+  OtpDto,
+  PasswordResetDto,
+  PreRegisterDto,
+  RegisterDto,
+  RegisterIndividualDto,
+  ResendEmailDto,
+  ResendOtpDto,
+  UpdateEmployeeDto,
+  UpdateProfileDto,
+} from "./dto/user.dto";
+import ApprovalRule, {
+  ApprovalType,
+  WorkflowType,
+} from "@/models/approval-rule.model";
 import TransferCategory from "@/models/transfer-category";
 
-const logger = new Logger('user-service')
-const whiteListDevEmails = ['uzochukwu.onuegbu25@gmail.com']
+const logger = new Logger("user-service");
+const whiteListDevEmails = ["uzochukwu.onuegbu25@gmail.com"];
 
-const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
+const refreshSecret = getEnvOrThrow("REFRESH_TOKEN_SECRET");
 
 @Service()
 export class UserService {
-  constructor (
+  constructor(
     private s3Service: S3Service,
     private emailService: EmailService,
     private planUsageService: PlanUsageService,
-    private slackNotificationService: SlackNotificationService,
-  ) { }
+    private slackNotificationService: SlackNotificationService
+  ) {}
 
   static async verifyTransactionPin(id: string, pin: string) {
-    const user = await User.findById(id).select('pin')
+    const user = await User.findById(id).select("pin");
     if (!user) {
-      logger.error('user not found', { id, func: UserService.verifyTransactionPin.name })
-      throw new BadRequestError('User not found')
+      logger.error("user not found", {
+        id,
+        func: UserService.verifyTransactionPin.name,
+      });
+      throw new BadRequestError("User not found");
     }
 
     if (!user.pin) {
       throw new BadRequestError(
         "Please set a transaction pin in your account settings to proceed."
-      )
+      );
     }
-    
-    return bcrypt.compare(pin, user.pin)
+
+    return bcrypt.compare(pin, user.pin);
   }
 
   async preRegister(data: PreRegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
-    const userExists = await PreRegisterUser.findOne({ email: { $regex } })
+    const userExists = await PreRegisterUser.findOne({ email: { $regex } });
     if (userExists) {
-
-      throw new BadRequestError('Already joined waitlist');
+      throw new BadRequestError("Already joined waitlist");
     }
     await PreRegisterUser.create({
       email: data.email,
     });
 
     const message = `${data.email} just signed up on waitlist`;
-    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
+    this.slackNotificationService.sendMessage(
+      AllowedSlackWebhooks.sales,
+      message
+    );
 
-    this.emailService.sendPreRegisterEmail(data.email, {})
+    this.emailService.sendPreRegisterEmail(data.email, {});
 
     return { message: "Wailtlist joined, check your email for more details" };
   }
 
   async reactivate(code: string) {
-    const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).populate('roleRef').lean()
+    const invite = await UserInvite.findOne({
+      code,
+      expiry: { $gte: new Date() },
+    })
+      .populate("roleRef")
+      .lean();
     if (!invite) {
-      return { success: false, message: 'Invalid reactivation link' }
+      return { success: false, message: "Invalid reactivation link" };
     }
 
     const $regex = new RegExp(`^${escapeRegExp(invite.email)}$`, "i");
-    const user = await User.findOne({ organization: invite.organization, email: { $regex }, status: UserStatus.DELETED })
+    const user = await User.findOne({
+      organization: invite.organization,
+      email: { $regex },
+      status: UserStatus.DELETED,
+    });
     if (!user) {
-      logger.error('unable to find deleted user with invite email', { email: invite.email})
-      return { success: false, message: 'Invalid reactivation link' }
+      logger.error("unable to find deleted user with invite email", {
+        email: invite.email,
+      });
+      return { success: false, message: "Invalid reactivation link" };
     }
 
-    const usage = await this.planUsageService.checkUsersUsage(invite.organization)
+    const usage = await this.planUsageService.checkUsersUsage(
+      invite.organization
+    );
     if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
-      const amount = usage.feature.costPerUnit.NGN
+      const amount = usage.feature.costPerUnit.NGN;
       try {
         await WalletService.chargeWallet(invite.organization, {
           amount,
           walletType: WalletType.General,
-          narration: 'Reactivate organization user',
+          narration: "Reactivate organization user",
           scope: WalletEntryScope.PlanSubscription,
-          currency: 'NGN',
+          currency: "NGN",
           initiatedBy: invite.invitedBy,
-        })
+        });
       } catch (err) {
         throw new BadRequestError(
           `Organization has reached its maximum limit for users. To continue adding users top-up your wallet`
-          )
+        );
       }
     }
 
-    user.status = UserStatus.ACTIVE
-    if (invite.department) user.departments = [invite.department]
-    user.manager = invite.manager
-    user.roleRef = invite.roleRef._id
-    user.role = invite.roleRef.name
-    await user.save()
+    user.status = UserStatus.ACTIVE;
+    if (invite.department) user.departments = [invite.department];
+    user.manager = invite.manager;
+    user.roleRef = invite.roleRef._id;
+    user.role = invite.roleRef.name;
+    await user.save();
 
-    await UserInvite.deleteOne({ _id: invite._id })
+    await UserInvite.deleteOne({ _id: invite._id });
 
-    return { success: true, message: 'User reactivated successfully' }
+    return { success: true, message: "User reactivated successfully" };
   }
 
   async createDefaultCategories(orgId: string) {
-    const cats = ['equipments', 'travel', 'taxes', 'entertainment', 'payroll', 'ultilities', 'marketing']
-    const categories = await TransferCategory.create(cats.map(name => ({ name, organization: orgId, type: 'default' })))
-    return categories
+    const cats = [
+      "equipments",
+      "travel",
+      "taxes",
+      "entertainment",
+      "payroll",
+      "ultilities",
+      "marketing",
+    ];
+    const categories = await TransferCategory.create(
+      cats.map((name) => ({ name, organization: orgId, type: "default" }))
+    );
+    return categories;
   }
 
   async createDefaultApprovalRules(orgId: string, userId: string) {
@@ -173,40 +233,51 @@ export class UserService {
         reviewers: [userId],
       },
     ];
-    
+
     const rules = await ApprovalRule.create(defaultRules);
-    console.log({ rules })
-    return rules 
+    console.log({ rules });
+    return rules;
   }
 
   async register(data: RegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
-    const userExists = await User.findOne({ email: { $regex } })
+    const userExists = await User.findOne({ email: { $regex } });
     if (userExists) {
       if (!userExists.emailVerified) {
-        const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
+        const link = `${getEnvOrThrow(
+          "BASE_FRONTEND_URL"
+        )}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${
+          userExists.email
+        }`;
         this.emailService.sendVerifyEmail(userExists.email, {
           customerName: userExists.firstName,
           otp: userExists.emailVerifyCode,
-          verificationLink: link
-        })
-        return { message: "User created, check your email for verification link" };
+          verificationLink: link,
+        });
+        return {
+          message: "User created, check your email for verification link",
+        };
       }
-      throw new BadRequestError('Account with same email already exists');
+      throw new BadRequestError("Account with same email already exists");
     }
 
-    const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
+    const ownerRole = await Role.findOne({
+      name: "owner",
+      type: RoleType.Default,
+    });
     if (!ownerRole) {
-      logger.error('role not found', { name: 'owner', type: 'default' })
-      throw new ServiceUnavailableError('Unable to complete registration at this time')
+      logger.error("role not found", { name: "owner", type: "default" });
+      throw new ServiceUnavailableError(
+        "Unable to complete registration at this time"
+      );
     }
 
     let emailVerifyCode = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate(10)
+    const otpExpiresAt = this.getOtpExpirationDate(10);
 
     // TODO: remove
     if (whiteListDevEmails.includes(data.email)) {
-      emailVerifyCode = 123456
+      emailVerifyCode = 123456;
     }
 
     const user = await User.create({
@@ -216,71 +287,87 @@ export class UserService {
       otpExpiresAt,
       role: ERole.Owner,
       roleRef: ownerRole._id,
-      hashRt: '',
+      hashRt: "",
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
-      avatar: '',
+      avatar: "",
       firstName: data.firstName,
-      lastName: data.lastName
+      lastName: data.lastName,
     });
 
     const organization = await Organization.create({
       businessName: data.businessName,
       admin: user._id,
-      email: data.email
-    })
-    await user.updateOne({ organization: organization._id })
+      email: data.email,
+    });
+    await user.updateOne({ organization: organization._id });
 
     await Promise.all([
       this.createDefaultApprovalRules(organization.id, user.id),
-      this.createDefaultCategories(organization.id)
-    ])
+      this.createDefaultCategories(organization.id),
+    ]);
 
     const message = `${data.businessName}, with email: ${data.email} just signed up`;
-    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
+    this.slackNotificationService.sendMessage(
+      AllowedSlackWebhooks.sales,
+      message
+    );
 
-    const isOwner = user.role === ERole.Owner
-    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
+    const isOwner = user.role === ERole.Owner;
+    const link = `${getEnvOrThrow("BASE_FRONTEND_URL")}/auth/signup?email=${
+      data.email
+    }&code=${emailVerifyCode}`;
     this.emailService.sendVerifyEmail(data.email, {
       customerName: isOwner ? organization.businessName : user.firstName,
       otp: emailVerifyCode,
-      emailVerificationLink: link
-    })
+      emailVerificationLink: link,
+    });
 
     return { message: "User created, check your email for verification link" };
   }
 
   async newRegister(data: NewRegisterDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
-    console.log({ email: $regex, data })
-    const userExists = await User.findOne({ email: { $regex } })
-    console.log({ userExists, db: process.env.DB_URI })
+    console.log({ email: $regex, data });
+    const userExists = await User.findOne({ email: { $regex } });
+    console.log({ userExists, db: process.env.DB_URI });
     if (userExists) {
       if (!userExists.emailVerified) {
-        const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
+        const link = `${getEnvOrThrow(
+          "BASE_FRONTEND_URL"
+        )}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${
+          userExists.email
+        }`;
         this.emailService.sendVerifyEmail(userExists.email, {
           customerName: userExists.firstName,
           otp: userExists.emailVerifyCode,
-          verificationLink: link
-        })
-        return { message: "User created, check your email for verification link" };
+          verificationLink: link,
+        });
+        return {
+          message: "User created, check your email for verification link",
+        };
       }
-      throw new BadRequestError('Account with same email already exists');
+      throw new BadRequestError("Account with same email already exists");
     }
 
-    const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
-    console.log({ ownerRole })
+    const ownerRole = await Role.findOne({
+      name: "owner",
+      type: RoleType.Default,
+    });
+    console.log({ ownerRole });
     if (!ownerRole) {
-      logger.error('role not found', { name: 'owner', type: 'default' })
-      throw new ServiceUnavailableError('Unable to complete registration at this time')
+      logger.error("role not found", { name: "owner", type: "default" });
+      throw new ServiceUnavailableError(
+        "Unable to complete registration at this time"
+      );
     }
 
     let emailVerifyCode = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate(10)
+    const otpExpiresAt = this.getOtpExpirationDate(10);
 
     // TODO: remove
     if (whiteListDevEmails.includes(data.email)) {
-      emailVerifyCode = 123456
+      emailVerifyCode = 123456;
     }
 
     const user = await User.create({
@@ -290,13 +377,13 @@ export class UserService {
       otpExpiresAt,
       role: ERole.Owner,
       roleRef: ownerRole._id,
-      hashRt: '',
+      hashRt: "",
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
-      avatar: '',
+      avatar: "",
       phone: data.phone,
       firstName: data.firstName,
-      lastName: data.lastName
+      lastName: data.lastName,
     });
 
     const organization = await Organization.create({
@@ -306,60 +393,76 @@ export class UserService {
       phone: data.phone,
       firstName: data.firstName,
       lastName: data.lastName,
-      bvnVerified: false
-    })
-    await user.updateOne({ organization: organization._id })
+      bvnVerified: false,
+    });
+    await user.updateOne({ organization: organization._id });
 
     await Promise.all([
       this.createDefaultApprovalRules(organization.id, user.id),
-      this.createDefaultCategories(organization.id)
-    ])
+      this.createDefaultCategories(organization.id),
+    ]);
 
     const message = `${data.businessName}, with email: ${data.email} just signed up`;
-    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
+    this.slackNotificationService.sendMessage(
+      AllowedSlackWebhooks.sales,
+      message
+    );
 
-    const isOwner = user.role === ERole.Owner
-    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
+    const isOwner = user.role === ERole.Owner;
+    const link = `${getEnvOrThrow("BASE_FRONTEND_URL")}/auth/signup?email=${
+      data.email
+    }&code=${emailVerifyCode}`;
     this.emailService.sendVerifyEmail(data.email, {
       customerName: isOwner ? organization.businessName : user.firstName,
       otp: emailVerifyCode,
-      emailVerificationLink: link
-    })
+      emailVerificationLink: link,
+    });
 
     return { message: "User created, check your email for verification link" };
   }
 
   async registerIndividual(data: RegisterIndividualDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
-    console.log({ email: $regex, data })
-    const userExists = await User.findOne({ email: { $regex } })
-    console.log({ userExists, db: process.env.DB_URI })
+    console.log({ email: $regex, data });
+    const userExists = await User.findOne({ email: { $regex } });
+    console.log({ userExists, db: process.env.DB_URI });
     if (userExists) {
       if (!userExists.emailVerified) {
-        const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${userExists.email}`
+        const link = `${getEnvOrThrow(
+          "BASE_FRONTEND_URL"
+        )}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${
+          userExists.email
+        }`;
         this.emailService.sendVerifyEmail(userExists.email, {
           customerName: userExists.firstName,
           otp: userExists.emailVerifyCode,
-          verificationLink: link
-        })
-        return { message: "User created, check your email for verification link" };
+          verificationLink: link,
+        });
+        return {
+          message: "User created, check your email for verification link",
+        };
       }
-      throw new BadRequestError('Account with same email already exists');
+      throw new BadRequestError("Account with same email already exists");
     }
 
-    const ownerRole = await Role.findOne({ name: 'owner', type: RoleType.Default })
-    console.log({ ownerRole })
+    const ownerRole = await Role.findOne({
+      name: "owner",
+      type: RoleType.Default,
+    });
+    console.log({ ownerRole });
     if (!ownerRole) {
-      logger.error('role not found', { name: 'owner', type: 'default' })
-      throw new ServiceUnavailableError('Unable to complete registration at this time')
+      logger.error("role not found", { name: "owner", type: "default" });
+      throw new ServiceUnavailableError(
+        "Unable to complete registration at this time"
+      );
     }
 
     let emailVerifyCode = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate(10)
+    const otpExpiresAt = this.getOtpExpirationDate(10);
 
     // TODO: remove
     if (whiteListDevEmails.includes(data.email)) {
-      emailVerifyCode = 123456
+      emailVerifyCode = 123456;
     }
 
     const user = await User.create({
@@ -369,57 +472,65 @@ export class UserService {
       otpExpiresAt,
       role: ERole.Owner,
       roleRef: ownerRole._id,
-      hashRt: '',
+      hashRt: "",
       KYBStatus: KycStatus.NOT_STARTED,
       status: UserStatus.PENDING,
-      avatar: '',
+      avatar: "",
       phone: data.phone,
       firstName: data.firstName,
-      lastName: data.lastName
+      lastName: data.lastName,
     });
 
     const organization = await Organization.create({
-      businessName: 'default-',
+      businessName: "default-",
       admin: user._id,
       email: data.email,
       phone: data.phone,
       firstName: data.firstName,
       lastName: data.lastName,
-      bvnVerified: false
-    })
-    await user.updateOne({ organization: organization._id })
+      bvnVerified: false,
+    });
+    await user.updateOne({ organization: organization._id });
 
     await Promise.all([
       this.createDefaultApprovalRules(organization.id, user.id),
-      this.createDefaultCategories(organization.id)
-    ])
+      this.createDefaultCategories(organization.id),
+    ]);
 
     const message = `${data.firstName}, with email: ${data.email} just signed up`;
-    this.slackNotificationService.sendMessage(AllowedSlackWebhooks.sales, message)
+    this.slackNotificationService.sendMessage(
+      AllowedSlackWebhooks.sales,
+      message
+    );
 
-    const isOwner = user.role === ERole.Owner
-    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/signup?email=${data.email}&code=${emailVerifyCode}`
+    const isOwner = user.role === ERole.Owner;
+    const link = `${getEnvOrThrow("BASE_FRONTEND_URL")}/auth/signup?email=${
+      data.email
+    }&code=${emailVerifyCode}`;
     this.emailService.sendVerifyEmail(data.email, {
-      customerName: (isOwner && organization.businessName !== 'default-') ? organization.businessName : user.firstName,
+      customerName:
+        isOwner && organization.businessName !== "default-"
+          ? organization.businessName
+          : user.firstName,
       otp: emailVerifyCode,
-      emailVerificationLink: link
-    })
+      emailVerificationLink: link,
+    });
 
     return { message: "User created, check your email for verification link" };
   }
 
   async login(data: LoginDto, clientId: string) {
-    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i")
+    const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
     const user = await User.findOne({
       email: { $regex },
-      status: { $nin: [UserStatus.DELETED, UserStatus.DISABLED] }
-    }).select('+password')
+      status: { $nin: [UserStatus.DELETED, UserStatus.DISABLED] },
+    }).select("+password");
     if (!user) {
-      throw new UnauthorizedError('Wrong login credentials!')
+      throw new UnauthorizedError("Wrong login credentials!");
     }
 
     if (!user.emailVerified) {
-      throw new UnauthorizedError('Wrong login credentials!')
+      throw new UnauthorizedError("Wrong login credentials!");
     }
 
     const organization = await Organization.findById(user.organization);
@@ -430,52 +541,66 @@ export class UserService {
     let device = await Device.findOne({ clientId });
     if (!device) {
       device = await Device.create({
-        clientId
+        clientId,
       });
     }
 
-    if (!await compare(data.password, user.password)) {
-      throw new UnauthorizedError('Wrong login credentials!')
+    if (!(await compare(data.password, user.password))) {
+      throw new UnauthorizedError("Wrong login credentials!");
     }
 
     if (user.status === UserStatus.ACTIVE) {
       let otp = Math.floor(100000 + Math.random() * 900000);
-      const otpExpiresAt = this.getOtpExpirationDate(10)
+      const otpExpiresAt = this.getOtpExpirationDate(10);
 
       if (whiteListDevEmails.includes(user.email)) {
-        otp = 123456
+        otp = 123456;
       }
-    if ((user.rememberMe && user.rememberMe > new Date().getTime()) && !!device?.id) {
-      const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
-      // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+      if (
+        user.rememberMe &&
+        user.rememberMe > new Date().getTime() &&
+        !!device?.id
+      ) {
+        const tokens = await this.getCredentials(
+          {
+            userId: user.id,
+            email: user.email,
+            orgId: organization.id,
+            role: user.role,
+          },
+          clientId
+        );
+        // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
+        await user.updateOne({
+          hashRt: "",
+          rememberMe: data.rememberMe
+            ? this.getRememberMeExpirationDate(data.rememberMe)
+            : undefined,
+          otpExpiresAt,
+          otp,
+        });
+        return { tokens, userId: user.id, status: user.status };
+      }
       await user.updateOne({
-        hashRt: '',
-        rememberMe: data.rememberMe ? this.getRememberMeExpirationDate(data.rememberMe): undefined,
-        otpExpiresAt,
-        otp
-      })
-      return { tokens, userId: user.id, status: user.status }
-    }
-      await user.updateOne({
-        hashRt: '',
+        hashRt: "",
         rememberMe: data.rememberMe ? 0 : undefined,
         otpExpiresAt,
-        otp
-      })
+        otp,
+      });
 
-      const isOwner = user.role === ERole.Owner
+      const isOwner = user.role === ERole.Owner;
       this.emailService.sendOtpEmail(user.email, {
         customerName: isOwner ? organization.businessName : user.firstName,
-        otp
-      })
+        otp,
+      });
     }
 
-    return { userId: user.id, status: user.status  }
+    return { userId: user.id, status: user.status };
   }
 
   getRememberMeExpirationDate(rememberMe: boolean) {
     if (!rememberMe) {
-      return Date.now()
+      return Date.now();
     }
 
     const expirationDate = new Date();
@@ -491,44 +616,48 @@ export class UserService {
 
   async resendOtp(data: ResendOtpDto) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
-    const user = await User.findOne({ email: { $regex } })
+    const user = await User.findOne({ email: { $regex } });
     if (!user) {
-      throw new UnauthorizedError('No user found')
+      throw new UnauthorizedError("No user found");
     }
 
     const organization = await Organization.findById(user.organization);
     if (!organization) {
-      throw new UnauthorizedError('User Organization not found');
+      throw new UnauthorizedError("User Organization not found");
     }
 
-    const isOwner = user.role === ERole.Owner
-    if (user.otpExpiresAt && user.otpExpiresAt > new Date().getTime() && user.otp) {
-      const otp = user.otp
+    const isOwner = user.role === ERole.Owner;
+    if (
+      user.otpExpiresAt &&
+      user.otpExpiresAt > new Date().getTime() &&
+      user.otp
+    ) {
+      const otp = user.otp;
       this.emailService.sendOtpEmail(user.email, {
         customerName: isOwner ? organization.businessName : user.firstName,
-        otp
-      })
+        otp,
+      });
 
-      return { message: 'OTP sent!' };
+      return { message: "OTP sent!" };
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000);
-    const otpExpiresAt = this.getOtpExpirationDate(10)
+    const otpExpiresAt = this.getOtpExpirationDate(10);
 
-    await user.updateOne({ otp, otpExpiresAt })
+    await user.updateOne({ otp, otpExpiresAt });
     this.emailService.sendOtpEmail(user.email, {
       customerName: isOwner ? organization.businessName : user.firstName,
-      otp
-    })
+      otp,
+    });
 
-    return { message: 'OTP sent!' };
+    return { message: "OTP sent!" };
   }
 
   async verifyOtp(data: OtpDto, clientId: string) {
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
-    const user = await User.findOne({ email: { $regex } })
+    const user = await User.findOne({ email: { $regex } });
     if (!user) {
-      throw new UnauthorizedError('No user found')
+      throw new UnauthorizedError("No user found");
     }
 
     const organization = await Organization.findById(user.organization);
@@ -537,32 +666,51 @@ export class UserService {
     }
 
     // modify this to check for 10mins validity
-    let checkOTP = (userHash: string, hash: string) => Number(userHash) === Number(hash);
-    const otpExpiresAtTimestamp = user.otpExpiresAt ? new Date(user.otpExpiresAt).getTime() : 0;
-    const isValid = checkOTP(user.otp, data.otp) && otpExpiresAtTimestamp > new Date().getTime();
+    let checkOTP = (userHash: string, hash: string) =>
+      Number(userHash) === Number(hash);
+    const otpExpiresAtTimestamp = user.otpExpiresAt
+      ? new Date(user.otpExpiresAt).getTime()
+      : 0;
+    const isValid =
+      checkOTP(user.otp, data.otp) &&
+      otpExpiresAtTimestamp > new Date().getTime();
 
     if (!isValid) {
       throw new UnauthorizedError(`Invalid Otp`);
     }
 
-    const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
+    const tokens = await this.getCredentials(
+      {
+        userId: user.id,
+        email: user.email,
+        orgId: organization.id,
+        role: user.role,
+      },
+      clientId
+    );
     // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     await user.updateOne({
-      rememberMe: user.rememberMe === 0 ? this.getRememberMeExpirationDate(true) : undefined,
-    })
+      rememberMe:
+        user.rememberMe === 0
+          ? this.getRememberMeExpirationDate(true)
+          : undefined,
+    });
 
-    return { tokens, userId: user.id }
+    return { tokens, userId: user.id };
   }
 
   async refreshToken(token: string, clientId: string) {
     const device = await Device.findOne({ clientId });
 
-    const notFoundError = new NotFoundError('Device not found');
+    const notFoundError = new NotFoundError("Device not found");
     if (!device?.id) throw notFoundError;
 
-    const session = await Session
-    .findOne({ device: device.id, token, revokedAt: { $exists: false } });
+    const session = await Session.findOne({
+      device: device.id,
+      token,
+      revokedAt: { $exists: false },
+    });
 
     const error = new ForbiddenError("Invalid token!");
     if (!session) throw error;
@@ -577,14 +725,25 @@ export class UserService {
       throw new UnauthorizedError(`User Organization not found`);
     }
 
-    const decodedToken = jwt.decode(token)
-    if (decodedToken && ((decodedToken as JwtPayload).exp || 1) * 1000 > Date.now()) {
-      return await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
+    const decodedToken = jwt.decode(token);
+    if (
+      decodedToken &&
+      ((decodedToken as JwtPayload).exp || 1) * 1000 > Date.now()
+    ) {
+      return await this.getCredentials(
+        {
+          userId: user.id,
+          email: user.email,
+          orgId: organization.id,
+          role: user.role,
+        },
+        clientId
+      );
     } else {
       await session.updateOne({
         revokedAt: new Date(),
-        revokedReason: "expired"
-      })
+        revokedReason: "expired",
+      });
 
       error.message = "Token expired!";
       throw error;
@@ -594,50 +753,55 @@ export class UserService {
   async resendEmail(data: ResendEmailDto) {
     const { email } = data;
     const $regex = new RegExp(`^${escapeRegExp(email)}$`, "i");
-    const userExists = await User.findOne({ email: { $regex } })
+    const userExists = await User.findOne({ email: { $regex } });
     if (!userExists) {
-      throw new BadRequestError('User not found');
+      throw new BadRequestError("User not found");
     }
 
     if (userExists.emailVerified) {
-      throw new BadRequestError('Account already verified, please login')
+      throw new BadRequestError("Account already verified, please login");
     }
 
-    const otpResentAt = userExists.otpResentAt || this.getOtpExpirationDate(60)
-    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${email}`
+    const otpResentAt = userExists.otpResentAt || this.getOtpExpirationDate(60);
+    const link = `${getEnvOrThrow(
+      "BASE_FRONTEND_URL"
+    )}/auth/verify-email?code=${userExists.emailVerifyCode}&email=${email}`;
     if (userExists.resentOptCount && userExists.resentOptCount >= 3) {
-      if (userExists.otpResentAt && userExists.otpResentAt < new Date().getTime()) {
+      if (
+        userExists.otpResentAt &&
+        userExists.otpResentAt < new Date().getTime()
+      ) {
         await userExists.updateOne({
           resentOptCount: 1,
-          otpResentAt: this.getOtpExpirationDate(60)
-        })
+          otpResentAt: this.getOtpExpirationDate(60),
+        });
         this.emailService.sendVerifyEmail(email, {
           firstName: email,
-          verificationLink: link
-        })
-  
-        return { message: 'success' };
+          verificationLink: link,
+        });
+
+        return { message: "success" };
       }
-      throw new BadRequestError('Please wait another hour and try again')
+      throw new BadRequestError("Please wait another hour and try again");
     }
 
     await userExists.updateOne({
       resentOptCount: (userExists.resentOptCount || 0) + 1,
-      otpResentAt: otpResentAt
-    })
+      otpResentAt: otpResentAt,
+    });
     this.emailService.sendVerifyEmail(email, {
       firstName: email,
-      verificationLink: link
-    })
+      verificationLink: link,
+    });
 
-    return { message: 'success' };
+    return { message: "success" };
   }
 
   async verifyEmail(email: string, verificationCode: string, clientId: string) {
     const $regex = new RegExp(`^${escapeRegExp(email)}$`, "i");
-    const user = await User.findOne({ email: { $regex } })
+    const user = await User.findOne({ email: { $regex } });
     if (!user) {
-      throw new BadRequestError('User not found');
+      throw new BadRequestError("User not found");
     }
 
     const organization = await Organization.findById(user.organization);
@@ -646,8 +810,12 @@ export class UserService {
     }
 
     // modify this to check for 10mins validity
-    let checkemailVerifyCode = (userHash: string, hash: string) => Number(userHash) === Number(hash);
-    const isValid = checkemailVerifyCode(user.emailVerifyCode, verificationCode)
+    let checkemailVerifyCode = (userHash: string, hash: string) =>
+      Number(userHash) === Number(hash);
+    const isValid = checkemailVerifyCode(
+      user.emailVerifyCode,
+      verificationCode
+    );
 
     if (!isValid) {
       throw new UnauthorizedError(`Invalid Otp`);
@@ -655,51 +823,61 @@ export class UserService {
 
     await user.updateOne({
       emailVerified: true,
-      status: UserStatus.ACTIVE
-    })
+      status: UserStatus.ACTIVE,
+    });
 
-    const tokens = await this.getCredentials({ userId: user.id, email: user.email, orgId: organization.id, role: user.role }, clientId);
+    const tokens = await this.getCredentials(
+      {
+        userId: user.id,
+        email: user.email,
+        orgId: organization.id,
+        role: user.role,
+      },
+      clientId
+    );
     // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
-    return { tokens, userId: user.id }
+    return { tokens, userId: user.id };
   }
 
   async forgotPassword(email: string) {
     const $regex = new RegExp(`^${escapeRegExp(email)}$`, "i");
-    const user = await User.findOne({ email: { $regex } })
+    const user = await User.findOne({ email: { $regex } });
     if (!user) {
-      throw new BadRequestError('User not found');
+      throw new BadRequestError("User not found");
     }
 
     const code = this.generateRandomString(6);
-    const link = `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/new-password/${user.id}/${code}`;
+    const link = `${getEnvOrThrow("BASE_FRONTEND_URL")}/auth/new-password/${
+      user.id
+    }/${code}`;
 
-    await user.updateOne({ passwordResetCode: code })
+    await user.updateOne({ passwordResetCode: code });
 
     this.emailService.sendForgotPasswordEmail(user.email, {
       passwordResetLink: link,
-      userName: user.email
-    })
+      userName: user.email,
+    });
 
-    return { message: 'success' };
+    return { message: "success" };
   }
 
   async passwordReset(passwordResetDto: PasswordResetDto) {
-    const { userId, code, password } = passwordResetDto
+    const { userId, code, password } = passwordResetDto;
     const user = await User.findById(userId);
     if (!user) {
-      throw new BadRequestError('User not found');
+      throw new BadRequestError("User not found");
     }
     if (code !== user.passwordResetCode) {
-      throw new BadRequestError('Invalid credentials');
+      throw new BadRequestError("Invalid credentials");
     }
 
     const newPassword = await bcrypt.hash(password, 12);
     await user.updateOne({
       password: newPassword,
-    })
+    });
 
-    const params = this.getEmailParams(user.email)
+    const params = this.getEmailParams(user.email);
 
     // const Message = {
     //   Body: {
@@ -716,31 +894,37 @@ export class UserService {
 
     // params.Message = Message;
     // await this.emailService.sendEmail(params);
-    
-    return { message: 'success' };
+
+    return { message: "success" };
   }
 
   private generateRandomString(length: number): string {
     const result = [];
-    let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     const charactersLength = characters.length;
     for (var i = 0; i < length; i++) {
-      result.push(characters.charAt(Math.floor(Math.random() * charactersLength)));
+      result.push(
+        characters.charAt(Math.floor(Math.random() * charactersLength))
+      );
     }
-    return result.join('');
+    return result.join("");
   }
 
   async updateHashRefreshToken(userId: string, refreshToken: string) {
     const hashRefreshToken = await bcrypt.hash(refreshToken, 12);
-    await User.updateOne({ _id: userId }, {
-      hashRt: hashRefreshToken
-    })
+    await User.updateOne(
+      { _id: userId },
+      {
+        hashRt: hashRefreshToken,
+      }
+    );
   }
 
   async logout(userId: string, clientId: string) {
     const device = await Device.findOne({ clientId });
 
-    const notFoundError = new NotFoundError('Device not found');
+    const notFoundError = new NotFoundError("Device not found");
     if (!device?.id) throw notFoundError;
     const sessions = await Session.find({
       device: device.id,
@@ -748,72 +932,99 @@ export class UserService {
       revokedAt: { $exists: false },
     });
 
-    const sessionIds = sessions.map(x => x.id);
+    const sessionIds = sessions.map((x) => x.id);
 
-    await Session.updateMany({ _id: { $in: sessionIds } }, {
-      revokedAt: new Date(),
-      revokedReason: "logout"
-    })
+    await Session.updateMany(
+      { _id: { $in: sessionIds } },
+      {
+        revokedAt: new Date(),
+        revokedReason: "logout",
+      }
+    );
 
-    return { message: 'Successfully logged out.' }
+    return { message: "Successfully logged out." };
   }
 
   async getProfile(userId: string) {
     const user = await User.findById(userId)
-      .select('firstName lastName avatar email emailVerified manager role KYBStatus createdAt organization pin phone setDefualtApprovalWorkflow setInitialPolicies')
-      .populate('manager', 'firstName lastName avatar')
+      .select(
+        "firstName lastName avatar email emailVerified manager role KYBStatus createdAt organization pin phone setDefualtApprovalWorkflow setInitialPolicies"
+      )
+      .populate("manager", "firstName lastName avatar")
       .populate({
-        path: 'organization', select: 'subscription',
-        populate: 'subscription.object'
+        path: "organization",
+        select: "subscription",
+        populate: "subscription.object",
       })
       .populate({
-        path: 'roleRef', select: 'type name permissions',
-        populate: { path: 'permissions', select: 'name actions' }
+        path: "roleRef",
+        select: "type name permissions",
+        populate: { path: "permissions", select: "name actions" },
       })
-      .lean()
-    
+      .lean();
+
     if (!user) {
-      throw new BadRequestError("User not found")
+      throw new BadRequestError("User not found");
     }
 
-    let subscription = (<IOrganization>user.organization).subscription
+    let subscription = (<IOrganization>user.organization).subscription;
     if (subscription) {
       subscription = Object.assign(subscription, {
-        features: await this.planUsageService.getFeatureAvailability(user.organization._id.toString())
-      })
+        features: await this.planUsageService.getFeatureAvailability(
+          user.organization._id.toString()
+        ),
+      });
     }
 
-    let pinSet = false
+    let pinSet = false;
     if (user.pin) {
-      pinSet = true
+      pinSet = true;
     }
-   
-    return { ...user, pin: undefined, pinSet }
+
+    return { ...user, pin: undefined, pinSet };
   }
 
-  async getTokens(user: { userId: string, email: string, orgId: string, role: string }) {
-    const accessSecret = getEnvOrThrow('ACCESS_TOKEN_SECRET')
-    const accessExpiresIn = +getEnvOrThrow('ACCESS_EXPIRY_TIME')
-    const refreshSecret = getEnvOrThrow('REFRESH_TOKEN_SECRET')
-    const refreshExpiresIn = +getEnvOrThrow('REFRESH_EXPIRY_TIME')
-    const payload = { sub: user.userId, email: user.email, userId: user.userId, orgId: user.orgId, role: user.role }
-    
+  async getTokens(user: {
+    userId: string;
+    email: string;
+    orgId: string;
+    role: string;
+  }) {
+    const accessSecret = getEnvOrThrow("ACCESS_TOKEN_SECRET");
+    const accessExpiresIn = +getEnvOrThrow("ACCESS_EXPIRY_TIME");
+    const refreshSecret = getEnvOrThrow("REFRESH_TOKEN_SECRET");
+    const refreshExpiresIn = +getEnvOrThrow("REFRESH_EXPIRY_TIME");
+    const payload = {
+      sub: user.userId,
+      email: user.email,
+      userId: user.userId,
+      orgId: user.orgId,
+      role: user.role,
+    };
+
     return {
-      access_token: jwt.sign(payload, accessSecret, { expiresIn: accessExpiresIn }),
-      refresh_token: jwt.sign(payload, refreshSecret, { expiresIn: refreshExpiresIn })
-    }
+      access_token: jwt.sign(payload, accessSecret, {
+        expiresIn: accessExpiresIn,
+      }),
+      refresh_token: jwt.sign(payload, refreshSecret, {
+        expiresIn: refreshExpiresIn,
+      }),
+    };
   }
 
-  private async getCredentials(user: { userId: string, email: string, orgId: string, role: string }, clientId: string) {
-    let deviceId = 'client_id';
+  private async getCredentials(
+    user: { userId: string; email: string; orgId: string; role: string },
+    clientId: string
+  ) {
+    let deviceId = "client_id";
     if (clientId) {
       const device = await Device.findOne({ clientId });
-      deviceId = device?.id
+      deviceId = device?.id;
       if (!deviceId) {
         const newDevice = await Device.create({
-          clientId
+          clientId,
         });
-        deviceId = newDevice.id
+        deviceId = newDevice.id;
       }
     }
 
@@ -822,18 +1033,21 @@ export class UserService {
       revokedAt: { $exists: false },
     });
 
-    const sessionIds = sessions.map(x => x.id);
+    const sessionIds = sessions.map((x) => x.id);
 
-    await Session.updateMany({ _id: { $in: sessionIds } }, {
-      revokedAt: new Date(),
-      revokedReason: "logout"
-    })
+    await Session.updateMany(
+      { _id: { $in: sessionIds } },
+      {
+        revokedAt: new Date(),
+        revokedReason: "logout",
+      }
+    );
 
     const tokens = await this.getTokens(user);
     await Session.create({
       user: user.userId,
       device: deviceId,
-      token: tokens.refresh_token          
+      token: tokens.refresh_token,
     });
 
     return {
@@ -845,50 +1059,47 @@ export class UserService {
     };
   }
 
-
   getEmailParams(email: string) {
     return {
       Destination: {
-        ToAddresses: [
-          `${email}`
-        ]
+        ToAddresses: [`${email}`],
       },
       Message: {},
-      Source: getEnvOrThrow('CHEQUEBASE_EMAIL_COMMS')
+      Source: getEnvOrThrow("CHEQUEBASE_EMAIL_COMMS"),
     };
   }
 
   async sendInvite(data: CreateEmployeeDto, auth: AuthUser) {
-    const { userId, orgId } = auth
-    const organization = await Organization.findById(orgId).lean()
+    const { userId, orgId } = auth;
+    const organization = await Organization.findById(orgId).lean();
     if (!organization) {
       throw new NotFoundError(`Orgniaztion with ID ${orgId} not found`);
     }
     const $regex = new RegExp(`^${escapeRegExp(data.email)}$`, "i");
-    const userExists = await User.findOne({ email: { $regex } })
+    const userExists = await User.findOne({ email: { $regex } });
     if (userExists) {
-      throw new BadRequestError('Account with same email already exists');
+      throw new BadRequestError("Account with same email already exists");
     }
 
-    const usage = await this.planUsageService.checkUsersUsage(orgId)
+    const usage = await this.planUsageService.checkUsersUsage(orgId);
     if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
       try {
         await WalletService.chargeWallet(orgId, {
           amount: usage.feature.costPerUnit.NGN,
           walletType: WalletType.General,
-          narration: 'Add organization user',
+          narration: "Add organization user",
           scope: WalletEntryScope.PlanSubscription,
-          currency: 'NGN',
+          currency: "NGN",
           initiatedBy: userId,
-        })
+        });
       } catch (err) {
         throw new BadRequestError(
           `Organization has reached its maximum limit for users. To continue adding users top-up your wallet`
-        )
+        );
       }
     }
 
-    const code = createId()
+    const code = createId();
     await User.create({
       email: data.email,
       inviteCode: code,
@@ -898,52 +1109,61 @@ export class UserService {
       role: data.role,
       inviteSentAt: Math.round(new Date().getTime() / 1000),
       status: UserStatus.INVITED,
-      KYBStatus: KycStatus.NOT_STARTED
-    })
+      KYBStatus: KycStatus.NOT_STARTED,
+    });
 
     this.emailService.sendEmployeeInviteEmail(data.email, {
-      inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${code}&companyName=${organization.businessName}`,
-      companyName: organization.businessName
-    })
+      inviteLink: `${getEnvOrThrow(
+        "BASE_FRONTEND_URL"
+      )}/auth/invite?code=${code}&companyName=${organization.businessName}`,
+      companyName: organization.businessName,
+    });
 
-    return { message: 'Invite sent successfully' };
+    return { message: "Invite sent successfully" };
   }
 
   async acceptInvite(data: AddEmployeeDto, clientId: string) {
-    const { code, firstName, lastName, phone, password } = data
-    const invite = await UserInvite.findOne({ code, expiry: { $gte: new Date() } }).populate('roleRef').lean()
+    const { code, firstName, lastName, phone, password } = data;
+    const invite = await UserInvite.findOne({
+      code,
+      expiry: { $gte: new Date() },
+    })
+      .populate("roleRef")
+      .lean();
     if (!invite) {
-      throw new BadRequestError("Invalid or expired link")
+      throw new BadRequestError("Invalid or expired link");
     }
 
     const $regex = new RegExp(`^${escapeRegExp(invite.email)}$`, "i");
-    const exists = await User.findOne({ email: { $regex } })
+    const exists = await User.findOne({ email: { $regex } });
     if (exists) {
-      throw new BadRequestError('User already exists')
+      throw new BadRequestError("User already exists");
     }
 
-    const usage = await this.planUsageService.checkUsersUsage(invite.organization)
+    const usage = await this.planUsageService.checkUsersUsage(
+      invite.organization
+    );
     if (usage.exhaustedFreeUnits && !usage.exhuastedMaxUnits) {
       try {
         await WalletService.chargeWallet(invite.organization, {
           amount: usage.feature.costPerUnit.NGN,
           walletType: WalletType.General,
-          narration: 'Add organization user',
+          narration: "Add organization user",
           scope: WalletEntryScope.PlanSubscription,
-          currency: 'NGN',
+          currency: "NGN",
           initiatedBy: invite.invitedBy,
-        })
+        });
       } catch (err) {
         throw new BadRequestError(
           `Organization has reached its maximum limit for users. To continue adding users top-up your wallet`
-        )
+        );
       }
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12)
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    const departments = []
-    if (invite.department) departments.push(invite.department)
+    const departments = [];
+    if (invite.department) departments.push(invite.department);
     const user = await User.create({
       firstName,
       lastName,
@@ -958,20 +1178,23 @@ export class UserService {
       status: UserStatus.ACTIVE,
       KYBStatus: KycStatus.APPROVED,
       organization: invite.organization,
-    })
+    });
 
-    await UserInvite.deleteOne({ _id: invite._id })
-    const tokens = await this.getCredentials({
-      userId: user.id,
-      email: user.email,
-      orgId: user.organization.toString(),
-      role: user.role
-    }, clientId);
-  
+    await UserInvite.deleteOne({ _id: invite._id });
+    const tokens = await this.getCredentials(
+      {
+        userId: user.id,
+        email: user.email,
+        orgId: user.organization.toString(),
+        role: user.role,
+      },
+      clientId
+    );
+
     // await this.updateHashRefreshToken(user.id, tokens.refresh_token);
 
     // await this.emailService.sendTemplateEmail(email, 'Welcome Employee', 'd-571ec52844e44cb4860f8d5807fdd7c5', { email });
-    return { tokens, userId: user.id }
+    return { tokens, userId: user.id };
   }
 
   async getMembers(auth: AuthUser, query: GetMembersQueryDto) {
@@ -995,31 +1218,40 @@ export class UserService {
           "firstName employmentDate employementType manager lastName email emailVerified role KYBStatus status avatar phone",
       }
     );
-    
-    return users
+
+    return users;
   }
 
   async getUnpaginatedMembers(auth: AuthUser, query: GetAllMembersQueryDto) {
-    const isOwnerQuery = query.notOwner ? 'owner' : 'empty'
+    const isOwnerQuery = query.notOwner ? "owner" : "empty";
     const users = await User.find({
       organization: auth.orgId,
       status: { $ne: UserStatus.DELETED },
-      role: { $ne: isOwnerQuery }
-    }).select('firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone')
-    
-    return users
+      role: { $ne: isOwnerQuery },
+    }).select(
+      "firstName lastName avatar email emailVerified role KYBStatus createdAt organization pin phone"
+    );
+
+    return users;
   }
 
   async getMember(id: string, orgId: string) {
-    const user = await User.findOne({ _id: id, organization: orgId, status: { $ne: UserStatus.DELETED } })
-      .select('firstName lastName email emailVerified role KYBStatus status avatar phone')
-      .populate('departments', 'name')
+    const user = await User.findOne({
+      _id: id,
+      organization: orgId,
+      status: { $ne: UserStatus.DELETED },
+    })
+      .select(
+        "firstName lastName email emailVerified role KYBStatus status avatar phone"
+      )
+      .populate("departments", "name")
       .populate({
-        path: 'manager', select: 'firstName lastName email avatar',
-        populate: { path: 'roleRef', select: 'name type' }
+        path: "manager",
+        select: "firstName lastName email avatar",
+        populate: { path: "roleRef", select: "name type" },
       })
-      .lean()
-    
+      .lean();
+
     if (!user) {
       throw new NotFoundError(`Employee with ID ${id} not found`);
     }
@@ -1028,102 +1260,128 @@ export class UserService {
   }
 
   async updateMember(id: string, data: UpdateEmployeeDto, orgId: string) {
-    const user = await User.findOne({_id: id, organization: orgId, status: { $ne: UserStatus.DELETED } });
+    const user = await User.findOne({
+      _id: id,
+      organization: orgId,
+      status: { $ne: UserStatus.DELETED },
+    });
     if (!user) {
       throw new NotFoundError("User not found");
     }
 
-    await user.updateOne({ ...data, role: data.role })
+    await user.updateOne({ ...data, role: data.role });
 
-    return { message: 'Update member details' }
+    return { message: "Update member details" };
   }
 
   async deleteInvite(id: string, orgId: string) {
     const employee = await this.getMember(id, orgId);
     if (!employee) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError("User not found");
     }
 
-    await User.deleteOne({ _id: id, organization: orgId })
+    await User.deleteOne({ _id: id, organization: orgId });
 
-    return { message: 'invite deleted' }
+    return { message: "invite deleted" };
   }
 
   async resendInvite(id: string, orgId: string) {
-    const employee = await User.findOne({ _id: id, organization: orgId, status: { $ne: UserStatus.DELETED } })
+    const employee = await User.findOne({
+      _id: id,
+      organization: orgId,
+      status: { $ne: UserStatus.DELETED },
+    });
     if (!employee) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError("User not found");
     }
 
     if (employee.status !== UserStatus.INVITED) {
-      throw new NotFoundError('invite not found');
+      throw new NotFoundError("invite not found");
     }
 
-    const organization = await Organization.findById(orgId).lean()
+    const organization = await Organization.findById(orgId).lean();
     if (!organization) {
-      throw new NotFoundError('Organization not found');
+      throw new NotFoundError("Organization not found");
     }
 
     await this.emailService.sendEmployeeInviteEmail(employee.email, {
-      inviteLink: `${getEnvOrThrow('BASE_FRONTEND_URL')}/auth/invite?code=${employee.inviteCode}&companyName=${organization.businessName}`,
-      companyName: organization.businessName
+      inviteLink: `${getEnvOrThrow("BASE_FRONTEND_URL")}/auth/invite?code=${
+        employee.inviteCode
+      }&companyName=${organization.businessName}`,
+      companyName: organization.businessName,
     });
 
-    return { message: 'Invite resent' }
+    return { message: "Invite resent" };
   }
 
   async deleteMember(id: string, orgId: string) {
-    const employee = await User.findOne({ _id: id, organization: orgId })
-      .populate('roleRef')
+    const employee = await User.findOne({
+      _id: id,
+      organization: orgId,
+    }).populate("roleRef");
     if (!employee) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError("User not found");
     }
 
-    if (employee.roleRef.name === 'owner' && employee.roleRef.type === 'default') {
-      throw new BadRequestError("You cannot delete business owner")
+    if (
+      employee.roleRef.name === "owner" &&
+      employee.roleRef.type === "default"
+    ) {
+      throw new BadRequestError("You cannot delete business owner");
     }
 
-    await User.updateOne({ _id: id, organization: orgId }, { status: UserStatus.DELETED })
+    await User.updateOne(
+      { _id: id, organization: orgId },
+      { status: UserStatus.DELETED }
+    );
     await ApprovalRule.updateMany(
       { organization: orgId },
       { $pull: { reviewers: id } }
     );
 
-    return { message: 'Member deleted' }
+    return { message: "Member deleted" };
   }
 
   async updateProfile(id: string, data: UpdateProfileDto, orgId: string) {
-    const user = await User.findOne({_id: id, organization: orgId, status: { $ne: UserStatus.DELETED } });
+    const user = await User.findOne({
+      _id: id,
+      organization: orgId,
+      status: { $ne: UserStatus.DELETED },
+    });
     if (!user) {
       throw new NotFoundError("User not found");
     }
 
-    await user.updateOne({ ...data })
+    await user.updateOne({ ...data });
 
-    return { message: 'Update profile details' }
+    return { message: "Update profile details" };
   }
 
-  async uploadAvatar(
-    auth: AuthUser,
-    file: any
-  ) {
-    const user = await User.findOne({_id: auth.userId, organization: auth.orgId, status: { $ne: UserStatus.DELETED } });
+  async uploadAvatar(auth: AuthUser, file: any) {
+    const user = await User.findOne({
+      _id: auth.userId,
+      organization: auth.orgId,
+      status: { $ne: UserStatus.DELETED },
+    });
     if (!user) {
       throw new NotFoundError("User not found");
     }
-    const fileExt = file.mimetype.toLowerCase().trim().split('/')[1] || 'pdf';
+    const fileExt = file.mimetype.toLowerCase().trim().split("/")[1] || "pdf";
     const key = `avatar/${auth.orgId}/${auth.userId}/${file.fieldname}.${fileExt}`;
     const url = await this.s3Service.uploadObject(
-      getEnvOrThrow('AVATAR_BUCKET_NAME'),
+      "kyb-bucket",
       key,
       file.buffer,
       getContentType(fileExt)
     );
-    
-    await User.updateOne({ _id: auth.userId, organization: auth.orgId }, {
-      avatar: url
-    })
 
-    return { message: 'upload successful' };
+    await User.updateOne(
+      { _id: auth.userId, organization: auth.orgId },
+      {
+        avatar: url,
+      }
+    );
+
+    return { message: "upload successful" };
   }
 }
