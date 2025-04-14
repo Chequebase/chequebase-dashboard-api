@@ -145,7 +145,7 @@ export class PayrollService {
       bankCode: '000014',
       name: 'Sub Wallet',
       bankName: 'Access Bank',
-      provider: VirtualAccountClientName.Hydrogen,
+      provider: VirtualAccountClientName.SafeHaven,
       externalRef: providerRef,
     });
 
