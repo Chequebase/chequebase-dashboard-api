@@ -22,7 +22,7 @@ export class HydrogenTransferClient implements TransferClient {
       beneficiaryName: payload.counterparty.accountName,
       clientReference: payload.reference,
       beneficiaryBankCode: payload.counterparty.bankCode,
-      callBack: "https://https://prod.chequebaseapp-api.com/v1/webhook/hydrogen"
+      callBack: "https://chequebase-dashboard-api-z84rl.ondigitalocean.app/prod/v1/webhook/hydrogen"
     }
 
     try {

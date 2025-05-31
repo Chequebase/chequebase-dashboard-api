@@ -92,5 +92,4 @@ export default class WebhookController {
     });
 
     return this.sudoHandler.processWebhook(body);
-  }
-}
+  
