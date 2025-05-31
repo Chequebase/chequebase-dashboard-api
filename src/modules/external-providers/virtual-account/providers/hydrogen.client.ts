@@ -96,7 +96,7 @@ export class HydrogrVirtualAccountClient implements VirtualAccountClient {
         accountNumber: details.accountNumber,
         bankCode: details.bank.nipCode,
         bankName: details.bank.name,
-        provider: VirtualAccountClientName.Anchor,
+        provider: VirtualAccountClientName.Hydrogen,
       }
     } catch (err: any) {
       this.logger.error('error creating virtual account', {
@@ -119,7 +119,7 @@ export class HydrogrVirtualAccountClient implements VirtualAccountClient {
         accountNumber: details.accountNumber,
         bankCode: details.bank.nipCode,
         bankName: details.bank.name,
-        provider: VirtualAccountClientName.Anchor,
+        provider: VirtualAccountClientName.Hydrogen,
       }
     } catch (err: any) {
       this.logger.error('error getting virtual account', {
