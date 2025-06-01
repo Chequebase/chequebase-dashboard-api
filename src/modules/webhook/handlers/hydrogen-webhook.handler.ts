@@ -208,8 +208,8 @@ export default class HydrogenWebhookHandler {
     //   return { message: 'webhook_logged' }
     // }
     let type;
-    if (body.DebitStatus && body.DebitStatus === 'successful') type = 'debit'
-    if (body.CreditStatus && body.CreditStatus === 'successful') type = 'credit'
+    if (body.DebitStatus && body.DebitStatus === 'Successful') type = 'debit'
+    if (body.CreditStatus && body.CreditStatus === 'Successful') type = 'credit'
 
 
     switch (type) {
