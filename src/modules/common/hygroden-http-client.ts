@@ -32,9 +32,9 @@ import axios, {
     private injectTokenInterceptor = async (
       config: InternalAxiosRequestConfig
     ) => {
-      if (config.url == "/walletservice/api/Auth/token") {
-        return config;
-      }
+      // if (config.url == "/walletservice/api/Auth/token") {
+      //   return config;
+      // }
   
       await this.regenerateAuthToken();
     
