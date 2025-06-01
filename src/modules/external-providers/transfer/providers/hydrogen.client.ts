@@ -26,6 +26,7 @@ export class HydrogenTransferClient implements TransferClient {
     }
 
     try {
+      console.log({ data })
       const res = await this.httpClient.axios.post('/walletservice/api/v1/FundsTransfer/initiate-transfer', data)
       const { statusCode, message: receivedMessage, data: resultData } = res.data;
       const message = statusCode !== 90000 ?
