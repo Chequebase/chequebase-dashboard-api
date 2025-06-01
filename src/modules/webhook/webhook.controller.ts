@@ -42,14 +42,14 @@ export default class WebhookController {
   @UseBefore(raw({ type: "application/json" }))
   async processHydrogen(
     @Body() body: any,
-    @HeaderParams() headers: any
+    // @HeaderParams() headers: any
   ) {
     logger.log("received hydrogen webhook", {
-      headers: JSON.stringify(headers),
+      // headers: JSON.stringify(headers),
       body: body.toString("utf-8"),
     });
 
-    return this.hydrogenHandler.processWebhook(body, headers);
+    return this.hydrogenHandler.processWebhook(body, { headers: {} });
   }
 
   @Post("/safe-haven")
