@@ -39,7 +39,7 @@ export default class WebhookController {
   }
 
   @Post("/hydrogen")
-  // @UseBefore(raw({ type: "application/json" }))
+  @UseBefore(raw({ type: "application/json" }))
   async processHydrogen(
     @Body() body: any,
     @HeaderParams() headers: any
