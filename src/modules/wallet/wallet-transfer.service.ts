@@ -1156,7 +1156,7 @@ export class WalletTransferService {
       })
 
       
-      await requeryTransfer(provider, transferResponse.providerRef)
+      // await requeryTransfer(provider, transferResponse.providerRef)
     }
 
     return {
