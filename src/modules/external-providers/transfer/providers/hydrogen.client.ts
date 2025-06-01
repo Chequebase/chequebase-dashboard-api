@@ -42,8 +42,8 @@ export class HydrogenTransferClient implements TransferClient {
         message,
         providerRef: res.data.data.id,
         currency: 'NGN',
-        amount: resultData.amountPaid,
-        reference: resultData.transactionRef,
+        amount: resultData.amount,
+        reference: resultData.transactionId,
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {

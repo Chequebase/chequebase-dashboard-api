@@ -28,8 +28,12 @@ export const webhookMap = {
 @Service()
 export class SlackNotificationService {
   public async sendMessage(hookName: AllowedSlackWebhooks, text: string, attachments?: any) {
+    try {
     const headers = { 'Content-type': 'application/json' };
     // if (process.env.ENV !== 'Production') return;
     return axios.post(webhookMap[hookName], { text, attachments }, { headers });
+    } catch (err) {
+      console.log({ slackError: err })
+    }
   }
 }

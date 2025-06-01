@@ -1150,14 +1150,23 @@ export class WalletTransferService {
     }
     const transferResponse = await this.transferService.initiateTransfer(transferBody)
 
-    if ('providerRef' in transferResponse && transferResponse.providerRef) {
+    if ('reference' in transferResponse && transferResponse.reference) {
       await WalletEntry.updateOne({ _id: entry._id }, {
+        reference: transferResponse.reference,
         providerRef: transferResponse.providerRef
       })
-
       
       // await requeryTransfer(provider, transferResponse.providerRef)
     }
+
+    // if ('providerRef' in transferResponse && transferResponse.providerRef) {
+    //   await WalletEntry.updateOne({ _id: entry._id }, {
+    //     providerRef: transferResponse.providerRef
+    //   })
+
+      
+    //   // await requeryTransfer(provider, transferResponse.providerRef)
+    // }
 
     return {
       status: transferResponse.status,

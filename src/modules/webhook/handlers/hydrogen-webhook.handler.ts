@@ -59,22 +59,22 @@ export default class HydrogenWebhookHandler {
   }
 
   private async onTransferEvent(body: any) {
-    const transferId = body.data.relationships.transfer.data.id
-    const verifyResponse = await this.hydrogenTransferClient.verifyTransferById(transferId)
+    // const transferId = body.data.relationships.transfer.data.id
+    // const verifyResponse = await this.hydrogenTransferClient.verifyTransferById(transferId)
 
-    const jobData: WalletOutflowData = {
-      amount: verifyResponse.amount,
-      currency: verifyResponse.currency,
-      gatewayResponse: verifyResponse.gatewayResponse,
-      reference: verifyResponse.reference,
-      status: verifyResponse.status as WalletOutflowData['status']
+    const jobData = {
+      amount: body.Amount,
+      currency: body.Currency,
+      // gatewayResponse: verifyResponse.gatewayResponse,
+      reference: body.Id,
+      status: body.DebitStatus as WalletOutflowData['status']
     }
 
     await walletQueue.add('processWalletOutflow', jobData)
-    const receipient = body.included.find((x: any) => x.type === 'CounterParty')
-    const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
+    // const receipient = body.included.find((x: any) => x.type === 'CounterParty')
+    // const businessCustomer = body.included.find((x: any) => x.type === 'BusinessCustomer')
 
-    await this.onTransferEventNotification({ ...jobData, businessName: businessCustomer.attributes.detail.businessName, customerId: body.data.relationships.customer.data.id, accountName: receipient.attributes.accountName, accountNumber: receipient.attributes.accountNumber, bankName: receipient.attributes.bank.name })
+    // await this.onTransferEventNotification({ ...jobData, businessName: businessCustomer.attributes.detail.businessName, customerId: body.data.relationships.customer.data.id, accountName: receipient.attributes.accountName, accountNumber: receipient.attributes.accountNumber, bankName: receipient.attributes.bank.name })
     return { message: 'transfer event queued' }
   }
 
@@ -202,29 +202,31 @@ export default class HydrogenWebhookHandler {
     //   throw new UnauthorizedError('Invalid webhook')
     // }
 
-    // body = JSON.parse(body)
-    // const { data } = body;
+    body = JSON.parse(body)
     // if (!allowedWebooks.includes(data.type)) {
     //   this.logger.log('event type not allowed', { event: data.type })
     //   return { message: 'webhook_logged' }
     // }
+    let type;
+    if (body.DebitStatus && body.DebitStatus === 'successful') type = 'debit'
+    if (body.CreditStatus && body.CreditStatus === 'successful') type = 'credit'
 
 
-    // switch (data.type as  typeof allowedWebooks[number]) {
-    //   case 'payment.settled':
-    //     return this.onPaymentSettled(body)
-    //   case 'nip.transfer.successful':
-    //   case 'nip.transfer.failed':
-    //   case 'nip.transfer.reversed':
-    //     return this.onTransferEvent(body)
-    //   // case 'book.transfer.successful':
-    //   // case 'book.transfer.failed':
-    //   // case 'book.transfer.reversed':
-    //   //   return this.onBookTransferEvent(body)
-    //   default:
-    //     this.logger.log('unhandled event', { event: data.type })
-    //     break;
-    // }
+    switch (type) {
+      case 'credit':
+        // return this.onPaymentSettled(body)
+      case 'debit':
+      // case 'nip.transfer.failed':
+      // case 'nip.transfer.reversed':
+        return this.onTransferEvent(body)
+      // case 'book.transfer.successful':
+      // case 'book.transfer.failed':
+      // case 'book.transfer.reversed':
+      //   return this.onBookTransferEvent(body)
+      default:
+        this.logger.log('unhandled event', { event: type })
+        break;
+    }
 
     return { message: 'webhook_handled' }
   }
