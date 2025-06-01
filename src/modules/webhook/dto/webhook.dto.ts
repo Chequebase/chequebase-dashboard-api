@@ -14,3 +14,8 @@ export class PaystackHeaderDto {
   @IsString()
   'x-paystack-signature': string
 }
+
+export class HydrogenHeaderDto {
+  @IsString()
+  'x-hydrogen-signature': string
+}

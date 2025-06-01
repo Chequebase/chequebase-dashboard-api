@@ -4,7 +4,7 @@ import AnchorWebhookHandler from "./handlers/anchor-webhook.handler";
 import { raw } from "express";
 import Logger from "../common/utils/logger";
 import { PaystackWebhookHandler } from "./handlers/paystack-webhook.handler";
-import { AnchorHeaderDto, MonoHeaderDto, PaystackHeaderDto } from "./dto/webhook.dto";
+import { AnchorHeaderDto, HydrogenHeaderDto, MonoHeaderDto, PaystackHeaderDto } from "./dto/webhook.dto";
 import SafeHavenWebhookHandler from "./handlers/safe-haven-webhook.handler";
 import MonoWebhookHandler from "./handlers/mono-webhook.handler";
 import SudoWebhookHandler from "./handlers/sudo-webhook.handler";
@@ -42,14 +42,14 @@ export default class WebhookController {
   @UseBefore(raw({ type: "application/json" }))
   async processHydrogen(
     @Body() body: any,
-    // @HeaderParams() headers: any
+    @HeaderParams() headers: HydrogenHeaderDto
   ) {
     logger.log("received hydrogen webhook", {
       // headers: JSON.stringify(headers),
       body: body.toString("utf-8"),
     });
 
-    return this.hydrogenHandler.processWebhook(body, { headers: {} });
+    return this.hydrogenHandler.processWebhook(body, headers);
   }
 
   @Post("/safe-haven")
