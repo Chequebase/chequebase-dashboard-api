@@ -20,7 +20,7 @@ import axios, {
   
     constructor() {
       this.logger = new Logger(HydrogenHttpClient.name);
-      this.axios = axios.create({ baseURL });
+      this.axios = axios.create({ baseURL: 'https://api.hydrogenpay.com' });
       this.axios.interceptors.request.use(this.injectTokenInterceptor, (err) => {
         this.logger.error("failed to inject access token", {
           message: err?.message,
