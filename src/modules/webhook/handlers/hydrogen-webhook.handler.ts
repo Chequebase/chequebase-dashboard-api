@@ -195,7 +195,7 @@ export default class HydrogenWebhookHandler {
 
   async processWebhook(body: any) {
     console.log({ body })
-    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.inflow, body);
+    await this.slackNotificationService.sendMessage(AllowedSlackWebhooks.outflow, body);
     // const expectedHmac = headers['x-anchor-signature']
     // const calcuatedHmac = this.createHmac(body)
     // if (calcuatedHmac !== expectedHmac) {
