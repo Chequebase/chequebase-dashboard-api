@@ -45,7 +45,7 @@ export default class WebhookController {
     @HeaderParams() headers: any
   ) {
     logger.log("received hydrogen webhook", {
-      headers,
+      headers: JSON.stringify(headers),
       body: body.toString("utf-8"),
     });
 
