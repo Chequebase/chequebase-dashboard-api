@@ -1,4 +1,4 @@
-import { IsString } from "class-validator"
+import { IsOptional, IsString } from "class-validator"
 
 export class AnchorHeaderDto {
   @IsString()
@@ -16,6 +16,7 @@ export class PaystackHeaderDto {
 }
 
 export class HydrogenHeaderDto {
+  @IsOptional()
   @IsString()
   'x-hydrogen-signature': string
 }
