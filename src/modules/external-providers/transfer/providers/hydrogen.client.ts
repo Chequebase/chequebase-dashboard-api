@@ -6,6 +6,7 @@ import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import { NotFoundError } from "routing-controllers";
 import { HydrogenHttpClient } from "@/modules/common/hygroden-http-client";
+import WalletEntry from "@/models/wallet-entry.model";
 
 export const HYDROGEN_TOKEN = new Token('transfer.provider.hydrogen')
 
@@ -40,10 +41,10 @@ export class HydrogenTransferClient implements TransferClient {
       return {
         status: statusCode === 90000 ? "successful" : "pending",
         message,
-        providerRef: res.data.data.id,
+        providerRef: resultData.transactionId,
         currency: 'NGN',
         amount: resultData.amount,
-        reference: resultData.transactionId,
+        reference: payload.reference,
         gatewayResponse: JSON.stringify(res.data)
       }
     } catch (err: any) {
@@ -67,15 +68,22 @@ export class HydrogenTransferClient implements TransferClient {
 
   async verifyTransferById(id: string): Promise<InitiateTransferResult>  {
     try {
-      const res = await this.httpClient.axios.get(`/api/v1/validate-transaction?TransactionRef=${id}`)
-      const result = res.data.data.attributes
-      let status = result.status.toLowerCase()
-      if (status === 'completed') status = 'successful'
+      const tx = await WalletEntry.findOne({ providerRef: id })
+  
+      if (!tx) {
+        throw new NotFoundError("Transaction not found");
+      }
+      console.log({ tx })
+      const res = await this.httpClient.axios.get(`/api/v1/FundsTransfer/status?transactionId=${id}&clientReference=${tx.reference}`)
+      console.log({ res })
+      const result = res.data.data
+      console.log({ result })
+      if (res.data.statusCode !== 90000) throw 'invalid transfer'
       
       return {
-        providerRef: res.data.data.id,
-        status,
-        reference: result.reference,
+        providerRef: res.data.data.transactionId,
+        status: (result.status).toLowerCase(),
+        reference: result.clientReference,
         amount: result.amount,
         currency: result.currency,
         message: result.reason,
@@ -85,6 +93,34 @@ export class HydrogenTransferClient implements TransferClient {
       this.logger.error('error verify transfer', {
         reason: JSON.stringify(err.response?.data || err?.message),
         transferId: id,
+        status: err.response?.status
+      });
+
+      if (err.response.status === 404) {
+        throw new NotFoundError('Transfer not found')
+      }
+
+      throw new ServiceUnavailableError('Unable to verify transfer');
+    }
+  }
+
+  async validateTransaction(ref: string): Promise<{ status: string, amount: number }>  {
+    try {
+      const res = await this.httpClient.axios.get(`/api/v1/validate-transaction?TransactionRef=${ref}`)
+      console.log({ res })
+      const result = res.data.data
+      console.log({ result })
+      const responseCode =  result.response_Code
+      if (responseCode !== '90000') throw 'invalid transaction'
+      
+      return {
+        status: 'successful',
+        amount: result.amount,
+      }
+    } catch (err: any) {
+      this.logger.error('error verify transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        transferId: ref,
         status: err.response?.status
       });
 

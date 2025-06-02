@@ -65,13 +65,16 @@ export default class HydrogenWebhookHandler {
   }
 
   private async onTransferEvent(body: any) {
-    // const transferId = body.data.relationships.transfer.data.id
-    // const verifyResponse = await this.hydrogenTransferClient.verifyTransferById(transferId)
+    try {
+      await this.hydrogenTransferClient.validateTransaction(body.Id)
+    } catch (error) {
+      this.logger.error('Unable to validate transaction', { error })
+      throw 'invalid transaction'
+    }
 
     const jobData = {
       amount: body.Amount,
       currency: body.Currency,
-      // gatewayResponse: verifyResponse.gatewayResponse,
       reference: body.Id,
       status: (body.DebitStatus || body.CreditStatus).toLowerCase()
     }
@@ -206,13 +209,7 @@ export default class HydrogenWebhookHandler {
       case 'credit':
         return this.onPaymentSettled(body)
       case 'debit':
-      // case 'nip.transfer.failed':
-      // case 'nip.transfer.reversed':
         return this.onTransferEvent(body)
-      // case 'book.transfer.successful':
-      // case 'book.transfer.failed':
-      // case 'book.transfer.reversed':
-      //   return this.onBookTransferEvent(body)
       default:
         this.logger.log('unhandled event', { event: type })
         break;
