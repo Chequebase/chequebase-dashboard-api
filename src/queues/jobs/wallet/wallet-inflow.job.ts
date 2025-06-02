@@ -55,6 +55,13 @@ function calculateInflowFee(amount: number): number {
   }
 }
 
+function calculateInflowFeeHydrogen(amount: number): number {
+  if (amount <= 0) {
+      throw new Error("Invalid amount");
+  }
+  return Math.round(amount * 0.002);
+}
+
 async function processWalletInflow(job: Job<WalletInflowData>) {
   const data = job.data
   console.log({ data })
@@ -81,7 +88,8 @@ async function processWalletInflow(job: Job<WalletInflowData>) {
       throw new BadRequestError('Virtual account not found')
     }
 
-    let inflowFee = calculateInflowFee(amount)
+    // let inflowFee = calculateInflowFee(amount)
+    let inflowFee = calculateInflowFeeHydrogen(amount)
     // if it's internal fee is 0
     inflowFee = (providerChannel && providerChannel !== 'NIP') ? 0 : inflowFee
     const creditedAmount = amount - inflowFee;
