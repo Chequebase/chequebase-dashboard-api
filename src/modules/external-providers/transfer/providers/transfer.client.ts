@@ -92,4 +92,5 @@ export abstract class TransferClient {
   abstract currencies: string[]
   abstract initiateTransfer(payload: InitiateTransferData): Promise<InitiateTransferResult>;
   abstract verifyTransferById(id: string): Promise<InitiateTransferResult>;
+  abstract validateTransaction(ref: string): Promise<{ status: string, amount: number }>;
 }

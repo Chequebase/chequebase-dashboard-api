@@ -4,6 +4,7 @@ import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
 import axios from "axios";
 import { Service, Token } from "typedi";
 import { InitiateTransferData, InitiateTransferResult, TransferClient } from "./transfer.client";
+import { NotFoundError } from "routing-controllers";
 
 
 export const SAREPAY_TOKEN = new Token('transfer.provider.sarepay')
@@ -73,6 +74,34 @@ export class SarePayTransferClient implements TransferClient {
       }
     } catch (err) {
       throw new ServiceUnavailableError('Unable to verify transfer')
+    }
+  }
+
+  async validateTransaction(ref: string): Promise<{ status: string, amount: number }>  {
+    try {
+      // const res = await this.httpClient.axios.get(`/api/v1/validate-transaction?TransactionRef=${ref}`)
+      // console.log({ res })
+      // const result = res.data.data
+      // console.log({ result })
+      // const responseCode =  result.response_Code
+      // if (responseCode !== '90000') throw 'invalid transaction'
+      
+      return {
+        status: 'successful',
+        amount: 0,
+      }
+    } catch (err: any) {
+      this.logger.error('error verify transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        transferId: ref,
+        status: err.response?.status
+      });
+
+      if (err.response.status === 404) {
+        throw new NotFoundError('Transfer not found')
+      }
+
+      throw new ServiceUnavailableError('Unable to verify transfer');
     }
   }
 }
