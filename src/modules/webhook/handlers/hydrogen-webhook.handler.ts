@@ -20,7 +20,7 @@ export default class HydrogenWebhookHandler {
 
   private async onPaymentSettled(body: any) {
     const jobData: WalletInflowData = {
-      amount: Number(body.Amount),
+      amount: Number(body.Amount) * 100,
       accountNumber: body.DestinationAccount,
       currency: 'NGN',
       gatewayResponse: JSON.stringify(body),
@@ -35,11 +35,7 @@ export default class HydrogenWebhookHandler {
       }
     }
 
-    console.log({ jobData })
-
     await walletQueue.add('processWalletInflow', jobData)
-
-    console.log('pushed to queue', { jobData })
 
     await this.onPaymentSettledNotification({
       ...jobData,
