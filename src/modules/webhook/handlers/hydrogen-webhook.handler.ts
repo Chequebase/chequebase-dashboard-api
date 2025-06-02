@@ -28,7 +28,7 @@ export default class HydrogenWebhookHandler {
       gatewayResponse: JSON.stringify(body),
       narration: body.Description,
       reference: body.TransactionRef,
-      providerRef: body.UnifiedReference,
+      providerRef: body.TransactionRef,
       paymentMethod: 'transfer',
       sourceAccount: {
         accountName: body.AccountName,
