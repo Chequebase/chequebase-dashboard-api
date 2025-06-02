@@ -116,7 +116,7 @@ export default class HydrogenWebhookHandler {
 
   private async onTransferEventNotification(notification: any): Promise<any> {
     const { amount, status, reference } = notification;
-    const correctAmount = +amount / 100;
+    const correctAmount = +amount;
     const successTopic = ':warning: Merchant Wallet Outflow Success :warning:';
     const failureTopic = ':alert: Merchant Wallet Outflow Failed :alert:'
     const reversedTopic = ':alert: Merchant Wallet Outflow Reversed :alert:'
