@@ -14,8 +14,8 @@ export enum AllowedSlackWebhooks {
 }
 
 export const webhookMap = {
-  outflow: 'https://hooks.slack.com/services/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',
-  inflow: 'https://hooks.slack.com/services/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',
+  outflow: 'https://hooks.slack.com/services/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',
+  inflow: 'https://hooks.slack.com/services/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',
   compliance: 'https://hooks.slack.com/services/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',
   sales: 'https://hooks.slack.com/services/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',
   reportTransaction: 'https://hooks.slack.com/services/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',
