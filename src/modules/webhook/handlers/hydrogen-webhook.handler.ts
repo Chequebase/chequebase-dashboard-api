@@ -19,21 +19,17 @@ export default class HydrogenWebhookHandler {
   constructor (@Inject(HYDROGEN_TOKEN) private hydrogenTransferClient: HydrogenTransferClient, private slackNotificationService: SlackNotificationService) { }
 
   private async onPaymentSettled(body: any) {
-    const payment = body.data.attributes.payment
-
-    const jobData: WalletInflowData = {
-      amount: payment.amount,
-      accountNumber: payment.virtualNuban.accountNumber,
-      currency: payment.currency,
+    const jobData = {
+      amount: Number(body.Amount),
+      accountNumber: body.DestinationAccount,
+      currency: 'NGN',
       gatewayResponse: JSON.stringify(body),
-      narration: payment.narration,
-      reference: payment.paymentId,
-      providerRef: payment.paymentId,
-      paymentMethod: payment.type,
+      narration: body.Description,
+      reference: body.TransactionRef,
+      providerRef: body.UnifiedReference,
       sourceAccount: {
-        accountName: payment.counterParty?.accountName,
-        accountNumber: payment.counterParty?.accountNumber,
-        bankName: payment.counterParty?.bank?.name
+        accountName: body.AccountName,
+        bankName: body.BankName
       }
     }
 
@@ -41,8 +37,7 @@ export default class HydrogenWebhookHandler {
 
     await this.onPaymentSettledNotification({
       ...jobData,
-      customerId: payment.virtualNuban.accountId,
-      businessName: payment.virtualNuban.accountName
+      customerId: body.DestinationAccount,
     })
 
     return { message: 'payment queued' }
@@ -97,15 +92,13 @@ export default class HydrogenWebhookHandler {
     return { message: 'book transfer event queued' }
   }
 
-  private async onPaymentSettledNotification(notification: WalletInflowDataNotification): Promise<void> {
-    const { amount, sourceAccount: { accountName, accountNumber, bankName }, paymentMethod, reference, customerId, businessName } = notification;
+  private async onPaymentSettledNotification(notification: any): Promise<void> {
+    const { amount, sourceAccount: { accountName, bankName }, reference, customerId, businessName } = notification;
     const correctAmount = +amount / 100;
     const message = `:rocket: Merchant Wallet Inflow :rocket: \n\n
       *Merchant*: ${businessName} (${customerId})
       *Reference*: ${reference}
       *Amount*: ${correctAmount}
-      *Paymentmethod*: ${paymentMethod}
-      *SourceAccountNumber*: ${accountNumber}
       *SourceAccountName*: ${accountName}
       *SourceBank*: ${bankName}
     `;
@@ -209,12 +202,12 @@ export default class HydrogenWebhookHandler {
     // }
     let type;
     if (body.DebitStatus && body.DebitStatus === 'Successful') type = 'debit'
-    if (body.CreditStatus && body.CreditStatus === 'Successful') type = 'credit'
+    if (body.DestinationAccount) type = 'credit'
 
 
     switch (type) {
       case 'credit':
-        // return this.onPaymentSettled(body)
+        return this.onPaymentSettled(body)
       case 'debit':
       // case 'nip.transfer.failed':
       // case 'nip.transfer.reversed':
