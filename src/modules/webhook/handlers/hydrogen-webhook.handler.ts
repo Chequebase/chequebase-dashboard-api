@@ -19,7 +19,7 @@ export default class HydrogenWebhookHandler {
   constructor (@Inject(HYDROGEN_TOKEN) private hydrogenTransferClient: HydrogenTransferClient, private slackNotificationService: SlackNotificationService) { }
 
   private async onPaymentSettled(body: any) {
-    const jobData = {
+    const jobData: WalletInflowData = {
       amount: Number(body.Amount),
       accountNumber: body.DestinationAccount,
       currency: 'NGN',
@@ -27,13 +27,19 @@ export default class HydrogenWebhookHandler {
       narration: body.Description,
       reference: body.TransactionRef,
       providerRef: body.UnifiedReference,
+      paymentMethod: 'transfer',
       sourceAccount: {
         accountName: body.AccountName,
+        accountNumber: 'DUMMY',
         bankName: body.BankName
       }
     }
 
+    console.log({ jobData })
+
     await walletQueue.add('processWalletInflow', jobData)
+
+    console.log('pushed to queue', { jobData })
 
     await this.onPaymentSettledNotification({
       ...jobData,
