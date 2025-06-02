@@ -11,6 +11,8 @@ import { RequiredDocumentsJobData, KYCProviderData } from '@/queues/jobs/organiz
 import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common/slack/slackNotification.service';
 import WalletEntry from '@/models/wallet-entry.model';
 import { HYDROGEN_TOKEN, HydrogenTransferClient } from '@/modules/external-providers/transfer/providers/hydrogen.client';
+import VirtualAccount from '@/models/virtual-account.model';
+import { IWallet } from '@/models/wallet.model';
 
 @Service()
 export default class HydrogenWebhookHandler {
@@ -37,8 +39,15 @@ export default class HydrogenWebhookHandler {
 
     await walletQueue.add('processWalletInflow', jobData)
 
+    const virtualAccount = await VirtualAccount.findOne({ accountNumber: body.DestinationAccount })
+    .sort({ createdAt: -1 })
+    if (!virtualAccount) {
+      console.log('strangely cannot find virtual account', { reference: body.TransactionRef, accountNumber: body.DestinationAccount })
+      throw new BadRequestError('Virtual account not found')
+    }
     await this.onPaymentSettledNotification({
       ...jobData,
+      businessName: virtualAccount.name,
       customerId: body.DestinationAccount,
     })
 
