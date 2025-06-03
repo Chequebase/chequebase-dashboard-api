@@ -89,7 +89,7 @@ async function addWalletEntriesForClearance(job: Job) {
         // WalletEntryScope.PayrollPayout
       ]
     },
-    createdAt: { $lte: dayjs().subtract(1, 'hour').toDate() },
+    // createdAt: { $lte: dayjs().subtract(1, 'hour').toDate() },
   }
 
   const entries = await WalletEntry.find(filter)
