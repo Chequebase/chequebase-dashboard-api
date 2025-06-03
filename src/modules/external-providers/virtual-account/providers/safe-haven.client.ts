@@ -13,6 +13,7 @@ import {
   VirtualAccountClient,
   VirtualAccountClientName,
 } from "./virtual-account.client";
+import { NotFoundError } from "routing-controllers";
 
 export const SAFE_HAVEN_VA_TOKEN = new Token("va.provider.safe-haven");
 const settlementAccount = getEnvOrThrow("SAFE_HAVEN_SETTLEMENT_ACCOUNT_NUMBER");
@@ -172,5 +173,33 @@ export class SafeHavenVirtualAccountClient implements VirtualAccountClient {
     });
 
     return { data, status, message: responseMsg || message };
+  }
+
+  async validateTransaction(ref: string): Promise<{ status: string, amount: number }>  {
+    try {
+      // const res = await this.httpClient.axios.get(`/api/v1/validate-transaction?TransactionRef=${ref}`)
+      // console.log({ res })
+      // const result = res.data.data
+      // console.log({ result })
+      // const responseCode =  result.response_Code
+      // if (responseCode !== '90000') throw 'invalid transaction'
+      
+      return {
+        status: 'successful',
+        amount: 0,
+      }
+    } catch (err: any) {
+      this.logger.error('error verify transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        transferId: ref,
+        status: err.response?.status
+      });
+
+      if (err.response.status === 404) {
+        throw new NotFoundError('Transfer not found')
+      }
+
+      throw new ServiceUnavailableError('Unable to verify transfer');
+    }
   }
 }

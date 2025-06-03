@@ -4,7 +4,7 @@ import { getEnvOrThrow } from "@/modules/common/utils";
 import { CreateDepositAccountData, CreateDepositAccountResult, CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountClient, VirtualAccountClientName } from "./virtual-account.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
-import { BadRequestError } from "routing-controllers";
+import { BadRequestError, NotFoundError } from "routing-controllers";
 
 export const ANCHOR_TOKEN = new Token('va.provider.anchor')
 
@@ -183,6 +183,34 @@ export class AnchorVirtualAccountClient implements VirtualAccountClient {
       });
 
       throw new ServiceUnavailableError('Unable to get deposit account');
+    }
+  }
+
+  async validateTransaction(ref: string): Promise<{ status: string, amount: number }>  {
+    try {
+      // const res = await this.httpClient.axios.get(`/api/v1/validate-transaction?TransactionRef=${ref}`)
+      // console.log({ res })
+      // const result = res.data.data
+      // console.log({ result })
+      // const responseCode =  result.response_Code
+      // if (responseCode !== '90000') throw 'invalid transaction'
+      
+      return {
+        status: 'successful',
+        amount: 0,
+      }
+    } catch (err: any) {
+      this.logger.error('error verify transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        transferId: ref,
+        status: err.response?.status
+      });
+
+      if (err.response.status === 404) {
+        throw new NotFoundError('Transfer not found')
+      }
+
+      throw new ServiceUnavailableError('Unable to verify transfer');
     }
   }
 }

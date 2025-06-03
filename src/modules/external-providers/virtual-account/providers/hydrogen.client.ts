@@ -4,6 +4,7 @@ import { getEnvOrThrow } from "@/modules/common/utils";
 import { CreateVirtualAccountData, CreateVirtualAccountResult, VirtualAccountClient, VirtualAccountClientName } from "./virtual-account.client";
 import Logger from "@/modules/common/utils/logger";
 import { ServiceUnavailableError } from "@/modules/common/utils/service-errors";
+import { NotFoundError } from "routing-controllers";
 
 export const HYDROGEN_TOKEN = new Token('va.provider.hydrogen')
 
@@ -12,11 +13,11 @@ export class HydrogrVirtualAccountClient implements VirtualAccountClient {
   currencies = ['NGN']
   logger = new Logger(HydrogrVirtualAccountClient.name)
   http = axios.create({
-    baseURL: getEnvOrThrow('HYDROGEN_BASE_URI'),
+    baseURL: 'https://api.hydrogenpay.com',
     headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
-        'Authorization': `${getEnvOrThrow('HYDROGEN_API_KEY')}`
+        'Authorization': `Bearer SK_LIVE_aa97c285c1f37c9525799938787183b287f74c757b76a9891b8c756091b97bff4531bf4f3b7f6555d3a9a9d8b68b6f70935d38f9dd82a5f7f691a20c5c7d59de`
     }
   })
 
@@ -151,5 +152,33 @@ export class HydrogrVirtualAccountClient implements VirtualAccountClient {
     });
 
     return { data, status, message: responseMsg || message };
+  }
+
+  async validateTransaction(ref: string): Promise<{ status: string, amount: number }>  {
+    try {
+      const res = await this.http.get(`/api/v1/validate-transaction?TransactionRef=${ref}`)
+      console.log({ res })
+      const result = res.data.data
+      console.log({ result })
+      const responseCode =  result.response_Code
+      if (responseCode !== '90000') throw 'invalid transaction'
+      
+      return {
+        status: 'successful',
+        amount: result.amount,
+      }
+    } catch (err: any) {
+      this.logger.error('error verify transfer', {
+        reason: JSON.stringify(err.response?.data || err?.message),
+        transferId: ref,
+        status: err.response?.status
+      });
+
+      if (err.response.status === 404) {
+        throw new NotFoundError('Transfer not found')
+      }
+
+      throw new ServiceUnavailableError('Unable to verify transfer');
+    }
   }
 }

@@ -11,14 +11,16 @@ import { RequiredDocumentsJobData, KYCProviderData } from '@/queues/jobs/organiz
 import { AllowedSlackWebhooks, SlackNotificationService } from '@/modules/common/slack/slackNotification.service';
 import WalletEntry from '@/models/wallet-entry.model';
 import { HYDROGEN_TOKEN, HydrogenTransferClient } from '@/modules/external-providers/transfer/providers/hydrogen.client';
+import { HYDROGEN_TOKEN as VirtualAccToken } from '@/modules/external-providers/virtual-account/providers/hydrogen.client';
 import VirtualAccount from '@/models/virtual-account.model';
 import { IWallet } from '@/models/wallet.model';
+import { HydrogrVirtualAccountClient } from '@/modules/external-providers/virtual-account/providers/hydrogen.client';
 
 @Service()
 export default class HydrogenWebhookHandler {
   private logger = new Logger(HydrogenWebhookHandler.name)
 
-  constructor (@Inject(HYDROGEN_TOKEN) private hydrogenTransferClient: HydrogenTransferClient, private slackNotificationService: SlackNotificationService) { }
+  constructor (@Inject(HYDROGEN_TOKEN) private hydrogenTransferClient: HydrogenTransferClient, @Inject(VirtualAccToken) private hydrogenVirtualAccountClient: HydrogrVirtualAccountClient, private slackNotificationService: SlackNotificationService) { }
 
   private async onPaymentSettled(body: any) {
     const jobData: WalletInflowData = {
@@ -66,7 +68,7 @@ export default class HydrogenWebhookHandler {
 
   private async onTransferEvent(body: any) {
     try {
-      await this.hydrogenTransferClient.validateTransaction(body.Id)
+      await this.hydrogenVirtualAccountClient.validateTransaction(body.Id)
     } catch (error) {
       this.logger.error('Unable to validate transaction', { error })
       throw 'invalid transaction'
@@ -76,7 +78,7 @@ export default class HydrogenWebhookHandler {
       amount: body.Amount,
       currency: body.Currency,
       reference: body.Id,
-      status: (body.DebitStatus || body.CreditStatus).toLowerCase()
+      status: (body.DebitStatus || 'successful').toLowerCase()
     }
 
     await walletQueue.add('processWalletOutflow', jobData)
@@ -201,7 +203,7 @@ export default class HydrogenWebhookHandler {
     //   return { message: 'webhook_logged' }
     // }
     let type;
-    if (body.DebitStatus && body.DebitStatus === 'Successful') type = 'debit'
+    if (body.DebitStatus) type = 'debit'
     if (body.DestinationAccount) type = 'credit'
 
 

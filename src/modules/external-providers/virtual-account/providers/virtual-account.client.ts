@@ -54,6 +54,7 @@ export abstract class VirtualAccountClient {
   abstract currencies: string[]
   abstract createStaticVirtualAccount(payload: CreateVirtualAccountData, depositAccount?: string): Promise<CreateVirtualAccountResult>;
   abstract createDynamicVirtualAccount(payload: CreateVirtualAccountData): Promise<CreateVirtualAccountResult>;
+  abstract validateTransaction(ref: string): Promise<{ status: string, amount: number }>;
 }
 
 export abstract class DepositAccountClient {
