@@ -79,8 +79,11 @@ export default class HydrogenWebhookHandler {
       amount: body.Amount,
       currency: body.Currency,
       reference: body.Id,
-      status: (body.DebitStatus || 'successful').toLowerCase()
+      status: (body.DebitStatus || 'successful').toLowerCase(),
+      gatewayResponse: JSON.stringify(body)
     }
+
+    console.log({ jobData })
 
     await walletQueue.add('processWalletOutflow', jobData)
 
