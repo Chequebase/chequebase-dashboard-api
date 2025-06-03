@@ -46,7 +46,7 @@ function setupQueues() {
     walletQueue.process('processWalletEntryClearance', 5, processWalletEntryClearance)
     walletQueue.process('addWalletEntriesForClearance', addWalletEntriesForClearance)
     walletQueue.add('addWalletEntriesForClearance', null, {
-      repeat: { cron: '* * * * *', tz } // every minute
+      repeat: { cron: '0  * * * *', tz } // every hour
     })
     mandateQueue.process("processMandateExpired", processMandateExpired);
     mandateQueue.add("processMandateExpired", null, {

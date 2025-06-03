@@ -43,7 +43,7 @@ async function processWalletEntryClearance(job: Job) {
       // --- does not work for hydrogen, relying soley on webhook for now
       result = await transferClient.verifyTransferById(providerRef!)
       console.log({ result })
-      if (!['failed', 'reversed', 'successful'].includes(result.status)) {
+      if (!['failed', 'reversed', 'successful'].includes(result.status.toLowerCase())) {
         logger.log('unexpected status from provider', { response: JSON.stringify(result) })
         return { message: 'unexpected status from provider' }
       }
@@ -63,11 +63,11 @@ async function processWalletEntryClearance(job: Job) {
     }
 
     const jobData: WalletOutflowData = {
-      amount: result.amount,
-      currency: result.currency,
-      gatewayResponse: result.gatewayResponse,
-      reference: result.reference,
-      status: result.status as WalletOutflowData['status']
+      amount: entry.amount,
+      currency: entry.currency,
+      gatewayResponse: JSON.stringify(entry),
+      reference: entry.providerRef!,
+      status: result.status.toLowerCase() as WalletOutflowData['status']
     }
 
     await job.queue.add('processWalletOutflow', jobData)
