@@ -68,7 +68,7 @@ export default class SarepayVirtualAccountClient implements VirtualAccountClient
         amount: 0,
       }
     } catch (err: any) {
-      this.logger.error('error verify transfer', {
+      this.logger.error('error verifying transfer', {
         reason: JSON.stringify(err.response?.data || err?.message),
         transferId: ref,
         status: err.response?.status
