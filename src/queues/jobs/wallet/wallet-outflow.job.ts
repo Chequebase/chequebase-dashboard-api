@@ -78,7 +78,7 @@ async function handleSuccessful(data: WalletOutflowData) {
   try {
     let entry: HydratedDocument<IWalletEntry> | undefined | null;
     await cdb.transaction(async (session) => {
-      entry = await WalletEntry.findOne({ reference: data.reference })
+      entry = await WalletEntry.findOne({ providerRef: data.reference })
         .populate<{ initiatedBy: IUser }>("initiatedBy")
         .populate<{ wallet: IWallet }>("wallet")
         .populate<{ budget: IBudget }>("budget")
@@ -87,7 +87,7 @@ async function handleSuccessful(data: WalletOutflowData) {
           "businessName"
         ).session(session);
       if (!entry) {
-        logger.error("entry not found", { reference: data.reference });
+        logger.error("entry not found", { providerRef: data.reference });
         throw new BadRequestError("Wallet entry does not exist");
       }
 
