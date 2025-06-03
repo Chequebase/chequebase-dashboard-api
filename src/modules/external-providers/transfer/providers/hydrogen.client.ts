@@ -40,7 +40,7 @@ export class HydrogenTransferClient implements TransferClient {
       return {
         status: statusCode === 90000 ? "successful" : "pending",
         message,
-        providerRef: resultData.id,
+        providerRef: resultData.transactionId,
         currency: 'NGN',
         amount: resultData.amount,
         reference: payload.reference,

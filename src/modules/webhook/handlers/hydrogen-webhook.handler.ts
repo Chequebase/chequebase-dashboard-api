@@ -67,12 +67,13 @@ export default class HydrogenWebhookHandler {
   }
 
   private async onTransferEvent(body: any) {
-    try {
-      await this.hydrogenVirtualAccountClient.validateTransaction(body.Id)
-    } catch (error) {
-      this.logger.error('Unable to validate transaction', { error })
-      throw 'invalid transaction'
-    }
+    // ---- not working as expected yet
+    // try {
+    //   await this.hydrogenVirtualAccountClient.validateTransaction(body.Id)
+    // } catch (error) {
+    //   this.logger.error('Unable to validate transaction', { error })
+    //   throw 'invalid transaction'
+    // }
 
     const jobData = {
       amount: body.Amount,
