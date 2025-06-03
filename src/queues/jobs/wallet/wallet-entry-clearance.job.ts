@@ -41,6 +41,7 @@ async function processWalletEntryClearance(job: Job) {
 
     try {
       result = await transferClient.verifyTransferById(providerRef!)
+      console.log({ result })
       if (!['failed', 'reversed', 'successful'].includes(result.status)) {
         logger.log('unexpected status from provider', { response: JSON.stringify(result) })
         return { message: 'unexpected status from provider' }
