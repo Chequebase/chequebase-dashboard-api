@@ -40,6 +40,7 @@ async function processWalletEntryClearance(job: Job) {
     let result: any
 
     try {
+      // --- does not work for hydrogen, relying soley on webhook for now
       result = await transferClient.verifyTransferById(providerRef!)
       console.log({ result })
       if (!['failed', 'reversed', 'successful'].includes(result.status)) {
